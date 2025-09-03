@@ -4092,6 +4092,80 @@ class DefaultAssetManager {
   }
 
   resolve(path, transformFncs) {
+    if (path.getExtension().equals("")) {
+      let files = this.loader.listFiles(path, true);
+      for (let file of files) {
+        this.resolve(file, transformFncs);
+      }
+      return ;
+    }
+    let fullyLoaded = false;
+    if (this.dict.containsKey(path)) {
+      fullyLoaded = true;
+      for (let id of this.dict.get(path)) {
+        if (!this.bank.containsKey(id)) {
+          fullyLoaded = false;
+          break;
+        }
+      }
+    }
+    if (fullyLoaded) {
+      return ;
+    }
+    let ag = AssetGroup.empty();
+    if (path.getExtension().equals("tap")) {
+      let buf = this.loader.loadFile(path);
+      let tap = Taps.fromBytes(buf);
+      ag = Taps.toAssetGroup(tap);
+    }
+    else if (path.getExtension().equals("png")) {
+      ag = Assets.loadTexture(this.loader, path);
+    }
+    else if (path.getExtension().equals("mtl")) {
+      ag = Objs.loadMtlLibrary(this.loader, path);
+    }
+    else if (path.getExtension().equals("obj")) {
+      ag = Objs.loadModel(this.loader, path);
+    }
+    else if (path.getExtension().equals("fnt")) {
+      ag = Fonts.loadFnt(this.loader, path, AssetGroup.empty());
+    }
+    else if (path.getExtension().equals("wav")) {
+      ag = Assets.loadSound(this.loader, path);
+    }
+    for (let clazz of transformFncs.keySet()) {
+      if (clazz.equals("Texture")) {
+        ag = ag.transform("Texture", (transformFncs.get(clazz)));
+      }
+      else if (clazz.equals("Material")) {
+        ag = ag.transform("Material", (transformFncs.get(clazz)));
+      }
+      else if (clazz.equals("Mesh")) {
+        ag = ag.transform("Mesh", (transformFncs.get(clazz)));
+      }
+      else if (clazz.equals("Model")) {
+        ag = ag.transform("Model", (transformFncs.get(clazz)));
+      }
+      else if (clazz.equals("Font")) {
+        ag = ag.transform("Font", (transformFncs.get(clazz)));
+      }
+      else if (clazz.equals("Sound")) {
+        ag = ag.transform("Sound", (transformFncs.get(clazz)));
+      }
+      else {
+        throw "unsupported class for transformation, implement me: "+clazz;
+      }
+    }
+    for (let key of ag.getKeys()) {
+      if (this.bank.containsKey(key)) {
+        throw "bank already contains "+key;
+      }
+    }
+    for (let key of ag.getKeys()) {
+      this.bank.put(key, ag.get(key));
+    }
+    this.dict.put(path, ag.getKeys());
+    this.attachCompasnions(ag);
   }
 
   put(key, asset) {
