@@ -5,6 +5,7 @@
 let gl;
 let tyracornApp;
 let drivers;
+let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
 let baseUrl = ".";
 
@@ -70,17 +71,23 @@ class Float {
 // String extensions
 // -------------------------------------
 
+String.prototype.startsWith = function (str) {
+    return this.indexOf(str, 0) === 0;
+};
+String.prototype.contains = function (str) {
+    return this.includes(str);
+};
 String.prototype.equals = function (that) {
     return this === that;
 };
-String.prototype.hashCode = function() {
+String.prototype.hashCode = function () {
     let hash = 0;
-    
+
     // Return 0 for empty strings
     if (this.length === 0) {
         return hash;
     }
-    
+
     // Calculate hash using polynomial rolling hash
     for (let i = 0; i < this.length; i++) {
         const char = this.charCodeAt(i);
@@ -88,7 +95,7 @@ String.prototype.hashCode = function() {
         // Convert to 32-bit integer to prevent overflow
         hash = hash & hash;
     }
-    
+
     return hash;
 };
 // -------------------------------------
@@ -225,6 +232,85 @@ class ArrayList {
         for (let i = 0; i < this._data.length; i++) {
             yield this._data[i];
         }
+    }
+    equals(other) {
+        // Check if other is an ArrayList or array-like object
+        if (!other || !(other instanceof ArrayList)) {
+            return false;
+        }
+
+        // Check if lengths are equal
+        const otherLength = other.length || (other._data ? other._data.length : 0);
+        if (this._data.length !== otherLength) {
+            return false;
+        }
+
+        // Compare each element using their equals method
+        for (let i = 0; i < this._data.length; i++) {
+            const thisElement = this._data[i];
+            const otherElement = other._data ? other._data[i] : other[i];
+
+            // Handle null/undefined elements
+            if (thisElement === null && otherElement === null)
+                continue;
+            if (thisElement === undefined && otherElement === undefined)
+                continue;
+            if (thisElement === null || thisElement === undefined ||
+                    otherElement === null || otherElement === undefined) {
+                return false;
+            }
+
+            // Use equals method if available, otherwise use strict equality
+            if (typeof thisElement.equals === 'function') {
+                if (!thisElement.equals(otherElement)) {
+                    return false;
+                }
+            } else {
+                if (thisElement !== otherElement) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    // Generate hash code for the ArrayList
+    hashCode() {
+        let hash = 1;
+        const prime = 31;
+
+        for (let i = 0; i < this._data.length; i++) {
+            const element = this._data[i];
+            let elementHash = 0;
+
+            if (element === null) {
+                elementHash = 0;
+            } else if (element === undefined) {
+                elementHash = 0;
+            } else if (typeof element.hashCode === 'function') {
+                elementHash = element.hashCode();
+            } else if (typeof element === 'string') {
+                // Simple string hash function
+                for (let j = 0; j < element.length; j++) {
+                    elementHash = ((elementHash << 5) - elementHash + element.charCodeAt(j)) & 0xffffffff;
+                }
+            } else if (typeof element === 'number') {
+                elementHash = element | 0; // Convert to 32-bit integer
+            } else if (typeof element === 'boolean') {
+                elementHash = element ? 1 : 0;
+            } else {
+                // For other objects, use a simple hash based on string representation
+                const str = element.toString();
+                for (let j = 0; j < str.length; j++) {
+                    elementHash = ((elementHash << 5) - elementHash + str.charCodeAt(j)) & 0xffffffff;
+                }
+            }
+
+            hash = (hash * prime + elementHash) & 0xffffffff;
+        }
+
+        return hash;
     }
 
     // String representation
@@ -563,12 +649,12 @@ class HashMap {
         if (key === null || key === undefined) {
             return 0;
         }
-        
+
         // Use the object's hashCode method if available
         if (typeof key.hashCode === 'function') {
             return Math.abs(key.hashCode()) % this.capacity;
         }
-        
+
         // Fallback for primitive types
         let hash = 0;
         const str = String(key);
@@ -583,16 +669,16 @@ class HashMap {
         if (key1 === key2) {
             return true;
         }
-        
+
         if (key1 === null || key1 === undefined || key2 === null || key2 === undefined) {
             return false;
         }
-        
+
         // Use the object's equals method if available
         if (typeof key1.equals === 'function') {
             return key1.equals(key2);
         }
-        
+
         // Fallback to strict equality for primitives
         return key1 === key2;
     }
@@ -618,6 +704,18 @@ class HashMap {
             this.resize();
         }
 
+        return null;
+    }
+
+    putAll(map) {
+        for (const bucket of map.buckets) {
+            for (const [key, value] of bucket) {
+                if (key === undefined) {
+                    continue;
+                }
+                this.put(key, value);
+            }
+        }
         return null;
     }
 
@@ -660,16 +758,16 @@ class HashMap {
         if (value1 === value2) {
             return true;
         }
-        
+
         if (value1 === null || value1 === undefined || value2 === null || value2 === undefined) {
             return false;
         }
-        
+
         // Use the object's equals method if available
         if (typeof value1.equals === 'function') {
             return value1.equals(value2);
         }
-        
+
         // Fallback to strict equality for primitives
         return value1 === value2;
     }
@@ -718,7 +816,7 @@ class HashMap {
         const entries = [];
         for (const bucket of this.buckets) {
             for (const [key, value] of bucket) {
-                entries.push({ key, value });
+                entries.push({key, value});
             }
         }
         return entries;
@@ -758,17 +856,17 @@ class HashMap {
                 // Combine hash codes of key and value
                 let keyHash = 0;
                 let valueHash = 0;
-                
+
                 if (key !== null && key !== undefined) {
-                    keyHash = typeof key.hashCode === 'function' ? 
-                        key.hashCode() : this.primitiveHashCode(key);
+                    keyHash = typeof key.hashCode === 'function' ?
+                            key.hashCode() : this.primitiveHashCode(key);
                 }
-                
+
                 if (value !== null && value !== undefined) {
-                    valueHash = typeof value.hashCode === 'function' ? 
-                        value.hashCode() : this.primitiveHashCode(value);
+                    valueHash = typeof value.hashCode === 'function' ?
+                            value.hashCode() : this.primitiveHashCode(value);
                 }
-                
+
                 // XOR key and value hash codes (similar to Java's HashMap)
                 hash ^= keyHash ^ valueHash;
             }
@@ -784,7 +882,7 @@ class HashMap {
         if (typeof obj === 'boolean') {
             return obj ? 1231 : 1237;
         }
-        
+
         let hash = 0;
         const str = String(obj);
         for (let i = 0; i < str.length; i++) {
@@ -798,15 +896,15 @@ class HashMap {
         if (this === other) {
             return true;
         }
-        
+
         if (!(other instanceof HashMap)) {
             return false;
         }
-        
+
         if (this.size !== other.size) {
             return false;
         }
-        
+
         // Check if all key-value pairs match
         for (const bucket of this.buckets) {
             for (const [key, value] of bucket) {
@@ -816,14 +914,14 @@ class HashMap {
                 }
             }
         }
-        
+
         return true;
     }
 }
-// -------------------------------------
-// FMath
-// -------------------------------------
-
+/**
+ * Floating point math utilities.
+ * This is wrapper to match the java implementatino.
+ */
 class FMath {
     static PI = Math.PI;
 
@@ -833,6 +931,10 @@ class FMath {
 
     static max(a, b) {
         return Math.max(a, b);
+    }
+
+    static abs(a) {
+        return Math.abs(a);
     }
 
     static sin(x) {
@@ -860,15 +962,67 @@ class FMath {
     }
 
 }
-// -------------------------------------
-// Dut
-// -------------------------------------
+/**
+ * String utility class.
+ */
+class StringUtils {
 
+    /**
+     * Removes leading and trailing whitespace from a string.
+     * If the string is null or undefined, returns an empty string.
+     * 
+     * @param {string|null|undefined} str - The string to trim
+     * @returns {string} The trimmed string, or empty string if input is null/undefined
+     */
+    static trimToEmpty(str) {
+        if (str == null) {
+            return '';
+        }
+        return str.toString().trim();
+    }
+
+}
+/**
+ * Collections class.
+ */
+class Collections {
+    /**
+     * Returns empty list.
+     * 
+     * @returns {ArrayList} empty list
+     */
+    static emptyList() {
+        let res = new ArrayList();
+        return res;
+    }
+
+    /**
+     * Returns empty map.
+     * 
+     * @returns {HashMap} empty map
+     */
+    static emptyMap() {
+        let res = new HashMap();
+        return res;
+    }
+
+}
+/**
+ * Domain utility class.
+ */
 class Dut {
     static list() {
         let res = new ArrayList();
         for (let arg = 0; arg < arguments.length; ++arg) {
             res.add(arguments[arg]);
+        }
+        return res;
+    }
+
+    static map() {
+        let res = new HashMap();
+        for (let arg = 0; arg < arguments.length; arg = arg + 2) {
+            res.put(arguments[arg], arguments[arg + 1]);
         }
         return res;
     }
@@ -895,10 +1049,130 @@ class Dut {
             for (let item of collection) {
                 res.add(item);
             }
-        }
-        else {
+        } else {
             throw "unknown collection: " + collection;
         }
+        return res;
+    }
+
+    static copyImmutableMap(map) {
+        let res = new HashMap();
+        res.putAll(map);
+        return res;
+    }
+}
+/**
+ * Reference identifier.
+ */
+class RefId {
+}
+/**
+ * Asynchronous task future.
+ */
+class AsyncTaskFuture {
+    constructor() {
+        this.done = false;
+        this.success = false;
+        this.result = null;
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvariants() {
+    }
+
+    /**
+     * Returns whether task is done.
+     * Done can mean by success, failure, or cancellation.
+     *
+     * @return {boolean} task is done or not
+     */
+    isDone() {
+        return this.done;
+    }
+
+    /**
+     * Returns whether the task is in success state.
+     * Success means done and without error.
+     *
+     * @return {boolean} whether the task is in success state
+     */
+    isSuccess() {
+        return this.success;
+    }
+
+    /**
+     * Returns result if exits. Returns null if result is not available.
+     *
+     * @return {Object} result if exists, null if doesn't exists
+     */
+    getResult() {
+        return result;
+    }
+
+    /**
+     * Creates new instance.
+     */
+    static create() {
+        const res = new AsyncTaskFuture();
+        res.guardInvariants();
+        return res;
+    }
+}
+/**
+ * Asynchronous task executor.
+ */
+class AsyncTaskExecutor {
+    constructor() {
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvariants() {
+    }
+
+    /**
+     * Returns sound ids.
+     * 
+     * @param {Function} task task to execute
+     * @returns {Future} task future
+     */
+    execute(task) {
+        const future = AsyncTaskFuture.create();
+        this.executeInternal(task).then(
+                function (value) {
+                    future.done = true;
+                    future.success = true;
+                    future.result = value;
+                },
+                function (error) {
+                    console.error(error);
+                    future.done = true;
+                    future.success = false;
+                    future.result = null;
+                }
+        );
+        return future;
+    }
+
+    /**
+     * Internal function to trigger asynchronous execution.
+     * 
+     * @param {Functino} task task to execute
+     * @returns {Promise} promise with execution
+     */
+    async executeInternal(task) {
+        return task();
+    }
+
+    /**
+     * Creates new instance.
+     */
+    static create() {
+        const res = new AsyncTaskExecutor();
+        res.guardInvariants();
         return res;
     }
 }
@@ -922,19 +1196,19 @@ class WebAssetLoader {
      * @param {String} path path to the texture
      * @returns {Texture} loaded texture
      */
-    loadTexture(path) {
+    async loadTexture(path) {
         // load data synchronously
+        if (path instanceof Path) {
+            path = path.path;
+        }
         let url = path;
         if (path.startsWith("asset:")) {
             url = baseUrl + "/assets/" + path.substring(6);
         }
-        new Promise((resolve, reject) => {
+        let resTex = null;
+        let promise = new Promise((resolve, reject) => {
             const img = new Image();
-
             img.onload = function () {
-                console.log('ok');
-                console.log(img.width + ' ' + img.height);
-                console.log('ok2');
                 try {
                     // Create a canvas element
                     const canvas = document.createElement('canvas');
@@ -943,7 +1217,6 @@ class WebAssetLoader {
                     // Set canvas dimensions to match image
                     canvas.width = img.width;
                     canvas.height = img.height;
-                    console.log(img.width + ' ' + img.height);
                     // Draw image to canvas
                     ctx.drawImage(img, 0, 0);
 
@@ -980,15 +1253,10 @@ class WebAssetLoader {
                             buf[bufIndex++] = pixelData[i + 3] / 255.0;
                         }
                     }
-
-                    // Return the result object
-                    resolve({
-                        width: img.width,
-                        height: img.height,
-                        format: format,
-                        buf: buf
-                    });
-
+                    const bufArr = Array.from(buf);
+                    let texture = hasAlpha ? Texture.rgbaFloatBuffer(img.width, img.height, bufArr) :
+                            Texture.rgbFloatBuffer(img.width, img.height, bufArr);
+                    resolve(texture);
                 } catch (error) {
                     reject(new Error(`Failed to process image: ${error.message}`));
                 }
@@ -1001,163 +1269,16 @@ class WebAssetLoader {
 
             // Handle CORS issues
             img.crossOrigin = 'anonymous';
-            console.log(url);
             img.src = url;
-        }).then(result => {
-            console.log('done')
-        });
 
-        /*
-         const xhr = new XMLHttpRequest();
-         xhr.open('GET', url, false); // false = synchronous
-         xhr.send();
-         
-         if (xhr.status !== 200) {
-         throw new Error(`Unable to load texture: ${xhr.status}`);
-         }
-         
-         // now 
-         const img = new Image();
-         img.src = url;
-         
-         const startTime = Date.now();
-         const timeout = 5000; // 5 second timeout
-         
-         while ((Date.now() - startTime) < timeout) {
-         // Busy wait - this will block the main thread
-         // In practice, browsers may still process other events
-         }
-         console.log(img.complete + ", " + img.width);
-         
-         if (!img.complete) {
-         throw new Error('Image not loaded. Use the async version (loadImagePixelData) for remote images.');
-         }
-         
-         // Create a canvas element
-         const canvas = document.createElement('canvas');
-         const ctx = canvas.getContext('2d');
-         
-         // Set canvas dimensions to match image
-         canvas.width = img.width;
-         canvas.height = img.height;
-         
-         // Draw image to canvas
-         ctx.drawImage(img, 0, 0);
-         console.log('ok');
-         /*
-         const arrayBuffer = xhr.response;
-         
-         if (!arrayBuffer) {
-         throw new Error('No data received');
-         }
-         
-         // Convert ArrayBuffer to base64
-         const bytes = new Uint8Array(arrayBuffer);
-         let binary = '';
-         for (let i = 0; i < bytes.byteLength; i++) {
-         binary += String.fromCharCode(bytes[i]);
-         }
-         const base64 = btoa(binary);
-         
-         //const responseText = xhr.responseText;
-         // create and load an image
-         const image = new Image();
-         
-         // Create a promise-like structure for synchronous image loading
-         let imageLoaded = false;
-         let imageError = null;
-         
-         image.onload = function () {
-         imageLoaded = true;
-         };
-         
-         image.onerror = function () {
-         imageError = new Error(`Failed to load image: ${url}`);
-         };
-         
-         // Assume it's base64 encoded image data
-         const mimeType = this.getMimeTypeFromUrl(url);
-         const imgsrc = `data:${mimeType};base64,${base64}`;
-         console.log(imgsrc);
-         //image.src = imgsrc;
-         image.src = url;
-         
-         // Wait for image to load (this is a blocking operation)
-         // Note: This is not truly synchronous in modern browsers due to security restrictions
-         // but provides a synchronous-like interface
-         const startTime = Date.now();
-         const timeout = 5000; // 5 second timeout
-         
-         while (!imageLoaded && !imageError && (Date.now() - startTime) < timeout) {
-         // Busy wait - this will block the main thread
-         // In practice, browsers may still process other events
-         }
-         console.log(image.complete + ", " + image.width);
-         
-         if (imageError) {
-         throw imageError;
-         }
-         
-         if (!imageLoaded) {
-         throw new Error(`Timeout loading texture: ${url}`);
-         }
-         
-         // Extract pixel data using canvas
-         const canvas = document.createElement('canvas');
-         const ctx = canvas.getContext('2d');
-         
-         // Set canvas dimensions to match image
-         canvas.width = image.width;
-         canvas.height = image.height;
-         
-         // Draw image to canvas
-         ctx.drawImage(image, 0, 0);
-         
-         // Get image data (RGBA format)
-         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-         const pixels = imageData.data; // Uint8ClampedArray with RGBA values
-         
-         // Detect format by checking if alpha channel has non-255 values
-         let hasAlpha = false;
-         for (let i = 3; i < pixels.length; i += 4) {
-         if (pixels[i] !== 255) {
-         hasAlpha = true;
-         break;
-         }
-         }
-         
-         // Create buffer with appropriate format (converted to float 0.0-1.0)
-         let buffer;
-         let format;
-         
-         if (hasAlpha) {
-         // Keep RGBA format, convert to float
-         format = 'RGBA';
-         buffer = new Float32Array(pixels.length);
-         for (let i = 0; i < pixels.length; i++) {
-         buffer[i] = pixels[i] / 255.0; // Convert from 0-255 to 0.0-1.0
-         }
-         } else {
-         // Convert to RGB format (remove alpha channel), convert to float
-         format = 'RGB';
-         const rgbPixels = new Float32Array((pixels.length / 4) * 3);
-         for (let i = 0, j = 0; i < pixels.length; i += 4, j += 3) {
-         rgbPixels[j] = pixels[i] / 255.0;     // R
-         rgbPixels[j + 1] = pixels[i + 1] / 255.0; // G
-         rgbPixels[j + 2] = pixels[i + 2] / 255.0; // B
-         // Skip alpha channel (i + 3)
-         }
-         buffer = rgbPixels;
-         }
-         
-         if (format === "RGB") {
-         return Texture.rgbPixels(image.width, image.height, Array.from(buffer));
-         } else if (format === "RGBA") {
-         return Texture.rgbaPixels(image.width, image.height, Array.from(buffer));
-         } else {
-         throw "unknown texture format: " + format;
-         }
-         */
+        }).then(result => {
+            resTex = result;
+        }, error => {
+            console.log(error);
+            resTex = "";
+        });
+        await promise;
+        return resTex;
     }
 
     /**
@@ -1192,6 +1313,294 @@ class WebAssetLoader {
         res.guardInvariants();
         return res;
     }
+}
+/**
+ * Web asset manager.
+ */
+class WebAssetManager {
+    drivers;
+    executor;
+    loader;
+    bank;
+    dict = new HashMap();
+    constructor() {
+    }
+
+    guardInvariants() {
+    }
+
+    resolveAsync() {
+        if (arguments.length === 1 && arguments[0] instanceof Path) {
+            return this.resolveAsync_1_Path(arguments[0]);
+        } else if (arguments.length === 3 && arguments[0] instanceof Path && typeof arguments[1] === "string" && arguments[2] instanceof Function) {
+            return this.resolveAsync_3_Path_string_Function(arguments[0], arguments[1], arguments[2]);
+        } else if (arguments.length === 2 && arguments[0] instanceof Path && arguments[1] instanceof HashMap) {
+            return this.resolveAsync_2_Path_Map(arguments[0], arguments[1]);
+        } else {
+            throw "error";
+        }
+    }
+
+    resolveAsync_1_Path(path) {
+        return this.resolveAsync(path, Collections.emptyMap());
+    }
+
+    resolveAsync_3_Path_string_Function(path, clazz, transformFnc) {
+        return this.resolveAsync(path, Dut.map(clazz, transformFnc));
+    }
+
+    resolveAsync_2_Path_Map(path, transformFncs) {
+        return this.executor.execute(() => {
+            return this.resolve(path, transformFncs);
+        });
+    }
+
+    async resolve(path, transformFncs) {
+        let res = new ArrayList();
+        if (path.getExtension().equals("")) {
+            let files = this.loader.listFiles(path, true);
+            for (let file of files) {
+                res.addAll(this.resolve(file, transformFncs));
+            }
+            return res;
+        }
+        let fullyLoaded = false;
+        if (this.dict.containsKey(path)) {
+            fullyLoaded = true;
+            for (let id of this.dict.get(path)) {
+                res.add(id);
+                if (!this.bank.containsKey(id)) {
+                    fullyLoaded = false;
+                    break;
+                }
+            }
+        }
+        if (fullyLoaded) {
+            return res;
+        }
+        let ag = AssetGroup.empty();
+        if (path.getExtension().equals("png")) {
+            let tid = TextureId.of(path.getPlainName());
+            let texture = await this.loader.loadTexture(path);
+            ag = ag.put(tid, texture);
+        }
+        /*
+         if (path.getExtension().equals("tap")) {
+         let buf = this.loader.loadFile(path);
+         let tap = Taps.fromBytes(buf);
+         ag = Taps.toAssetGroup(tap);
+         } else if (path.getExtension().equals("png")) {
+         ag = loadeAssets.loadTexture(this.loader, path);
+         } else if (path.getExtension().equals("mtl")) {
+         ag = Objs.loadMtlLibrary(this.loader, path);
+         } else if (path.getExtension().equals("obj")) {
+         ag = Objs.loadModel(this.loader, path);
+         } else if (path.getExtension().equals("fnt")) {
+         ag = Fonts.loadFnt(this.loader, path, AssetGroup.empty());
+         } else if (path.getExtension().equals("wav")) {
+         ag = Assets.loadSound(this.loader, path);
+         }
+         for (let clazz of transformFncs.keySet()) {
+         if (clazz.equals("Texture")) {
+         ag = ag.transform("Texture", (transformFncs.get(clazz)));
+         } else if (clazz.equals("Material")) {
+         ag = ag.transform("Material", (transformFncs.get(clazz)));
+         } else if (clazz.equals("Mesh")) {
+         ag = ag.transform("Mesh", (transformFncs.get(clazz)));
+         } else if (clazz.equals("Model")) {
+         ag = ag.transform("Model", (transformFncs.get(clazz)));
+         } else if (clazz.equals("Font")) {
+         ag = ag.transform("Font", (transformFncs.get(clazz)));
+         } else if (clazz.equals("Sound")) {
+         ag = ag.transform("Sound", (transformFncs.get(clazz)));
+         } else {
+         throw "unsupported class for transformation, implement me: " + clazz;
+         }
+         }
+         */
+        for (let key of ag.getKeys()) {
+            if (this.bank.containsKey(key)) {
+                throw "bank already contains " + key;
+            }
+        }
+        for (let key of ag.getKeys()) {
+            res.add(key);
+            this.bank.put(key, ag.get(key));
+        }
+        this.dict.put(path, ag.getKeys());
+        this.attachCompasnions(ag);
+        return res;
+    }
+
+    put(key, asset) {
+        this.bank.put(key, asset);
+        this.attachCompanions(key, asset);
+    }
+
+    containsKey(key) {
+        return this.bank.containsKey(key);
+    }
+
+    isMaterialized(key) {
+        return this.bank.isMaterialized(key);
+    }
+
+    getKeys(type) {
+        return this.bank.getKeys(type);
+    }
+
+    get(clazz, key) {
+        return this.bank.get(clazz, key);
+    }
+
+    getCompanion(clazz, key, type) {
+        return this.bank.getCompanion(clazz, key, type);
+    }
+
+    remove(key) {
+        this.bank.remove(key);
+    }
+
+    syncToDrivers() {
+        let gd = this.drivers.getDriver("GraphicsDriver");
+        let ad = this.drivers.getDriver("AudioDriver");
+        let gdms = gd.getMeshes();
+        let abms = this.bank.getKeys(MeshId.TYPE);
+        for (let rid of abms) {
+            let mid = rid;
+            if (this.bank.isSynced(mid) && gdms.contains(mid)) {
+                continue;
+            }
+            if (gdms.contains(mid)) {
+                gd.disposeMesh(mid);
+            }
+            gd.loadMesh(mid, this.bank.get("Mesh", mid));
+            this.bank.markSynced(mid);
+        }
+        for (let mid of gdms) {
+            if (!abms.contains(mid)) {
+                gd.disposeMesh(mid);
+            }
+        }
+        let gdtxs = gd.getTextures();
+        let abtxs = this.bank.getKeys(TextureId.TYPE);
+        for (let rid of abtxs) {
+            let tid = rid;
+            if (this.bank.isSynced(tid) && gdtxs.contains(tid)) {
+                continue;
+            }
+            if (gdtxs.contains(tid)) {
+                gd.disposeTexture(tid);
+            }
+            gd.loadTexture(tid, this.bank.get("Texture", tid), true);
+            this.bank.markSynced(tid);
+        }
+        for (let tid of gdtxs) {
+            if (!abtxs.contains(tid)) {
+                gd.disposeTexture(tid);
+            }
+        }
+        let gdshbs = gd.getShadowBuffers();
+        let abshbs = this.bank.getKeys(ShadowBufferId.TYPE);
+        for (let rid of abshbs) {
+            let sbid = rid;
+            if (this.bank.isSynced(sbid) && gdshbs.contains(sbid)) {
+                continue;
+            }
+            if (gdshbs.contains(sbid)) {
+                gd.disposeShadowBuffer(sbid);
+            }
+            gd.createShadowBuffer(sbid, this.bank.get("ShadowBuffer", sbid));
+            this.bank.markSynced(sbid);
+        }
+        for (let sbid of gdshbs) {
+            if (!abshbs.contains(sbid)) {
+                gd.disposeShadowBuffer(sbid);
+            }
+        }
+        let adrivSounds = ad.getSounds();
+        let bankSounds = this.bank.getKeys(SoundId.TYPE);
+        for (let rid of bankSounds) {
+            let id = rid;
+            if (this.bank.isSynced(id) && adrivSounds.contains(id)) {
+                continue;
+            }
+            if (adrivSounds.contains(id)) {
+                ad.disposeSound(id);
+            }
+            ad.loadSound(id, this.bank.get("Sound", id));
+            this.bank.markSynced(id);
+        }
+        for (let id of adrivSounds) {
+            if (!bankSounds.contains(id)) {
+                ad.disposeSound(id);
+            }
+        }
+    }
+
+    attachCompasnions(ag) {
+        for (let key of ag.getKeys()) {
+            this.attachCompanions(key, ag.get(key));
+        }
+    }
+
+    attachCompanions(key, asset) {
+        if (asset instanceof Texture) {
+            let tex = asset;
+            let size = Size2.create(tex.getWidth(), tex.getHeight());
+            this.bank.putCompanion(key, AssetCompanionType.SIZE, size);
+        } else if (asset instanceof Mesh) {
+            let mesh = asset;
+            let aabb = WebAssetManager.calculateMeshAabb(mesh);
+            this.bank.putCompanion(key, AssetCompanionType.BOUNDING_AABB, aabb);
+        }
+    }
+
+    toString() {
+    }
+
+    static create(drivers, executor, loader, bank) {
+        let res = new WebAssetManager();
+        res.drivers = drivers;
+        res.executor = executor;
+        res.loader = loader;
+        res.bank = bank;
+        res.guardInvariants();
+        return res;
+    }
+
+    static calculateMeshAabb(mesh) {
+        let minX = Float.POSITIVE_INFINITY;
+        let minY = Float.POSITIVE_INFINITY;
+        let minZ = Float.POSITIVE_INFINITY;
+        let maxX = Float.NEGATIVE_INFINITY;
+        let maxY = Float.NEGATIVE_INFINITY;
+        let maxZ = Float.NEGATIVE_INFINITY;
+        let attrs = mesh.getVertexAttrs();
+        for (let i = 0; i < mesh.getNumVertices(); ++i) {
+            let vertex = mesh.getVertex(i);
+            let offset = 0;
+            for (let attr of attrs) {
+                if (attr.equals(VertexAttr.POS3)) {
+                    let x = vertex.coord(offset);
+                    let y = vertex.coord(offset + 1);
+                    let z = vertex.coord(offset + 2);
+                    minX = FMath.min(minX, x);
+                    minY = FMath.min(minY, y);
+                    minZ = FMath.min(minZ, z);
+                    maxX = FMath.max(maxX, x);
+                    maxY = FMath.max(maxY, y);
+                    maxZ = FMath.max(maxZ, z);
+                }
+                offset = offset + attr.getSize();
+            }
+        }
+        if (Float.isInfinite(minX)) {
+            return null;
+        }
+        return Aabb3.create(Vec3.create(minX, minY, minZ), Vec3.create(maxX, maxY, maxZ));
+    }
+
 }
 /**
  * GL mesh reference.
@@ -1254,6 +1663,48 @@ class WebglMeshRef {
 }
 
 /**
+ * GL texture reference.
+ */
+class WebglTextureRef {
+    /**
+     * Texture reference in opengl.
+     * @type int 
+     */
+    textureId;
+
+    /**
+     * Referenced texture
+     * @type Texture
+     */
+    texture;
+    constructor() {
+    }
+
+    guardInvariants() {
+    }
+
+    getTextureId() {
+        return this.textureId;
+    }
+
+    getTexture() {
+        return this.texture;
+    }
+
+    toString() {
+    }
+
+    static create(textureId, texture) {
+        let res = new WebglTextureRef();
+        res.textureId = textureId;
+        res.texture = texture;
+        res.guardInvariants();
+        return res;
+    }
+
+}
+
+/**
  * Web GL shader.
  * Assumes WebGL context 'gl' is available globally
  */
@@ -1273,7 +1724,7 @@ class WebglShader {
     /**
      * Sets uniform scalar (integer).
      */
-    setUniform(name, val) {
+    setUniformInt(name, val) {
         const loc = gl.getUniformLocation(this.id, name);
         gl.uniform1i(loc, val);
     }
@@ -1595,6 +2046,8 @@ class WebglColorRenderer {
 
     /**
      * Starts the renderer.
+     * 
+     * @param {Environmenty} environment environment
      */
     start(environment) {
         gl.enable(gl.DEPTH_TEST);
@@ -1699,13 +2152,19 @@ class WebglColorRenderer {
 
     /**
      * Helper method to compare arrays.
+     * 
+     * @param {Array} a first array
+     * @param {Array} b second array
+     * @returns {Boolean} whether those arrays are equal ow not
      */
     arraysEqual(a, b) {
-        if (a.length !== b.length)
+        if (a.length !== b.length) {
             return false;
+        }
         for (let i = 0; i < a.length; i++) {
-            if (a[i] !== b[i])
+            if (a[i] !== b[i]) {
                 return false;
+            }
         }
         return true;
     }
@@ -1715,6 +2174,431 @@ class WebglColorRenderer {
      */
     static create(refProvider, shader) {
         const res = new WebglColorRenderer();
+        res.refProvider = refProvider;
+        res.shader = shader;
+        res.guardInvariants();
+        return res;
+    }
+}
+/**
+ * WebGL Scene Renderer - JavaScript version of JoglSceneRenderer
+ * Assumes WebGL context 'gl' is available globally
+ */
+
+class WebglSceneRenderer {
+    /**
+     * Offset for diffuse textures.
+     * This has to be synchronized with relevant shader program.
+     */
+    static DIFFUSE_TEXTURE_OFFSET = 0;
+    /**
+     * Maximum number of diffuse textures.
+     * This has to be synchronized with relevant shader program.
+     */
+    static MAX_DIFFUSE_TEXTURES = 2;
+    /**
+     * Offset for specular textures.
+     * This has to be synchronized with relevant shader program.
+     */
+    static SPECULAR_TEXTURE_OFFSET = 2;
+    /**
+     * Maximum number of specular textures.
+     * This has to be synchronized with relevant shader program.
+     */
+    static MAX_SPECULAR_TEXTURES = 2;
+    /**
+     * Offset for alpha textures.
+     * This has to be synchronized with relevant shader program.
+     */
+    static ALPHA_TEXTURE_OFFSET = 4;
+    /**
+     * Maximum number of alpha textures.
+     * This has to be synchronized with relevant shader program.
+     */
+    static MAX_ALPHA_TEXTURES = 1;
+    /**
+     * Offset for shadow maps.
+     * This has to be synchronized with relevant shader program.
+     */
+    static SHADOW_MAP_OFFSET = 5;
+    /**
+     * Maximum number of shadow maps.
+     * This has to be synchronized with relevant shader program.
+     */
+    static MAX_SHADOW_MAPS = 3;
+    /**
+     * Maximum number of directional lights.
+     * This has to be synchronized with relevant shader program.
+     */
+    static MAX_DIR_LIGHTS = 3;
+    /**
+     * Maximum number of point lights.
+     * This has to be synchronized with relevant shader program.
+     */
+    static MAX_POINT_LIGHTS = 10;
+    /**
+     * Maximum number of spot lights.
+     * This has to be synchronized with relevant shader program.
+     */
+    static MAX_SPOT_LIGHTS = 10;
+
+    constructor() {
+        this.assetBank = null;
+        this.refProvider = null;
+        this.shader = null;
+        this.camera = null;
+        this.rgbaBuf = [];
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvariants() {
+        Guard.notNull(this.assetBank, "assetBank cannot be null");
+        Guard.notNull(this.refProvider, "refProvider cannot be null");
+        Guard.notNull(this.shader, "shader shader cannot be null");
+    }
+
+    /**
+     * Starts the renderer.
+     * 
+     * @param {Environmenty} environment environment
+     */
+    start(environment) {
+        gl.enable(gl.DEPTH_TEST);
+        gl.depthFunc(gl.LESS);
+        gl.enable(gl.CULL_FACE);
+        gl.cullFace(gl.BACK);
+        const vp = this.refProvider.getScreenViewport();
+        gl.viewport(vp.x, vp.y, vp.width, vp.height);
+        this.shader.use();
+        this.shader.setUniformMat("viewMat", environment.getCamera().getView());
+        this.shader.setUniformMat("projMat", environment.getCamera().getProj());
+        this.shader.setUniformVec("viewPos", environment.getCamera().getPos());
+        this.shader.setUniformFloat("gamma", environment.getGamma());
+
+        // lightning
+        let numDirLights = 0;
+        let numPointLights = 0;
+        let numSpotLights = 0;
+        let numShadowMaps = 0;
+        for (const light of environment.getLights()) {
+            if (light.isDirectionalShadowless()) {
+                const pref = "dirLights[" + numDirLights + "].";
+                this.shader.setUniformVec(pref + "dir", light.getDir());
+                this.shader.setUniformRgb(pref + "ambient", light.getAmbient());
+                this.shader.setUniformRgb(pref + "diffuse", light.getDiffuse());
+                this.shader.setUniformRgb(pref + "specular", light.getSpecular());
+                this.shader.setUniformInt(pref + "shadowMapIdx", -1);
+                ++numDirLights;
+            } else if (light.isPointShadowless()) {
+                const pref = "pointLights[" + numPointLights + "].";
+                this.shader.setUniformVec(pref + "pos", light.getPos());
+                this.shader.setUniformFloat(pref + "range", light.getRange());
+                this.shader.setUniformFloat(pref + "constAtt", light.getAttenuation().getConstant());
+                this.shader.setUniformFloat(pref + "linAtt", light.getAttenuation().getLinear());
+                this.shader.setUniformFloat(pref + "sqrAtt", light.getAttenuation().getQuadratic());
+                this.shader.setUniformRgb(pref + "ambient", light.getAmbient());
+                this.shader.setUniformRgb(pref + "diffuse", light.getDiffuse());
+                this.shader.setUniformRgb(pref + "specular", light.getSpecular());
+                ++numPointLights;
+            } else if (light.isSpotShadowless()) {
+                const pref = "spotLights[" + numSpotLights + "].";
+                this.shader.setUniformVec(pref + "pos", light.getPos());
+                this.shader.setUniformVec(pref + "dir", light.getDir());
+                this.shader.setUniformFloat(pref + "cosInTh", FMath.cos(light.getCone().getInTheta()));
+                this.shader.setUniformFloat(pref + "cosOutTh", FMath.cos(light.getCone().getOutTheta()));
+                this.shader.setUniformFloat(pref + "range", light.getRange());
+                this.shader.setUniformFloat(pref + "constAtt", light.getAttenuation().getConstant());
+                this.shader.setUniformFloat(pref + "linAtt", light.getAttenuation().getLinear());
+                this.shader.setUniformFloat(pref + "sqrAtt", light.getAttenuation().getQuadratic());
+                this.shader.setUniformRgb(pref + "ambient", light.getAmbient());
+                this.shader.setUniformRgb(pref + "diffuse", light.getDiffuse());
+                this.shader.setUniformRgb(pref + "specular", light.getSpecular());
+                this.shader.setUniformInt(pref + "shadowMapIdx", -1);
+                ++numSpotLights;
+            } else if (light.isSpotShadowMap()) {
+                const pref = "spotLights[" + numSpotLights + "].";
+                this.shader.setUniformVec(pref + "pos", light.getPos());
+                this.shader.setUniformVec(pref + "dir", light.getDir());
+                this.shader.setUniformFloat(pref + "cosInTh", FMath.cos(light.getCone().getInTheta()));
+                this.shader.setUniformFloat(pref + "cosOutTh", FMath.cos(light.getCone().getOutTheta()));
+                this.shader.setUniformFloat(pref + "range", light.getRange());
+                this.shader.setUniformFloat(pref + "constAtt", light.getAttenuation().getConstant());
+                this.shader.setUniformFloat(pref + "linAtt", light.getAttenuation().getLinear());
+                this.shader.setUniformFloat(pref + "sqrAtt", light.getAttenuation().getQuadratic());
+                this.shader.setUniformRgb(pref + "ambient", light.getAmbient());
+                this.shader.setUniformRgb(pref + "diffuse", light.getDiffuse());
+                this.shader.setUniformRgb(pref + "specular", light.getSpecular());
+                this.shader.setUniformInt(pref + "shadowMapIdx", numShadowMaps);
+
+                const smpref = "shadowMaps[" + numShadowMaps + "].";
+                this.shader.setUniformMat(smpref + "lightMat", light.getShadowMap().getLightMat());
+                this.shader.setUniformInt(smpref + "pcfType", this.pcfTypeToInternal(light.getShadowMap().getPcfType()));
+                const tid = this.refProvider.getShadowBufferRef(light.getShadowMap().getShadowBuffer()).getTextureId();
+                gl.activeTexture(gl.TEXTURE0 + WebglSceneRenderer.SHADOW_MAP_OFFSET + numShadowMaps);
+                gl.bindTexture(gl.TEXTURE_2D, tid);
+                ++numSpotLights;
+                ++numShadowMaps;
+            } else if (light.isDirectionalShadowMap()) {
+                const pref = "dirLights[" + numDirLights + "].";
+                this.shader.setUniformVec(pref + "dir", light.getDir());
+                this.shader.setUniformRgb(pref + "ambient", light.getAmbient());
+                this.shader.setUniformRgb(pref + "diffuse", light.getDiffuse());
+                this.shader.setUniformRgb(pref + "specular", light.getSpecular());
+                this.shader.setUniformInt(pref + "shadowMapIdx", numShadowMaps);
+
+                const smpref = "shadowMaps[" + numShadowMaps + "].";
+                this.shader.setUniformMat(smpref + "lightMat", light.getShadowMap().getLightMat());
+                this.shader.setUniformInt(smpref + "pcfType", this.pcfTypeToInternal(light.getShadowMap().getPcfType()));
+                const tid = this.refProvider.getShadowBufferRef(light.getShadowMap().getShadowBuffer()).getTextureId();
+                gl.activeTexture(gl.TEXTURE0 + WebglSceneRenderer.SHADOW_MAP_OFFSET + numShadowMaps);
+                gl.bindTexture(gl.TEXTURE_2D, tid);
+                ++numDirLights;
+                ++numShadowMaps;
+            } else {
+                throw "unsupported light type: " + light.getType();
+            }
+        }
+        this.shader.setUniformInt("numDirLights", numDirLights);
+        this.shader.setUniformInt("numPointLights", numPointLights);
+        this.shader.setUniformInt("numSpotLights", numSpotLights);
+        this.shader.setUniformInt("numShadowMaps", numShadowMaps);
+
+    }
+
+    /**
+     * Performs rendering. Arguments determines how the object is rendered.
+     */
+    render() {
+        if (arguments.length === 3 && arguments[0] instanceof MeshId && arguments[1] instanceof Mat44 && arguments[2] instanceof Material) {
+            this.renderMesh(arguments[0], 0, 0, 0, arguments[1], arguments[2]);
+        } else {
+            throw "unsupported arguments for rendering, implement me";
+        }
+    }
+
+    // MeshId mesh, int frame1, int frame2, float t, Mat44 mat, Material material
+    /**
+     * 
+     * @param {MeshId} mesh mesh to render
+     * @param {number} frame1 first frame (integer)
+     * @param {number} frame2 second frame (integer)
+     * @param {number} t interpolation number (float)
+     * @param {Mat44} mat matrix
+     * @param {Material} material material
+     */
+    renderMesh(mesh, frame1, frame2, t, mat, material) {
+        const m = this.refProvider.getMeshRef(mesh);
+
+        gl.disable(gl.BLEND);
+
+        this.shader.setUniformMat("modelMat", mat);
+        this.shader.setUniformMat33("normalMat", this.getNormalMat(mat));
+        this.shader.setUniformRgb("material.ambient", material.getAmbient());
+        this.shader.setUniformRgb("material.diffuse", material.getDiffuse());
+        this.shader.setUniformRgb("material.speculat", material.getSpecular());
+        this.shader.setUniformFloat("material.shininess", material.getShininess());
+
+        let numDiffuseTextures = 0;
+        let numSpecularTextures = 0;
+        let numAlphaTextures = 0;
+        for (const tex of material.getTextures()) {
+            if (tex.getType().equals(TextureType.DIFFUSE)) {
+                const tid = this.refProvider.getTextureRef(tex.getTexture()).getTextureId();
+                gl.activeTexture(gl.TEXTURE0 + WebglSceneRenderer.DIFFUSE_TEXTURE_OFFSET + numDiffuseTextures);
+                gl.bindTexture(gl.TEXTURE_2D, tid);
+                ++numDiffuseTextures;
+            } else if (tex.getType().equals(TextureType.SPECULAR)) {
+                const tid = this.refProvider.getTextureRef(tex.getTexture()).getTextureId();
+                gl.activeTexture(gl.TEXTURE0 + WebglSceneRenderer.SPECULAR_TEXTURE_OFFSET + numSpecularTextures);
+                gl.bindTexture(gl.TEXTURE_2D, tid);
+                ++numSpecularTextures;
+            } else if (tex.getType().equals(TextureType.ALPHA)) {
+                const tid = this.refProvider.getTextureRef(tex.getTexture()).getTextureId();
+                gl.activeTexture(gl.TEXTURE0 + WebglSceneRenderer.ALPHA_TEXTURE_OFFSET + numAlphaTextures);
+                gl.bindTexture(gl.TEXTURE_2D, tid);
+                ++numAlphaTextures;
+            } else {
+                throw "unsupported texture type: " + tex.getType();
+            }
+            switch (tex.getStyle().getHorizWrapType()) {
+                case TextureWrapType.REPEAT:
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+                    break;
+                case TextureWrapType.MIRRORED_REPEAT:
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.MIRRORED_REPEAT);
+                    break;
+                case TextureWrapType.EDGE:
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                    break;
+                case TextureWrapType.BORDER:
+                    // TextureWrapType.BORDER is not supported in webgl, sorry can't use it here, so replacing with clamp to edge for the moment
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                    //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_BORDER);
+                    //gl.texParameterfv(gl.TEXTURE_2D, gl.TEXTURE_BORDER_COLOR, tex.getStyle().getBorderColor().toBuf(rgbaBuf), 0);
+                    break;
+                default:
+                    throw "unsupported horizontal wrap type: " + tex.getStyle().getHorizWrapType();
+            }
+            switch (tex.getStyle().getVertWrapType()) {
+                case TextureWrapType.REPEAT:
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+                    break;
+                case TextureWrapType.MIRRORED_REPEAT:
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.MIRRORED_REPEAT);
+                    break;
+                case TextureWrapType.EDGE:
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                    break;
+                case TextureWrapType.BORDER:
+                    // TextureWrapType.BORDER is not supported in webgl, sorry can't use it here, so replacing with clamp to edge for the moment
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                    //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_BORDER);
+                    //gl.texParameterfv(gl.TEXTURE_2D, gl.TEXTURE_BORDER_COLOR, tex.getStyle().getBorderColor().toBuf(rgbaBuf), 0);
+                    break;
+                default:
+                    throw "unsupported vertical wrap type: " + tex.getStyle().getVertWrapType();
+            }
+            switch (tex.getStyle().getMinFilterType()) {
+                case TextureFilterType.NEAREST:
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                    break;
+                case TextureFilterType.LINEAR:
+                    // ref: WebglGraphicsDriver.js - currently this does not work (look to mipmaps), so replacing with NEAREST for the moment
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                    //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                    break;
+                case TextureFilterType.LINEAR_MIPMAP_LINEAR:
+                    // ref: WebglGraphicsDriver.js - currently this does not work (look to mipmaps), so replacing with NEAREST for the moment
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                    //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+                    break;
+                default:
+                    throw "unsupported min filter type: " + tex.getStyle().getMinFilterType();
+            }
+            switch (tex.getStyle().getMagFilterType()) {
+                case TextureFilterType.NEAREST:
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+                    break;
+                case TextureFilterType.LINEAR:
+                    // ref: WebglGraphicsDriver.js - currently this does not work (look to mipmaps), so replacing with NEAREST for the moment
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+                    //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                    break;
+                default:
+                    throw "unsupported mag filter type: " + tex.getStyle().getMinFilterType();
+            }
+        }
+        this.shader.setUniformInt("numDiffuseTextures", numDiffuseTextures);
+        this.shader.setUniformInt("numSpecularTextures", numSpecularTextures);
+        this.shader.setUniformInt("numAlphaTextures", numAlphaTextures);
+
+        if (m.getVertexAttrs().equals(Dut.list(VertexAttr.POS3, VertexAttr.NORM3))) {
+            this.shader.setUniformFloat("t", 0);
+            gl.bindVertexArray(m.getVao());
+            gl.bindBuffer(gl.ARRAY_BUFFER, m.getVbo());
+            gl.vvertexAttribPointer(0, 3, gl.FLOAT, false, 6 * 4, 0);
+            gl.rnableVertexAttribArray(0);
+            gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 6 * 4, 0);
+            gl.rnableVertexAttribArray(1);
+            gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 6 * 4, 3 * 4);
+            gl.enableVertexAttribArray(2);
+            gl.vertexAttribPointer(3, 3, gl.FLOAT, false, 6 * 4, 3 * 4);
+            gl.enableVertexAttribArray(3);
+            gl.drawElements(gl.TRIANGLES, m.getNumIndices(), gl.UNSIGNED_INT, 0);
+            gl.bindVertexArray(null);
+        } else if (this.isAnimatedModel(m.getVertexAttrs())) {
+            this.shader.setUniformFloat("t", t);
+            const vsize = m.getVertexSize();
+            gl.bindVertexArray(m.getVao());
+            gl.bindBuffer(gl.ARRAY_BUFFER, m.getVbo());
+            gl.vertexAttribPointer(0, 3, gl.FLOAT, false, vsize * 4, frame1 * 6 * 4);
+            gl.enableVertexAttribArray(0);
+            gl.vertexAttribPointer(1, 3, gl.FLOAT, false, vsize * 4, frame2 * 6 * 4);
+            gl.enableVertexAttribArray(1);
+            gl.vertexAttribPointer(2, 3, gl.FLOAT, false, vsize * 4, frame1 * 6 * 4 + 3 * 4);
+            gl.enableVertexAttribArray(2);
+            gl.vertexAttribPointer(3, 3, gl.FLOAT, false, vsize * 4, frame2 * 6 * 4 + 3 * 4);
+            gl.enableVertexAttribArray(3);
+            gl.vertexAttribPointer(4, 2, gl.FLOAT, false, vsize * 4, (vsize - 2) * 4);
+            gl.enableVertexAttribArray(4);
+            gl.drawElements(gl.TRIANGLES, m.getNumIndices(), gl.UNSIGNED_INT, 0);
+            gl.bindVertexArray(null);
+        } else {
+            throw new IllegalArgumentException("unsupported mesh attributes for " + mesh + " in this method: " + m.getVertexAttrs());
+        }
+    }
+
+    /**
+     * Ends the renderer.
+     */
+    end() {
+        // Nothing to do here
+    }
+
+    /**
+     * Returns normal matrix.
+     * 
+     * @param {Mat44} model model matrix
+     * @returns {Mat33} normal matrix
+     */
+    getNormalMat(model) {
+        let tl = Mat33.create(
+                model.m00(), model.m01(), model.m02(),
+                model.m10(), model.m11(), model.m12(),
+                model.m20(), model.m21(), model.m22());
+        return tl.inv().transpose();
+    }
+
+    /**
+     * Converts PCF type to the internal representation.
+     * 
+     * @param {ShadowMapPcfType} pcfType pcf type
+     * @returns {Number} internal PCF type representatin
+     */
+    pcfTypeToInternal(pcfType) {
+        switch (pcfType) {
+            case ShadowMapPcfType.NONE:
+                return 0;
+            case ShadowMapPcfType.GAUSS_33:
+                return 1;
+            case ShadowMapPcfType.GAUSS_55:
+                return 2;
+            default:
+                throw "unsupported pcf type, implement me: " + pcfType;
+        }
+    }
+
+    /**
+     * Returns if attribute set is animated model.
+     *
+     * @param {ArrayList of VertexAttr} attrs vertex attributes
+     * @returns {Boolean} whether thi is an animated model
+     */
+    isAnimatedModel(attrs) {
+        if (attrs.size() < 3 || !attrs.get(attrs.size() - 1).equals(VertexAttr.TEX2)) {
+            return false;
+        }
+        for (let i = 0; i < attrs.size() - 1; i = i + 2) {
+            if (!attrs.get(i).equals(VertexAttr.POS3) || !attrs.get(i + 1).equals(VertexAttr.NORM3)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Creates new instance.
+     * 
+     * @param {AssetBank} assetBank asset bank
+     * @param {GlRefProvider} refProvider provider for gl references
+     * @param {GlShader} shader shader
+     * @returns {WebglSceneRenderer} created object
+     */
+    static create(assetBank, refProvider, shader) {
+        const res = new WebglSceneRenderer();
+        res.assetBank = assetBank;
         res.refProvider = refProvider;
         res.shader = shader;
         res.guardInvariants();
@@ -1834,7 +2718,365 @@ class WebglGraphicsDriver {
                 fragColor = varColor;
             }
         `;
-        const colorShader = WebglShader.create(WebglUtils.loadShaderProgram(colorShaderVertexSource, colorShaderFragmentSource));
+        const colorShaderProgram = WebglUtils.loadShaderProgram(colorShaderVertexSource, colorShaderFragmentSource);
+        const colorShader = WebglShader.create(colorShaderProgram);
+
+        const sceneShaderVertexSource = `#version 300 es
+
+            precision mediump float;
+            precision mediump int;
+
+            #define MAX_DIR_LIGHTS 3
+            #define MAX_POINT_LIGHTS 10
+            #define MAX_SPOT_LIGHTS 10
+            #define MAX_SHADOW_MAPS 3
+
+            struct ShadowMap {
+                mat4 lightMat;
+                int pcfType;
+            };
+
+            layout (location=0) in vec3 position1;
+            layout (location=1) in vec3 position2;
+            layout (location=2) in vec3 normal1;
+            layout (location=3) in vec3 normal2;
+            layout (location=4) in vec2 texCoord;
+
+            out vec3 varFragPos;
+            out vec3 varNormal;
+            out vec2 varTexCoord;
+            out vec4 varFragPosShadow[MAX_SHADOW_MAPS];
+
+            uniform float t;
+            uniform mat4 modelMat;
+            uniform mat4 viewMat;
+            uniform mat4 projMat;
+            uniform mat3 normalMat;
+            uniform vec3 viewPos;
+            uniform int numShadowMaps;
+            uniform ShadowMap shadowMaps[MAX_SHADOW_MAPS];
+
+            void main(void) {
+                vec3 position = (1.0 - t) * position1 + t * position2;
+                vec3 normal = normalize((1.0 - t) * normal1 + t * normal2);
+                gl_Position = projMat * viewMat * modelMat * vec4(position, 1.0);
+                varFragPos = vec3(modelMat * vec4(position, 1.0));
+                for(int i = 0; i < numShadowMaps; ++i) {
+                    varFragPosShadow[i] = shadowMaps[i].lightMat * vec4(varFragPos, 1.0);
+                }
+                varNormal = normalMat * normal;
+                varTexCoord = texCoord;
+            }
+
+        `;
+
+        const sceneShaderFragmentSource = `#version 300 es
+
+            precision mediump float;
+            precision mediump int;
+
+            #define MAX_DIR_LIGHTS 3
+            #define MAX_POINT_LIGHTS 10
+            #define MAX_SPOT_LIGHTS 10
+            #define MAX_SHADOW_MAPS 3
+
+            struct Material {
+                vec3 ambient;
+                vec3 diffuse;
+                vec3 specular;
+                float shininess;
+            };
+
+            struct DirLight {
+                vec3 dir;
+                vec3 ambient;
+                vec3 diffuse;
+                vec3 specular;
+                int shadowMapIdx;
+            };
+
+            struct PointLight {
+                vec3 pos;
+                float range;
+
+                float constAtt;
+                float linAtt;
+                float sqrAtt;
+
+                vec3 ambient;
+                vec3 diffuse;
+                vec3 specular;
+            };
+
+            struct SpotLight {
+                vec3  pos;
+                vec3  dir;
+                float cosInTh;
+                float cosOutTh;
+                float range;
+
+                float constAtt;
+                float linAtt;
+                float sqrAtt;
+
+                vec3 ambient;
+                vec3 diffuse;
+                vec3 specular;
+                int shadowMapIdx;
+            };    
+
+            struct ShadowMap {
+                mat4 lightMat;
+                int pcfType;
+            };
+
+            in vec3 varFragPos;
+            in vec3 varNormal;
+            in vec2 varTexCoord;
+            in vec4 varFragPosShadow[MAX_SHADOW_MAPS];
+
+            out vec4 fragColor;
+
+            uniform float t;
+            uniform mat4 modelMat;
+            uniform mat4 viewMat;
+            uniform mat4 projMat;
+            uniform mat3 normalMat;
+            uniform vec3 viewPos;
+
+            uniform int numDiffuseTextures;
+            uniform int numSpecularTextures;
+            uniform int numAlphaTextures;
+            uniform int numShadowMaps;
+            uniform ShadowMap shadowMaps[MAX_SHADOW_MAPS];
+            uniform Material material;
+
+            uniform sampler2D diffuseTexture1;
+            uniform sampler2D diffuseTexture2;
+            uniform sampler2D specularTexture1;
+            uniform sampler2D specularTexture2;
+            uniform sampler2D alphaTexture1;
+            uniform sampler2D shadowTexture1;
+            uniform sampler2D shadowTexture2;
+            uniform sampler2D shadowTexture3;
+
+            uniform int numDirLights;
+            uniform DirLight dirLights[MAX_DIR_LIGHTS];
+
+            uniform int numPointLights;
+            uniform PointLight pointLights[MAX_POINT_LIGHTS];
+
+            uniform int numSpotLights;
+            uniform SpotLight spotLights[MAX_SPOT_LIGHTS];
+
+            uniform float gamma;
+
+            vec3 blendRgb(vec3 bottom, vec3 top, float alpha) {
+                return (1.0 - alpha) * bottom + alpha * top;
+            }
+
+            vec3 getAmbient() {
+                vec3 res = material.ambient;
+                if (numDiffuseTextures > 0) {
+                    vec4 tc = texture(diffuseTexture1, varTexCoord);
+                    res = blendRgb(res, tc.rgb, tc.a);
+                }
+                if (numDiffuseTextures > 1) {
+                    vec4 tc = texture(diffuseTexture2, varTexCoord);
+                    res = blendRgb(res, tc.rgb, tc.a);
+                }
+                return res;
+            }
+
+            vec3 getDiffuse() {
+                vec3 res = material.diffuse;
+                if (numDiffuseTextures > 0) {
+                    vec4 tc = texture(diffuseTexture1, varTexCoord);
+                    res = blendRgb(res, tc.rgb, tc.a);
+                }
+                if (numDiffuseTextures > 1) {
+                    vec4 tc = texture(diffuseTexture2, varTexCoord);
+                    res = blendRgb(res, tc.rgb, tc.a);
+                }
+                return res;
+            }
+
+            vec3 getSpecular() {
+                vec3 res = material.specular;
+                if (numSpecularTextures > 0) {
+                    vec4 tc = texture(specularTexture1, varTexCoord);
+                    res = blendRgb(res, tc.rgb, tc.a);
+                }
+                if (numSpecularTextures > 1) {
+                    vec4 tc = texture(specularTexture2, varTexCoord);
+                    res = blendRgb(res, tc.rgb, tc.a);
+                }
+                return res;
+            }
+
+            float getAlpha() {
+                float res = 1.0;
+                if (numAlphaTextures > 0) {
+                    vec4 tc = texture(alphaTexture1, varTexCoord);
+                    res = tc.a;
+                }
+                return res;
+            }
+
+            vec3 getDirLightImpact(DirLight light, vec3 normal, vec3 viewDir, float shadow) {
+                vec3 lightDir = normalize(-light.dir);
+
+                // diffuse
+                float diff = max(dot(normal, lightDir), 0.0);
+
+                // specular
+                vec3 reflectDir = reflect(-lightDir, normal);
+                float reflectFact = max(dot(viewDir, reflectDir), 0.0);
+                float spec = 0.0;
+                if (reflectFact > 0.0 || material.shininess > 0.0) {
+                    spec = pow(reflectFact, material.shininess);
+                }
+
+                // combine
+                vec3 ambient  = light.ambient  * getAmbient();
+                vec3 diffuse  = light.diffuse  * diff * getDiffuse();
+                vec3 specular = light.specular * spec * getSpecular();
+                return (ambient + (1.0 - shadow) * (diffuse + specular));
+            }
+
+            vec3 getPointLightImpact(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir) {
+                float distance = length(light.pos - fragPos);
+                if (distance > light.range) {
+                    return vec3(0, 0, 0);
+                }
+
+                vec3 lightDir = normalize(light.pos - fragPos);
+
+                // diffuse shading
+                float diff = max(dot(normal, lightDir), 0.0);
+
+                // specular shading
+                vec3 reflectDir = reflect(-lightDir, normal);
+                float reflectFact = max(dot(viewDir, reflectDir), 0.0);
+                float spec = 0.0;
+                if (reflectFact > 0.0 || material.shininess > 0.0) {
+                    spec = pow(reflectFact, material.shininess);
+                }
+
+                // attenuation
+                float attenuation = 1.0 / (light.constAtt + light.linAtt * distance + light.sqrAtt * (distance * distance));
+
+                // combine
+                vec3 ambient = light.ambient * getAmbient();
+                vec3 diffuse = light.diffuse * diff * getDiffuse();
+                vec3 specular = light.specular * spec * getSpecular();
+                ambient *= attenuation;
+                diffuse *= attenuation;
+                specular *= attenuation;
+                return (ambient + diffuse + specular);
+            }
+
+            vec3 getSpotLightImpact(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir, float shadow) {
+                float distance = length(light.pos - fragPos);
+                if (distance > light.range) {
+                    return vec3(0, 0, 0);
+                }
+
+                vec3 lightDir = normalize(light.pos - fragPos);
+
+                // diffuse shading
+                float diff = max(dot(normal, lightDir), 0.0);
+
+                // specular shading
+                vec3 reflectDir = reflect(-lightDir, normal);
+                float reflectFact = max(dot(viewDir, reflectDir), 0.0);
+                float spec = 0.0;
+                if (reflectFact > 0.0 || material.shininess > 0.0) {
+                    spec = pow(reflectFact, material.shininess);
+                }
+
+                // attenuation
+                float attenuation = 1.0 / (light.constAtt + light.linAtt * distance + light.sqrAtt * (distance * distance));
+
+                // spotlight intensity
+                float theta = dot(-lightDir, normalize(light.dir)); 
+                float epsilon = light.cosInTh - light.cosOutTh;
+                float intensity = clamp((theta - light.cosOutTh) / epsilon, 0.0, 1.0);
+
+                // combine results
+                vec3 ambient = light.ambient * getAmbient();
+                vec3 diffuse = light.diffuse * diff * getDiffuse();
+                vec3 specular = light.specular * spec * getSpecular();
+                ambient *= attenuation * intensity;
+                diffuse *= attenuation * intensity;
+                specular *= attenuation * intensity;
+                return (ambient + (1.0 - shadow) * (diffuse + specular));
+            }
+
+            float shadowCalc(vec4 fragPosLightSpace, int shadowTexIdx, float bias) {
+                // perform perspective divide
+                vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+                // transform to [0,1] range
+                projCoords = projCoords * 0.5 + 0.5;
+
+                float shadow = 1.0;
+
+                if (shadowTexIdx == 0) {
+                    float pcfDepth = texture(shadowTexture1, projCoords.xy).r;
+                    shadow = projCoords.z - bias > pcfDepth  ? 1.0 : 0.0;
+                }
+                else if (shadowTexIdx == 1) {
+                    float pcfDepth = texture(shadowTexture2, projCoords.xy).r;
+                    shadow = projCoords.z - bias > pcfDepth  ? 1.0 : 0.0;
+                }
+                else if (shadowTexIdx == 2) {
+                    float pcfDepth = texture(shadowTexture3, projCoords.xy).r;
+                    shadow = projCoords.z - bias > pcfDepth  ? 1.0 : 0.0;
+                }
+
+                return shadow;
+            }
+
+            void main(void) {
+                vec3 norm = normalize(varNormal);
+                vec3 viewDir = normalize(viewPos - varFragPos);
+
+                vec3 fc = vec3(0, 0, 0);
+
+                for(int i = 0; i < numDirLights; ++i) {
+                    float shadow = 0.0;
+                    int smidx = dirLights[i].shadowMapIdx;
+                    if (smidx != -1) {
+                        vec3 lightDir = normalize(-dirLights[i].dir);
+                        float bias = max(0.01 * (1.0 - dot(norm, lightDir)), 0.005);
+                        shadow = shadowCalc(varFragPosShadow[smidx], smidx, bias);
+                    }
+                    fc += getDirLightImpact(dirLights[i], norm, viewDir, shadow);
+                }
+                for(int i = 0; i < numPointLights; ++i) {
+                    fc += getPointLightImpact(pointLights[i], norm, varFragPos, viewDir);
+                }
+                for(int i = 0; i < numSpotLights; ++i) {
+                    float shadow = 0.0;
+                    int smidx = spotLights[i].shadowMapIdx;
+                    if (smidx != -1) {
+                        vec3 lightDir = normalize(spotLights[i].pos - varFragPos);
+                        float bias = max(0.01 * (1.0 - dot(norm, lightDir)), 0.005);
+                        shadow = shadowCalc(varFragPosShadow[smidx], smidx, bias);
+                    }
+                    fc += getSpotLightImpact(spotLights[i], norm, varFragPos, viewDir, shadow);
+                }
+                float alpha = getAlpha();
+                if (alpha < 0.01) {
+                    discard;
+                }
+                fragColor = vec4(pow(fc.rgb, vec3(1.0/gamma)), alpha);
+            }
+
+        `;
+        const sceneShaderProgram = WebglUtils.loadShaderProgram(sceneShaderVertexSource, sceneShaderFragmentSource);
+        const sceneShader = WebglShader.create(sceneShaderProgram);
+
 
         // TODO - uncomment
         /*
@@ -1862,13 +3104,14 @@ class WebglGraphicsDriver {
          */
 
         // TODO - uncomment other shaders
-        this.shaders.push(colorShader); //, spriteShader, sceneShader, shadowmapShader);
+        this.shaders.push(colorShader, sceneShader); //spriteShader, shadowmapShader);
 
         // Create renderers
         this.renderers.set("ColorRenderer", WebglColorRenderer.create(this, colorShader));
+        this.renderers.set("SceneRenderer", WebglSceneRenderer.create(this.assetBank, this, sceneShader));
         // TODO - uncomment
         //this.renderers.set("WebGLSpriteRenderer"", WebGLSpriteRenderer.create(this, this.spriteRectMesh, spriteShader));
-        // this.renderers.set("WebGLSceneRenderer", WebGLSceneRenderer.create(this, sceneShader));
+        // 
         // this.renderers.set("WebGLShadowMapRenderer", WebGLShadowMapRenderer.create(this, shadowmapShader));
         // this.renderers.set("WebGLUiRenderer", WebGLUiRenderer.create(this, this.spriteRectMesh, spriteShader, this.primitivesMesh, colorShader));
         // this.renderers.set("WebGLBufferDebugRenderer", WebGLBufferDebugRenderer.create(this, this.debugRectMesh, colorShader));
@@ -1927,6 +3170,35 @@ class WebglGraphicsDriver {
     }
 
     /**
+     * Loads texture into a driver.
+     * 
+     * @param {TextureId} id identifier
+     * @param {Texture} texture texture
+     * @param {mipmap} mipmap whether to do mipmap ow not
+     */
+    loadTexture(id, texture, mipmap) {
+        const ptr = gl.createTexture();
+        this.textures.put(id, WebglTextureRef.create(ptr, texture));
+        let arr = new Float32Array(texture.getBuf());
+
+        gl.bindTexture(gl.TEXTURE_2D, ptr);
+
+        if (texture.getChannels().equals(Texture.RGB)) {
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB32F, texture.getWidth(), texture.getHeight(), 0, gl.RGB, gl.FLOAT, arr);
+        } else if (texture.getChannels().equals(Texture.RGBA)) {
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, texture.getWidth(), texture.getHeight(), 0, gl.RGBA, gl.FLOAT, arr);
+        } else {
+            throw "unsupported texture channels: " + texture;
+        }
+
+        if (mipmap) {
+            // Currently mipmaps are not working. Leaving them up until I can figure out how to make them work.
+            // gl.generateMipmap(gl.TEXTURE_2D);
+        }
+        gl.bindTexture(gl.TEXTURE_2D, null);
+    }
+
+    /**
      * Returns texrure ids.
      * 
      * @returns {Set of TextureId} texture ids
@@ -1961,7 +3233,7 @@ class WebglGraphicsDriver {
         try {
             vao = gl.createVertexArray();
             gl.bindVertexArray(vao);
-            
+
             vbuf = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, vbuf);
             gl.bufferData(gl.ARRAY_BUFFER, varr, gl.STATIC_DRAW);
@@ -1969,7 +3241,7 @@ class WebglGraphicsDriver {
             ibuf = gl.createBuffer();
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibuf);
             gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, iarr, gl.STATIC_DRAW);
-            
+
             gl.bindVertexArray(null);
         } catch (e) {
             console.error(e);
@@ -2128,7 +3400,7 @@ class WebglGraphicsDriver {
      */
     startRenderer(rendererClass, environment) {
         if (!this.renderers.has(rendererClass)) {
-            throw new Error(`unsupported renderer class: ${rendererClass.name}`);
+            throw `unsupported renderer class: ${rendererClass}`;
         }
 
         const renderer = this.renderers.get(rendererClass);
@@ -2251,7 +3523,8 @@ class DriverProvider {
 
     assetBank = DefaultAssetBank.create();
     assetLoader = WebAssetLoader.create();
-    assetManager = DefaultAssetManager.create(this, this.assetLoader, this.assetBank);
+    executor = AsyncTaskExecutor.create();
+    assetManager = WebAssetManager.create(this, this.executor, this.assetLoader, this.assetBank);
     graphicsDriver = WebglGraphicsDriver.create(this.assetManager);
     audioDriver = WebAudioDriver.create();
 
@@ -2273,8 +3546,6 @@ class DriverProvider {
             return true;
         } else if (driver === "AssetManager") {
             return true;
-        } else if (driver === "AssetLoader") {
-            return true;
         }
         return false;
     }
@@ -2292,8 +3563,6 @@ class DriverProvider {
             return this.audioDriver;
         } else if (driver === "AssetManager") {
             return this.assetManager;
-        } else if (driver === "AssetLoader") {
-            return this.assetLoader;
         }
         throw "driver doesn't exists:" + driver;
         return null;
@@ -2317,6 +3586,10 @@ class Vec3 {
   mY;
   mZ;
   constructor() {
+  }
+
+  getClass() {
+    return "Vec3";
   }
 
   x() {
@@ -2476,6 +3749,10 @@ class Vec4 {
   constructor() {
   }
 
+  getClass() {
+    return "Vec4";
+  }
+
   x() {
     return this.mX;
   }
@@ -2560,6 +3837,322 @@ class Vec4 {
   }
 
 }
+class Mat33 {
+  static ZERO = Mat33.create(0, 0, 0, 0, 0, 0, 0, 0, 0);
+  static IDENTITY = Mat33.create(1, 0, 0, 0, 1, 0, 0, 0, 1);
+  mm00;
+  mm01;
+  mm02;
+  mm10;
+  mm11;
+  mm12;
+  mm20;
+  mm21;
+  mm22;
+  constructor() {
+  }
+
+  getClass() {
+    return "Mat33";
+  }
+
+  m00() {
+    return this.mm00;
+  }
+
+  m01() {
+    return this.mm01;
+  }
+
+  m02() {
+    return this.mm02;
+  }
+
+  m10() {
+    return this.mm10;
+  }
+
+  m11() {
+    return this.mm11;
+  }
+
+  m12() {
+    return this.mm12;
+  }
+
+  m20() {
+    return this.mm20;
+  }
+
+  m21() {
+    return this.mm21;
+  }
+
+  m22() {
+    return this.mm22;
+  }
+
+  col(idx) {
+    if (idx==0) {
+      return Vec3.create(this.mm00, this.mm10, this.mm20);
+    }
+    else if (idx==1) {
+      return Vec3.create(this.mm01, this.mm11, this.mm21);
+    }
+    else if (idx==2) {
+      return Vec3.create(this.mm02, this.mm12, this.mm22);
+    }
+    else {
+      throw "idx can be only 0, 1 or 2: "+idx;
+    }
+  }
+
+  det() {
+    let v1 = (this.mm11*this.mm22-this.mm12*this.mm21)*this.mm00;
+    let v2 = (this.mm01*this.mm22-this.mm02*this.mm21)*this.mm10;
+    let v3 = (this.mm01*this.mm12-this.mm02*this.mm11)*this.mm20;
+    return v1-v2+v3;
+  }
+
+  add(mat) {
+    return Mat33.create(this.mm00+mat.mm00, this.mm01+mat.mm01, this.mm02+mat.mm02, this.mm10+mat.mm10, this.mm11+mat.mm11, this.mm12+mat.mm12, this.mm20+mat.mm20, this.mm21+mat.mm21, this.mm22+mat.mm22);
+  }
+
+  inv() {
+    let determinant = this.det();
+    if (FMath.abs(determinant)<1e-9) {
+      throw "matrix inversion doesn't exists: "+this;
+    }
+    let res = new Mat33();
+    res.mm00 = (this.mm11*this.mm22-this.mm21*this.mm12)/determinant;
+    res.mm01 = (this.mm21*this.mm02-this.mm01*this.mm22)/determinant;
+    res.mm02 = (this.mm01*this.mm12-this.mm11*this.mm02)/determinant;
+    res.mm10 = (this.mm20*this.mm12-this.mm10*this.mm22)/determinant;
+    res.mm11 = (this.mm00*this.mm22-this.mm20*this.mm02)/determinant;
+    res.mm12 = (this.mm10*this.mm02-this.mm00*this.mm12)/determinant;
+    res.mm20 = (this.mm10*this.mm21-this.mm20*this.mm11)/determinant;
+    res.mm21 = (this.mm20*this.mm01-this.mm00*this.mm21)/determinant;
+    res.mm22 = (this.mm00*this.mm11-this.mm10*this.mm01)/determinant;
+    return res;
+  }
+
+  transpose() {
+    let res = new Mat33();
+    res.mm00 = this.mm00;
+    res.mm01 = this.mm10;
+    res.mm02 = this.mm20;
+    res.mm10 = this.mm01;
+    res.mm11 = this.mm11;
+    res.mm12 = this.mm21;
+    res.mm20 = this.mm02;
+    res.mm21 = this.mm12;
+    res.mm22 = this.mm22;
+    return res;
+  }
+
+  mulel(x) {
+    return Mat33.create(this.mm00*x, this.mm01*x, this.mm02*x, this.mm10*x, this.mm11*x, this.mm12*x, this.mm20*x, this.mm21*x, this.mm22*x);
+  }
+
+  mul() {
+    if (arguments.length===1&&arguments[0] instanceof Vec3) {
+      return this.mul_1_Vec3(arguments[0]);
+    }
+    else if (arguments.length===1&&arguments[0] instanceof Mat33) {
+      return this.mul_1_Mat33(arguments[0]);
+    }
+    else if (arguments.length===1&&arguments[0] instanceof Mat34) {
+      return this.mul_1_Mat34(arguments[0]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  mul_1_Vec3(vec) {
+    let x = vec.x()*this.mm00+vec.y()*this.mm01+vec.z()*this.mm02;
+    let y = vec.x()*this.mm10+vec.y()*this.mm11+vec.z()*this.mm12;
+    let z = vec.x()*this.mm20+vec.y()*this.mm21+vec.z()*this.mm22;
+    return Vec3.create(x, y, z);
+  }
+
+  mul_1_Mat33(right) {
+    let res = new Mat33();
+    res.mm00 = this.mm00*right.mm00+this.mm01*right.mm10+this.mm02*right.mm20;
+    res.mm01 = this.mm00*right.mm01+this.mm01*right.mm11+this.mm02*right.mm21;
+    res.mm02 = this.mm00*right.mm02+this.mm01*right.mm12+this.mm02*right.mm22;
+    res.mm10 = this.mm10*right.mm00+this.mm11*right.mm10+this.mm12*right.mm20;
+    res.mm11 = this.mm10*right.mm01+this.mm11*right.mm11+this.mm12*right.mm21;
+    res.mm12 = this.mm10*right.mm02+this.mm11*right.mm12+this.mm12*right.mm22;
+    res.mm20 = this.mm20*right.mm00+this.mm21*right.mm10+this.mm22*right.mm20;
+    res.mm21 = this.mm20*right.mm01+this.mm21*right.mm11+this.mm22*right.mm21;
+    res.mm22 = this.mm20*right.mm02+this.mm21*right.mm12+this.mm22*right.mm22;
+    return res;
+  }
+
+  mul_1_Mat34(right) {
+    return Mat34.create(this.mm00*right.m00()+this.mm01*right.m10()+this.mm02*right.m20(), this.mm00*right.m01()+this.mm01*right.m11()+this.mm02*right.m21(), this.mm00*right.m02()+this.mm01*right.m12()+this.mm02*right.m22(), this.mm00*right.m03()+this.mm01*right.m13()+this.mm02*right.m23(), this.mm10*right.m00()+this.mm11*right.m10()+this.mm12*right.m20(), this.mm10*right.m01()+this.mm11*right.m11()+this.mm12*right.m21(), this.mm10*right.m02()+this.mm11*right.m12()+this.mm12*right.m22(), this.mm10*right.m03()+this.mm11*right.m13()+this.mm12*right.m23(), this.mm20*right.m00()+this.mm21*right.m10()+this.mm22*right.m20(), this.mm20*right.m01()+this.mm21*right.m11()+this.mm22*right.m21(), this.mm20*right.m02()+this.mm21*right.m12()+this.mm22*right.m22(), this.mm20*right.m03()+this.mm21*right.m13()+this.mm22*right.m23());
+  }
+
+  toBufCol(buf) {
+    buf[0] = this.mm00;
+    buf[1] = this.mm10;
+    buf[2] = this.mm20;
+    buf[3] = this.mm01;
+    buf[4] = this.mm11;
+    buf[5] = this.mm21;
+    buf[6] = this.mm02;
+    buf[7] = this.mm12;
+    buf[8] = this.mm22;
+    return buf;
+  }
+
+  hashCode() {
+    return this.mm00+13*this.mm01+17*this.mm02+23*this.mm10+29*this.mm11+31*this.mm12+41*this.mm20+43*this.mm21+47*this.mm22;
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    else if (!(obj instanceof Mat33)) {
+      return false;
+    }
+    let ob = obj;
+    return ob.mm00==this.mm00&&ob.mm01==this.mm01&&ob.mm02==this.mm02&&ob.mm10==this.mm10&&ob.mm11==this.mm11&&ob.mm12==this.mm12&&ob.mm20==this.mm20&&ob.mm21==this.mm21&&ob.mm22==this.mm22;
+  }
+
+  toString() {
+  }
+
+  static create(m00, m01, m02, m10, m11, m12, m20, m21, m22) {
+    let res = new Mat33();
+    res.mm00 = m00;
+    res.mm01 = m01;
+    res.mm02 = m02;
+    res.mm10 = m10;
+    res.mm11 = m11;
+    res.mm12 = m12;
+    res.mm20 = m20;
+    res.mm21 = m21;
+    res.mm22 = m22;
+    return res;
+  }
+
+  static diagonal(m) {
+    let res = new Mat33();
+    res.mm00 = m;
+    res.mm01 = 0;
+    res.mm02 = 0;
+    res.mm10 = 0;
+    res.mm11 = m;
+    res.mm12 = 0;
+    res.mm20 = 0;
+    res.mm21 = 0;
+    res.mm22 = m;
+    return res;
+  }
+
+  static rotX(a) {
+    let res = new Mat33();
+    res.mm00 = 1;
+    res.mm01 = 0;
+    res.mm02 = 0;
+    res.mm10 = 0;
+    res.mm11 = FMath.cos(a);
+    res.mm12 = -FMath.sin(a);
+    res.mm20 = 0;
+    res.mm21 = FMath.sin(a);
+    res.mm22 = FMath.cos(a);
+    return res;
+  }
+
+  static rotY(a) {
+    let res = new Mat33();
+    res.mm00 = FMath.cos(a);
+    res.mm01 = 0;
+    res.mm02 = FMath.sin(a);
+    res.mm10 = 0;
+    res.mm11 = 1;
+    res.mm12 = 0;
+    res.mm20 = -FMath.sin(a);
+    res.mm21 = 0;
+    res.mm22 = FMath.cos(a);
+    return res;
+  }
+
+  static rotZ(a) {
+    let res = new Mat33();
+    res.mm00 = FMath.cos(a);
+    res.mm01 = -FMath.sin(a);
+    res.mm02 = 0;
+    res.mm10 = FMath.sin(a);
+    res.mm11 = FMath.cos(a);
+    res.mm12 = 0;
+    res.mm20 = 0;
+    res.mm21 = 0;
+    res.mm22 = 1;
+    return res;
+  }
+
+  static rot(q) {
+    let bb = q.b()*q.b();
+    let cc = q.c()*q.c();
+    let dd = q.d()*q.d();
+    let res = new Mat33();
+    res.mm00 = 1-2*cc-2*dd;
+    res.mm01 = 2*q.b()*q.c()-2*q.d()*q.a();
+    res.mm02 = 2*q.b()*q.d()+2*q.c()*q.a();
+    res.mm10 = 2*q.b()*q.c()+2*q.d()*q.a();
+    res.mm11 = 1-2*bb-2*dd;
+    res.mm12 = 2*q.c()*q.d()-2*q.b()*q.a();
+    res.mm20 = 2*q.b()*q.d()-2*q.c()*q.a();
+    res.mm21 = 2*q.c()*q.d()+2*q.b()*q.a();
+    res.mm22 = 1-2*bb-2*cc;
+    return res;
+  }
+
+  static scale() {
+    if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return Mat33.scale_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    }
+    else if (arguments.length===1&& typeof arguments[0]==="number") {
+      return Mat33.scale_1_number(arguments[0]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static scale_3_number_number_number(sx, sy, sz) {
+    let res = new Mat33();
+    res.mm00 = sx;
+    res.mm01 = 0;
+    res.mm02 = 0;
+    res.mm10 = 0;
+    res.mm11 = sy;
+    res.mm12 = 0;
+    res.mm20 = 0;
+    res.mm21 = 0;
+    res.mm22 = sz;
+    return res;
+  }
+
+  static scale_1_number(s) {
+    let res = new Mat33();
+    res.mm00 = s;
+    res.mm01 = 0;
+    res.mm02 = 0;
+    res.mm10 = 0;
+    res.mm11 = s;
+    res.mm12 = 0;
+    res.mm20 = 0;
+    res.mm21 = 0;
+    res.mm22 = s;
+    return res;
+  }
+
+}
 class Mat44 {
   static IDENTITY = Mat44.create(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
   mm00;
@@ -2579,6 +4172,10 @@ class Mat44 {
   mm32;
   mm33;
   constructor() {
+  }
+
+  getClass() {
+    return "Mat44";
   }
 
   m00() {
@@ -3029,6 +4626,10 @@ class Size2 {
   constructor() {
   }
 
+  getClass() {
+    return "Size2";
+  }
+
   guardInvariants() {
   }
 
@@ -3079,6 +4680,10 @@ class Rect2 {
   mPos;
   mSize;
   constructor() {
+  }
+
+  getClass() {
+    return "Rect2";
   }
 
   guardInvariants() {
@@ -3209,6 +4814,10 @@ class Quaternion {
   mC;
   mD;
   constructor() {
+  }
+
+  getClass() {
+    return "Quaternion";
   }
 
   a() {
@@ -3346,6 +4955,10 @@ class RefIdType {
   constructor() {
   }
 
+  getClass() {
+    return "RefIdType";
+  }
+
   guardInvariants() {
   }
 
@@ -3379,6 +4992,144 @@ class RefIdType {
   }
 
 }
+class Path {
+  path;
+  constructor() {
+  }
+
+  getClass() {
+    return "Path";
+  }
+
+  guardInvariants() {
+  }
+
+  getPath() {
+    return this.path;
+  }
+
+  startsWith(str) {
+    return this.path.startsWith(str);
+  }
+
+  getName() {
+    let pth = this.path;
+    if (pth.contains(":")) {
+      pth = pth.substring(pth.lastIndexOf(":")+1);
+    }
+    if (pth.equals("")||pth.equals("/")) {
+      return null;
+    }
+    let parts = pth.split("/");
+    return parts[parts.length-1];
+  }
+
+  getPlainName() {
+    let name = this.getName();
+    if (name==null||!name.contains(".")) {
+      return name;
+    }
+    return name.substring(0, name.lastIndexOf("."));
+  }
+
+  getExtension() {
+    let name = this.getName();
+    if (name==null) {
+      return name;
+    }
+    if (name.contains(".")) {
+      return name.substring(name.lastIndexOf(".")+1);
+    }
+    return "";
+  }
+
+  getParent() {
+    let prefix = "";
+    let pth = this.path;
+    if (pth.contains(":")) {
+      prefix = pth.substring(0, pth.lastIndexOf(":")+1);
+      pth = pth.substring(pth.lastIndexOf(":")+1);
+    }
+    if (pth.equals("")||pth.equals("/")) {
+      return null;
+    }
+    let parts = pth.split("/");
+    let bld = new StringBuilder();
+    for (let i = 0; i<parts.length-1; ++i) {
+      if (StringUtils.isEmpty(parts[i])) {
+        continue;
+      }
+      bld.append(parts[i]);
+      if (i<parts.length-2) {
+        bld.append("/");
+      }
+    }
+    let str = bld.toString();
+    if (pth.startsWith("/")) {
+      str = "/"+str;
+    }
+    return Path.of(prefix+str);
+  }
+
+  getChild(name) {
+    Guard.beFalse(name.startsWith("/"), "child name must be relative");
+    let prefix = "";
+    let pth = this.path;
+    if (pth.contains(":")) {
+      prefix = pth.substring(0, pth.lastIndexOf(":")+1);
+      pth = pth.substring(pth.lastIndexOf(":")+1);
+    }
+    if (pth.equals("")||pth.equals("/")) {
+      return Path.of(prefix+pth+name);
+    }
+    return Path.of(prefix+pth+"/"+name);
+  }
+
+  hashCode() {
+    return this.path.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (obj==this) {
+      return true;
+    }
+    if (obj instanceof Path) {
+      let other = obj;
+      return this.path.equals(other.path);
+    }
+    else {
+      return false;
+    }
+  }
+
+  toString() {
+  }
+
+  static of(path) {
+    let res = new Path();
+    res.path = Path.normalize(path);
+    res.guardInvariants();
+    return res;
+  }
+
+  static normalize(str) {
+    if (str.contains(":")) {
+      let before = str.substring(0, str.lastIndexOf(":")+1);
+      let after = str.substring(str.lastIndexOf(":")+1);
+      after = Path.normalize(after);
+      return before+after;
+    }
+    str = StringUtils.trimToEmpty(str);
+    while (str.endsWith("/")&&str.length()>1) {
+      str = str.substring(0, str.length()-1);
+    }
+    return str;
+  }
+
+}
 class Rgb {
   static RED = Rgb.create(1, 0, 0);
   static GREEN = Rgb.create(0, 1, 0);
@@ -3394,6 +5145,10 @@ class Rgb {
   mG;
   mB;
   constructor() {
+  }
+
+  getClass() {
+    return "Rgb";
   }
 
   r() {
@@ -3460,6 +5215,10 @@ class Rgba {
   rB;
   rA;
   constructor() {
+  }
+
+  getClass() {
+    return "Rgba";
   }
 
   r() {
@@ -3568,6 +5327,10 @@ class Texture {
   constructor() {
   }
 
+  getClass() {
+    return "Texture";
+  }
+
   guardInvaritants() {
     Guard.notNullCollection(this.channels, "channels cannot have a null element");
     Guard.positive(this.width, "width must be positive");
@@ -3667,6 +5430,9 @@ class Texture {
   }
 
   static create(channels, width, height, ...buf) {
+    if (Array.isArray(buf)&&buf.length===1&&Array.isArray(buf[0])) {
+      buf = buf[0];
+    }
     let res = new Texture();
     res.channels = Dut.copyImmutableList(channels);
     res.width = width;
@@ -3677,6 +5443,9 @@ class Texture {
   }
 
   static rgbFloatBuffer(width, height, ...buf) {
+    if (Array.isArray(buf)&&buf.length===1&&Array.isArray(buf[0])) {
+      buf = buf[0];
+    }
     let res = new Texture();
     res.channels = Texture.RGB;
     res.width = width;
@@ -3687,6 +5456,9 @@ class Texture {
   }
 
   static rgbPixels(width, height, ...pixels) {
+    if (Array.isArray(pixels)&&pixels.length===1&&Array.isArray(pixels[0])) {
+      pixels = pixels[0];
+    }
     let res = new Texture();
     res.channels = Texture.RGB;
     res.width = width;
@@ -3703,6 +5475,9 @@ class Texture {
   }
 
   static rgbaFloatBuffer(width, height, ...buf) {
+    if (Array.isArray(buf)&&buf.length===1&&Array.isArray(buf[0])) {
+      buf = buf[0];
+    }
     let res = new Texture();
     res.channels = Texture.RGBA;
     res.width = width;
@@ -3713,6 +5488,9 @@ class Texture {
   }
 
   static rgbaPixels(width, height, ...pixels) {
+    if (Array.isArray(pixels)&&pixels.length===1&&Array.isArray(pixels[0])) {
+      pixels = pixels[0];
+    }
     let res = new Texture();
     res.channels = Texture.RGBA;
     res.width = width;
@@ -3746,10 +5524,15 @@ class Texture {
   }
 
 }
-class TextureId {
+class TextureId extends RefId {
   static TYPE = RefIdType.of("TEXTURE_ID");
   mId;
   constructor() {
+    super();
+  }
+
+  getClass() {
+    return "TextureId";
   }
 
   guardInvariants() {
@@ -3786,6 +5569,170 @@ class TextureId {
     res.mId = id;
     res.guardInvariants();
     return res;
+  }
+
+}
+const createTextureType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const TextureType = Object.freeze({
+  ALPHA: createTextureType("ALPHA"),
+  DIFFUSE: createTextureType("DIFFUSE"),
+  SPECULAR: createTextureType("SPECULAR")
+});
+class TextureAttachment {
+  type;
+  texture;
+  style;
+  constructor() {
+  }
+
+  getClass() {
+    return "TextureAttachment";
+  }
+
+  guardInvariants() {
+  }
+
+  getType() {
+    return this.type;
+  }
+
+  getTexture() {
+    return this.texture;
+  }
+
+  getStyle() {
+    return this.style;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(type, texture, style) {
+    let res = new TextureAttachment();
+    res.type = type;
+    res.texture = texture;
+    res.style = style;
+    res.guardInvariants();
+    return res;
+  }
+
+  static diffuse() {
+    if (arguments.length===1&&arguments[0] instanceof TextureId) {
+      return TextureAttachment.diffuse_1_TextureId(arguments[0]);
+    }
+    else if (arguments.length===1&& typeof arguments[0]==="string") {
+      return TextureAttachment.diffuse_1_string(arguments[0]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static diffuse_1_TextureId(texture) {
+    let res = new TextureAttachment();
+    res.type = TextureType.DIFFUSE;
+    res.texture = texture;
+    res.style = TextureStyle.SMOOTH_REPEAT;
+    res.guardInvariants();
+    return res;
+  }
+
+  static diffuse_1_string(texture) {
+    let res = new TextureAttachment();
+    res.type = TextureType.DIFFUSE;
+    res.texture = TextureId.of(texture);
+    res.style = TextureStyle.SMOOTH_REPEAT;
+    res.guardInvariants();
+    return res;
+  }
+
+  static specular() {
+    if (arguments.length===1&&arguments[0] instanceof TextureId) {
+      return TextureAttachment.specular_1_TextureId(arguments[0]);
+    }
+    else if (arguments.length===1&& typeof arguments[0]==="string") {
+      return TextureAttachment.specular_1_string(arguments[0]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static specular_1_TextureId(texture) {
+    let res = new TextureAttachment();
+    res.type = TextureType.SPECULAR;
+    res.texture = texture;
+    res.style = TextureStyle.SMOOTH_REPEAT;
+    res.guardInvariants();
+    return res;
+  }
+
+  static specular_1_string(texture) {
+    let res = new TextureAttachment();
+    res.type = TextureType.SPECULAR;
+    res.texture = TextureId.of(texture);
+    res.style = TextureStyle.SMOOTH_REPEAT;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class TextureFncs {
+  constructor() {
+  }
+
+  getClass() {
+    return "TextureFncs";
+  }
+
+  static flipVertGamma(gamma) {
+    return (tex) => {
+      return tex.flipVert().powRgb(gamma);
+    };
+  }
+
+  static flipVert() {
+    return (tex) => {
+      return tex.flipVert();
+    };
+  }
+
+  static gamma(gamma) {
+    return (tex) => {
+      return tex.powRgb(gamma);
+    };
   }
 
 }
@@ -3835,6 +5782,10 @@ class VertexAttr {
   constructor() {
   }
 
+  getClass() {
+    return "VertexAttr";
+  }
+
   guardInvariants() {
   }
 
@@ -3881,6 +5832,10 @@ class Vertex {
   constructor() {
   }
 
+  getClass() {
+    return "Vertex";
+  }
+
   guardInvariants() {
   }
 
@@ -3923,6 +5878,9 @@ class Vertex {
   }
 
   static create(...buf) {
+    if (Array.isArray(buf)&&buf.length===1&&Array.isArray(buf[0])) {
+      buf = buf[0];
+    }
     let res = new Vertex();
     res.buf = Arrays.copyOf(buf, buf.length);
     res.guardInvariants();
@@ -3933,6 +5891,10 @@ class Vertex {
 class Face {
   indices;
   constructor() {
+  }
+
+  getClass() {
+    return "Face";
   }
 
   guardInvariants() {
@@ -3965,6 +5927,9 @@ class Face {
   }
 
   static create(...idxs) {
+    if (Array.isArray(idxs)&&idxs.length===1&&Array.isArray(idxs[0])) {
+      idxs = idxs[0];
+    }
     let res = new Face();
     let ilist = new ArrayList(idxs.length);
     for (let x of idxs) {
@@ -3976,12 +5941,282 @@ class Face {
   }
 
 }
+class MaterialId extends RefId {
+  static TYPE = RefIdType.of("MATERIAL_ID");
+  mId;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "MaterialId";
+  }
+
+  guardInvariants() {
+  }
+
+  type() {
+    return MaterialId.TYPE;
+  }
+
+  id() {
+    return this.mId;
+  }
+
+  hashCode() {
+    return this.mId.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof MaterialId)) {
+      return false;
+    }
+    return (obj).this.mId.equals(this.mId);
+  }
+
+  toString() {
+  }
+
+  static of(id) {
+    let res = new MaterialId();
+    res.mId = id;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class MaterialBase {
+  ambient;
+  diffuse;
+  specular;
+  shininess;
+  constructor() {
+  }
+
+  getClass() {
+    return "MaterialBase";
+  }
+
+  guardInvaritants() {
+    Guard.notNull(this.ambient, "ambient cannot be null");
+    Guard.notNull(this.diffuse, "diffuse cannot be null");
+    Guard.notNull(this.specular, "specular cannot be null");
+  }
+
+  getAmbient() {
+    return this.ambient;
+  }
+
+  getDiffuse() {
+    return this.diffuse;
+  }
+
+  getSpecular() {
+    return this.specular;
+  }
+
+  getShininess() {
+    return this.shininess;
+  }
+
+  withAmbient(ambient) {
+    return MaterialBase.create(ambient, this.diffuse, this.specular, this.shininess);
+  }
+
+  withDiffuse(diffuse) {
+    return MaterialBase.create(this.ambient, diffuse, this.specular, this.shininess);
+  }
+
+  withSpecular(specular) {
+    return MaterialBase.create(this.ambient, this.diffuse, specular, this.shininess);
+  }
+
+  withShininess(shininess) {
+    return MaterialBase.create(this.ambient, this.diffuse, this.specular, shininess);
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(ambient, diffuse, specular, shininess) {
+    let res = new MaterialBase();
+    res.ambient = ambient;
+    res.diffuse = diffuse;
+    res.specular = specular;
+    res.shininess = shininess;
+    res.guardInvaritants();
+    return res;
+  }
+
+}
+class Material {
+  static BLACK = Material.create(Rgb.BLACK, Rgb.BLACK, Rgb.BLACK, 1);
+  static BRASS = Material.create(Rgb.create(0.329412, 0.223529, 0.027451), Rgb.create(0.780392, 0.568627, 0.113725), Rgb.create(0.992157, 0.941176, 0.807843), 27.8974);
+  static BRONZE = Material.create(Rgb.create(0.2125, 0.1275, 0.054), Rgb.create(0.714, 0.4284, 0.18144), Rgb.create(0.393548, 0.271906, 0.166721), 25.6);
+  static CHROME = Material.create(Rgb.create(0.25, 0.25, 0.25), Rgb.create(0.4, 0.4, 0.4), Rgb.create(0.774597, 0.774597, 0.774597), 76.8);
+  static COPPER = Material.create(Rgb.create(0.19125, 0.0735, 0.0225), Rgb.create(0.7038, 0.27048, 0.0828), Rgb.create(0.256777, 0.137622, 0.086014), 12.8);
+  static GOLD = Material.create(Rgb.create(0.24725, 0.1995, 0.0745), Rgb.create(0.75164, 0.60648, 0.22648), Rgb.create(0.628281, 0.555802, 0.366065), 51.2);
+  static SILVER = Material.create(Rgb.create(0.19225, 0.19225, 0.19225), Rgb.create(0.50754, 0.50754, 0.50754), Rgb.create(0.508273, 0.508273, 0.508273), 51.2);
+  static WHITE_PLASTIC = Material.create(Rgb.BLACK, Rgb.gray(0.55), Rgb.gray(0.7), 32.0);
+  base;
+  textures;
+  constructor() {
+  }
+
+  getClass() {
+    return "Material";
+  }
+
+  guardInvariants() {
+  }
+
+  getBase() {
+    return this.base;
+  }
+
+  getAmbient() {
+    return this.base.getAmbient();
+  }
+
+  getDiffuse() {
+    return this.base.getDiffuse();
+  }
+
+  getSpecular() {
+    return this.base.getSpecular();
+  }
+
+  getShininess() {
+    return this.base.getShininess();
+  }
+
+  getTextures() {
+    return this.textures;
+  }
+
+  withAmbient(ambient) {
+    return Material.create(this.base.withAmbient(ambient), this.textures);
+  }
+
+  withDiffuse(diffues) {
+    return Material.create(this.base.withDiffuse(diffues), this.textures);
+  }
+
+  withSpecular(specular) {
+    return Material.create(this.base.withSpecular(specular), this.textures);
+  }
+
+  withShininess(shininess) {
+    return Material.create(this.base.withShininess(shininess), this.textures);
+  }
+
+  addTexture(texture) {
+    let txts = Dut.copyList(this.textures);
+    txts.add(texture);
+    return Material.create(this.base, txts);
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    if (arguments.length===2&&arguments[0] instanceof MaterialBase&&arguments[1] instanceof ArrayList) {
+      return Material.create_2_MaterialBase_List(arguments[0], arguments[1]);
+    }
+    else if (arguments.length===1&&arguments[0] instanceof MaterialBase) {
+      return Material.create_1_MaterialBase(arguments[0]);
+    }
+    else if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&& typeof arguments[3]==="number") {
+      return Material.create_4_Rgb_Rgb_Rgb_number(arguments[0], arguments[1], arguments[2], arguments[3]);
+    }
+    else if (arguments.length===5&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&& typeof arguments[3]==="number"&&arguments[4] instanceof TextureAttachment) {
+      return Material.create_5_Rgb_Rgb_Rgb_number_TextureAttachment(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
+    }
+    else if (arguments.length===6&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&& typeof arguments[3]==="number"&&arguments[4] instanceof TextureAttachment&&arguments[5] instanceof TextureAttachment) {
+      return Material.create_6_Rgb_Rgb_Rgb_number_TextureAttachment_TextureAttachment(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5]);
+    }
+    else if (arguments.length===7&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&& typeof arguments[3]==="number"&&arguments[4] instanceof TextureAttachment&&arguments[5] instanceof TextureAttachment&&arguments[6] instanceof TextureAttachment) {
+      return Material.create_7_Rgb_Rgb_Rgb_number_TextureAttachment_TextureAttachment_TextureAttachment(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5], arguments[6]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static create_2_MaterialBase_List(base, textures) {
+    let res = new Material();
+    res.base = base;
+    res.textures = Dut.copyImmutableList(textures);
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_1_MaterialBase(base) {
+    return Material.create(base, Collections.emptyList());
+  }
+
+  static create_4_Rgb_Rgb_Rgb_number(ambient, diffuse, specular, shininess) {
+    let res = new Material();
+    res.base = MaterialBase.create(ambient, diffuse, specular, shininess);
+    res.textures = Collections.emptyList();
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_5_Rgb_Rgb_Rgb_number_TextureAttachment(ambient, diffuse, specular, shininess, texture1) {
+    let res = new Material();
+    res.base = MaterialBase.create(ambient, diffuse, specular, shininess);
+    res.textures = Dut.immutableList(texture1);
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_6_Rgb_Rgb_Rgb_number_TextureAttachment_TextureAttachment(ambient, diffuse, specular, shininess, texture1, texture2) {
+    let res = new Material();
+    res.base = MaterialBase.create(ambient, diffuse, specular, shininess);
+    res.textures = Dut.immutableList(texture1, texture2);
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_7_Rgb_Rgb_Rgb_number_TextureAttachment_TextureAttachment_TextureAttachment(ambient, diffuse, specular, shininess, texture1, texture2, texture3) {
+    let res = new Material();
+    res.base = MaterialBase.create(ambient, diffuse, specular, shininess);
+    res.textures = Dut.immutableList(texture1, texture2, texture3);
+    res.guardInvariants();
+    return res;
+  }
+
+}
 class Mesh {
   static MODEL_ATTRS = Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3, VertexAttr.TEX2);
   vertexAttrs;
   vertices;
   faces;
   constructor() {
+  }
+
+  getClass() {
+    return "Mesh";
   }
 
   guardInvariants() {
@@ -4107,19 +6342,7 @@ class Mesh {
     return res;
   }
 
-  static modelAnimated() {
-    if (arguments.length===1&&arguments[0] instanceof List) {
-      return Mesh.modelAnimated_1_List(arguments[0]);
-    }
-    else if (arguments.length===1&&Array.isArray(arguments[0])) {
-      return Mesh.modelAnimated_1_arr(arguments[0]);
-    }
-    else {
-      throw "error";
-    }
-  }
-
-  static modelAnimated_1_List(frames) {
+  static modelAnimated(frames) {
     if (frames.isEmpty()) {
       throw "at least 1 frame must be defined";
     }
@@ -4161,15 +6384,16 @@ class Mesh {
     return Mesh.create(attrs, verts, faces0);
   }
 
-  static modelAnimated_1_arr(frames) {
-    return Mesh.modelAnimated(Arrays.asList(frames));
-  }
-
 }
-class MeshId {
+class MeshId extends RefId {
   static TYPE = RefIdType.of("MESH_ID");
   mId;
   constructor() {
+    super();
+  }
+
+  getClass() {
+    return "MeshId";
   }
 
   guardInvariants() {
@@ -4209,12 +6433,479 @@ class MeshId {
   }
 
 }
-class BufferId {
+class Attenuation {
+  static QUADRATIC_1 = Attenuation.pureQuadratic(1);
+  constant;
+  linear;
+  quadratic;
+  constructor() {
+  }
+
+  getClass() {
+    return "Attenuation";
+  }
+
+  getConstant() {
+    return this.constant;
+  }
+
+  getLinear() {
+    return this.linear;
+  }
+
+  getQuadratic() {
+    return this.quadratic;
+  }
+
+  getIntensity(r) {
+    return 1/(this.constant+r*this.linear+r*r*this.quadratic);
+  }
+
+  getDistance(intensity) {
+    if (this.constant==1&&this.quadratic==0&&this.linear>0) {
+      return (1-intensity*this.constant)/(intensity*this.linear);
+    }
+    else if (this.constant==1&&this.linear==0&&this.quadratic>0) {
+      return FMath.sqrt((1-intensity*this.constant)/(intensity*this.quadratic));
+    }
+    else {
+      throw "not supported for this case, implement me if you want: "+this;
+    }
+  }
+
+  hashCode() {
+    return this.constant+13*this.linear+17*this.quadratic;
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    else if (!(obj instanceof Attenuation)) {
+      return false;
+    }
+    let ob = obj;
+    return ob.constant==this.constant&&ob.linear==this.linear&&ob.quadratic==this.quadratic;
+  }
+
+  toString() {
+  }
+
+  static create(constant, linear, quadratic) {
+    let res = new Attenuation();
+    res.constant = constant;
+    res.linear = linear;
+    res.quadratic = quadratic;
+    return res;
+  }
+
+  static pureLinear() {
+    if (arguments.length===2&& typeof arguments[0]==="number"&& typeof arguments[1]==="number") {
+      return Attenuation.pureLinear_2_number_number(arguments[0], arguments[1]);
+    }
+    else if (arguments.length===1&& typeof arguments[0]==="number") {
+      return Attenuation.pureLinear_1_number(arguments[0]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static pureLinear_2_number_number(distance, intensity) {
+    let linear = (1-intensity)/(distance*intensity);
+    return Attenuation.create(1, linear, 0);
+  }
+
+  static pureLinear_1_number(distance) {
+    return Attenuation.pureLinear(distance, 0.5);
+  }
+
+  static pureQuadratic() {
+    if (arguments.length===2&& typeof arguments[0]==="number"&& typeof arguments[1]==="number") {
+      return Attenuation.pureQuadratic_2_number_number(arguments[0], arguments[1]);
+    }
+    else if (arguments.length===1&& typeof arguments[0]==="number") {
+      return Attenuation.pureQuadratic_1_number(arguments[0]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static pureQuadratic_2_number_number(distance, intensity) {
+    let quadratic = (1-intensity)/(distance*distance*intensity);
+    return Attenuation.create(1, 0, quadratic);
+  }
+
+  static pureQuadratic_1_number(distance) {
+    return Attenuation.pureQuadratic(distance, 0.5);
+  }
+
+}
+const createLightType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const LightType = Object.freeze({
+  DIRECTIONAL: createLightType("DIRECTIONAL"),
+  SPOT: createLightType("SPOT"),
+  POINT: createLightType("POINT")
+});
+class LightColor {
+  static AMBIENT_WHITE = LightColor.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK);
+  ambient;
+  diffuse;
+  specular;
+  constructor() {
+  }
+
+  getClass() {
+    return "LightColor";
+  }
+
+  guardInvaritants() {
+    Guard.notNull(this.ambient, "ambient cannot be null");
+    Guard.notNull(this.diffuse, "diffuse cannot be null");
+    Guard.notNull(this.specular, "specular cannot be null");
+  }
+
+  getAmbient() {
+    return this.ambient;
+  }
+
+  getDiffuse() {
+    return this.diffuse;
+  }
+
+  getSpecular() {
+    return this.specular;
+  }
+
+  withAmbient(ambient) {
+    return LightColor.create(ambient, this.diffuse, this.specular);
+  }
+
+  withDiffuse(diffuse) {
+    return LightColor.create(this.ambient, diffuse, this.specular);
+  }
+
+  withSpecular(specular) {
+    return LightColor.create(this.ambient, this.diffuse, specular);
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(ambient, diffuse, specular) {
+    let res = new LightColor();
+    res.ambient = ambient;
+    res.diffuse = diffuse;
+    res.specular = specular;
+    res.guardInvaritants();
+    return res;
+  }
+
+}
+class LightCone {
+  static DEFAULT = LightCone.create(FMath.PI/9, FMath.PI/6);
+  inTheta;
+  outTheta;
+  constructor() {
+  }
+
+  getClass() {
+    return "LightCone";
+  }
+
+  guardInvaritants() {
+    Guard.beTrue(this.inTheta>=0, "inTheta must be >= 0");
+    Guard.beTrue(this.outTheta>=this.inTheta, "outTheta must be >= inTheta");
+  }
+
+  getInTheta() {
+    return this.inTheta;
+  }
+
+  getOutTheta() {
+    return this.outTheta;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(inTheta, outTheta) {
+    let res = new LightCone();
+    res.inTheta = inTheta;
+    res.outTheta = outTheta;
+    res.guardInvaritants();
+    return res;
+  }
+
+}
+class Light {
+  type;
+  color;
+  pos;
+  dir;
+  range;
+  attenuation;
+  cone;
+  shadowMap;
+  constructor() {
+  }
+
+  getClass() {
+    return "Light";
+  }
+
+  guardInvaritants() {
+    Guard.notNull(this.type, "type cannot be null");
+    Guard.notNull(this.color, "color cannot be null");
+    Guard.notNull(this.pos, "pos cannot be null");
+    Guard.notNull(this.dir, "dir cannot be null");
+    Guard.notNegative(this.range, "range cannot br negartive");
+    Guard.notNull(this.range, "range cannot be null");
+    Guard.notNull(this.cone, "cone cannot be null");
+  }
+
+  getType() {
+    return this.type;
+  }
+
+  getColor() {
+    return this.color;
+  }
+
+  getAmbient() {
+    return this.color.getAmbient();
+  }
+
+  getDiffuse() {
+    return this.color.getDiffuse();
+  }
+
+  getSpecular() {
+    return this.color.getSpecular();
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getDir() {
+    return this.dir;
+  }
+
+  getRange() {
+    return this.range;
+  }
+
+  getAttenuation() {
+    return this.attenuation;
+  }
+
+  getCone() {
+    return this.cone;
+  }
+
+  getShadowMap() {
+    return this.shadowMap;
+  }
+
+  isShadow() {
+    return this.shadowMap!=null;
+  }
+
+  isPointShadowless() {
+    return this.type==LightType.POINT&&this.shadowMap==null;
+  }
+
+  isPointShadowMap() {
+    return this.type==LightType.POINT&&this.shadowMap!=null;
+  }
+
+  isDirectionalShadowless() {
+    return this.type==LightType.DIRECTIONAL&&this.shadowMap==null;
+  }
+
+  isDirectionalShadowMap() {
+    return this.type==LightType.DIRECTIONAL&&this.shadowMap!=null;
+  }
+
+  isSpotShadowless() {
+    return this.type==LightType.SPOT&&this.shadowMap==null;
+  }
+
+  isSpotShadowMap() {
+    return this.type==LightType.SPOT&&this.shadowMap!=null;
+  }
+
+  withShadowMap(shadowMap) {
+    let res = new Light();
+    res.type = this.type;
+    res.color = this.color;
+    res.pos = this.pos;
+    res.dir = this.dir;
+    res.range = this.range;
+    res.cone = this.cone;
+    res.shadowMap = shadowMap;
+    return res;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static pointQadratic(color, pos, midDst) {
+    let res = new Light();
+    res.type = LightType.POINT;
+    res.color = color;
+    res.pos = pos;
+    res.dir = Vec3.FORWARD;
+    res.attenuation = Attenuation.pureQuadratic(midDst);
+    res.range = res.attenuation.getDistance(0.01);
+    res.cone = LightCone.DEFAULT;
+    res.shadowMap = null;
+    res.guardInvaritants();
+    return res;
+  }
+
+  static spotQuadratic() {
+    if (arguments.length===5&&arguments[0] instanceof LightColor&&arguments[1] instanceof Vec3&&arguments[2] instanceof Vec3&& typeof arguments[3]==="number"&&arguments[4] instanceof LightCone) {
+      return Light.spotQuadratic_5_LightColor_Vec3_Vec3_number_LightCone(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
+    }
+    else if (arguments.length===6&&arguments[0] instanceof LightColor&&arguments[1] instanceof Vec3&&arguments[2] instanceof Vec3&& typeof arguments[3]==="number"&&arguments[4] instanceof LightCone&&arguments[5] instanceof ShadowMap) {
+      return Light.spotQuadratic_6_LightColor_Vec3_Vec3_number_LightCone_ShadowMap(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static spotQuadratic_5_LightColor_Vec3_Vec3_number_LightCone(color, pos, dir, midDst, cone) {
+    let res = new Light();
+    res.type = LightType.SPOT;
+    res.color = color;
+    res.pos = pos;
+    res.dir = dir;
+    res.attenuation = Attenuation.pureQuadratic(midDst);
+    res.range = res.attenuation.getDistance(0.01);
+    res.cone = cone;
+    res.shadowMap = null;
+    res.guardInvaritants();
+    return res;
+  }
+
+  static spotQuadratic_6_LightColor_Vec3_Vec3_number_LightCone_ShadowMap(color, pos, dir, midDst, cone, shadowMap) {
+    let res = new Light();
+    res.type = LightType.SPOT;
+    res.color = color;
+    res.pos = pos;
+    res.dir = dir;
+    res.attenuation = Attenuation.pureQuadratic(midDst);
+    res.range = res.attenuation.getDistance(0.01);
+    res.cone = cone;
+    res.shadowMap = shadowMap;
+    res.guardInvaritants();
+    return res;
+  }
+
+  static directional() {
+    if (arguments.length===2&&arguments[0] instanceof LightColor&&arguments[1] instanceof Vec3) {
+      return Light.directional_2_LightColor_Vec3(arguments[0], arguments[1]);
+    }
+    else if (arguments.length===3&&arguments[0] instanceof LightColor&&arguments[1] instanceof Vec3&&arguments[2] instanceof ShadowMap) {
+      return Light.directional_3_LightColor_Vec3_ShadowMap(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static directional_2_LightColor_Vec3(color, dir) {
+    let res = new Light();
+    res.type = LightType.DIRECTIONAL;
+    res.color = color;
+    res.pos = Vec3.ZERO;
+    res.dir = dir;
+    res.attenuation = Attenuation.QUADRATIC_1;
+    res.range = res.attenuation.getDistance(0.01);
+    res.cone = LightCone.DEFAULT;
+    res.shadowMap = null;
+    res.guardInvaritants();
+    return res;
+  }
+
+  static directional_3_LightColor_Vec3_ShadowMap(color, dir, shadowMap) {
+    let res = new Light();
+    res.type = LightType.DIRECTIONAL;
+    res.color = color;
+    res.pos = Vec3.ZERO;
+    res.dir = dir;
+    res.attenuation = Attenuation.QUADRATIC_1;
+    res.range = res.attenuation.getDistance(0.01);
+    res.cone = LightCone.DEFAULT;
+    res.shadowMap = shadowMap;
+    res.guardInvaritants();
+    return res;
+  }
+
+}
+class BufferId extends RefId {
   static TYPE = RefIdType.of("BUFFER_ID");
   static COLOR = BufferId.of("color");
   static DEPTH = BufferId.of("depth");
   mId;
   constructor() {
+    super();
+  }
+
+  getClass() {
+    return "BufferId";
   }
 
   guardInvariants() {
@@ -4254,10 +6945,15 @@ class BufferId {
   }
 
 }
-class ShadowBufferId {
+class ShadowBufferId extends RefId {
   static TYPE = RefIdType.of("SHADOW_BUFFER_ID");
   mId;
   constructor() {
+    super();
+  }
+
+  getClass() {
+    return "ShadowBufferId";
   }
 
   guardInvariants() {
@@ -4302,6 +6998,10 @@ class Camera {
   pos;
   near;
   far;
+  getClass() {
+    return "Camera";
+  }
+
   guardInvariants() {
   }
 
@@ -4402,6 +7102,131 @@ class Camera {
   }
 
 }
+const createTextureWrapType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const TextureWrapType = Object.freeze({
+  REPEAT: createTextureWrapType("REPEAT"),
+  MIRRORED_REPEAT: createTextureWrapType("MIRRORED_REPEAT"),
+  EDGE: createTextureWrapType("EDGE"),
+  BORDER: createTextureWrapType("BORDER")
+});
+const createTextureFilterType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const TextureFilterType = Object.freeze({
+  NEAREST: createTextureFilterType("NEAREST"),
+  LINEAR: createTextureFilterType("LINEAR"),
+  LINEAR_MIPMAP_LINEAR: createTextureFilterType("LINEAR_MIPMAP_LINEAR")
+});
+class TextureStyle {
+  static SMOOTH_REPEAT = TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.LINEAR_MIPMAP_LINEAR, TextureFilterType.LINEAR);
+  static SMOOTH_EDGE = TextureStyle.create(TextureWrapType.EDGE, TextureWrapType.EDGE, Rgba.TRANSPARENT, TextureFilterType.LINEAR_MIPMAP_LINEAR, TextureFilterType.LINEAR);
+  static SMOOTH_BORDER_TRANSPARENT = TextureStyle.create(TextureWrapType.BORDER, TextureWrapType.BORDER, Rgba.TRANSPARENT, TextureFilterType.LINEAR_MIPMAP_LINEAR, TextureFilterType.LINEAR);
+  static PIXEL_EDGE = TextureStyle.create(TextureWrapType.EDGE, TextureWrapType.EDGE, Rgba.TRANSPARENT, TextureFilterType.LINEAR_MIPMAP_LINEAR, TextureFilterType.NEAREST);
+  static PIXEL_BORDER_TRANSPARENT = TextureStyle.create(TextureWrapType.BORDER, TextureWrapType.BORDER, Rgba.TRANSPARENT, TextureFilterType.LINEAR_MIPMAP_LINEAR, TextureFilterType.NEAREST);
+  horizWrapType;
+  vertWrapType;
+  borderColor;
+  minFilterType;
+  magFilterType;
+  constructor() {
+  }
+
+  getClass() {
+    return "TextureStyle";
+  }
+
+  guardInvariants() {
+  }
+
+  getHorizWrapType() {
+    return this.horizWrapType;
+  }
+
+  getVertWrapType() {
+    return this.vertWrapType;
+  }
+
+  getBorderColor() {
+    return this.borderColor;
+  }
+
+  getMinFilterType() {
+    return this.minFilterType;
+  }
+
+  getMagFilterType() {
+    return this.magFilterType;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(horizWrapType, vertWrapType, borderColor, minFilterType, magFilterType) {
+    let res = new TextureStyle();
+    res.horizWrapType = horizWrapType;
+    res.vertWrapType = vertWrapType;
+    res.borderColor = borderColor;
+    res.minFilterType = minFilterType;
+    res.magFilterType = magFilterType;
+    res.guardInvariants();
+    return res;
+  }
+
+}
 const createBlendType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -4438,6 +7263,10 @@ class Viewport {
   width;
   height;
   constructor() {
+  }
+
+  getClass() {
+    return "Viewport";
   }
 
   getX() {
@@ -4490,6 +7319,10 @@ class BasicEnvironment {
   constructor() {
   }
 
+  getClass() {
+    return "BasicEnvironment";
+  }
+
   guardInvariants() {
   }
 
@@ -4516,10 +7349,119 @@ class BasicEnvironment {
   }
 
 }
-class SoundId {
+class SceneEnvironment {
+  camera;
+  lights;
+  gamma;
+  constructor() {
+  }
+
+  getClass() {
+    return "SceneEnvironment";
+  }
+
+  guardInvariants() {
+  }
+
+  getCamera() {
+    return this.camera;
+  }
+
+  getLights() {
+    return this.lights;
+  }
+
+  getGamma() {
+    return this.gamma;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    if (arguments.length===2&&arguments[0] instanceof Camera&&arguments[1] instanceof ArrayList) {
+      return SceneEnvironment.create_2_Camera_List(arguments[0], arguments[1]);
+    }
+    else if (arguments.length===2&&arguments[0] instanceof Camera&&arguments[1] instanceof Light) {
+      return SceneEnvironment.create_2_Camera_Light(arguments[0], arguments[1]);
+    }
+    else if (arguments.length===3&&arguments[0] instanceof Camera&&arguments[1] instanceof Light&&arguments[2] instanceof Light) {
+      return SceneEnvironment.create_3_Camera_Light_Light(arguments[0], arguments[1], arguments[2]);
+    }
+    else if (arguments.length===4&&arguments[0] instanceof Camera&&arguments[1] instanceof Light&&arguments[2] instanceof Light&&arguments[3] instanceof Light) {
+      return SceneEnvironment.create_4_Camera_Light_Light_Light(arguments[0], arguments[1], arguments[2], arguments[3]);
+    }
+    else if (arguments.length===5&&arguments[0] instanceof Camera&&arguments[1] instanceof Light&&arguments[2] instanceof Light&&arguments[3] instanceof Light&&arguments[4] instanceof Light) {
+      return SceneEnvironment.create_5_Camera_Light_Light_Light_Light(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static create_2_Camera_List(camera, lights) {
+    let res = new SceneEnvironment();
+    res.camera = camera;
+    res.lights = Dut.copyImmutableList(lights);
+    res.gamma = 2.2;
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_2_Camera_Light(camera, light1) {
+    let res = new SceneEnvironment();
+    res.camera = camera;
+    res.lights = Dut.immutableList(light1);
+    res.gamma = 2.2;
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_3_Camera_Light_Light(camera, light1, light2) {
+    let res = new SceneEnvironment();
+    res.camera = camera;
+    res.lights = Dut.immutableList(light1, light2);
+    res.gamma = 2.2;
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_4_Camera_Light_Light_Light(camera, light1, light2, light3) {
+    let res = new SceneEnvironment();
+    res.camera = camera;
+    res.lights = Dut.immutableList(light1, light2, light3);
+    res.gamma = 2.2;
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_5_Camera_Light_Light_Light_Light(camera, light1, light2, light3, light4) {
+    let res = new SceneEnvironment();
+    res.camera = camera;
+    res.lights = Dut.immutableList(light1, light2, light3, light4);
+    res.gamma = 2.2;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class SoundId extends RefId {
   static TYPE = RefIdType.of("SOUND_ID");
   mId;
   constructor() {
+    super();
+  }
+
+  getClass() {
+    return "SoundId";
   }
 
   guardInvariants() {
@@ -4558,6 +7500,533 @@ class SoundId {
   }
 
 }
+class AssetGroup {
+  cache;
+  constructor() {
+  }
+
+  getClass() {
+    return "AssetGroup";
+  }
+
+  guardInvariants() {
+  }
+
+  put(key, asset) {
+    Guard.notNull(key, "key cannot be null");
+    Guard.notNull(asset, "asset cannot be null");
+    let c = new HashMap();
+    c.putAll(this.cache);
+    c.put(key, asset);
+    let res = new AssetGroup();
+    res.cache = Dut.copyImmutableMap(c);
+    res.guardInvariants();
+    return res;
+  }
+
+  remove(key) {
+    Guard.notNull(key, "key cannot be null");
+    let c = new HashMap();
+    c.putAll(this.cache);
+    c.remove(key);
+    let res = new AssetGroup();
+    res.cache = Dut.copyImmutableMap(c);
+    res.guardInvariants();
+    return res;
+  }
+
+  containsKey(key) {
+    return this.cache.containsKey(key);
+  }
+
+  isEmpty() {
+    return this.cache.isEmpty();
+  }
+
+  getKeys() {
+    if (arguments.length===0) {
+      return this.getKeys_0();
+    }
+    else if (arguments.length===1&&arguments[0] instanceof RefIdType) {
+      return this.getKeys_1_RefIdType(arguments[0]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  getKeys_0() {
+    return this.cache.keySet();
+  }
+
+  getKeys_1_RefIdType(type) {
+    let res = new HashSet();
+    for (let rid of this.cache.keySet()) {
+      if (rid.type().equals(type)) {
+        res.add(rid);
+      }
+    }
+    return res;
+  }
+
+  get() {
+    if (arguments.length===1&&arguments[0] instanceof RefId) {
+      return this.get_1_RefId(arguments[0]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="string"&&arguments[1] instanceof RefId) {
+      return this.get_2_string_RefId(arguments[0], arguments[1]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  get_1_RefId(key) {
+    if (!this.cache.containsKey(key)) {
+      throw "no asset under "+key;
+    }
+    return this.cache.get(key);
+  }
+
+  get_2_string_RefId(clazz, key) {
+    if (!this.cache.containsKey(key)) {
+      throw "no asset under "+key;
+    }
+    return this.cache.get(key);
+  }
+
+  getAsAssetGroup(key) {
+    if (!this.cache.containsKey(key)) {
+      throw "no asset under "+key;
+    }
+    return AssetGroup.empty().put(key, this.cache.get(key));
+  }
+
+  mergeStrict(other) {
+    let c = new HashMap();
+    c.putAll(this.cache);
+    for (let key of other.cache.keySet()) {
+      if (c.containsKey(key)) {
+        if (c.get(key).equals(other.cache.get(key))) {
+          continue;
+        }
+        throw "key is presented in both groups: "+key;
+      }
+      c.put(key, other.cache.get(key));
+    }
+    let res = new AssetGroup();
+    res.cache = Dut.copyImmutableMap(c);
+    res.guardInvariants();
+    return res;
+  }
+
+  mergeXor(other) {
+    let c = new HashMap();
+    for (let key of this.cache.keySet()) {
+      if (!other.containsKey(key)) {
+        c.put(key, this.cache.get(key));
+      }
+    }
+    for (let key of other.cache.keySet()) {
+      if (!this.cache.containsKey(key)) {
+        c.put(key, other.cache.get(key));
+      }
+    }
+    let res = new AssetGroup();
+    res.cache = Dut.copyImmutableMap(c);
+    res.guardInvariants();
+    return res;
+  }
+
+  mergeSkip(other) {
+    let c = new HashMap();
+    c.putAll(this.cache);
+    for (let key of other.cache.keySet()) {
+      if (c.containsKey(key)) {
+        continue;
+      }
+      c.put(key, other.cache.get(key));
+    }
+    let res = new AssetGroup();
+    res.cache = Dut.copyImmutableMap(c);
+    res.guardInvariants();
+    return res;
+  }
+
+  transform() {
+    if (arguments.length===1&&arguments[0] instanceof Function) {
+      return this.transform_1_Function(arguments[0]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="string"&&arguments[1] instanceof Function) {
+      return this.transform_2_string_Function(arguments[0], arguments[1]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  transform_1_Function(fnc) {
+    return fnc.apply(this);
+  }
+
+  transform_2_string_Function(clazz, fnc) {
+    let res = AssetGroup.empty();
+    for (let key of this.cache.keySet()) {
+      let val = this.cache.get(key);
+      if (val.getClass().equals(clazz)) {
+        res = res.put(key, fnc.apply(val));
+      }
+      else {
+        res = res.put(key, val);
+      }
+    }
+    return res;
+  }
+
+  transformKeys(clazz, fnc) {
+    let res = AssetGroup.empty();
+    for (let key of this.cache.keySet()) {
+      if (key.getClass().equals(clazz)) {
+        res = res.put(fnc.apply(key), this.cache.get(key));
+      }
+      else {
+        res = res.put(key, this.cache.get(key));
+      }
+    }
+    return res;
+  }
+
+  toManagerStrict(am) {
+    for (let key of this.cache.keySet()) {
+      if (am.containsKey(key)) {
+        throw "bank already contains "+key;
+      }
+    }
+    for (let key of this.cache.keySet()) {
+      am.put(key, this.cache.get(key));
+    }
+  }
+
+  toManagerSkip(am) {
+    for (let key of this.cache.keySet()) {
+      if (am.containsKey(key)) {
+        continue;
+      }
+      am.put(key, this.cache.get(key));
+    }
+  }
+
+  toManagerUpdate(am) {
+    for (let key of this.cache.keySet()) {
+      am.put(key, this.cache.get(key));
+    }
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static empty() {
+    let res = new AssetGroup();
+    res.cache = Collections.emptyMap();
+    res.guardInvariants();
+    return res;
+  }
+
+  static of(key, asset) {
+    return AssetGroup.empty().put(key, asset);
+  }
+
+}
+class Assets {
+  constructor() {
+  }
+
+  getClass() {
+    return "Assets";
+  }
+
+  static loadDir() {
+    if (arguments.length===2&&arguments[0] instanceof AssetLoader&&arguments[1] instanceof Path) {
+      return Assets.loadDir_2_AssetLoader_Path(arguments[0], arguments[1]);
+    }
+    else if (arguments.length===3&&arguments[0] instanceof AssetLoader&&arguments[1] instanceof Path&& typeof arguments[2]==="boolean") {
+      return Assets.loadDir_3_AssetLoader_Path_boolean(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static loadDir_2_AssetLoader_Path(loader, dir) {
+    return Assets.loadDir(loader, dir, true);
+  }
+
+  static loadDir_3_AssetLoader_Path_boolean(loader, dir, recursive) {
+    let items = loader.list(dir);
+    let files = loader.listFiles(dir, false);
+    let descriptor = null;
+    for (let file of files) {
+      if (file.getName().equals("tap.json")) {
+        descriptor = file;
+        break;
+      }
+    }
+    let res = AssetGroup.empty();
+    if (descriptor==null) {
+      res = res.mergeStrict(Assets.loadFiles(loader, files));
+    }
+    else {
+      let tapJson = new JsonObject(new String(loader.loadFile(descriptor), Charset.forName("utf-8")));
+      let docType = tapJson.getString("docType");
+      let schemaVersion = tapJson.getInt("schemaVersion");
+      Guard.equals("Tyracorn Asset Package Descriptor", docType, "docType is not \"Tyracorn Asset Package Descriptor\"");
+      if (schemaVersion==1) {
+        let tasksJson = tapJson.has("tasks")?tapJson.getJSONArray("tasks"):new JsonArray();
+        for (let i = 0; i<tasksJson.length(); ++i) {
+          let taskJson = tasksJson.getJSONObject(i);
+          let type = taskJson.getString("type");
+          if (type.equals("LOAD_ALL")) {
+            let exclusionsJson = taskJson.has("exclusions")?taskJson.getJSONArray("exclusions"):new JsonArray();
+            let exclusions = Assets.jsonArrayToStringArray(exclusionsJson);
+            let okFiles = new ArrayList();
+            for (let file of files) {
+              if (file.getName().equals("tap.json")) {
+                continue;
+              }
+              let ok = true;
+              for (let excl of exclusions) {
+                if (excl.startsWith("*.")) {
+                  let ext = excl.substring(1);
+                  if (file.getName().endsWith(ext)) {
+                    ok = false;
+                    break;
+                  }
+                }
+                else if (file.getName().equals(excl)) {
+                  ok = false;
+                  break;
+                }
+              }
+              if (ok) {
+                okFiles.add(file);
+              }
+            }
+            res = res.mergeStrict(Assets.loadFiles(loader, okFiles));
+          }
+          else if (type.equals("LOAD_ANIMATED_OBJ_MODEL")) {
+            let modelId = taskJson.getString("modelId");
+            let filesJson = taskJson.getJSONArray("files");
+            let filesStrs = Assets.jsonArrayToStringArray(filesJson);
+            let animFiles = new ArrayList();
+            for (let fileStr of filesStrs) {
+              animFiles.add(dir.getChild(fileStr));
+            }
+            res = res.mergeStrict(Objs.loadAnimatedModel(modelId, loader, animFiles));
+          }
+          else if (type.equals("TEXTURE_FLIP_VERT")) {
+            res = res.transform("Texture", TextureFncs.flipVert());
+          }
+          else if (type.equals("TEXTURE_GAMMA")) {
+            let gamma = Float.valueOf(taskJson.getString("gamma"));
+            res = res.transform("Texture", TextureFncs.gamma(gamma));
+          }
+          else if (type.equals("MATERIAL_DIFFUSE_TO_AMBIENT")) {
+            res = res.transform("Material", Assets.materialDiffuseToAmbientFnc());
+          }
+          else if (type.equals("CREATE_CLIP_ANIMATION_COLLECTION")) {
+            res = res.mergeStrict(Assets.parseCreateClipAnimationCollectionTask(taskJson));
+          }
+          else if (type.equals("CREATE_PHYSICAL_MATERIAL")) {
+            res = res.mergeStrict(Assets.parseCreatePhysicalMaterialTask(taskJson));
+          }
+          else if (type.equals("CREATE_SPRITES")) {
+            res = Assets.createSprites(taskJson, res);
+          }
+          else {
+            throw "unsupported task type, fix the file or implement: "+type;
+          }
+        }
+      }
+      else {
+        throw "unknown version: "+schemaVersion;
+      }
+    }
+    if (recursive) {
+      let subDirs = Dut.copyList(items);
+      subDirs.removeAll(files);
+      for (let subDir of subDirs) {
+        res = res.mergeStrict(Assets.loadDir(loader, subDir, true));
+      }
+    }
+    return res;
+  }
+
+  static loadFiles(loader, files) {
+    let res = AssetGroup.empty();
+    for (let file of files) {
+      if (file.getExtension().equals("png")) {
+        res = res.mergeStrict(Assets.loadTexture(loader, file));
+      }
+    }
+    for (let file of files) {
+      if (file.getExtension().equals("mtl")) {
+        res = res.mergeStrict(Objs.loadMtlLibrary(loader, file));
+      }
+    }
+    for (let file of files) {
+      if (file.getExtension().equals("obj")) {
+        res = res.mergeStrict(Objs.loadModel(loader, file));
+      }
+    }
+    for (let file of files) {
+      if (file.getExtension().equals("fnt")) {
+        res = res.mergeStrict(Fonts.loadFnt(loader, file, res));
+      }
+    }
+    for (let file of files) {
+      if (file.getExtension().equals("wav")) {
+        res = res.mergeStrict(Assets.loadSound(loader, file));
+      }
+    }
+    for (let file of files) {
+      if (file.getExtension().equals("tap")) {
+        let buf = loader.loadFile(file);
+        let tap = Taps.fromBytes(buf);
+        let ag = Taps.toAssetGroup(tap);
+        res = res.mergeStrict(ag);
+      }
+    }
+    return res;
+  }
+
+  static loadTexture(loader, file) {
+    let tid = TextureId.of(file.getPlainName());
+    let texture = loader.loadTexture(file);
+    return AssetGroup.of(tid, texture);
+  }
+
+  static loadSound(loader, file) {
+    let sid = SoundId.of(file.getPlainName());
+    let sound = loader.loadSound(file);
+    return AssetGroup.of(sid, sound);
+  }
+
+  static jsonArrayToStringArray(jsonArray) {
+    let res = new ArrayList();
+    for (let j = 0; j<jsonArray.length(); ++j) {
+      res.add(jsonArray.getString(j));
+    }
+    return res;
+  }
+
+  diffuseToAmbient(material) {
+    return material.withAmbient(material.getDiffuse());
+  }
+
+  static materialDiffuseToAmbientFnc() {
+    return (mat) => {
+      return mat.withAmbient(mat.getDiffuse());
+    };
+  }
+
+  static parseCreateClipAnimationCollectionTask(taskJson) {
+    let id = ClipAnimationCollectionId.of(taskJson.getString("collectionId"));
+    let animations = new HashMap();
+    let animsJson = taskJson.getJSONObject("animations");
+    for (let key of animsJson.keySet()) {
+      let animJson = animsJson.getJSONObject(key);
+      let clip = Assets.parseClip(animJson.getJSONArray("clip"));
+      let dur = Float.valueOf(animJson.getString("duration"));
+      let loop = animJson.getBoolean("loop");
+      let triggers = animJson.has("triggers")?Assets.parseTriggers(animJson.getJSONArray("triggers")):Collections.emptyMap();
+      animations.put(key, ClipAnimation.create(clip, dur, loop, triggers));
+    }
+    let res = ClipAnimationCollection.create(animations);
+    return AssetGroup.of(id, res);
+  }
+
+  static parseCreatePhysicalMaterialTask(taskJson) {
+    let id = PhysicalMaterialId.of(taskJson.getString("physicalMaterialId"));
+    let pmJson = taskJson.getJSONObject("physicalMaterial");
+    let bounciness = pmJson.getFloat("bounciness");
+    let bouninessCombineType = pmJson.getEnum("CombineType", "bouninessCombineType");
+    let staticFriction = pmJson.getFloat("staticFriction");
+    let dynamicFriction = pmJson.getFloat("dynamicFriction");
+    let frictionCombineType = pmJson.getEnum("CombineType", "frictionCombineType");
+    let res = PhysicalMaterial.create(bounciness, bouninessCombineType, staticFriction, dynamicFriction, frictionCombineType);
+    return AssetGroup.of(id, res);
+  }
+
+  static createSprites(taskJson, assets) {
+    let res = assets;
+    let spritesJson = taskJson.getJSONObject("sprites");
+    for (let key of spritesJson.keySet()) {
+      let spriteJson = spritesJson.getJSONObject(key);
+      let tid = Assets.findSpriteTexture(key, assets);
+      let sheet = SpriteSheet.create(key, assets.get("Texture", tid), Assets.getNumStripFrames(tid), 1);
+      let dur = Float.valueOf(spriteJson.getString("duration"));
+      let loop = spriteJson.getBoolean("loop");
+      let triggers = spriteJson.has("triggers")?Assets.parseTriggers(spriteJson.getJSONArray("triggers")):Collections.emptyMap();
+      let sprite = sheet.createSprite(dur, loop, triggers);
+      let id = SpriteId.of(key);
+      res = res.remove(tid).mergeStrict(sheet.getAssets()).put(id, sprite);
+    }
+    return res;
+  }
+
+  static findSpriteTexture(spriteId, assets) {
+    let prefix = spriteId+"_strip-";
+    let ids = assets.getKeys(TextureId.TYPE);
+    let res = null;
+    for (let id of ids) {
+      if (id.id().startsWith(prefix)) {
+        Guard.beNull(res, "more than 1 texture is candidate for sprite %s", spriteId);
+        res = id;
+      }
+    }
+    Guard.notNull(res, "unable to find texture id for %s", spriteId);
+    return res;
+  }
+
+  static getNumStripFrames(id) {
+    let splits = id.id().split("_");
+    let st = splits[splits.length-1];
+    Guard.beTrue(st.startsWith("strip-"), "unable to recognize string");
+    return Integer.parseInt(st.substring(6));
+  }
+
+  static parseClip(array) {
+    let frames = new ArrayList();
+    for (let i = 0; i<array.length(); ++i) {
+      frames.add(array.getInt(i));
+    }
+    return Clip.create(frames);
+  }
+
+  static parseTriggers(array) {
+    let res = new HashMap();
+    for (let i = 0; i<array.length(); ++i) {
+      let tJson = array.getJSONObject(i);
+      let t = Float.valueOf(tJson.getString("t"));
+      let trgsJson = tJson.getJSONArray("triggers");
+      let triggers = new HashSet();
+      for (let j = 0; j<trgsJson.length(); ++j) {
+        triggers.add(trgsJson.getString(j));
+      }
+      res.put(t, triggers);
+    }
+    return res;
+  }
+
+}
 const createAssetCompanionType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -4592,6 +8061,10 @@ class DefaultAssetBank {
   companions = new HashMap();
   lock = new Object();
   constructor() {
+  }
+
+  getClass() {
+    return "DefaultAssetBank";
   }
 
   put(key, asset) {
@@ -4670,264 +8143,6 @@ class DefaultAssetBank {
   }
 
 }
-class DefaultAssetManager {
-  drivers;
-  loader;
-  bank;
-  dict = new HashMap();
-  constructor() {
-  }
-
-  guardInvariants() {
-  }
-
-  resolve(path, transformFncs) {
-    if (path.getExtension().equals("")) {
-      let files = this.loader.listFiles(path, true);
-      for (let file of files) {
-        this.resolve(file, transformFncs);
-      }
-      return ;
-    }
-    let fullyLoaded = false;
-    if (this.dict.containsKey(path)) {
-      fullyLoaded = true;
-      for (let id of this.dict.get(path)) {
-        if (!this.bank.containsKey(id)) {
-          fullyLoaded = false;
-          break;
-        }
-      }
-    }
-    if (fullyLoaded) {
-      return ;
-    }
-    let ag = AssetGroup.empty();
-    if (path.getExtension().equals("tap")) {
-      let buf = this.loader.loadFile(path);
-      let tap = Taps.fromBytes(buf);
-      ag = Taps.toAssetGroup(tap);
-    }
-    else if (path.getExtension().equals("png")) {
-      ag = Assets.loadTexture(this.loader, path);
-    }
-    else if (path.getExtension().equals("mtl")) {
-      ag = Objs.loadMtlLibrary(this.loader, path);
-    }
-    else if (path.getExtension().equals("obj")) {
-      ag = Objs.loadModel(this.loader, path);
-    }
-    else if (path.getExtension().equals("fnt")) {
-      ag = Fonts.loadFnt(this.loader, path, AssetGroup.empty());
-    }
-    else if (path.getExtension().equals("wav")) {
-      ag = Assets.loadSound(this.loader, path);
-    }
-    for (let clazz of transformFncs.keySet()) {
-      if (clazz.equals("Texture")) {
-        ag = ag.transform("Texture", (transformFncs.get(clazz)));
-      }
-      else if (clazz.equals("Material")) {
-        ag = ag.transform("Material", (transformFncs.get(clazz)));
-      }
-      else if (clazz.equals("Mesh")) {
-        ag = ag.transform("Mesh", (transformFncs.get(clazz)));
-      }
-      else if (clazz.equals("Model")) {
-        ag = ag.transform("Model", (transformFncs.get(clazz)));
-      }
-      else if (clazz.equals("Font")) {
-        ag = ag.transform("Font", (transformFncs.get(clazz)));
-      }
-      else if (clazz.equals("Sound")) {
-        ag = ag.transform("Sound", (transformFncs.get(clazz)));
-      }
-      else {
-        throw "unsupported class for transformation, implement me: "+clazz;
-      }
-    }
-    for (let key of ag.getKeys()) {
-      if (this.bank.containsKey(key)) {
-        throw "bank already contains "+key;
-      }
-    }
-    for (let key of ag.getKeys()) {
-      this.bank.put(key, ag.get(key));
-    }
-    this.dict.put(path, ag.getKeys());
-    this.attachCompasnions(ag);
-  }
-
-  put(key, asset) {
-    this.bank.put(key, asset);
-    this.attachCompanions(key, asset);
-  }
-
-  containsKey(key) {
-    return this.bank.containsKey(key);
-  }
-
-  isMaterialized(key) {
-    return this.bank.isMaterialized(key);
-  }
-
-  getKeys(type) {
-    return this.bank.getKeys(type);
-  }
-
-  get(clazz, key) {
-    return this.bank.get(clazz, key);
-  }
-
-  getCompanion(clazz, key, type) {
-    return this.bank.getCompanion(clazz, key, type);
-  }
-
-  remove(key) {
-    this.bank.remove(key);
-  }
-
-  syncToDrivers() {
-    let gd = this.drivers.getDriver("GraphicsDriver");
-    let ad = this.drivers.getDriver("AudioDriver");
-    let gdms = gd.getMeshes();
-    let abms = this.bank.getKeys(MeshId.TYPE);
-    for (let rid of abms) {
-      let mid = rid;
-      if (this.bank.isSynced(mid)&&gdms.contains(mid)) {
-        continue;
-      }
-      if (gdms.contains(mid)) {
-        gd.disposeMesh(mid);
-      }
-      gd.loadMesh(mid, this.bank.get("Mesh", mid));
-      this.bank.markSynced(mid);
-    }
-    for (let mid of gdms) {
-      if (!abms.contains(mid)) {
-        gd.disposeMesh(mid);
-      }
-    }
-    let gdtxs = gd.getTextures();
-    let abtxs = this.bank.getKeys(TextureId.TYPE);
-    for (let rid of abtxs) {
-      let tid = rid;
-      if (this.bank.isSynced(tid)&&gdtxs.contains(tid)) {
-        continue;
-      }
-      if (gdtxs.contains(tid)) {
-        gd.disposeTexture(tid);
-      }
-      gd.loadTexture(tid, this.bank.get("Texture", tid), true);
-      this.bank.markSynced(tid);
-    }
-    for (let tid of gdtxs) {
-      if (!abtxs.contains(tid)) {
-        gd.disposeTexture(tid);
-      }
-    }
-    let gdshbs = gd.getShadowBuffers();
-    let abshbs = this.bank.getKeys(ShadowBufferId.TYPE);
-    for (let rid of abshbs) {
-      let sbid = rid;
-      if (this.bank.isSynced(sbid)&&gdshbs.contains(sbid)) {
-        continue;
-      }
-      if (gdshbs.contains(sbid)) {
-        gd.disposeShadowBuffer(sbid);
-      }
-      gd.createShadowBuffer(sbid, this.bank.get("ShadowBuffer", sbid));
-      this.bank.markSynced(sbid);
-    }
-    for (let sbid of gdshbs) {
-      if (!abshbs.contains(sbid)) {
-        gd.disposeShadowBuffer(sbid);
-      }
-    }
-    let adrivSounds = ad.getSounds();
-    let bankSounds = this.bank.getKeys(SoundId.TYPE);
-    for (let rid of bankSounds) {
-      let id = rid;
-      if (this.bank.isSynced(id)&&adrivSounds.contains(id)) {
-        continue;
-      }
-      if (adrivSounds.contains(id)) {
-        ad.disposeSound(id);
-      }
-      ad.loadSound(id, this.bank.get("Sound", id));
-      this.bank.markSynced(id);
-    }
-    for (let id of adrivSounds) {
-      if (!bankSounds.contains(id)) {
-        ad.disposeSound(id);
-      }
-    }
-  }
-
-  attachCompasnions(ag) {
-    for (let key of ag.getKeys()) {
-      this.attachCompanions(key, ag.get(key));
-    }
-  }
-
-  attachCompanions(key, asset) {
-    if (asset instanceof Texture) {
-      let tex = asset;
-      let size = Size2.create(tex.getWidth(), tex.getHeight());
-      this.bank.putCompanion(key, AssetCompanionType.SIZE, size);
-    }
-    else if (asset instanceof Mesh) {
-      let mesh = asset;
-      let aabb = DefaultAssetManager.calculateMeshAabb(mesh);
-      this.bank.putCompanion(key, AssetCompanionType.BOUNDING_AABB, aabb);
-    }
-  }
-
-  toString() {
-  }
-
-  static create(drivers, loader, bank) {
-    let res = new DefaultAssetManager();
-    res.drivers = drivers;
-    res.loader = loader;
-    res.bank = bank;
-    res.guardInvariants();
-    return res;
-  }
-
-  static calculateMeshAabb(mesh) {
-    let minX = Float.POSITIVE_INFINITY;
-    let minY = Float.POSITIVE_INFINITY;
-    let minZ = Float.POSITIVE_INFINITY;
-    let maxX = Float.NEGATIVE_INFINITY;
-    let maxY = Float.NEGATIVE_INFINITY;
-    let maxZ = Float.NEGATIVE_INFINITY;
-    let attrs = mesh.getVertexAttrs();
-    for (let i = 0; i<mesh.getNumVertices(); ++i) {
-      let vertex = mesh.getVertex(i);
-      let offset = 0;
-      for (let attr of attrs) {
-        if (attr.equals(VertexAttr.POS3)) {
-          let x = vertex.coord(offset);
-          let y = vertex.coord(offset+1);
-          let z = vertex.coord(offset+2);
-          minX = FMath.min(minX, x);
-          minY = FMath.min(minY, y);
-          minZ = FMath.min(minZ, z);
-          maxX = FMath.max(maxX, x);
-          maxY = FMath.max(maxY, y);
-          maxZ = FMath.max(maxZ, z);
-        }
-        offset = offset+attr.getSize();
-      }
-    }
-    if (Float.isInfinite(minX)) {
-      return null;
-    }
-    return Aabb3.create(Vec3.create(minX, minY, minZ), Vec3.create(maxX, maxY, maxZ));
-  }
-
-}
 
 
 // -------------------------------------
@@ -4936,6 +8151,10 @@ class DefaultAssetManager {
 
 class BoxMeshFactory {
   constructor() {
+  }
+
+  getClass() {
+    return "BoxMeshFactory";
   }
 
   static rgbBox() {
@@ -4997,22 +8216,26 @@ class BasicApp02 {
   planes = Dut.immutableList(MeshId.of("plane-0"), MeshId.of("plane-1"), MeshId.of("plane-2"), MeshId.of("plane-3"), MeshId.of("plane-4"), MeshId.of("plane-5"), MeshId.of("plane-6"), MeshId.of("plane-7"), MeshId.of("plane-8"), MeshId.of("plane-9"), MeshId.of("plane-10"));
   tex1 = TextureId.of("tex1");
   tex2 = TextureId.of("tex2");
-  stone = TextureId.of("stone");
+  stone = TextureId.of("stone-floor-1");
   tyracorn = TextureId.of("tyracorn");
-  rug = TextureId.of("rug");
+  rug = TextureId.of("rug-1");
   time = 0;
   constructor() {
+  }
+
+  getClass() {
+    return "BasicApp02";
   }
 
   move(drivers, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
     let aspect = gDriver.getScreenViewport().getAspect();
-    let fovy = (aspect>=1?Math.toRadians(60):Math.toRadians(90));
-    let m = (2*Math.sin(this.time/3));
+    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
+    let m = 2*FMath.sin(this.time/3);
     let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 5), Vec3.ZERO, Vec3.create(0, 1, 0));
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let renderer = gDriver.startRenderer("SceneRenderer", Environments.scene(cam, Light.dir(LightColor.AMBIENT_WHITE, Vec3.DOWN)));
+    let renderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, Light.directional(LightColor.AMBIENT_WHITE, Vec3.DOWN)));
     renderer.render(this.planes.get(10), Mat44.trans(0, -0.5, 0).mul(Mat44.rotX(-Math.PI/2).mul(Mat44.scale(20, 20, 1))), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.rug, TextureStyle.SMOOTH_REPEAT)));
     renderer.render(this.planes.get(1), Mat44.trans(-4, 1, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.LINEAR, TextureFilterType.LINEAR))));
     renderer.render(this.planes.get(1), Mat44.trans(-4, 0, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
@@ -5030,7 +8253,6 @@ class BasicApp02 {
 
   init(drivers, properties) {
     let assets = drivers.getDriver("AssetManager");
-    let loader = drivers.getDriver("AssetLoader");
     assets.put(this.planes.get(1), this.plane(1, 1));
     assets.put(this.planes.get(2), this.plane(2, 2));
     assets.put(this.planes.get(3), this.plane(3, 3));
@@ -5045,9 +8267,11 @@ class BasicApp02 {
     let mtex2 = Texture.rgbaFloatBuffer(4, 4, 1, 1, 1, 1, 0.3, 0.3, 0.3, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1).powRgb(2.2);
     assets.put(this.tex1, mtex1);
     assets.put(this.tex2, mtex2);
-    assets.put(this.stone, loader.loadTexture("asset:stone-floor-1.png").powRgb(2.2));
-    assets.put(this.tyracorn, loader.loadTexture("asset:tyracorn.png").flipVert().powRgb(2.2));
-    assets.put(this.rug, loader.loadTexture("asset:rug-1.png").flipVert().powRgb(2.2));
+    let res = new ArrayList();
+    res.add(assets.resolveAsync(Path.of("asset:stone-floor-1.png"), "Texture", TextureFncs.flipVertGamma(2.2)));
+    res.add(assets.resolveAsync(Path.of("asset:tyracorn.png"), "Texture", TextureFncs.flipVertGamma(2.2)));
+    res.add(assets.resolveAsync(Path.of("asset:rug-1.png"), "Texture", TextureFncs.flipVertGamma(2.2)));
+    return res;
   }
 
   close(drivers) {
@@ -5125,7 +8349,12 @@ function initWebGl() {
         alert("Unable to initialize WebGL. Your browser may not support it.");
         return;
     }
-
+    const ext = gl.getExtension('GMAN_debug_helper');
+    if (ext) {
+        ext.setConfiguration({
+            failUnsetUniforms: false
+        });
+    }
     // Ensure canvas is properly sized after WebGL initialization
     resizeCanvas();
 }
@@ -5134,15 +8363,34 @@ function initWebGl() {
  * App loop funciton. This loops forever.
  */
 function appLoop() {
-    let dt = 0.0;
-    if (time === 0.0) {
-        time = Date.now() * 0.001;
+    if (appLoadingFutures.isEmpty()) {
+        // app goes
+        let dt = 0.0;
+        if (time === 0.0) {
+            time = Date.now() * 0.001;
+        } else {
+            const timeNext = Date.now() * 0.001;
+            dt = timeNext - time;
+            time = timeNext;
+        }
+        tyracornApp.move(drivers, dt);
     } else {
-        const timeNext = Date.now() * 0.001;
-        dt = timeNext - time;
-        time = timeNext;
+        // still loading
+        let futs = new ArrayList();
+        for (let future of appLoadingFutures) {
+            if (future.isDone()) {
+                if (!future.isSuccess()) {
+                    throw "Initialization failed";
+                }
+            } else {
+                futs.add(future);
+            }
+            appLoadingFutures = futs;
+        }
+        if (appLoadingFutures.isEmpty()) {
+            drivers.getDriver("AssetManager").syncToDrivers();
+        }
     }
-    tyracornApp.move(drivers, dt);
     requestAnimationFrame(() => appLoop());
 }
 
@@ -5170,8 +8418,10 @@ async function main() {
     drivers.getDriver("GraphicsDriver").init();
     tyracornApp = new BasicApp02();
 
-    tyracornApp.init(drivers, {});
-    drivers.getDriver("AssetManager").syncToDrivers();
+    appLoadingFutures = tyracornApp.init(drivers, {});
+    if (appLoadingFutures.isEmpty()) {
+        drivers.getDriver("AssetManager").syncToDrivers();
+    }
     appLoop();
 }
 
