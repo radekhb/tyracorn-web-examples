@@ -1400,24 +1400,25 @@ class WebAssetManager {
          } else if (path.getExtension().equals("wav")) {
          ag = Assets.loadSound(this.loader, path);
          }
-         for (let clazz of transformFncs.keySet()) {
-         if (clazz.equals("Texture")) {
-         ag = ag.transform("Texture", (transformFncs.get(clazz)));
-         } else if (clazz.equals("Material")) {
-         ag = ag.transform("Material", (transformFncs.get(clazz)));
-         } else if (clazz.equals("Mesh")) {
-         ag = ag.transform("Mesh", (transformFncs.get(clazz)));
-         } else if (clazz.equals("Model")) {
-         ag = ag.transform("Model", (transformFncs.get(clazz)));
-         } else if (clazz.equals("Font")) {
-         ag = ag.transform("Font", (transformFncs.get(clazz)));
-         } else if (clazz.equals("Sound")) {
-         ag = ag.transform("Sound", (transformFncs.get(clazz)));
-         } else {
-         throw "unsupported class for transformation, implement me: " + clazz;
-         }
-         }
          */
+        for (let clazz of transformFncs.keySet()) {
+            if (clazz.equals("Texture")) {
+                ag = ag.transform("Texture", (transformFncs.get(clazz)));
+            } else if (clazz.equals("Material")) {
+                ag = ag.transform("Material", (transformFncs.get(clazz)));
+            } else if (clazz.equals("Mesh")) {
+                ag = ag.transform("Mesh", (transformFncs.get(clazz)));
+            } else if (clazz.equals("Model")) {
+                ag = ag.transform("Model", (transformFncs.get(clazz)));
+            } else if (clazz.equals("Font")) {
+                ag = ag.transform("Font", (transformFncs.get(clazz)));
+            } else if (clazz.equals("Sound")) {
+                ag = ag.transform("Sound", (transformFncs.get(clazz)));
+            } else {
+                throw "unsupported class for transformation, implement me: " + clazz;
+            }
+        }
+
         for (let key of ag.getKeys()) {
             if (this.bank.containsKey(key)) {
                 throw "bank already contains " + key;
@@ -1698,6 +1699,76 @@ class WebglTextureRef {
         let res = new WebglTextureRef();
         res.textureId = textureId;
         res.texture = texture;
+        res.guardInvariants();
+        return res;
+    }
+
+}
+
+/**
+ * Webgl shadow buffer reference.
+ */
+class WebglShadowBufferRef {
+    /**
+     * Frame buffer object reference.
+     */
+    fbo;
+
+    /**
+     * Texture reference.
+     */
+    textureId;
+
+    /**
+     * Render buffer identifier.
+     */
+    renderBufferId;
+
+    /**
+     * Width.
+     */
+    width;
+
+    /**
+     * Height.
+     */
+    height;
+    constructor() {
+    }
+
+    guardInvariants() {
+    }
+
+    getFbo() {
+        return this.fbo;
+    }
+
+    getTextureId() {
+        return this.textureId;
+    }
+
+    getRenderBufferId() {
+        return this.renderBufferId;
+    }
+
+    getWidth() {
+        return this.width;
+    }
+
+    getHeight() {
+        return this.height;
+    }
+
+    toString() {
+    }
+
+    static create(fbo, textureId, renderBufferId, width, height) {
+        let res = new WebglShadowBufferRef();
+        res.fbo = fbo;
+        res.textureId = textureId;
+        res.renderBufferId = renderBufferId;
+        res.width = width;
+        res.height = height;
         res.guardInvariants();
         return res;
     }
@@ -2246,6 +2317,7 @@ class WebglSceneRenderer {
         this.assetBank = null;
         this.refProvider = null;
         this.shader = null;
+        this.defaultTexture = null;
         this.camera = null;
         this.rgbaBuf = [];
     }
@@ -2257,6 +2329,61 @@ class WebglSceneRenderer {
         Guard.notNull(this.assetBank, "assetBank cannot be null");
         Guard.notNull(this.refProvider, "refProvider cannot be null");
         Guard.notNull(this.shader, "shader shader cannot be null");
+        Guard.notNull(this.defaultTexture, "defaultTexture shader cannot be null");
+    }
+
+    init() {
+        this.shader.use();
+
+        // bind texture placeholders
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.defaultTexture.getTextureId());
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        this.shader.setUniformInt("diffuseTexture1", 0);
+
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, this.defaultTexture.getTextureId());
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        this.shader.setUniformInt("diffuseTexture2", 1);
+
+        gl.activeTexture(gl.TEXTURE2);
+        gl.bindTexture(gl.TEXTURE_2D, this.defaultTexture.getTextureId());
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        this.shader.setUniformInt("specularTexture1", 2);
+
+        gl.activeTexture(gl.TEXTURE3);
+        gl.bindTexture(gl.TEXTURE_2D, this.defaultTexture.getTextureId());
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        this.shader.setUniformInt("specularTexture2", 3);
+
+        gl.activeTexture(gl.TEXTURE4);
+        gl.bindTexture(gl.TEXTURE_2D, this.defaultTexture.getTextureId());
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        this.shader.setUniformInt("alphaTexture1", 4);
+
+        gl.activeTexture(gl.TEXTURE5);
+        gl.bindTexture(gl.TEXTURE_2D, this.defaultTexture.getTextureId());
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        this.shader.setUniformInt("shadowTexture1", 5);
+
+        gl.activeTexture(gl.TEXTURE6);
+        gl.bindTexture(gl.TEXTURE_2D, this.defaultTexture.getTextureId());
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        this.shader.setUniformInt("shadowTexture2", 6);
+
+        gl.activeTexture(gl.TEXTURE7);
+        gl.bindTexture(gl.TEXTURE_2D, this.defaultTexture.getTextureId());
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        this.shader.setUniformInt("shadowTexture3", 7);
+
     }
 
     /**
@@ -2364,7 +2491,6 @@ class WebglSceneRenderer {
         this.shader.setUniformInt("numPointLights", numPointLights);
         this.shader.setUniformInt("numSpotLights", numSpotLights);
         this.shader.setUniformInt("numShadowMaps", numShadowMaps);
-
     }
 
     /**
@@ -2378,8 +2504,8 @@ class WebglSceneRenderer {
         }
     }
 
-    // MeshId mesh, int frame1, int frame2, float t, Mat44 mat, Material material
     /**
+     * Renders mesh.
      * 
      * @param {MeshId} mesh mesh to render
      * @param {number} frame1 first frame (integer)
@@ -2397,7 +2523,7 @@ class WebglSceneRenderer {
         this.shader.setUniformMat33("normalMat", this.getNormalMat(mat));
         this.shader.setUniformRgb("material.ambient", material.getAmbient());
         this.shader.setUniformRgb("material.diffuse", material.getDiffuse());
-        this.shader.setUniformRgb("material.speculat", material.getSpecular());
+        this.shader.setUniformRgb("material.specular", material.getSpecular());
         this.shader.setUniformFloat("material.shininess", material.getShininess());
 
         let numDiffuseTextures = 0;
@@ -2498,10 +2624,10 @@ class WebglSceneRenderer {
             this.shader.setUniformFloat("t", 0);
             gl.bindVertexArray(m.getVao());
             gl.bindBuffer(gl.ARRAY_BUFFER, m.getVbo());
-            gl.vvertexAttribPointer(0, 3, gl.FLOAT, false, 6 * 4, 0);
-            gl.rnableVertexAttribArray(0);
+            gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 6 * 4, 0);
+            gl.enableVertexAttribArray(0);
             gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 6 * 4, 0);
-            gl.rnableVertexAttribArray(1);
+            gl.enableVertexAttribArray(1);
             gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 6 * 4, 3 * 4);
             gl.enableVertexAttribArray(2);
             gl.vertexAttribPointer(3, 3, gl.FLOAT, false, 6 * 4, 3 * 4);
@@ -2593,12 +2719,177 @@ class WebglSceneRenderer {
      * 
      * @param {AssetBank} assetBank asset bank
      * @param {GlRefProvider} refProvider provider for gl references
-     * @param {GlShader} shader shader
+     * @param {WebglShader} shader shader
+     * @param {WebglTextureRef} default texture
      * @returns {WebglSceneRenderer} created object
      */
-    static create(assetBank, refProvider, shader) {
+    static create(assetBank, refProvider, shader, defaultTexture) {
         const res = new WebglSceneRenderer();
         res.assetBank = assetBank;
+        res.refProvider = refProvider;
+        res.shader = shader;
+        res.defaultTexture = defaultTexture;
+        res.guardInvariants();
+        res.init();
+        return res;
+    }
+}
+/**
+ * WebGL Shadow Map Renderer - JavaScript version of JoglShadowMapRenderer
+ * Assumes WebGL context 'gl' is available globally.
+ */
+
+class WebglShadowMapRenderer {
+    constructor() {
+        this.refProvider = null;
+        this.shader = null;
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvariants() {
+        if (!this.refProvider) {
+            throw new Error("refProvider cannot be null");
+        }
+        if (!this.shader) {
+            throw new Error("shader cannot be null");
+        }
+    }
+
+    /**
+     * Starts the renderer.
+     * 
+     * @param {Environmenty} environment environment
+     */
+    start(environment) {
+        gl.enable(gl.DEPTH_TEST);
+        gl.depthFunc(gl.LESS);
+        gl.enable(gl.CULL_FACE);
+        gl.cullFace(gl.BACK);
+
+        const light = environment.getLight();
+        if (light.isSpotShadowMap()) {
+            const sbuf = this.refProvider.getShadowBufferRef(light.getShadowMap().getShadowBuffer());
+            gl.viewport(0, 0, sbuf.getWidth(), sbuf.getHeight());
+
+            gl.bindFramebuffer(gl.FRAMEBUFFER, sbuf.getFbo());
+            gl.clear(gl.DEPTH_BUFFER_BIT);
+            this.shader.use();
+            this.shader.setUniformMat("lightMat", light.getShadowMap().getLightMat());
+        } else if (light.isDirectionalShadowMap()) {
+            const sbuf = this.refProvider.getShadowBufferRef(light.getShadowMap().getShadowBuffer());
+            gl.viewport(0, 0, sbuf.getWidth(), sbuf.getHeight());
+
+            gl.bindFramebuffer(gl.FRAMEBUFFER, sbuf.getFbo());
+            gl.clear(gl.DEPTH_BUFFER_BIT);
+            this.shader.use();
+            this.shader.setUniformMat("lightMat", light.getShadowMap().getLightMat());
+        } else {
+            throw "unsupported shadow light class: " + environment.getLight();
+        }
+    }
+
+    /**
+     * Performs rendering. Arguments determines how the object is rendered.
+     */
+    render() {
+        if (arguments.length === 2 && arguments[0] instanceof MeshId && arguments[1] instanceof Mat44) {
+            this.renderMesh(arguments[0], 0, 0, 0, arguments[1]);
+        } else {
+            throw "unsupported arguments for rendering, implement me";
+        }
+    }
+
+    /**
+     * Renders mesh.
+     * 
+     * @param {MeshId} mesh mesh to render
+     * @param {number} frame1 first frame (integer)
+     * @param {number} frame2 second frame (integer)
+     * @param {number} t interpolation number (float)
+     * @param {Mat44} mat matrix
+     */
+    renderMesh(mesh, frame1, frame2, t, mat) {
+        const m = this.refProvider.getMeshRef(mesh);
+        gl.disable(gl.BLEND);
+        this.shader.setUniformMat("modelMat", mat);
+
+        if (m.getVertexAttrs().equals(Dut.list(VertexAttr.POS3, VertexAttr.NORM3))) {
+            this.shader.setUniformFloat("t", 0);
+            gl.bindVertexArray(m.getVao());
+            gl.bindBuffer(gl.ARRAY_BUFFER, m.getVbo());
+            gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 6 * 4, 0);
+            gl.enableVertexAttribArray(0);
+            gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 6 * 4, 0);
+            gl.enableVertexAttribArray(1);
+            gl.drawElements(gl.TRIANGLES, m.getNumIndices(), gl.UNSIGNED_INT, 0);
+            gl.bindVertexArray(null);
+        } else if (this.isAnimatedModel(m.getVertexAttrs())) {
+            this.shader.setUniformFloat("t", t);
+            const vsize = m.getVertexSize();
+            gl.bindVertexArray(m.getVao());
+            gl.bindBuffer(gl.ARRAY_BUFFER, m.getVbo());
+            gl.vertexAttribPointer(0, 3, gl.FLOAT, false, vsize * 4, frame1 * 6 * 4);
+            gl.enableVertexAttribArray(0);
+            gl.vertexAttribPointer(1, 3, gl.FLOAT, false, vsize * 4, frame2 * 6 * 4);
+            gl.enableVertexAttribArray(1);
+            gl.drawElements(gl.TRIANGLES, m.getNumIndices(), gl.UNSIGNED_INT, 0);
+            gl.bindVertexArray(null);
+        } else {
+            throw new IllegalArgumentException("unsupported mesh attributes for " + mesh + " in this method: " + m.getVertexAttrs());
+        }
+    }
+
+    /**
+     * Ends the renderer.
+     */
+    end() {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+
+    /**
+     * Returns if attribute set is animated model.
+     *
+     * @param {ArrayList of VertexAttr} attrs vertex attributes
+     * @returns {Boolean} whether thi is an animated model
+     */
+    isAnimatedModel(attrs) {
+        if (attrs.size() < 3 || !attrs.get(attrs.size() - 1).equals(VertexAttr.TEX2)) {
+            return false;
+        }
+        for (let i = 0; i < attrs.size() - 1; i = i + 2) {
+            if (!attrs.get(i).equals(VertexAttr.POS3) || !attrs.get(i + 1).equals(VertexAttr.NORM3)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Helper method to compare arrays.
+     * 
+     * @param {Array} a first array
+     * @param {Array} b second array
+     * @returns {Boolean} whether those arrays are equal ow not
+     */
+    arraysEqual(a, b) {
+        if (a.length !== b.length) {
+            return false;
+        }
+        for (let i = 0; i < a.length; i++) {
+            if (a[i] !== b[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Creates new instance.
+     */
+    static create(refProvider, shader) {
+        const res = new WebglShadowMapRenderer();
         res.refProvider = refProvider;
         res.shader = shader;
         res.guardInvariants();
@@ -2613,7 +2904,7 @@ class WebglGraphicsDriver {
     assetBank = null;
     screenViewport = null;
     shaders = [];
-    renderers = new Map();
+    renderers = new HashMap();
     meshes = new HashMap();
     textures = new HashMap();
     shadowBuffers = new HashMap();
@@ -2622,6 +2913,7 @@ class WebglGraphicsDriver {
     debugRectMesh = null;
     spriteRectMesh = null;
     primitivesMesh = null;
+    defaultTexture = null;
 
     constructor() {
     }
@@ -2679,6 +2971,10 @@ class WebglGraphicsDriver {
                 []
                 );
         this.primitivesMesh = this.pushMeshToGraphicCard(primitive);
+
+        // Create default texture
+        const tex = Texture.rgbConstant(1, 1, Rgb.BLACK);
+        this.defaultTexture = this.pushTextureToGraphicCard(tex, false);
 
         // Load shaders
         const colorShaderVertexSource = `#version 300 es
@@ -3077,6 +3373,31 @@ class WebglGraphicsDriver {
         const sceneShaderProgram = WebglUtils.loadShaderProgram(sceneShaderVertexSource, sceneShaderFragmentSource);
         const sceneShader = WebglShader.create(sceneShaderProgram);
 
+        const shadowMapShaderVertexSource = `#version 300 es
+
+            precision mediump float;
+
+            layout (location=0) in vec3 position1;
+            layout (location=1) in vec3 position2;
+
+            uniform float t;
+            uniform mat4 modelMat;
+            uniform mat4 lightMat;
+
+            void main(void) {
+                vec3 position = (1.0 - t) * position1 + t * position2;
+                gl_Position = lightMat * modelMat * vec4(position, 1.0);
+            }
+        `;
+        const shadowMapShaderFragmentSource = `#version 300 es
+
+            precision mediump float;
+
+            void main(void) {
+            }
+        `;
+        const shadowMapShaderProgram = WebglUtils.loadShaderProgram(shadowMapShaderVertexSource, shadowMapShaderFragmentSource);
+        const shadowMapShader = WebglShader.create(shadowMapShaderProgram);
 
         // TODO - uncomment
         /*
@@ -3094,25 +3415,17 @@ class WebglGraphicsDriver {
          "resource:shader/scene-fragment.glsl"
          )
          );
-         const shadowmapShader = WebglShader.create(
-         WebglUtils.loadShaderProgram(
-         this.loader,
-         "resource:shader/shadowmap-vertex.glsl",
-         "resource:shader/shadowmap-fragment.glsl"
-         )
-         );
          */
 
         // TODO - uncomment other shaders
-        this.shaders.push(colorShader, sceneShader); //spriteShader, shadowmapShader);
+        this.shaders.push(colorShader, sceneShader, shadowMapShader); //spriteShader);
 
         // Create renderers
-        this.renderers.set("ColorRenderer", WebglColorRenderer.create(this, colorShader));
-        this.renderers.set("SceneRenderer", WebglSceneRenderer.create(this.assetBank, this, sceneShader));
+        this.renderers.put("ColorRenderer", WebglColorRenderer.create(this, colorShader));
+        this.renderers.put("SceneRenderer", WebglSceneRenderer.create(this.assetBank, this, sceneShader, this.defaultTexture));
+        this.renderers.put("ShadowMapRenderer", WebglShadowMapRenderer.create(this, shadowMapShader));
         // TODO - uncomment
         //this.renderers.set("WebGLSpriteRenderer"", WebGLSpriteRenderer.create(this, this.spriteRectMesh, spriteShader));
-        // 
-        // this.renderers.set("WebGLShadowMapRenderer", WebGLShadowMapRenderer.create(this, shadowmapShader));
         // this.renderers.set("WebGLUiRenderer", WebGLUiRenderer.create(this, this.spriteRectMesh, spriteShader, this.primitivesMesh, colorShader));
         // this.renderers.set("WebGLBufferDebugRenderer", WebGLBufferDebugRenderer.create(this, this.debugRectMesh, colorShader));
     }
@@ -3177,25 +3490,8 @@ class WebglGraphicsDriver {
      * @param {mipmap} mipmap whether to do mipmap ow not
      */
     loadTexture(id, texture, mipmap) {
-        const ptr = gl.createTexture();
-        this.textures.put(id, WebglTextureRef.create(ptr, texture));
-        let arr = new Float32Array(texture.getBuf());
-
-        gl.bindTexture(gl.TEXTURE_2D, ptr);
-
-        if (texture.getChannels().equals(Texture.RGB)) {
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB32F, texture.getWidth(), texture.getHeight(), 0, gl.RGB, gl.FLOAT, arr);
-        } else if (texture.getChannels().equals(Texture.RGBA)) {
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, texture.getWidth(), texture.getHeight(), 0, gl.RGBA, gl.FLOAT, arr);
-        } else {
-            throw "unsupported texture channels: " + texture;
-        }
-
-        if (mipmap) {
-            // Currently mipmaps are not working. Leaving them up until I can figure out how to make them work.
-            // gl.generateMipmap(gl.TEXTURE_2D);
-        }
-        gl.bindTexture(gl.TEXTURE_2D, null);
+        const ref = this.pushTextureToGraphicCard(texture, mipmap);
+        this.textures.put(id, ref);
     }
 
     /**
@@ -3260,6 +3556,36 @@ class WebglGraphicsDriver {
     }
 
     /**
+     * Pushes texture to graphics card.
+     * 
+     * @param {Texture} texture texture
+     * @param {mipmap} mipmap whether to do mipmap ow not
+     * @returns {WebglMeshRef} texture reference
+     * 
+     */
+    pushTextureToGraphicCard(texture, mipmap) {
+        const ptr = gl.createTexture();
+        let arr = new Float32Array(texture.getBuf());
+
+        gl.bindTexture(gl.TEXTURE_2D, ptr);
+
+        if (texture.getChannels().equals(Texture.RGB)) {
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB32F, texture.getWidth(), texture.getHeight(), 0, gl.RGB, gl.FLOAT, arr);
+        } else if (texture.getChannels().equals(Texture.RGBA)) {
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, texture.getWidth(), texture.getHeight(), 0, gl.RGBA, gl.FLOAT, arr);
+        } else {
+            throw "unsupported texture channels: " + texture;
+        }
+
+        if (mipmap) {
+            // Currently mipmaps are not working. Leaving them up until I can figure out how to make them work.
+            // gl.generateMipmap(gl.TEXTURE_2D);
+        }
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        return WebglTextureRef.create(ptr, texture);
+    }
+
+    /**
      * Returns vertex array. 
      * 
      * @param {Mesh} mesh
@@ -3296,57 +3622,46 @@ class WebglGraphicsDriver {
     }
 
     /**
-     * Pushes texture to graphics card.
-     */
-    pushTextureToGraphicCard(texture) {
-        const textureId = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, textureId);
-
-        // Set texture parameters
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
-        // Upload texture data
-        if (texture.hasAlpha) {
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.image);
-        } else {
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, texture.image);
-        }
-
-        return new GLTexturerRef(textureId, texture);
-    }
-
-    /**
      * Creates shadow buffer.
+     * 
+     * @param {ShadowBufferId} id identifier
+     * @param {ShadowBuffer} shadowBuffer shadow buffer
+     * @returns {WebglShadowBufferRef} shadow buffer reference
      */
-    createShadowBuffer(width, height) {
+    createShadowBuffer(id, shadowBuffer) {
         const framebuffer = gl.createFramebuffer();
-        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
 
         // Create depth texture
         const depthTexture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, depthTexture);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT, width, height, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT32F, shadowBuffer.getWidth(), shadowBuffer.getHeight(), 0, gl.DEPTH_COMPONENT, gl.FLOAT, null);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
         // Attach depth texture to framebuffer
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTexture, 0);
 
+        gl.drawBuffers([gl.NONE]);
+        gl.readBuffer(gl.NONE);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+
         // Check framebuffer status
-        if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
-            throw new Error("Framebuffer is not complete");
+        const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+        if (status !== gl.FRAMEBUFFER_COMPLETE) {
+            throw "shadow framebuffer is not complete: " + status;
         }
 
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-        return new GLShadowBufferRef(framebuffer, depthTexture, width, height);
+        this.shadowBuffers.put(id, WebglShadowBufferRef.create(framebuffer, depthTexture, 0, shadowBuffer.getWidth(), shadowBuffer.getHeight()));
     }
 
     /**
      * Disposes mesh from graphics card.
+     * 
+     * @param {WebglMeshRed} meshRef mesh reference
      */
     disposeMeshFromGraphicCard(meshRef) {
         if (!meshRef) {
@@ -3399,7 +3714,7 @@ class WebglGraphicsDriver {
      * Starts a renderer.
      */
     startRenderer(rendererClass, environment) {
-        if (!this.renderers.has(rendererClass)) {
+        if (!this.renderers.containsKey(rendererClass)) {
             throw `unsupported renderer class: ${rendererClass}`;
         }
 
@@ -3424,6 +3739,8 @@ class WebglGraphicsDriver {
         this.debugRectMesh = null;
         this.disposeMeshFromGraphicCard(this.primitivesMesh);
         this.primitivesMesh = null;
+        this.disposeTextureFromGraphicCard(this.defaultTexture);
+        this.defaultTexture = null;
 
         // Dispose all textures
         for (const [id, texture] of this.textures) {
@@ -3465,8 +3782,6 @@ class WebglGraphicsDriver {
 
     /**
      * Creates new instance.
-     */
-    /**
      * 
      * @param {AssetBank} assetBank
      * @returns {WebglGraphicsDriver} graphics driver
@@ -5507,6 +5822,21 @@ class Texture {
     return res;
   }
 
+  static rgbConstant(width, height, color) {
+    let res = new Texture();
+    res.channels = Texture.RGB;
+    res.width = width;
+    res.height = height;
+    res.buf = [];
+    for (let i = 0,idx=0; i<width*height; ++i) {
+      res.buf[idx++] = color.r();
+      res.buf[idx++] = color.g();
+      res.buf[idx++] = color.b();
+    }
+    res.guardInvaritants();
+    return res;
+  }
+
   static rgbaConstant(width, height, color) {
     let res = new Texture();
     res.channels = Texture.RGBA;
@@ -6895,6 +7225,159 @@ class Light {
   }
 
 }
+const createShadowMapPcfType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const ShadowMapPcfType = Object.freeze({
+  NONE: createShadowMapPcfType("NONE"),
+  GAUSS_33: createShadowMapPcfType("GAUSS_33"),
+  GAUSS_55: createShadowMapPcfType("GAUSS_55")
+});
+class ShadowMap {
+  shadowBuffer;
+  pcfType;
+  camera;
+  constructor() {
+  }
+
+  getClass() {
+    return "ShadowMap";
+  }
+
+  guardInvaritants() {
+    Guard.notNull(this.shadowBuffer, "shadowBuffer cannot be null");
+    Guard.notNull(this.pcfType, "pcfType cannot be null");
+    Guard.notNull(this.camera, "camera cannot be null");
+  }
+
+  getShadowBuffer() {
+    return this.shadowBuffer;
+  }
+
+  getPcfType() {
+    return this.pcfType;
+  }
+
+  getCamera() {
+    return this.camera;
+  }
+
+  getLightMat() {
+    return this.camera.getProj().mul(this.camera.getView());
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static createDir() {
+    if (arguments.length===5&&arguments[0] instanceof ShadowBufferId&&arguments[1] instanceof Vec3&&arguments[2] instanceof Vec3&& typeof arguments[3]==="number"&& typeof arguments[4]==="number") {
+      return ShadowMap.createDir_5_ShadowBufferId_Vec3_Vec3_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
+    }
+    else if (arguments.length===6&&arguments[0] instanceof ShadowBufferId&&arguments[1] instanceof ShadowMapPcfType&&arguments[2] instanceof Vec3&&arguments[3] instanceof Vec3&& typeof arguments[4]==="number"&& typeof arguments[5]==="number") {
+      return ShadowMap.createDir_6_ShadowBufferId_ShadowMapPcfType_Vec3_Vec3_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static createDir_5_ShadowBufferId_Vec3_Vec3_number_number(shadowBuffer, pos, dir, r, range) {
+    let res = new ShadowMap();
+    res.shadowBuffer = shadowBuffer;
+    res.pcfType = ShadowMapPcfType.GAUSS_55;
+    res.camera = Camera.ortho(r*2, r*2, 0, range).lookAt(pos, pos.add(dir), ShadowMap.perp(dir));
+    res.guardInvaritants();
+    return res;
+  }
+
+  static createDir_6_ShadowBufferId_ShadowMapPcfType_Vec3_Vec3_number_number(shadowBuffer, pcfType, pos, dir, r, range) {
+    let res = new ShadowMap();
+    res.shadowBuffer = shadowBuffer;
+    res.pcfType = pcfType;
+    res.camera = Camera.ortho(r*2, r*2, 0, range).lookAt(pos, pos.add(dir), ShadowMap.perp(dir));
+    res.guardInvaritants();
+    return res;
+  }
+
+  static createSpot() {
+    if (arguments.length===6&&arguments[0] instanceof ShadowBufferId&&arguments[1] instanceof Vec3&&arguments[2] instanceof Vec3&& typeof arguments[3]==="number"&& typeof arguments[4]==="number"&& typeof arguments[5]==="number") {
+      return ShadowMap.createSpot_6_ShadowBufferId_Vec3_Vec3_number_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5]);
+    }
+    else if (arguments.length===7&&arguments[0] instanceof ShadowBufferId&&arguments[1] instanceof ShadowMapPcfType&&arguments[2] instanceof Vec3&&arguments[3] instanceof Vec3&& typeof arguments[4]==="number"&& typeof arguments[5]==="number"&& typeof arguments[6]==="number") {
+      return ShadowMap.createSpot_7_ShadowBufferId_ShadowMapPcfType_Vec3_Vec3_number_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5], arguments[6]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static createSpot_6_ShadowBufferId_Vec3_Vec3_number_number_number(shadowBuffer, pos, dir, outTheta, near, range) {
+    let res = new ShadowMap();
+    res.shadowBuffer = shadowBuffer;
+    res.pcfType = ShadowMapPcfType.GAUSS_55;
+    res.camera = Camera.persp(outTheta*2, 1, near, range).lookAt(pos, pos.add(dir), ShadowMap.perp(dir));
+    res.guardInvaritants();
+    return res;
+  }
+
+  static createSpot_7_ShadowBufferId_ShadowMapPcfType_Vec3_Vec3_number_number_number(shadowBuffer, pcfType, pos, dir, outTheta, near, range) {
+    let res = new ShadowMap();
+    res.shadowBuffer = shadowBuffer;
+    res.pcfType = pcfType;
+    res.camera = Camera.persp(outTheta*2, 1, near, range).lookAt(pos, pos.add(dir), ShadowMap.perp(dir));
+    res.guardInvaritants();
+    return res;
+  }
+
+  static perp(v) {
+    v = v.normalize();
+    let h1 = Vec3.cross(Vec3.create(1, 0, 0), v);
+    let h2 = Vec3.cross(Vec3.create(0, 1, 0), v);
+    let h3 = Vec3.cross(Vec3.create(0, 0, 1), v);
+    let m1 = h1.mag();
+    let m2 = h2.mag();
+    let m3 = h3.mag();
+    let max = Math.max(m1, Math.max(m2, m3));
+    if (max==m1) {
+      return h1.normalize();
+    }
+    if (max==m2) {
+      return h2.normalize();
+    }
+    return h3.normalize();
+  }
+
+}
 class BufferId extends RefId {
   static TYPE = RefIdType.of("BUFFER_ID");
   static COLOR = BufferId.of("color");
@@ -6988,6 +7471,49 @@ class ShadowBufferId extends RefId {
     let res = new ShadowBufferId();
     res.mId = id;
     res.guardInvariants();
+    return res;
+  }
+
+}
+class ShadowBuffer {
+  width;
+  height;
+  constructor() {
+  }
+
+  getClass() {
+    return "ShadowBuffer";
+  }
+
+  guardInvaritants() {
+    Guard.notNegative(this.width, "width cannot be negative");
+    Guard.notNegative(this.height, "height cannot be negative");
+  }
+
+  getWidth() {
+    return this.width;
+  }
+
+  getHeight() {
+    return this.height;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(width, height) {
+    let res = new ShadowBuffer();
+    res.width = width;
+    res.height = height;
+    res.guardInvaritants();
     return res;
   }
 
@@ -7453,6 +7979,41 @@ class SceneEnvironment {
   }
 
 }
+class ShadowMapEnvironment {
+  light;
+  constructor() {
+  }
+
+  getClass() {
+    return "ShadowMapEnvironment";
+  }
+
+  guardInvariants() {
+  }
+
+  getLight() {
+    return this.light;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(light) {
+    let res = new ShadowMapEnvironment();
+    res.light = light;
+    res.guardInvariants();
+    return res;
+  }
+
+}
 class SoundId extends RefId {
   static TYPE = RefIdType.of("SOUND_ID");
   mId;
@@ -7666,7 +8227,7 @@ class AssetGroup {
   }
 
   transform_1_Function(fnc) {
-    return fnc.apply(this);
+    return fnc(this);
   }
 
   transform_2_string_Function(clazz, fnc) {
@@ -7674,7 +8235,7 @@ class AssetGroup {
     for (let key of this.cache.keySet()) {
       let val = this.cache.get(key);
       if (val.getClass().equals(clazz)) {
-        res = res.put(key, fnc.apply(val));
+        res = res.put(key, fnc(val));
       }
       else {
         res = res.put(key, val);
@@ -7687,7 +8248,7 @@ class AssetGroup {
     let res = AssetGroup.empty();
     for (let key of this.cache.keySet()) {
       if (key.getClass().equals(clazz)) {
-        res = res.put(fnc.apply(key), this.cache.get(key));
+        res = res.put(fnc(key), this.cache.get(key));
       }
       else {
         res = res.put(key, this.cache.get(key));

@@ -8773,17 +8773,15 @@ class BoxMeshFactory {
   }
 
 }
-class BasicApp01 {
-  box1 = MeshId.of("box1");
-  box2 = MeshId.of("box2");
-  box3 = MeshId.of("box3");
-  boxT = MeshId.of("boxT");
+class BasicApp03 {
+  box = MeshId.of("box");
+  whiteBox = MeshId.of("white-box");
   time = 0;
   constructor() {
   }
 
   getClass() {
-    return "BasicApp01";
+    return "BasicApp03";
   }
 
   move(drivers, dt) {
@@ -8793,27 +8791,36 @@ class BasicApp01 {
     let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
     let m = 2*FMath.sin(this.time/3);
     let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 7), Vec3.ZERO, Vec3.create(0, 1, 0));
+    let dirLight = Light.directional(LightColor.create(Rgb.gray(0.4), Rgb.gray(0.6), Rgb.gray(0.6)), Vec3.create(-0.3, -0.8, -0.4).normalize());
+    let pointLight = Light.pointQadratic(LightColor.create(Rgb.BLACK, Rgb.BLUE, Rgb.WHITE), Vec3.create(0, 0, 3.6), 4);
+    let spotLightColor = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
+    let spotLightCone = LightCone.create(FMath.PI/9, FMath.PI/6);
+    let spotLight1 = Light.spotQuadratic(spotLightColor, Vec3.create(0, 2, 0), Vec3.create(0.4+m, -1, 0.2).normalize(), 8, spotLightCone);
+    let spotLight2 = Light.spotQuadratic(spotLightColor, Vec3.create(0, 2, 0), Vec3.create(0.4, -1, 0.2+m/2).normalize(), 8, spotLightCone);
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let renderer = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
-    renderer.render(this.box1, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1, Mat44.trans(-4, 0, -2).mul(Mat44.rotX(this.time/2)));
-    renderer.render(this.box2, Mat44.trans(-4, 0, 0).mul(Mat44.rotY(this.time/1)));
-    renderer.render(this.box3, Mat44.trans(-4, 0, 2).mul(Mat44.rotZ(this.time/0.4)));
-    renderer.render(this.box1, Mat44.trans(-2, 0, 0));
-    renderer.renderTransparent(this.boxT, Mat44.trans(-2, 0, 2), BlendType.ALPHA);
-    renderer.render(this.box2, Mat44.trans(0, 0, 0));
-    renderer.renderTransparent(this.boxT, Mat44.trans(0, 0, 2), BlendType.ADDITIVE);
-    renderer.render(this.box3, Mat44.trans(2, 0, 0));
-    renderer.renderTransparent(this.boxT, Mat44.trans(2, 0, 2), BlendType.MULTIPLICATIVE);
-    renderer.end();
+    let objRenderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, dirLight, pointLight, spotLight1, spotLight2));
+    objRenderer.render(this.box, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.WHITE_PLASTIC);
+    objRenderer.render(this.box, Mat44.trans(-3, 0, -3), Material.GOLD);
+    objRenderer.render(this.box, Mat44.trans(0, 0, -3), Material.SILVER);
+    objRenderer.render(this.box, Mat44.trans(3, 0, -3), Material.COPPER);
+    objRenderer.render(this.box, Mat44.trans(-3, 0, 0), Material.GOLD);
+    objRenderer.render(this.box, Mat44.trans(0, 0, 0), Material.SILVER);
+    objRenderer.render(this.box, Mat44.trans(3, 0, 0), Material.COPPER);
+    objRenderer.render(this.box, Mat44.trans(-3, 0, 3), Material.GOLD);
+    objRenderer.render(this.box, Mat44.trans(0, 0, 3), Material.SILVER);
+    objRenderer.render(this.box, Mat44.trans(3, 0, 3), Material.WHITE_PLASTIC);
+    objRenderer.end();
+    let crndr = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
+    crndr.render(this.whiteBox, Mat44.trans(pointLight.getPos()).mul(Mat44.scale(0.05)));
+    crndr.render(this.whiteBox, Mat44.trans(spotLight1.getPos()).mul(Mat44.scale(0.05)));
+    crndr.render(this.whiteBox, Mat44.trans(spotLight2.getPos()).mul(Mat44.scale(0.05)));
+    crndr.end();
   }
 
   init(drivers, properties) {
     let assets = drivers.getDriver("AssetManager");
-    assets.put(this.box1, BoxMeshFactory.rgbBox(Rgb.RED, Rgb.GREEN, Rgb.BLUE, Rgb.WHITE));
-    assets.put(this.box2, BoxMeshFactory.rgbBox(Rgb.GREEN, Rgb.GREEN, Rgb.create(1, 1, 0), Rgb.BLUE));
-    assets.put(this.box3, BoxMeshFactory.rgbBox(Rgb.create(1, 0, 1), Rgb.GREEN, Rgb.create(0, 1, 1), Rgb.BLUE));
-    assets.put(this.boxT, BoxMeshFactory.rgbaBox(Rgb.WHITE, Rgb.BLUE, Rgb.create(1, 0, 1), Rgb.RED, 0.5));
+    assets.put(this.box, BoxMeshFactory.fabricBox());
+    assets.put(this.whiteBox, BoxMeshFactory.rgbBox(1, 1, 1));
     return Collections.emptyList();
   }
 
@@ -8954,7 +8961,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = new BasicApp01();
+    tyracornApp = new BasicApp03();
 
     appLoadingFutures = tyracornApp.init(drivers, {});
     if (appLoadingFutures.isEmpty()) {

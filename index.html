@@ -1,112 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tyracorn 3D Model Viewer</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- For debugging -->
-    <!--<script src="https://greggman.github.io/webgl-lint/webgl-lint.js" crossorigin></script>-->
-</head>
-<body>
-    <div class="app-container">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <div class="logo">
-                    <i class="fas fa-cube"></i>
-                    <span>Tyracorn 3D</span>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Tyracorn 3D Model Viewer</title>
+        <link rel="stylesheet" href="style.css">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <!-- For debugging -->
+    </head>
+    <body>
+        <div class="app-container">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-content">
+                    <div class="logo">
+                        <i class="fas fa-cube"></i>
+                        <span>Tyracorn 3D</span>
+                    </div>
                 </div>
-            </div>
-        </header>
+            </header>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <div class="examples-container">
-                <div class="examples-header">
-                    <h1>Tyracorn 3D Examples</h1>
-                    <p>Explore our collection of WebGL and 3D rendering examples</p>
+            <!-- Main Content -->
+            <main class="main-content">
+                <div class="examples-container">
+                    <div class="examples-header">
+                        <h1>Tyracorn 3D Examples</h1>
+                        <p>Examples exported as an html5 applications.</p>
+                    </div>
+                    <div class="examples-grid">
+                        <a href="basic-app-01" class="example-card">
+                            <div class="example-icon">
+                                <i class="fas fa-cube"></i>
+                            </div>
+                            <div class="example-content">
+                                <h3>Primitive geometry</h3>
+                                <p>3D scene with basic geometry rendered using colors only.</p>
+                            </div>
+                            <div class="example-arrow">
+                                <i class="fas fa-arrow-right"></i>
+                            </div>
+                        </a>
+                        <a href="basic-app-02" class="example-card">
+                            <div class="example-icon">
+                                <i class="fas fa-shapes"></i>
+                            </div>
+                            <div class="example-content">
+                                <h3>Simple texture</h3>
+                                <p>Creating scene with textures.</p>
+                            </div>
+                            <div class="example-arrow">
+                                <i class="fas fa-arrow-right"></i>
+                            </div>
+                        </a>
+                        <a href="basic-app-03" class="example-card">
+                            <div class="example-icon">
+                                <i class="fas fa-mountain"></i>
+                            </div>
+                            <div class="example-content">
+                                <h3>Lights</h3>
+                                <p>Showing the scene with lights. No shadows here.</p>
+                            </div>
+                            <div class="example-arrow">
+                                <i class="fas fa-arrow-right"></i>
+                            </div>
+                        </a>
+                        <a href="basic-app-04" class="example-card">
+                            <div class="example-icon">
+                                <i class="fas fa-atom"></i>
+                            </div>
+                            <div class="example-content">
+                                <h3>First shadow light</h3>
+                                <p>Showcasing the shadow map.</p>
+                            </div>
+                            <div class="example-arrow">
+                                <i class="fas fa-arrow-right"></i>
+                            </div>
+                        </a>
+                        <a href="basic-app-05" class="example-card">
+                            <div class="example-icon">
+                                <i class="fas fa-gamepad"></i>
+                            </div>
+                            <div class="example-content">
+                                <h3>More shadows</h3>
+                                <p>Scene with multiple shadow lights.</p>
+                            </div>
+                            <div class="example-arrow">
+                                <i class="fas fa-arrow-right"></i>
+                            </div>
+                        </a>
+                    </div>
                 </div>
-                <div class="examples-grid">
-                    <a href="basic-app-01" class="example-card">
-                        <div class="example-icon">
-                            <i class="fas fa-cube"></i>
-                        </div>
-                        <div class="example-content">
-                            <h3>Primitive geometry</h3>
-                            <p>Simple 3D scene with basic geometry rendered using colors only</p>
-                        </div>
-                        <div class="example-arrow">
-                            <i class="fas fa-arrow-right"></i>
-                        </div>
-                    </a>
-                    <a href="basic-app-02" class="example-card">
-                        <div class="example-icon">
-                            <i class="fas fa-shapes"></i>
-                        </div>
-                        <div class="example-content">
-                            <h3>Basic App 02</h3>
-                            <p>Adding textures</p>
-                        </div>
-                        <div class="example-arrow">
-                            <i class="fas fa-arrow-right"></i>
-                        </div>
-                    </a>
-                    <!--
-                    <a href="basic-app-01" class="example-card">
-                        <div class="example-icon">
-                            <i class="fas fa-mountain"></i>
-                        </div>
-                        <div class="example-content">
-                            <h3>Basic App 03</h3>
-                            <p>Terrain rendering and textures</p>
-                        </div>
-                        <div class="example-arrow">
-                            <i class="fas fa-arrow-right"></i>
-                        </div>
-                    </a>
-                    <a href="basic-app-01" class="example-card">
-                        <div class="example-icon">
-                            <i class="fas fa-atom"></i>
-                        </div>
-                        <div class="example-content">
-                            <h3>Basic App 04</h3>
-                            <p>Particle systems and effects</p>
-                        </div>
-                        <div class="example-arrow">
-                            <i class="fas fa-arrow-right"></i>
-                        </div>
-                    </a>
-                    <a href="basic-app-01" class="example-card">
-                        <div class="example-icon">
-                            <i class="fas fa-gamepad"></i>
-                        </div>
-                        <div class="example-content">
-                            <h3>Basic App 05</h3>
-                            <p>Interactive 3D controls and camera</p>
-                        </div>
-                        <div class="example-arrow">
-                            <i class="fas fa-arrow-right"></i>
-                        </div>
-                    </a>
-                    -->
-                </div>
-            </div>
-        </main>
+            </main>
 
-        <!-- Footer -->
-        <footer class="footer">
-            <div class="footer-content">
-                <span>&copy; 2024 Tyracorn Engine</span>
-                <div class="footer-links">
-                    <a href="#" class="footer-link">Documentation</a>
-                    <a href="#" class="footer-link">Support</a>
-                    <a href="#" class="footer-link">GitHub</a>
+            <!-- Footer -->
+            <footer class="footer">
+                <div class="footer-content">
+                    <span>&copy; 2024 Tyracorn Engine</span>
+                    <div class="footer-links">
+                        <a href="#" class="footer-link">Documentation</a>
+                        <a href="#" class="footer-link">Support</a>
+                        <a href="#" class="footer-link">GitHub</a>
+                    </div>
                 </div>
-            </div>
-        </footer>
-    </div>
-</body>
-</html> 
+            </footer>
+        </div>
+    </body>
+</html>
