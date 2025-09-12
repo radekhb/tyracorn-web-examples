@@ -334,6 +334,7 @@ a.logo:hover {
 
     .main-content {
         padding: 1rem;
+        padding-top: calc(1rem + 320px); /* Add extra padding for sticky header on mobile */
     }
 
     .examples-header h1 {
