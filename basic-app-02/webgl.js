@@ -1057,6 +1057,9 @@ class Dut {
 
     static copyImmutableMap(map) {
         let res = new HashMap();
+        if (map === null || map === undefined) {
+            return res;
+        }
         res.putAll(map);
         return res;
     }
@@ -7628,6 +7631,277 @@ class Camera {
   }
 
 }
+class UiSizeFncs {
+  constructor() {
+  }
+
+  getClass() {
+    return "UiSizeFncs";
+  }
+
+  static identity() {
+    return (size) => {
+      return size;
+    };
+  }
+
+  static scale(s) {
+    return (size) => {
+      return size.scale(s);
+    };
+  }
+
+  static constant(width, height) {
+    return (size) => {
+      return Size2.create(width, height);
+    };
+  }
+
+  static constantWidth(width) {
+    return (size) => {
+      let aspect = size.height()/size.width();
+      return Size2.create(width, width*aspect);
+    };
+  }
+
+  static constantHeight(height) {
+    return (size) => {
+      let aspect = size.width()/size.height();
+      return Size2.create(height*aspect, height);
+    };
+  }
+
+  static landscapePortrait(landscape, portrait) {
+    return (size) => {
+      if (size.width()>=size.height()) {
+        return landscape(size);
+      }
+      else {
+        return portrait(size);
+      }
+    };
+  }
+
+}
+class StretchUiPainter {
+  target;
+  size;
+  constructor() {
+  }
+
+  getClass() {
+    return "StretchUiPainter";
+  }
+
+  guardInvariants() {
+  }
+
+  drawImage(img, x, y, width, height, style) {
+    let nx = x/this.size.width();
+    let ny = y/this.size.height();
+    let nw = width/this.size.width();
+    let nh = height/this.size.height();
+    this.target.drawImage(img, nx, ny, nw, nh, style);
+  }
+
+  fillRect(rect, color) {
+    let normRect = Rect2.create(rect.x()/this.size.width(), rect.y()/this.size.height(), rect.width()/this.size.width(), rect.height()/this.size.height());
+    this.target.fillRect(normRect, color);
+  }
+
+  drawLine(start, end, color) {
+    let normStart = Vec2.create(start.x()/this.size.width(), start.y()/this.size.height());
+    let normEnd = Vec2.create(end.x()/this.size.width(), end.y()/this.size.height());
+    this.target.drawLine(normStart, normEnd, color);
+  }
+
+  setClipRect(rect) {
+    let normRect = Rect2.create(rect.x()/this.size.width(), rect.y()/this.size.height(), rect.width()/this.size.width(), rect.height()/this.size.height());
+    this.target.setClipRect(normRect);
+  }
+
+  unsetClipRect() {
+    this.target.unsetClipRect();
+  }
+
+  getFont(id) {
+    return this.target.getFont(id);
+  }
+
+  toString() {
+  }
+
+  static create(target, size) {
+    let res = new StretchUiPainter();
+    res.target = target;
+    res.size = size;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class StretchUi {
+  sizeFnc;
+  size;
+  components = new ArrayList();
+  focused;
+  lock = new Object();
+  constructor() {
+  }
+
+  getClass() {
+    return "StretchUi";
+  }
+
+  guardInvariants() {
+  }
+
+  subscribe(drivers) {
+    if (drivers.isDriverAvailable("KeyboardDriver")) {
+      drivers.getDriver("KeyboardDriver").addKeyListener(this);
+    }
+    if (drivers.isDriverAvailable("TouchDriver")) {
+      drivers.getDriver("TouchDriver").addTouchListener(this);
+    }
+    if (drivers.isDriverAvailable("DisplayDriver")) {
+      drivers.getDriver("DisplayDriver").addDisplayistener(this);
+    }
+  }
+
+  unsubscribe(drivers) {
+    if (drivers.isDriverAvailable("KeyboardDriver")) {
+      drivers.getDriver("KeyboardDriver").removeKeyListener(this);
+    }
+    if (drivers.isDriverAvailable("TouchDriver")) {
+      drivers.getDriver("TouchDriver").removeTouchListener(this);
+    }
+    if (drivers.isDriverAvailable("DisplayDriver")) {
+      drivers.getDriver("DisplayDriver").removeDisplayListener(this);
+    }
+  }
+
+  addComponent(component) {
+    Guard.notNull(component, "component cannot be null");
+    this.components.add(component);
+    component.init(this);
+    component.onContainerResize(this.size);
+  }
+
+  removeComponent(component) {
+    this.components.remove(component);
+  }
+
+  move(dt) {
+    for (let cmp of this.components) {
+      cmp.move(dt);
+    }
+  }
+
+  draw(painter) {
+    let painterWrapper = StretchUiPainter.create(painter, this.size);
+    for (let cmp of this.components) {
+      cmp.draw(painterWrapper);
+    }
+  }
+
+  requestFocus(target) {
+    if (this.focused!=null) {
+      this.focused.onFocusLost();
+    }
+    if (target!=null) {
+      this.focused = target;
+      target.onFocus();
+    }
+    return true;
+  }
+
+  getFocused() {
+    return this.focused;
+  }
+
+  onKeyPressed(key) {
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp instanceof UiKeyboardListener) {
+        if ((cmp).this.onKeyPressed(key)) {
+          break;
+        }
+      }
+    }
+  }
+
+  onKeyReleased(key) {
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp instanceof UiKeyboardListener) {
+        if ((cmp).this.onKeyReleased(key)) {
+          break;
+        }
+      }
+    }
+  }
+
+  onTouchStart(id, pos, size) {
+    let hx = pos.x()*this.size.width()/size.width();
+    let hy = pos.y()*this.size.height()/size.height();
+    let hpos = Pos2.create(hx, hy);
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp instanceof UiTouchListener) {
+        if ((cmp).this.onTouchStart(id, hpos, size)) {
+          break;
+        }
+      }
+    }
+  }
+
+  onTouchMove(id, pos, size) {
+    let hx = pos.x()*this.size.width()/size.width();
+    let hy = pos.y()*this.size.height()/size.height();
+    let hpos = Pos2.create(hx, hy);
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp instanceof UiTouchListener) {
+        if ((cmp).this.onTouchMove(id, hpos, size)) {
+          break;
+        }
+      }
+    }
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    let hx = pos.x()*this.size.width()/size.width();
+    let hy = pos.y()*this.size.height()/size.height();
+    let hpos = Pos2.create(hx, hy);
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp instanceof UiTouchListener) {
+        if ((cmp).this.onTouchEnd(id, hpos, size, cancel)) {
+          break;
+        }
+      }
+    }
+  }
+
+  onDisplayResize(size) {
+    this.size = this.sizeFnc.apply(size);
+    for (let cmp of this.components) {
+      cmp.onContainerResize(this.size);
+    }
+  }
+
+  toString() {
+  }
+
+  static create(sizeFnc) {
+    let res = new StretchUi();
+    res.sizeFnc = sizeFnc;
+    res.size = sizeFnc(Size2.create(1, 1));
+    res.guardInvariants();
+    return res;
+  }
+
+}
 const createTextureWrapType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -8704,6 +8978,239 @@ class DefaultAssetBank {
   }
 
 }
+const createBasicLoadingScreenLoadStrategy = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const BasicLoadingScreenLoadStrategy = Object.freeze({
+  DIRECT_FILE_TEXTURE: createBasicLoadingScreenLoadStrategy("DIRECT_FILE_TEXTURE"),
+  TAP_FILE: createBasicLoadingScreenLoadStrategy("TAP_FILE")
+});
+class BasicLoadingScreen {
+  strategy;
+  path;
+  texture;
+  ui;
+  image;
+  constructor() {
+  }
+
+  getClass() {
+    return "BasicLoadingScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    if (this.image==null) {
+      let assets = drivers.getDriver("AssetManager");
+      let texSize = assets.getCompanion("Size2", this.texture, AssetCompanionType.SIZE);
+      this.image = Image.create().setTexture(this.texture).setRegionFnc(UiRegionFncs.centerHeightSafe(400, texSize.aspect(), 0.8));
+      this.ui.addComponent(this.image);
+    }
+    this.ui.move(dt);
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  warmUp(drivers, screenManager) {
+  }
+
+  init(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    if (!assets.containsKey(this.texture)) {
+      if (this.strategy.equals(BasicLoadingScreenLoadStrategy.DIRECT_FILE_TEXTURE)) {
+        res.add(assets.resolveAsync(this.path, "Texture", TextureFncs.flipVertGamma(2.2)));
+      }
+      else if (this.strategy.equals(BasicLoadingScreenLoadStrategy.TAP_FILE)) {
+        res.add(assets.resolveAsync(this.path));
+      }
+      else {
+        throw "unknown loadStrategy: "+this.strategy;
+      }
+    }
+    this.ui = StretchUi.create(UiSizeFncs.constantHeight(1600));
+    this.ui.subscribe(drivers);
+    return res;
+  }
+
+  leave(drivers) {
+  }
+
+  static simple(texturePath) {
+    let res = new BasicLoadingScreen();
+    res.strategy = BasicLoadingScreenLoadStrategy.DIRECT_FILE_TEXTURE;
+    res.path = Path.of(texturePath);
+    res.texture = TextureId.of(res.path.getPlainName());
+    res.guardInvariants();
+    return res;
+  }
+
+  static simpleTap(tapPath, textureId) {
+    let res = new BasicLoadingScreen();
+    res.strategy = BasicLoadingScreenLoadStrategy.TAP_FILE;
+    res.path = Path.of(tapPath);
+    res.texture = TextureId.of(textureId);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class TyracornScreenAppScreenManager {
+  nextScreen = null;
+  leaveActions = new ArrayList();
+  lock = new Object();
+  constructor() {
+  }
+
+  getClass() {
+    return "TyracornScreenAppScreenManager";
+  }
+
+  guardInvariants() {
+  }
+
+  showScreen(screen) {
+    this.nextScreen = screen;
+  }
+
+  addLeaveAction(action) {
+    Guard.notNull(action, "action cannot be null");
+    this.leaveActions.add(action);
+  }
+
+  exitApp() {
+    System.exit(0);
+  }
+
+  getNextScreen() {
+    return this.nextScreen;
+  }
+
+  getLeaveActions() {
+    return Dut.copyList(this.leaveActions);
+  }
+
+  static create() {
+    let res = new TyracornScreenAppScreenManager();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class TyracornScreenApp {
+  properties;
+  screenManager;
+  loadingScreen;
+  activeScreen;
+  loadingFutures;
+  resetNextDt = false;
+  constructor() {
+  }
+
+  getClass() {
+    return "TyracornScreenApp";
+  }
+
+  guardInvariants() {
+  }
+
+  init(drivers, properties) {
+    this.properties = Dut.copyImmutableMap(properties);
+    this.screenManager = TyracornScreenAppScreenManager.create();
+    let res = this.loadingScreen.init(drivers, this.screenManager, this.properties);
+    this.loadingFutures = this.activeScreen.init(drivers, this.screenManager, this.properties);
+    return res;
+  }
+
+  move(drivers, dt) {
+    if (this.loadingFutures.isEmpty()) {
+      if (this.resetNextDt) {
+        dt = 0;
+        this.resetNextDt = false;
+      }
+      this.activeScreen.move(drivers, this.screenManager, dt);
+      if (this.screenManager.getNextScreen()!=null) {
+        for (let action of this.screenManager.getLeaveActions()) {
+          action.run();
+        }
+        this.activeScreen = this.screenManager.getNextScreen();
+        this.screenManager = TyracornScreenAppScreenManager.create();
+        this.loadingFutures = this.activeScreen.init(drivers, this.screenManager, this.properties);
+        if (this.loadingFutures.isEmpty()) {
+          drivers.getDriver("AssetManager").syncToDrivers();
+          this.activeScreen.warmUp(drivers, this.screenManager);
+          this.resetNextDt = true;
+        }
+      }
+    }
+    else {
+      this.loadingScreen.move(drivers, this.screenManager, dt);
+      let futs = new ArrayList();
+      for (let future of this.loadingFutures) {
+        if (future.isDone()) {
+          if (!future.isSuccess()) {
+            System.err.print("Initialization failed");
+            System.exit(1);
+          }
+        }
+        else {
+          futs.add(future);
+        }
+        this.loadingFutures = futs;
+      }
+      if (this.loadingFutures.isEmpty()) {
+        drivers.getDriver("AssetManager").syncToDrivers();
+        this.activeScreen.warmUp(drivers, this.screenManager);
+        this.resetNextDt = true;
+      }
+    }
+  }
+
+  pause(drivers) {
+    this.activeScreen.pause(drivers);
+  }
+
+  close(drivers) {
+    this.activeScreen.leave(drivers);
+    this.loadingScreen.leave(drivers);
+  }
+
+  static create(loadingScreen, startScreen) {
+    let res = new TyracornScreenApp();
+    res.loadingScreen = loadingScreen;
+    res.activeScreen = startScreen;
+    res.guardInvariants();
+    return res;
+  }
+
+}
 
 
 // -------------------------------------
@@ -8979,7 +9486,7 @@ async function main() {
     drivers.getDriver("GraphicsDriver").init();
     tyracornApp = new BasicApp02();
 
-    appLoadingFutures = tyracornApp.init(drivers, {});
+    appLoadingFutures = tyracornApp.init(drivers, new HashMap());
     if (appLoadingFutures.isEmpty()) {
         drivers.getDriver("AssetManager").syncToDrivers();
     }
