@@ -62,11 +62,11 @@ body {
 
 /* Header */
 .header {
-    background: rgba(30, 41, 59, 0.8);
-    backdrop-filter: blur(20px);
+    background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
     padding: 1rem 2rem;
-    position: static;
+    position: relative;
+    z-index: 1;
 }
 
 .header-content {
@@ -135,8 +135,9 @@ a.logo:hover {
     display: flex;
     flex: 1;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     padding: 2rem;
+    padding-top: 1rem;
     width: 100%;
     min-height: calc(100vh - 4rem); /* Subtract footer height only */
     overflow-y: auto;
