@@ -9,6 +9,8 @@ let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
 let baseUrl = ".";
 let mouseDown = false;
+let mouseLastDragX = 0;
+let mouseLastDragY = 0;
 let ongoingTouches = [];
 let canvas;
 
@@ -4616,6 +4618,98 @@ class WebAudioDriver {
         return res;
     }
 }
+/**
+ * Touch driver implemented for AWT events.
+ *
+ * @author radek.hecl
+ */
+class WebTouchDriver {
+
+    /**
+     * Touch region size.
+     */
+    size;
+    /**
+     * Hash set with listeners.
+     */
+    listeners;
+    /**
+     * Creates new instance.
+     */
+    constructor() {
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvariants() {
+        Guard.notNull(this.size, "size cannot be null");
+        Guard.notNullCollection(this.listeners, "listeners cannot have null element");
+    }
+
+    /**
+     * Adds touch listener.
+     * 
+     * @param {TouchListener} listener
+     */
+    addTouchListener(listener) {
+        Guard.notNull(listener, "listener cannot be null");
+        this.listeners.add(listener);
+    }
+
+    /**
+     * Removes touch listener.
+     * 
+     * @param {TouchListener} listener
+     */
+    removeTouchListener(listener) {
+        this.listeners.remove(listener);
+    }
+
+    onMouseDown(x, y) {
+        const pos = Pos2.create(x, y);
+        for (const listener of this.listeners) {
+            listener.onTouchStart(999, pos, this.size);
+        }
+    }
+
+    onMouseUp(x, y, cancel) {
+        const pos = Pos2.create(x, y);
+        for (const listener of this.listeners) {
+            listener.onTouchEnd(999, pos, this.size, cancel);
+        }
+    }
+
+    onMouseDragged(x, y) {
+        const pos = Pos2.create(x, y);
+        for (const listener of this.listeners) {
+            listener.onTouchMove(999, pos, this.size);
+        }
+    }
+
+    /**
+     * Called when area size changes.
+     *
+     * @param {Size2} size new size are
+     */
+    onAreaSizeChange(size) {
+        this.size = size;
+    }
+
+    /**
+     * Creates new instance.
+     *
+     * @return {WebTouchDriver} created instance
+     */
+    static create() {
+        const res = new WebTouchDriver();
+        res.size = Size2.create(1, 1);
+        res.listeners = new HashSet();
+        res.guardInvariants();
+        return res;
+    }
+
+}
 
 
 // -------------------------------------
@@ -4634,6 +4728,7 @@ class DriverProvider {
     displayDriver = ProxyDisplayDriver.create();
     graphicsDriver = WebglGraphicsDriver.create(this.assetManager);
     audioDriver = WebAudioDriver.create();
+    touchDriver = WebTouchDriver.create();
 
     constructor() {
     }
@@ -4652,6 +4747,8 @@ class DriverProvider {
         } else if (driver === "DisplayDriver") {
             return true;
         } else if (driver === "AudioDriver") {
+            return true;
+        } else if (driver === "TouchDriver") {
             return true;
         } else if (driver === "AssetManager") {
             return true;
@@ -4672,6 +4769,8 @@ class DriverProvider {
             return this.displayDriver;
         } else if (driver === "AudioDriver") {
             return this.audioDriver;
+        } else if (driver === "TouchDriver") {
+            return this.touchDriver;
         } else if (driver === "AssetManager") {
             return this.assetManager;
         }
@@ -12474,6 +12573,7 @@ function resizeCanvas() {
             let viewport = Viewport.create(0, 0, canvas.width, canvas.height);
             drivers.graphicsDriver.setScreenViewport(viewport);
             drivers.displayDriver.onDisplayResize(viewport.getSize());
+            drivers.touchDriver.onAreaSizeChange(viewport.getSize());
         }
     }
 }
@@ -12626,7 +12726,11 @@ function handleTouchEnd(evt) {
 function handleMouseDown(evt) {
     evt.preventDefault();
     mouseDown = true;
-    console.log("mouse down.");
+    const rect = canvas.getBoundingClientRect();
+    const x = evt.x - rect.left;
+    const y = evt.y - rect.top;
+    drivers.touchDriver.onMouseDown(x, y);
+    //console.log("mouse down.");
 }
 
 /**
@@ -12640,7 +12744,10 @@ function handleMouseMove(evt) {
         const rect = canvas.getBoundingClientRect();
         const x = evt.x - rect.left;
         const y = evt.y - rect.top;
-        console.log("mouse move. " + x + " - " + y);
+        drivers.touchDriver.onMouseDragged(x, y);
+        mouseLastDragX = x;
+        mouseLastDragY = y;
+        //console.log("mouse move. " + x + " - " + y);
     }
 }
 
@@ -12652,7 +12759,8 @@ function handleMouseMove(evt) {
 function handleMouseLeave(evt) {
     evt.preventDefault();
     mouseDown = false;
-    console.log("mouse leave");
+    drivers.touchDriver.onMouseDragged(mouseLastDragX, mouseLastDragY, false);
+    //console.log("mouse leave");
 }
 
 /**
@@ -12663,7 +12771,13 @@ function handleMouseLeave(evt) {
 function handleMouseUp(evt) {
     evt.preventDefault();
     mouseDown = false;
-    console.log("mouse up");
+    const rect = canvas.getBoundingClientRect();
+    const x = evt.x - rect.left;
+    const y = evt.y - rect.top;
+    drivers.touchDriver.onMouseUp(x, y, true);
+    mouseLastDragX = x;
+    mouseLastDragY = y;
+    //console.log("mouse up");
 }
 
 
