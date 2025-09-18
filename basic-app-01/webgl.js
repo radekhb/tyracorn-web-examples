@@ -1176,6 +1176,17 @@ class Functions {
     static apply(fnc, input) {
         return fnc(input);
     }
+
+    /**
+     * Runs UI event action.
+     * 
+     * @param {UiEventAction} eventAction event action
+     * @param {UiComponent} source source of the event
+     */
+    static runUiEventAction(eventAction, source) {
+        eventAction(source);
+    }
+
 }
 /**
  * Reference identifier.
@@ -9332,6 +9343,9 @@ class StretchUi {
   }
 
   requestFocus(target) {
+    if (!target.isFocusable()) {
+      throw "trying to focus on a component that is not focusable";
+    }
     if (this.focused!=null) {
       this.focused.onFocusLost();
     }
@@ -9349,10 +9363,8 @@ class StretchUi {
   onKeyPressed(key) {
     for (let i = this.components.size()-1; i>=0; --i) {
       let cmp = this.components.get(i);
-      if (cmp instanceof UiKeyboardListener) {
-        if ((cmp).this.onKeyPressed(key)) {
-          break;
-        }
+      if (cmp.onKeyPressed(key)) {
+        break;
       }
     }
   }
@@ -9360,10 +9372,8 @@ class StretchUi {
   onKeyReleased(key) {
     for (let i = this.components.size()-1; i>=0; --i) {
       let cmp = this.components.get(i);
-      if (cmp instanceof UiKeyboardListener) {
-        if ((cmp).this.onKeyReleased(key)) {
-          break;
-        }
+      if (cmp.onKeyReleased(key)) {
+        break;
       }
     }
   }
@@ -9374,10 +9384,8 @@ class StretchUi {
     let hpos = Pos2.create(hx, hy);
     for (let i = this.components.size()-1; i>=0; --i) {
       let cmp = this.components.get(i);
-      if (cmp instanceof UiTouchListener) {
-        if ((cmp).this.onTouchStart(id, hpos, size)) {
-          break;
-        }
+      if (cmp.onTouchStart(id, hpos, size)) {
+        break;
       }
     }
   }
@@ -9388,10 +9396,8 @@ class StretchUi {
     let hpos = Pos2.create(hx, hy);
     for (let i = this.components.size()-1; i>=0; --i) {
       let cmp = this.components.get(i);
-      if (cmp instanceof UiTouchListener) {
-        if ((cmp).this.onTouchMove(id, hpos, size)) {
-          break;
-        }
+      if (cmp.onTouchMove(id, hpos, size)) {
+        break;
       }
     }
   }
@@ -9402,10 +9408,8 @@ class StretchUi {
     let hpos = Pos2.create(hx, hy);
     for (let i = this.components.size()-1; i>=0; --i) {
       let cmp = this.components.get(i);
-      if (cmp instanceof UiTouchListener) {
-        if ((cmp).this.onTouchEnd(id, hpos, size, cancel)) {
-          break;
-        }
+      if (cmp.onTouchEnd(id, hpos, size, cancel)) {
+        break;
       }
     }
   }
@@ -9444,6 +9448,36 @@ class UiComponent {
   }
 
   onContainerResize(size) {
+  }
+
+  isFocusable() {
+    return false;
+  }
+
+  onFocus() {
+  }
+
+  onFocusLost() {
+  }
+
+  onKeyPressed(key) {
+    return false;
+  }
+
+  onKeyReleased(key) {
+    return false;
+  }
+
+  onTouchStart(id, pos, size) {
+    return false;
+  }
+
+  onTouchMove(id, pos, size) {
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    return false;
   }
 
   hashCode() {
@@ -9607,7 +9641,7 @@ class ImageButton extends UiComponent {
     this.down = false;
     if (this.region.isInside(pos)&&!cancel) {
       for (let action of this.onClickActions) {
-        action.run(this);
+        Functions.runUiEventAction(action, this);
       }
     }
     return true;
@@ -12727,10 +12761,11 @@ function handleMouseDown(evt) {
     evt.preventDefault();
     mouseDown = true;
     const rect = canvas.getBoundingClientRect();
-    const x = evt.x - rect.left;
-    const y = evt.y - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (evt.clientX - rect.left) * scaleX;
+    const y = (evt.clientY - rect.top) * scaleY;
     drivers.touchDriver.onMouseDown(x, y);
-    //console.log("mouse down.");
 }
 
 /**
@@ -12742,12 +12777,13 @@ function handleMouseMove(evt) {
     evt.preventDefault();
     if (mouseDown) {
         const rect = canvas.getBoundingClientRect();
-        const x = evt.x - rect.left;
-        const y = evt.y - rect.top;
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const x = (evt.clientX - rect.left) * scaleX;
+        const y = (evt.clientY - rect.top) * scaleY;
         drivers.touchDriver.onMouseDragged(x, y);
         mouseLastDragX = x;
         mouseLastDragY = y;
-        //console.log("mouse move. " + x + " - " + y);
     }
 }
 
@@ -12759,8 +12795,7 @@ function handleMouseMove(evt) {
 function handleMouseLeave(evt) {
     evt.preventDefault();
     mouseDown = false;
-    drivers.touchDriver.onMouseDragged(mouseLastDragX, mouseLastDragY, false);
-    //console.log("mouse leave");
+    drivers.touchDriver.onMouseDragged(mouseLastDragX, mouseLastDragY, true);
 }
 
 /**
@@ -12772,12 +12807,13 @@ function handleMouseUp(evt) {
     evt.preventDefault();
     mouseDown = false;
     const rect = canvas.getBoundingClientRect();
-    const x = evt.x - rect.left;
-    const y = evt.y - rect.top;
-    drivers.touchDriver.onMouseUp(x, y, true);
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (evt.clientX - rect.left) * scaleX;
+    const y = (evt.clientY - rect.top) * scaleY;
+    drivers.touchDriver.onMouseUp(x, y, false);
     mouseLastDragX = x;
     mouseLastDragY = y;
-    //console.log("mouse up");
 }
 
 
