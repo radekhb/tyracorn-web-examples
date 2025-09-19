@@ -11,7 +11,6 @@ let baseUrl = ".";
 let mouseDown = false;
 let mouseLastDragX = 0;
 let mouseLastDragY = 0;
-let ongoingTouches = [];
 let canvas;
 
 // -------------------------------------
@@ -4676,25 +4675,46 @@ class WebTouchDriver {
     removeTouchListener(listener) {
         this.listeners.remove(listener);
     }
+    
+    onTouchStart(id, x, y) {
+        const pos = Pos2.create(x, y);
+        for (const listener of this.listeners) {
+            listener.onTouchStart(id, pos, this.size);
+        }        
+    }
+
+    onTouchMove(id, x, y) {
+        const pos = Pos2.create(x, y);
+        for (const listener of this.listeners) {
+            listener.onTouchMove(id, pos, this.size);
+        }        
+    }
+
+    onTouchEnd(id, x, y, cancel) {
+        const pos = Pos2.create(x, y);
+        for (const listener of this.listeners) {
+            listener.onTouchEnd(id, pos, this.size, cancel);
+        }        
+    }
 
     onMouseDown(x, y) {
         const pos = Pos2.create(x, y);
         for (const listener of this.listeners) {
-            listener.onTouchStart(999, pos, this.size);
+            listener.onTouchStart(MouseTouches.MOUSE_TOUCH_ID, pos, this.size);
         }
     }
 
     onMouseUp(x, y, cancel) {
         const pos = Pos2.create(x, y);
         for (const listener of this.listeners) {
-            listener.onTouchEnd(999, pos, this.size, cancel);
+            listener.onTouchEnd(MouseTouches.MOUSE_TOUCH_ID, pos, this.size, cancel);
         }
     }
 
     onMouseDragged(x, y) {
         const pos = Pos2.create(x, y);
         for (const listener of this.listeners) {
-            listener.onTouchMove(999, pos, this.size);
+            listener.onTouchMove(MouseTouches.MOUSE_TOUCH_ID, pos, this.size);
         }
     }
 
@@ -8849,6 +8869,16 @@ class ProxyDisplayDriver {
   }
 
 }
+class MouseTouches {
+  static MOUSE_TOUCH_ID = "MOUSE";
+  constructor() {
+  }
+
+  getClass() {
+    return "MouseTouches";
+  }
+
+}
 class UiPosFncs {
   constructor() {
   }
@@ -9298,6 +9328,9 @@ class StretchUi {
     if (drivers.isDriverAvailable("KeyboardDriver")) {
       drivers.getDriver("KeyboardDriver").addKeyListener(this);
     }
+    if (drivers.isDriverAvailable("MouseDriver")) {
+      drivers.getDriver("MouseDriver").addMouseListener(this);
+    }
     if (drivers.isDriverAvailable("TouchDriver")) {
       drivers.getDriver("TouchDriver").addTouchListener(this);
     }
@@ -9309,6 +9342,9 @@ class StretchUi {
   unsubscribe(drivers) {
     if (drivers.isDriverAvailable("KeyboardDriver")) {
       drivers.getDriver("KeyboardDriver").removeKeyListener(this);
+    }
+    if (drivers.isDriverAvailable("MouseDriver")) {
+      drivers.getDriver("MouseDriver").removeMouseListener(this);
     }
     if (drivers.isDriverAvailable("TouchDriver")) {
       drivers.getDriver("TouchDriver").removeTouchListener(this);
@@ -9373,6 +9409,42 @@ class StretchUi {
     for (let i = this.components.size()-1; i>=0; --i) {
       let cmp = this.components.get(i);
       if (cmp.onKeyReleased(key)) {
+        break;
+      }
+    }
+  }
+
+  onMouseMove(pos, locked) {
+    let hx = pos.x()*this.size.width()/this.size.width();
+    let hy = pos.y()*this.size.height()/this.size.height();
+    let hpos = Pos2.create(hx, hy);
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp.onMouseMove(hpos, locked)) {
+        break;
+      }
+    }
+  }
+
+  onMouseDown(button, pos) {
+    let hx = pos.x()*this.size.width()/this.size.width();
+    let hy = pos.y()*this.size.height()/this.size.height();
+    let hpos = Pos2.create(hx, hy);
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp.onMouseDown(button, hpos)) {
+        break;
+      }
+    }
+  }
+
+  onMouseUp(button, pos, cancel) {
+    let hx = pos.x()*this.size.width()/this.size.width();
+    let hy = pos.y()*this.size.height()/this.size.height();
+    let hpos = Pos2.create(hx, hy);
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp.onMouseUp(button, hpos, cancel)) {
         break;
       }
     }
@@ -9465,6 +9537,18 @@ class UiComponent {
   }
 
   onKeyReleased(key) {
+    return false;
+  }
+
+  onMouseMove(pos, locked) {
+    return false;
+  }
+
+  onMouseDown(button, pos) {
+    return false;
+  }
+
+  onMouseUp(button, pos, cancel) {
     return false;
   }
 
@@ -9623,7 +9707,7 @@ class ImageButton extends UiComponent {
     if (this.disabled) {
       return false;
     }
-    if (this.trackedTouch==null||id!=this.trackedTouch) {
+    if (this.trackedTouch==null||!id.equals(this.trackedTouch)) {
       return false;
     }
     this.down = this.region.isInside(pos.x(), pos.y());
@@ -9634,7 +9718,7 @@ class ImageButton extends UiComponent {
     if (this.disabled) {
       return false;
     }
-    if (this.trackedTouch==null||id!=this.trackedTouch) {
+    if (this.trackedTouch==null||!id.equals(this.trackedTouch)) {
       return false;
     }
     this.trackedTouch = null;
@@ -9834,7 +9918,7 @@ class ImageToggleButton extends UiComponent {
   }
 
   onTouchMove(id, pos, size) {
-    if (this.trackedTouch==null||id!=this.trackedTouch) {
+    if (this.trackedTouch==null||!id.equals(this.trackedTouch)) {
       return false;
     }
     if (this.region.isInside(pos)) {
@@ -9847,7 +9931,7 @@ class ImageToggleButton extends UiComponent {
   }
 
   onTouchEnd(id, pos, size, cancel) {
-    if (this.trackedTouch==null||id!=this.trackedTouch) {
+    if (this.trackedTouch==null||!id.equals(this.trackedTouch)) {
       return false;
     }
     this.trackedTouch = null;
@@ -12467,6 +12551,71 @@ class TyracornScreenApp {
   }
 
 }
+class InputCache {
+  buffer = new HashMap();
+  lock = new Object();
+  constructor() {
+  }
+
+  getClass() {
+    return "InputCache";
+  }
+
+  guardInvariants() {
+  }
+
+  get() {
+    if (arguments.length===2&& typeof arguments[0]==="string"&& typeof arguments[1]==="string") {
+      return this.get_2_string_string(arguments[0], arguments[1]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="string"&& typeof arguments[1]==="string"&&arguments[2] instanceof T) {
+      return this.get_3_string_string_T(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  get_2_string_string(clazz, key) {
+    if (!this.buffer.containsKey(key)) {
+      throw "element doesn't exists: key = "+key;
+    }
+    return this.buffer.get(key);
+  }
+
+  get_3_string_string_T(clazz, key, def) {
+    if (!this.buffer.containsKey(key)) {
+      return def;
+    }
+    return this.buffer.get(key);
+  }
+
+  contains(key) {
+    return this.buffer.containsKey(key);
+  }
+
+  put(key, object) {
+    this.buffer.put(key, object);
+  }
+
+  remove(key) {
+    this.buffer.remove(key);
+  }
+
+  clear() {
+    this.buffer.clear();
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new InputCache();
+    res.guardInvariants();
+    return res;
+  }
+
+}
 
 
 // -------------------------------------
@@ -12653,22 +12802,17 @@ function toggleFullscreen() {
  */
 function handleTouchStart(evt) {
     evt.preventDefault();
-    console.log("touchstart.");
-    /*const el = document.getElementById("canvas");
-     const ctx = el.getContext("2d");
-     const touches = evt.changedTouches;
-     
-     for (let i = 0; i < touches.length; i++) {
-     const touch = touches[i];
-     log(`touchstart: ${i}.`);
-     ongoingTouches.push(copyTouch(touch));
-     const color = colorForTouch(touch);
-     log(`color of touch with id ${touch.identifier} = ${color}`);
-     ctx.beginPath();
-     ctx.arc(touch.pageX, touch.pageY, 4, 0, 2 * Math.PI, false); // a circle at the start
-     ctx.fillStyle = color;
-     ctx.fill();
-     }*/
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const touches = evt.changedTouches;
+    for (let i = 0; i < touches.length; i++) {
+        const touch = touches[i];
+        const touchId = "" + touch.identifier;
+        const x = (touch.clientX - rect.left) * scaleX;
+        const y = (touch.clientY - rect.top) * scaleY;
+        drivers.touchDriver.onTouchStart(touchId, x, y);
+    }
 }
 
 /**
@@ -12678,35 +12822,17 @@ function handleTouchStart(evt) {
  */
 function handleTouchMove(evt) {
     evt.preventDefault();
-    console.log("touchmove.");
-    /*
-     const el = document.getElementById("canvas");
-     const ctx = el.getContext("2d");
-     const touches = evt.changedTouches;
-     
-     for (const touch of touches) {
-     const color = colorForTouch(touch);
-     const idx = ongoingTouchIndexById(touch.identifier);
-     
-     if (idx >= 0) {
-     log(`continuing touch ${idx}`);
-     ctx.beginPath();
-     log(
-     `ctx.moveTo( ${ongoingTouches[idx].pageX}, ${ongoingTouches[idx].pageY} );`,
-     );
-     ctx.moveTo(ongoingTouches[idx].pageX, ongoingTouches[idx].pageY);
-     log(`ctx.lineTo( ${touch.pageX}, ${touch.pageY} );`);
-     ctx.lineTo(touch.pageX, touch.pageY);
-     ctx.lineWidth = 4;
-     ctx.strokeStyle = color;
-     ctx.stroke();
-     
-     ongoingTouches.splice(idx, 1, copyTouch(touch)); // swap in the new touch record
-     } else {
-     log("can't figure out which touch to continue");
-     }
-     }
-     */
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const touches = evt.changedTouches;
+    for (let i = 0; i < touches.length; i++) {
+        const touch = touches[i];
+        const touchId = "" + touch.identifier;
+        const x = (touch.clientX - rect.left) * scaleX;
+        const y = (touch.clientY - rect.top) * scaleY;
+        drivers.touchDriver.onTouchMove(touchId, x, y);
+    }
 }
 
 /**
@@ -12716,15 +12842,17 @@ function handleTouchMove(evt) {
  */
 function handleTouchCancel(evt) {
     evt.preventDefault();
-    console.log("touchcancel.");
-    /*
-     const touches = evt.changedTouches;
-     
-     for (const touch of touches) {
-     let idx = ongoingTouchIndexById(touches[i].identifier);
-     ongoingTouches.splice(idx, 1); // remove it; we're done
-     }
-     */
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const touches = evt.changedTouches;
+    for (let i = 0; i < touches.length; i++) {
+        const touch = touches[i];
+        const touchId = "" + touch.identifier;
+        const x = (touch.clientX - rect.left) * scaleX;
+        const y = (touch.clientY - rect.top) * scaleY;
+        drivers.touchDriver.onTouchEnd(touchId, x, y, true);
+    }
 }
 
 /**
@@ -12734,29 +12862,17 @@ function handleTouchCancel(evt) {
  */
 function handleTouchEnd(evt) {
     evt.preventDefault();
-    console.log("touchend");
-    /*
-     const el = document.getElementById("canvas");
-     const ctx = el.getContext("2d");
-     const touches = evt.changedTouches;
-     
-     for (const touch of touches) {
-     const color = colorForTouch(touch);
-     let idx = ongoingTouchIndexById(touch.identifier);
-     
-     if (idx >= 0) {
-     ctx.lineWidth = 4;
-     ctx.fillStyle = color;
-     ctx.beginPath();
-     ctx.moveTo(ongoingTouches[idx].pageX, ongoingTouches[idx].pageY);
-     ctx.lineTo(touch.pageX, touch.pageY);
-     ctx.fillRect(touch.pageX - 4, touch.pageY - 4, 8, 8); // and a square at the end
-     ongoingTouches.splice(idx, 1); // remove it; we're done
-     } else {
-     log("can't figure out which touch to end");
-     }
-     }
-     */
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const touches = evt.changedTouches;
+    for (let i = 0; i < touches.length; i++) {
+        const touch = touches[i];
+        const touchId = "" + touch.identifier;
+        const x = (touch.clientX - rect.left) * scaleX;
+        const y = (touch.clientY - rect.top) * scaleY;
+        drivers.touchDriver.onTouchEnd(touchId, x, y, false);
+    }
 }
 
 /**

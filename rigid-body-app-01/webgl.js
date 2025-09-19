@@ -12622,20 +12622,91 @@ class InputCache {
 // Transslates app specific code
 // -------------------------------------
 
-class BasicApp13 {
-  time = 0;
-  ui;
+class BoxMeshFactory {
   constructor() {
   }
 
   getClass() {
-    return "BasicApp13";
+    return "BoxMeshFactory";
+  }
+
+  static rgbBox() {
+    if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&&arguments[3] instanceof Rgb) {
+      return BoxMeshFactory.rgbBox_4_Rgb_Rgb_Rgb_Rgb(arguments[0], arguments[1], arguments[2], arguments[3]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
+    let res = Mesh.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b())), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23)));
+    return res;
+  }
+
+  static rgbBox_3_number_number_number(r, g, b) {
+    let res = Mesh.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.create(-0.5, -0.5, 0.5, r, g, b), Vertex.create(-0.5, -0.5, -0.5, r, g, b), Vertex.create(0.5, -0.5, -0.5, r, g, b), Vertex.create(0.5, -0.5, 0.5, r, g, b), Vertex.create(-0.5, 0.5, 0.5, r, g, b), Vertex.create(0.5, 0.5, 0.5, r, g, b), Vertex.create(0.5, 0.5, -0.5, r, g, b), Vertex.create(-0.5, 0.5, -0.5, r, g, b), Vertex.create(-0.5, -0.5, -0.5, r, g, b), Vertex.create(-0.5, 0.5, -0.5, r, g, b), Vertex.create(0.5, 0.5, -0.5, r, g, b), Vertex.create(0.5, -0.5, -0.5, r, g, b), Vertex.create(-0.5, -0.5, 0.5, r, g, b), Vertex.create(0.5, -0.5, 0.5, r, g, b), Vertex.create(0.5, 0.5, 0.5, r, g, b), Vertex.create(-0.5, 0.5, 0.5, r, g, b), Vertex.create(-0.5, -0.5, 0.5, r, g, b), Vertex.create(-0.5, 0.5, 0.5, r, g, b), Vertex.create(-0.5, 0.5, -0.5, r, g, b), Vertex.create(-0.5, -0.5, -0.5, r, g, b), Vertex.create(0.5, -0.5, 0.5, r, g, b), Vertex.create(0.5, -0.5, -0.5, r, g, b), Vertex.create(0.5, 0.5, -0.5, r, g, b), Vertex.create(0.5, 0.5, 0.5, r, g, b)), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23)));
+    return res;
+  }
+
+  static rgbaBox(c1, c2, c3, c4, a) {
+    let res = Mesh.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a)), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23)));
+    return res;
+  }
+
+  static fabricBox() {
+    let res = Mesh.fabric(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.create(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.create(0.5, -0.5, -0.5, 0, -1, 0), Vertex.create(0.5, -0.5, 0.5, 0, -1, 0), Vertex.create(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.create(0.5, 0.5, 0.5, 0, 1, 0), Vertex.create(0.5, 0.5, -0.5, 0, 1, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.create(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.create(0.5, 0.5, -0.5, 0, 0, -1), Vertex.create(0.5, -0.5, -0.5, 0, 0, -1), Vertex.create(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.create(0.5, -0.5, 0.5, 0, 0, 1), Vertex.create(0.5, 0.5, 0.5, 0, 0, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.create(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.create(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.create(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.create(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 1, 0, 0), Vertex.create(0.5, -0.5, -0.5, 1, 0, 0), Vertex.create(0.5, 0.5, -0.5, 1, 0, 0), Vertex.create(0.5, 0.5, 0.5, 1, 0, 0)), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23)));
+    return res;
+  }
+
+  static modelBox() {
+    let res = Mesh.model(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.create(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.create(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.create(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.create(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.create(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.create(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.create(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.create(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.create(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.create(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.create(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.create(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.create(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.create(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.create(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.create(0.5, 0.5, 0.5, 1, 0, 0, 1, 1)), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23)));
+    return res;
+  }
+
+  static modelSkybox() {
+    let res = Mesh.model(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.create(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.create(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.create(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.create(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.create(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.create(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.create(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.create(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.create(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.create(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.create(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.create(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.create(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.create(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.create(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.create(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.create(0.5, 0.5, 0.5, -1, 0, 0, 1, 1)), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22)));
+    return res;
+  }
+
+  static modelBoxDeformed1() {
+    let en = Vec2.create(1, -1).normalize();
+    let res = Mesh.model(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.create(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.create(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.create(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.create(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.create(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.create(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.create(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.create(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.create(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.create(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.create(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.create(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.create(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.create(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.create(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.create(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1)), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23)));
+    return res;
+  }
+
+  static modelBoxDeformed2() {
+    let en = Vec2.create(-1, -1).normalize();
+    let res = Mesh.model(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.create(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.create(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.create(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.create(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.create(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.create(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.create(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.create(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.create(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.create(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.create(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.create(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.create(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.create(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.create(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.create(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.create(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.create(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.create(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.create(0.5, 0.5, 0.5, 1, 0, 0, 1, 1)), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23)));
+    return res;
+  }
+
+}
+class RigidBodyApp01 {
+  time = 0;
+  world;
+  inputs = InputCache.create();
+  ui;
+  gamePad;
+  constructor() {
+  }
+
+  getClass() {
+    return "RigidBodyApp01";
   }
 
   move(drivers, screenManager, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    this.inputs.put("moveDir", this.gamePad.getLeftDir());
+    this.inputs.put("rotDir", this.gamePad.getRightDir());
+    this.world.move(dt, this.inputs);
+    this.world.render(RenderRequest.NORMAL);
+    gDriver.clearBuffers(BufferId.DEPTH);
     let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
     this.ui.move(dt);
     uiRenderer.render(this.ui);
@@ -12643,62 +12714,9 @@ class BasicApp13 {
   }
 
   warmUp(drivers, screenManager) {
-    const assets = drivers.getDriver("AssetManager");
-    const sizes = Dut.immutableList(16, 20, 24, 32, 48, 64, 72, 80);
-    Fonts.prepareScaledFonts(assets, sizes);
-    let rubikRegular32Id = FontId.of("rubik-regular-32");
-    let kennyMini20Id = FontId.of("kenny-mini-20");
-    let kennyMini16Id = FontId.of("kenny-mini-16");
-    const fontIdBasess = Dut.immutableList("rubik-regular-", "rubik-bold-", "nobile-regular-", "kenny-blocks-", "kenny-future-", "kenny-future-square-", "kenny-bold-", "kenny-space-", "kenny-mini-");
-    const label = Label.create().setText("Tyracorn").setFont(rubikRegular32Id).setPosFnc(UiPosFncs.center()).setAlignment(TextAlignment.CENTER);
-    const fontLabel = Label.create().setText("rubik-regular-32").setFont(kennyMini16Id).setPosFnc(UiPosFncs.center(0, 160)).setAlignment(TextAlignment.CENTER_TOP);
-    let fontAct = (evtSource) => {
-      let oldFont = assets.get("Font", label.getFont());
-      let oldSize = oldFont.getSize();
-      let oldFontIdBase = this.getFontBase(oldFont.getName())+"-";
-      let newIdx = fontIdBasess.indexOf(oldFontIdBase)+1;
-      if (newIdx>=fontIdBasess.size()) {
-        newIdx = 0;
-      }
-      label.setFont(FontId.of(fontIdBasess.get(newIdx)+oldSize));
-      fontLabel.setText(fontIdBasess.get(newIdx)+oldSize);
-    };
-    const alignemnts = Dut.immutableList(TextAlignment.LEFT_TOP, TextAlignment.CENTER_TOP, TextAlignment.RIGHT_TOP, TextAlignment.LEFT_CENTER, TextAlignment.CENTER, TextAlignment.RIGHT_CENTER, TextAlignment.LEFT_BASE, TextAlignment.CENTER_BASE, TextAlignment.RIGHT_BASE, TextAlignment.LEFT_BOTTOM, TextAlignment.CENTER_BOTTOM, TextAlignment.RIGHT_BOTTOM);
-    let alignAct = (evtSource) => {
-      let idx = alignemnts.indexOf(label.getAlignment())+1;
-      if (idx>=alignemnts.size()) {
-        idx = 0;
-      }
-      label.setAlignment(alignemnts.get(idx));
-    };
-    const texts = Dut.immutableList("Tyracorn", "Hello World!!!", "I love you");
-    let textAct = (evtSource) => {
-      let idx = texts.indexOf(label.getText())+1;
-      if (idx>=texts.size()) {
-        idx = 0;
-      }
-      label.setText(texts.get(idx));
-    };
-    let sizeAct = (evtSource) => {
-      let oldFont = assets.get("Font", label.getFont());
-      let oldSize = oldFont.getSize();
-      let oldFontIdBase = this.getFontBase(oldFont.getName())+"-";
-      let newIdx = sizes.indexOf(oldSize)+1;
-      if (newIdx>=sizes.size()) {
-        newIdx = 0;
-      }
-      label.setFont(FontId.of(oldFontIdBase+sizes.get(newIdx)));
-      fontLabel.setText(oldFontIdBase+sizes.get(newIdx));
-    };
-    this.ui.addComponent(ImageView.create().setTexture("shadedLight11").setRegionFnc(UiRegionFncs.center(5, 5)));
-    this.ui.addComponent(ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.center(-130, 80, 120, 30)).setText("Font").setFont(kennyMini20Id).addOnClickAction(fontAct));
-    this.ui.addComponent(ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.center(10, 80, 120, 30)).setText("Alignment").setFont(kennyMini20Id).addOnClickAction(alignAct));
-    this.ui.addComponent(ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.center(-130, 120, 120, 30)).setText("Text").setFont(kennyMini20Id).addOnClickAction(textAct));
-    this.ui.addComponent(ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.center(10, 120, 120, 30)).setText("Size").setFont(kennyMini20Id).addOnClickAction(sizeAct));
-    this.ui.addComponent(label);
-    this.ui.addComponent(fontLabel);
-    let exitBtn = ImageButton.create().setUpTexture("shadedDark35").setDownTexture("shadedLight35").setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager));
-    this.ui.addComponent(exitBtn);
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.list(20));
+    this.world.warmUp();
   }
 
   init(drivers, screenManager, properties) {
@@ -12707,22 +12725,89 @@ class BasicApp13 {
     res.add(assets.resolveAsync(Path.of("asset:controls")));
     res.add(assets.resolveAsync(Path.of("asset:buttons")));
     res.add(assets.resolveAsync(Path.of("asset:fonts")));
+    let boxDiffuse = TextureId.of("tex_box_01_d");
+    let boxSpecular = TextureId.of("tex_box_01_s");
+    res.add(assets.resolveAsync(Path.of("asset:box-01/tex_box_01_d.png"), "Texture", TextureFncs.flipVertGamma(2.2)));
+    res.add(assets.resolveAsync(Path.of("asset:box-01/tex_box_01_s.png"), "Texture", TextureFncs.flipVertGamma(2.2)));
+    assets.put(MaterialId.of("brass"), Material.BRASS);
+    assets.put(MaterialId.of("box"), Material.SILVER.addTexture(TextureAttachment.diffuse(boxDiffuse)).addTexture(TextureAttachment.specular(boxSpecular)));
+    assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
+    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("brass"));
+    let groundModelId = ModelId.of("ground");
+    assets.put(groundModelId, groundModel);
+    let boxModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("box"));
+    let boxModelId = ModelId.of("box");
+    assets.put(boxModelId, boxModel);
+    this.world = RigidBodyWorld.create(drivers);
+    let box1 = Actor.create("box-1").setName("box-1").addComponent(TransformComponent.create()).addComponent(ModelComponent.create().setModelId(boxModelId)).addComponent(RotationBehavior.create());
+    this.world.actors().add(ActorId.ROOT, box1);
+    let box11 = Actor.create("box-1-1").setName("box-1-1").addComponent(TransformComponent.create().move(Vec3.create(0.5, 0.5, 0.5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
+    this.world.actors().add(box1.getId(), box11);
+    let box111 = Actor.create("box-1-1-1").setName("box-1-1-1").addComponent(TransformComponent.create().move(Vec3.create(0.25, 0.25, 0.25))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.25, 0.25, 0.25)));
+    this.world.actors().add(box11.getId(), box111);
+    let box12 = Actor.create("box-1-2").setName("box-1-2").addComponent(TransformComponent.create().move(Vec3.create(-0.5, 0.5, 0.5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
+    this.world.actors().add(box1.getId(), box12);
+    let box13 = Actor.create("box-1-3").setName("box-1-3").addComponent(TransformComponent.create().move(Vec3.create(0.5, 0.5, -0.5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
+    this.world.actors().add(box1.getId(), box13);
+    let box14 = Actor.create("box-1-4").setName("box-1-4").addComponent(TransformComponent.create().move(Vec3.create(-0.5, 0.5, -0.5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
+    this.world.actors().add(box1.getId(), box14);
+    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create().lookAt(Vec3.create(0, 1, 0), Vec3.create(0.7, 0, 0.4), Vec3.create(1, 0, 0))).addComponent(LightComponent.create().setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
+    this.world.actors().add(ActorId.ROOT, light);
+    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create().lookAt(Vec3.create(1, 2, 7), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create().setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create("moveDir", "rotDir", 3, 1)).addComponent(CameraFovyComponent.create());
+    this.world.actors().add(ActorId.ROOT, camera);
     this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
+    this.gamePad = GamePad.create(drivers);
+    this.ui.addComponent(this.gamePad);
+    let btnFontId = FontId.of("rubik-regular-20");
+    let labelFontId = FontId.of("rubik-regular-20");
+    let xLabel = Label.create().setFont(labelFontId).setPosFnc(UiPosFncs.leftTop(55, 25)).setText("X-axis").setAlignment(TextAlignment.RIGHT_CENTER);
+    this.ui.addComponent(xLabel);
+    let xVal = Label.create().setFont(labelFontId).setPosFnc(UiPosFncs.leftTop(125, 25)).setText("0.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(xVal);
+    let xMinusBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.leftTop(65, 10, 30, 30)).setText("-").setFont(btnFontId).addOnClickAction(this.inputChangeAction(this.inputs, "x", -0.1, xVal));
+    this.ui.addComponent(xMinusBtn);
+    let xPlusBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.leftTop(155, 10, 30, 30)).setText("+").setFont(btnFontId).addOnClickAction(this.inputChangeAction(this.inputs, "x", 0.1, xVal));
+    this.ui.addComponent(xPlusBtn);
+    let yLabel = Label.create().setFont(labelFontId).setPosFnc(UiPosFncs.leftTop(55, 65)).setText("Y-axis").setAlignment(TextAlignment.RIGHT_CENTER);
+    this.ui.addComponent(yLabel);
+    let yVal = Label.create().setFont(labelFontId).setPosFnc(UiPosFncs.leftTop(125, 65)).setText("0.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(yVal);
+    let yMinusBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.leftTop(65, 50, 30, 30)).setText("-").setFont(btnFontId).addOnClickAction(this.inputChangeAction(this.inputs, "y", -0.1, yVal));
+    this.ui.addComponent(yMinusBtn);
+    let yPlusBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.leftTop(155, 50, 30, 30)).setText("+").setFont(btnFontId).addOnClickAction(this.inputChangeAction(this.inputs, "y", 0.1, yVal));
+    this.ui.addComponent(yPlusBtn);
+    let zLabel = Label.create().setFont(labelFontId).setPosFnc(UiPosFncs.leftTop(55, 105)).setText("Z-axis").setAlignment(TextAlignment.RIGHT_CENTER);
+    this.ui.addComponent(zLabel);
+    let zVal = Label.create().setFont(labelFontId).setPosFnc(UiPosFncs.leftTop(125, 105)).setText("0.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(zVal);
+    let zMinusBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.leftTop(65, 90, 30, 30)).setText("-").setFont(btnFontId).addOnClickAction(this.inputChangeAction(this.inputs, "z", -0.1, zVal));
+    this.ui.addComponent(zMinusBtn);
+    let zPlusBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.leftTop(155, 90, 30, 30)).setText("+").setFont(btnFontId).addOnClickAction(this.inputChangeAction(this.inputs, "z", 0.1, zVal));
+    this.ui.addComponent(zPlusBtn);
+    let exitBtn = ImageButton.create().setUpTexture("shadedDark35").setDownTexture("shadedLight35").setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager));
+    this.ui.addComponent(exitBtn);
     this.ui.subscribe(drivers);
+    let dlist = (size) => {
+      this.inputs.put("display.size", size);
+    };
+    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
+    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
     return res;
   }
 
   leave(drivers) {
     this.ui.unsubscribe(drivers);
+    this.world.destroy(drivers);
   }
 
-  getFontBase(fontName) {
-    let parts = fontName.split("-");
-    let res = parts[0];
-    for (let i = 1; i<parts.length-1; ++i) {
-      res = res+"-"+parts[i];
-    }
-    return res;
+  inputChangeAction(inputs, key, d, label) {
+    return (evtSource) => {
+      let x = inputs.get("Float", key, 0);
+      x = x+d;
+      inputs.put(key, x);
+      let str = String.format("%.1f", x);
+      label.setText(str);
+    };
   }
 
 }
@@ -13004,7 +13089,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simple("asset:loading.png"), new BasicApp13());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simple("asset:loading.png"), new RigidBodyApp01());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

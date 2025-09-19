@@ -3,11 +3,10 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Tyracorn 3D Model Viewer</title>
+        <title>Tyracorn 3D Examples</title>
         <link rel="stylesheet" href="style.css">
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-        <!-- For debugging -->
     </head>
     <body>
         <div class="app-container">
@@ -31,7 +30,7 @@
                     <div class="examples-grid">
                         <a href="basic-app-01" class="example-card">
                             <div class="example-icon">
-                                <i class="fas fa-cube"></i>
+                                <i class="fas fa-cubes"></i>
                             </div>
                             <div class="example-content">
                                 <h3>Primitive geometry</h3>
@@ -43,11 +42,14 @@
                         </a>
                         <a href="basic-app-02" class="example-card">
                             <div class="example-icon">
-                                <i class="fas fa-shapes"></i>
+                                <i class="fas fa-image"></i>
                             </div>
                             <div class="example-content">
                                 <h3>Simple texture</h3>
-                                <p>Creating scene with textures.</p>
+                                <p>
+                                    Load textures, push them to the graphics card,
+                                    and use them in the scene.
+                                </p>
                             </div>
                             <div class="example-arrow">
                                 <i class="fas fa-arrow-right"></i>
@@ -55,11 +57,14 @@
                         </a>
                         <a href="basic-app-03" class="example-card">
                             <div class="example-icon">
-                                <i class="fas fa-mountain"></i>
+                                <i class="fas fa-lightbulb"></i>
                             </div>
                             <div class="example-content">
                                 <h3>Lights</h3>
-                                <p>Showing the scene with lights. No shadows here.</p>
+                                <p>
+                                    Scene with lights, no shadows here.
+                                    Target point color is calculated based on the lighting model.
+                                </p>
                             </div>
                             <div class="example-arrow">
                                 <i class="fas fa-arrow-right"></i>
@@ -67,11 +72,14 @@
                         </a>
                         <a href="basic-app-04" class="example-card">
                             <div class="example-icon">
-                                <i class="fas fa-atom"></i>
+                                <i class="fas fa-star-half"></i>
                             </div>
                             <div class="example-content">
                                 <h3>First shadow light</h3>
-                                <p>Showcasing the shadow map.</p>
+                                <p>
+                                    Shadow map is created by rendering from the light point of view.
+                                    Then use this information in the scene rendering.
+                                </p>
                             </div>
                             <div class="example-arrow">
                                 <i class="fas fa-arrow-right"></i>
@@ -79,11 +87,14 @@
                         </a>
                         <a href="basic-app-05" class="example-card">
                             <div class="example-icon">
-                                <i class="fas fa-gamepad"></i>
+                                <i class="fas fa-gears"></i>
                             </div>
                             <div class="example-content">
                                 <h3>More shadows</h3>
-                                <p>Scene with multiple shadow lights.</p>
+                                <p>
+                                    Same as a single shadow, except more rendering
+                                    and more data combination.
+                                </p>
                             </div>
                             <div class="example-arrow">
                                 <i class="fas fa-arrow-right"></i>
@@ -91,16 +102,32 @@
                         </a>
                         <a href="basic-app-13" class="example-card">
                             <div class="example-icon">
-                                <i class="fas fa-terminal"></i>
+                                <i class="fas fa-font"></i>
                             </div>
                             <div class="example-content">
                                 <h3>Text (experimental)</h3>
-                                <p>Rendering text.</p>
+                                <p>
+                                    Placing character sprites one by one to form the text.
+                                </p>
                             </div>
                             <div class="example-arrow">
                                 <i class="fas fa-arrow-right"></i>
                             </div>
                         </a>
+                        <!--
+                        <a href="rigid-body-app-13" class="example-card">
+                            <div class="example-icon">
+                                <i class="fas fa-rotate-right"></i>
+                            </div>
+                            <div class="example-content">
+                                <h3>Rotation (experimental)</h3>
+                                <p>Simple quaternion algebra and conversion to the rotation matrix.</p>
+                            </div>
+                            <div class="example-arrow">
+                                <i class="fas fa-arrow-right"></i>
+                            </div>
+                        </a>
+                        -->
                     </div>
                 </div>
             </main>
@@ -108,14 +135,12 @@
             <!-- Footer -->
             <footer class="footer">
                 <div class="footer-content">
-                    <span>&copy; 2024 Tyracorn Engine</span>
+                    <span>&copy; Tyracorn Engine</span>
                     <div class="footer-links">
-                        <a href="#" class="footer-link">Documentation</a>
-                        <a href="#" class="footer-link">Support</a>
-                        <a href="#" class="footer-link">GitHub</a>
+                        <a href="https://github.com/radekhb/tyracorn-web-examples" class="footer-link">GitHub</a>
                     </div>
                 </div>
             </footer>
         </div>
     </body>
-</html>
+</html> 
