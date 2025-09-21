@@ -68,7 +68,7 @@ class Guard {
 // -------------------------------------
 
 class Float {
-    static POSITIVE_NIFINITY = Number.POSITIVE_INFINITY;
+    static POSITIVE_INFINITY = Number.POSITIVE_INFINITY;
     static NEGATIVE_INFINITY = Number.NEGATIVE_INFINITY;
 
     static isInfinite(a) {
@@ -821,13 +821,13 @@ class HashMap {
 
     // Get all keys
     keySet() {
-        const keys = [];
+        const res = new HashSet();
         for (const bucket of this.buckets) {
             for (const [key, value] of bucket) {
-                keys.push(key);
+                res.add(key);
             }
         }
-        return keys;
+        return res;
     }
 
     // Get all values
@@ -955,6 +955,10 @@ class HashMap {
 class FMath {
     static PI = Math.PI;
 
+    static trunc(a) {
+        return Math.trunc(a);
+    }
+
     static min(a, b) {
         return Math.min(a, b);
     }
@@ -971,8 +975,16 @@ class FMath {
         return Math.sin(x);
     }
 
+    static asin(x) {
+        return Math.asin(x);
+    }
+
     static cos(x) {
         return Math.cos(x);
+    }
+
+    static acos(x) {
+        return Math.acos(x);
     }
 
     static tan(x) {
@@ -1011,6 +1023,18 @@ class StringUtils {
         return str.toString().trim();
     }
 
+    /**
+     * Returns whether string is not empty.
+     * 
+     * @param {String} str tested string
+     * @returns {boolean} whether string is not empty
+     */
+    static isNotEmpty(str) {
+        if (str === null || str === undefined) {
+            return false;
+        }
+        return str.length > 0;
+    }
 }
 /**
  * Reference identifier.
@@ -1077,6 +1101,26 @@ class Collections {
     }
 
     /**
+     * Placeholder for unmodifiable list.
+     * 
+     * @param {ArrayList} list input list
+     * @returns {ArrayList} unmodifiable list
+     */
+    static unmodifiableList(list) {
+        return list;
+    }
+
+    /**
+     * Returns empty set.
+     * 
+     * @returns {HashSet} empty set
+     */
+    static emptySet() {
+        let res = new HashSet();
+        return res;
+    }
+
+    /**
      * Returns empty map.
      * 
      * @returns {HashMap} empty map
@@ -1089,7 +1133,7 @@ class Collections {
     /**
      * Placeholder for unmodifiable map.
      * 
-     * @param {HashMap} input map
+     * @param {HashMap} map input map
      * @returns {HashMap} unmodifiable map
      */
     static unmodifiableMap(map) {
@@ -1109,14 +1153,6 @@ class Dut {
         return res;
     }
 
-    static map() {
-        let res = new HashMap();
-        for (let arg = 0; arg < arguments.length; arg = arg + 2) {
-            res.put(arguments[arg], arguments[arg + 1]);
-        }
-        return res;
-    }
-
     static immutableList() {
         let res = new ArrayList();
         for (let arg = 0; arg < arguments.length; ++arg) {
@@ -1127,7 +1163,7 @@ class Dut {
 
     static copyList(collection) {
         let res = new ArrayList();
-        res.addAll(collection)
+        res.addAll(collection);
         return res;
     }
 
@@ -1139,15 +1175,56 @@ class Dut {
         return res;
     }
 
+    static set() {
+        let res = new HashSet();
+        for (let arg = 0; arg < arguments.length; ++arg) {
+            res.add(arguments[arg]);
+        }
+        return res;
+    }
+
+    static immutableSet() {
+        let res = new HashSet();
+        for (let arg = 0; arg < arguments.length; ++arg) {
+            res.add(arguments[arg]);
+        }
+        return res;
+    }
+    
     static copySet(collection) {
         let res = new HashSet();
-        if (Array.isArray(collection)) {
-            for (let item of collection) {
-                res.add(item);
-            }
-        } else {
-            throw "unknown collection: " + collection;
+        res.addAll(collection);
+        return res;
+    }
+
+    static copyImmutableSet(collection) {
+        let res = new HashSet();
+        res.addAll(collection);
+        return res;
+    }
+
+    static map() {
+        let res = new HashMap();
+        for (let arg = 0; arg < arguments.length; arg = arg + 2) {
+            res.put(arguments[arg], arguments[arg + 1]);
         }
+        return res;
+    }
+
+    static immutableMap() {
+        let res = new HashMap();
+        for (let arg = 0; arg < arguments.length; arg = arg + 2) {
+            res.put(arguments[arg], arguments[arg + 1]);
+        }
+        return res;
+    }
+
+    static copyMap(map) {
+        let res = new HashMap();
+        if (map === null || map === undefined) {
+            return res;
+        }
+        res.putAll(map);
         return res;
     }
 
@@ -1159,6 +1236,69 @@ class Dut {
         res.putAll(map);
         return res;
     }
+}
+/**
+ * Id generator which produces ids in the sequence.
+ *
+ * @author radek.hecl
+ */
+class SequenceIdGenerator {
+
+    /**
+     * Prefix.
+     */
+    prefix;
+
+    /**
+     * Next number.
+     */
+    next = 1;
+
+    /**
+     * Creates new instance.
+     */
+    constructor() {
+    }
+
+    /**
+     * Guards this object to be consistent. Throws exception if this is not the case.
+     */
+    guardInvariants() {
+        Guard.notNull(this.prefix, "prefix cannot be null");
+    }
+
+    /**
+     * Generates next id.
+     * 
+     * @return {String} id
+     */
+    generateId() {
+        const res = this.prefix + this.next;
+        ++this.next;
+        return res;
+    }
+
+    toString() {
+        return "SequenceIdGenerator"
+    }
+
+    /**
+     * Creates new instance.
+     *
+     * @param {String|null} prefix prefix
+     * @return {SequenceIdGenerator} created instance
+     */
+    static create(prefix) {
+        const res = new SequenceIdGenerator();
+        if (prefix === null || prefix === undefined) {
+            res.prefix = "";
+        } else {
+            res.prefix = prefix;
+        }
+        res.guardInvariants();
+        return res;
+    }
+
 }
 /**
  * Function utilities.
@@ -1184,6 +1324,16 @@ class Functions {
      */
     static runUiEventAction(eventAction, source) {
         eventAction(source);
+    }
+
+    /**
+     * Runs actor action.
+     *
+     * @param {ActorAction} action action to run
+     * @param {Actor} actor actor to run function on
+     */
+    static runActorAction(action, actor) {
+        action(actor);
     }
 
 }
@@ -2950,6 +3100,12 @@ class WebglSceneRenderer {
     render() {
         if (arguments.length === 3 && arguments[0] instanceof MeshId && arguments[1] instanceof Mat44 && arguments[2] instanceof Material) {
             this.renderMesh(arguments[0], 0, 0, 0, arguments[1], arguments[2]);
+        } else if (arguments.length === 5 && arguments[0] instanceof Model &&
+                typeof arguments[1] === "number" && typeof arguments[2] === "number" && typeof arguments[3] === "number" &&
+                arguments[4] instanceof Mat44) {
+            for (const part of arguments[0].getParts()) {
+                this.renderMesh(part.getMesh(), arguments[1], arguments[2], arguments[3], arguments[4], part.getMaterial());
+            }
         } else {
             throw "unsupported arguments for rendering, implement me";
         }
@@ -2966,6 +3122,9 @@ class WebglSceneRenderer {
      * @param {Material} material material
      */
     renderMesh(mesh, frame1, frame2, t, mat, material) {
+        if (material instanceof MaterialId) {
+            material = this.assetBank.get("Material", material);
+        }
         const m = this.refProvider.getMeshRef(mesh);
 
         gl.disable(gl.BLEND);
@@ -3247,6 +3406,12 @@ class WebglShadowMapRenderer {
     render() {
         if (arguments.length === 2 && arguments[0] instanceof MeshId && arguments[1] instanceof Mat44) {
             this.renderMesh(arguments[0], 0, 0, 0, arguments[1]);
+        } else if (arguments.length === 5 && arguments[0] instanceof Model &&
+                typeof arguments[1] === "number" && typeof arguments[2] === "number" && typeof arguments[3] === "number" &&
+                arguments[4] instanceof Mat44) {
+            for (const part of arguments[0].getParts()) {
+                this.renderMesh(part.getMesh(), arguments[1], arguments[2], arguments[3], arguments[4]);
+            }
         } else {
             throw "unsupported arguments for rendering, implement me";
         }
@@ -4617,6 +4782,15 @@ class WebAudioDriver {
      */
     getSounds() {
         return new HashSet();
+    }
+
+    /**
+     * Returns the mixer provided by system.
+     *
+     * @return {AudioMixer} mixer provided by system
+     */
+    getSystemMixer() {
+        return null;
     }
 
     /**
@@ -6111,6 +6285,64 @@ class Size2 {
   }
 
 }
+class Size3 {
+  mWidth;
+  mHeight;
+  mDepth;
+  constructor() {
+  }
+
+  getClass() {
+    return "Size3";
+  }
+
+  guardInvariants() {
+  }
+
+  width() {
+    return this.mWidth;
+  }
+
+  height() {
+    return this.mHeight;
+  }
+
+  getDepth() {
+    return this.mDepth;
+  }
+
+  scale(s) {
+    return Size3.create(this.mWidth*s, this.mHeight*s, this.mDepth*s);
+  }
+
+  hashCode() {
+    return FMath.trunc(this.mWidth*7+this.mHeight*11+this.mDepth*13);
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof Size3)) {
+      return false;
+    }
+    let other = obj;
+    return this.mWidth==other.mWidth&&this.mHeight==other.mHeight&&this.mDepth==other.mDepth;
+  }
+
+  toString() {
+  }
+
+  static create(width, height, depth) {
+    let res = new Size3();
+    res.mWidth = width;
+    res.mHeight = height;
+    res.mDepth = depth;
+    res.guardInvariants();
+    return res;
+  }
+
+}
 class Rect2 {
   mPos;
   mSize;
@@ -6239,6 +6471,163 @@ class Rect2 {
     res.mSize = size;
     res.guardInvariants();
     return res;
+  }
+
+}
+class Aabb3 {
+  mMin;
+  mMax;
+  constructor() {
+  }
+
+  getClass() {
+    return "Aabb3";
+  }
+
+  guardInvariants() {
+  }
+
+  min() {
+    return this.mMin;
+  }
+
+  max() {
+    return this.mMax;
+  }
+
+  size() {
+    return Size3.create(this.mMax.x()-this.mMin.x(), this.mMax.y()-this.mMin.y(), this.mMax.z()-this.mMin.z());
+  }
+
+  isInside(pt) {
+    return pt.x()>=this.mMin.x()&&pt.x()<=this.mMax.x()&&pt.y()>=this.mMin.y()&&pt.y()<=this.mMax.y()&&pt.z()>=this.mMin.z()&&pt.z()<=this.mMax.z();
+  }
+
+  isIntersect(other) {
+    return !(this.mMin.x()>other.mMax.x()||this.mMax.x()<other.mMin.x()||this.mMin.y()>other.mMax.y()||this.mMax.y()<other.mMin.y()||this.mMin.z()>other.mMax.z()||this.mMax.z()<other.mMin.z());
+  }
+
+  expand() {
+    if (arguments.length===1&&arguments[0] instanceof Aabb3) {
+      return this.expand_1_Aabb3(arguments[0]);
+    }
+    else if (arguments.length===1&& typeof arguments[0]==="number") {
+      return this.expand_1_number(arguments[0]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  expand_1_Aabb3(other) {
+    let minX = FMath.min(this.mMin.x(), other.mMin.x());
+    let minY = FMath.min(this.mMin.y(), other.mMin.y());
+    let minZ = FMath.min(this.mMin.z(), other.mMin.z());
+    let maxX = FMath.max(this.mMax.x(), other.mMax.x());
+    let maxY = FMath.max(this.mMax.y(), other.mMax.y());
+    let maxZ = FMath.max(this.mMax.z(), other.mMax.z());
+    if (minX==this.mMin.x()&&minY==this.mMin.y()&&minZ==this.mMin.z()&&maxX==this.mMax.x()&&maxY==this.mMax.y()&&maxZ==this.mMax.z()) {
+      return this;
+    }
+    return Aabb3.create(minX, minY, minZ, maxX, maxY, maxZ);
+  }
+
+  expand_1_number(delta) {
+    if (delta==0) {
+      return this;
+    }
+    return Aabb3.create(this.mMin.x()-delta, this.mMin.y()-delta, this.mMin.z()-delta, this.mMax.x()+delta, this.mMax.y()+delta, this.mMax.z()+delta);
+  }
+
+  transform(mat) {
+    let p1 = this.mMin;
+    let p2 = Vec3.create(this.mMin.x(), this.mMin.y(), this.mMax.z());
+    let p3 = Vec3.create(this.mMin.x(), this.mMax.y(), this.mMin.z());
+    let p4 = Vec3.create(this.mMax.x(), this.mMin.y(), this.mMin.z());
+    let p5 = Vec3.create(this.mMax.x(), this.mMax.y(), this.mMin.z());
+    let p6 = Vec3.create(this.mMax.x(), this.mMin.y(), this.mMax.z());
+    let p7 = Vec3.create(this.mMin.x(), this.mMax.y(), this.mMax.z());
+    let p8 = this.mMax;
+    p1 = mat.mul(p1);
+    p2 = mat.mul(p2);
+    p3 = mat.mul(p3);
+    p4 = mat.mul(p4);
+    p5 = mat.mul(p5);
+    p6 = mat.mul(p6);
+    p7 = mat.mul(p7);
+    p8 = mat.mul(p8);
+    return Aabb3.wrap(p1, p2, p3, p4, p5, p6, p7, p8);
+  }
+
+  hashCode() {
+    return (this.mMin.x()*this.mMin.y()*this.mMin.z()*this.mMax.x()*this.mMax.y()*this.mMax.z());
+  }
+
+  equals(obj) {
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof Aabb3)) {
+      return false;
+    }
+    let other = obj;
+    return this.mMin.equals(other.mMin)&&this.mMax.equals(other.mMax);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    if (arguments.length===2&&arguments[0] instanceof Vec3&&arguments[1] instanceof Vec3) {
+      return Aabb3.create_2_Vec3_Vec3(arguments[0], arguments[1]);
+    }
+    else if (arguments.length===6&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number"&& typeof arguments[3]==="number"&& typeof arguments[4]==="number"&& typeof arguments[5]==="number") {
+      return Aabb3.create_6_number_number_number_number_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static create_2_Vec3_Vec3(min, max) {
+    let res = new Aabb3();
+    res.mMin = min;
+    res.mMax = max;
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_6_number_number_number_number_number_number(minX, minY, minZ, maxX, maxY, maxZ) {
+    let res = new Aabb3();
+    res.mMin = Vec3.create(minX, minY, minZ);
+    res.mMax = Vec3.create(maxX, maxY, maxZ);
+    res.guardInvariants();
+    return res;
+  }
+
+  static wrap(...vecs) {
+    if (Array.isArray(vecs)&&vecs.length===1&&Array.isArray(vecs[0])) {
+      vecs = vecs[0];
+    }
+    let minX = vecs[0].x();
+    let minY = vecs[0].y();
+    let minZ = vecs[0].z();
+    let maxX = vecs[0].x();
+    let maxY = vecs[0].y();
+    let maxZ = vecs[0].z();
+    for (let i = 1; i<vecs.length; ++i) {
+      let v = vecs[i];
+      minX = FMath.min(minX, v.x());
+      minY = FMath.min(minY, v.y());
+      minZ = FMath.min(minZ, v.z());
+      maxX = FMath.max(maxX, v.x());
+      maxY = FMath.max(maxY, v.y());
+      maxZ = FMath.max(maxZ, v.z());
+    }
+    return Aabb3.create(minX, minY, minZ, maxX, maxY, maxZ);
   }
 
 }
@@ -7472,7 +7861,8 @@ class MaterialId extends RefId {
     if (!(obj instanceof MaterialId)) {
       return false;
     }
-    return (obj).this.mId.equals(this.mId);
+    let other = obj;
+    return other.mId.equals(this.mId);
   }
 
   toString() {
@@ -7925,6 +8315,174 @@ class MeshId extends RefId {
 
   static of(id) {
     let res = new MeshId();
+    res.mId = id;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class ModelPart {
+  mesh;
+  material;
+  constructor() {
+  }
+
+  getClass() {
+    return "ModelPart";
+  }
+
+  guardInvariants() {
+  }
+
+  getMesh() {
+    return this.mesh;
+  }
+
+  getMaterial() {
+    return this.material;
+  }
+
+  withMesh(mesh) {
+    return ModelPart.of(mesh, this.material);
+  }
+
+  withMaterial(material) {
+    return ModelPart.of(this.mesh, material);
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static of(mesh, material) {
+    let res = new ModelPart();
+    res.mesh = mesh;
+    res.material = material;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class Model {
+  parts;
+  constructor() {
+  }
+
+  getClass() {
+    return "Model";
+  }
+
+  guardInvariants() {
+  }
+
+  getParts() {
+    return this.parts;
+  }
+
+  transformMeshes(fnc) {
+    let prts = new ArrayList();
+    for (let part of this.parts) {
+      prts.add(part.withMesh(fnc(part.getMesh())));
+    }
+    return Model.of(prts);
+  }
+
+  transformMaterials(fnc) {
+    let prts = new ArrayList();
+    for (let part of this.parts) {
+      prts.add(part.withMaterial(fnc(part.getMaterial())));
+    }
+    return Model.of(prts);
+  }
+
+  addPart(part) {
+    let prts = Dut.copyList(this.parts);
+    prts.add(part);
+    return Model.of(prts);
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static empty() {
+    let res = new Model();
+    res.parts = Collections.emptyList();
+    res.guardInvariants();
+    return res;
+  }
+
+  static simple(mesh, material) {
+    let res = new Model();
+    res.parts = Dut.immutableList(ModelPart.of(mesh, material));
+    res.guardInvariants();
+    return res;
+  }
+
+  static of(parts) {
+    let res = new Model();
+    res.parts = Dut.copyImmutableList(parts);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class ModelId extends RefId {
+  static TYPE = RefIdType.of("MODEL_ID");
+  mId;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "ModelId";
+  }
+
+  guardInvariants() {
+  }
+
+  type() {
+    return ModelId.TYPE;
+  }
+
+  id() {
+    return this.mId;
+  }
+
+  hashCode() {
+    return this.mId.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ModelId)) {
+      return false;
+    }
+    let other = obj;
+    return other.mId.equals(this.mId);
+  }
+
+  toString() {
+  }
+
+  static of(id) {
+    let res = new ModelId();
     res.mId = id;
     res.guardInvariants();
     return res;
@@ -8480,6 +9038,15 @@ class ShadowMap {
     return this.pcfType;
   }
 
+  withPcfType(pcfType) {
+    let res = new ShadowMap();
+    res.shadowBuffer = this.shadowBuffer;
+    res.pcfType = pcfType;
+    res.camera = this.camera;
+    res.guardInvaritants();
+    return res;
+  }
+
   getCamera() {
     return this.camera;
   }
@@ -8499,19 +9066,7 @@ class ShadowMap {
   toString() {
   }
 
-  static createDir() {
-    if (arguments.length===5&&arguments[0] instanceof ShadowBufferId&&arguments[1] instanceof Vec3&&arguments[2] instanceof Vec3&& typeof arguments[3]==="number"&& typeof arguments[4]==="number") {
-      return ShadowMap.createDir_5_ShadowBufferId_Vec3_Vec3_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
-    }
-    else if (arguments.length===6&&arguments[0] instanceof ShadowBufferId&&arguments[1] instanceof ShadowMapPcfType&&arguments[2] instanceof Vec3&&arguments[3] instanceof Vec3&& typeof arguments[4]==="number"&& typeof arguments[5]==="number") {
-      return ShadowMap.createDir_6_ShadowBufferId_ShadowMapPcfType_Vec3_Vec3_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5]);
-    }
-    else {
-      throw "error";
-    }
-  }
-
-  static createDir_5_ShadowBufferId_Vec3_Vec3_number_number(shadowBuffer, pos, dir, r, range) {
+  static createDir(shadowBuffer, pos, dir, r, range) {
     let res = new ShadowMap();
     res.shadowBuffer = shadowBuffer;
     res.pcfType = ShadowMapPcfType.GAUSS_55;
@@ -8520,40 +9075,10 @@ class ShadowMap {
     return res;
   }
 
-  static createDir_6_ShadowBufferId_ShadowMapPcfType_Vec3_Vec3_number_number(shadowBuffer, pcfType, pos, dir, r, range) {
-    let res = new ShadowMap();
-    res.shadowBuffer = shadowBuffer;
-    res.pcfType = pcfType;
-    res.camera = Camera.ortho(r*2, r*2, 0, range).lookAt(pos, pos.add(dir), ShadowMap.perp(dir));
-    res.guardInvaritants();
-    return res;
-  }
-
-  static createSpot() {
-    if (arguments.length===6&&arguments[0] instanceof ShadowBufferId&&arguments[1] instanceof Vec3&&arguments[2] instanceof Vec3&& typeof arguments[3]==="number"&& typeof arguments[4]==="number"&& typeof arguments[5]==="number") {
-      return ShadowMap.createSpot_6_ShadowBufferId_Vec3_Vec3_number_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5]);
-    }
-    else if (arguments.length===7&&arguments[0] instanceof ShadowBufferId&&arguments[1] instanceof ShadowMapPcfType&&arguments[2] instanceof Vec3&&arguments[3] instanceof Vec3&& typeof arguments[4]==="number"&& typeof arguments[5]==="number"&& typeof arguments[6]==="number") {
-      return ShadowMap.createSpot_7_ShadowBufferId_ShadowMapPcfType_Vec3_Vec3_number_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5], arguments[6]);
-    }
-    else {
-      throw "error";
-    }
-  }
-
-  static createSpot_6_ShadowBufferId_Vec3_Vec3_number_number_number(shadowBuffer, pos, dir, outTheta, near, range) {
+  static createSpot(shadowBuffer, pos, dir, outTheta, near, range) {
     let res = new ShadowMap();
     res.shadowBuffer = shadowBuffer;
     res.pcfType = ShadowMapPcfType.GAUSS_55;
-    res.camera = Camera.persp(outTheta*2, 1, near, range).lookAt(pos, pos.add(dir), ShadowMap.perp(dir));
-    res.guardInvaritants();
-    return res;
-  }
-
-  static createSpot_7_ShadowBufferId_ShadowMapPcfType_Vec3_Vec3_number_number_number(shadowBuffer, pcfType, pos, dir, outTheta, near, range) {
-    let res = new ShadowMap();
-    res.shadowBuffer = shadowBuffer;
-    res.pcfType = pcfType;
     res.camera = Camera.persp(outTheta*2, 1, near, range).lookAt(pos, pos.add(dir), ShadowMap.perp(dir));
     res.guardInvaritants();
     return res;
@@ -8718,6 +9243,52 @@ class ShadowBuffer {
   }
 
 }
+const createCameraType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const CameraType = Object.freeze({
+  PERSPECTIVE: createCameraType("PERSPECTIVE"),
+  ORTHOGRAPHIC: createCameraType("ORTHOGRAPHIC"),
+  CUSTOM: createCameraType("CUSTOM"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
 class Camera {
   proj;
   view;
@@ -8866,16 +9437,6 @@ class ProxyDisplayDriver {
     let res = new ProxyDisplayDriver();
     res.guardInvariants();
     return res;
-  }
-
-}
-class MouseTouches {
-  static MOUSE_TOUCH_ID = "MOUSE";
-  constructor() {
-  }
-
-  getClass() {
-    return "MouseTouches";
   }
 
 }
@@ -9170,6 +9731,21 @@ class UiEventActions {
   static exitApp(screenManager) {
     return (evtSource) => {
       screenManager.exitApp();
+    };
+  }
+
+}
+class UiActions {
+  constructor() {
+  }
+
+  getClass() {
+    return "UiActions";
+  }
+
+  static removeDisplayListener(drivers, listener) {
+    return () => {
+      drivers.getDriver("DisplayDriver").removeDisplayListener(listener);
     };
   }
 
@@ -10105,6 +10681,248 @@ class ImageToggleButton extends UiComponent {
   }
 
 }
+class TouchJoystick extends UiComponent {
+  baseTexture;
+  topTexture;
+  regionFnc;
+  containerSize;
+  region;
+  radius;
+  trackedTouch = null;
+  dir = Vec2.create(0, 0);
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "TouchJoystick";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt) {
+  }
+
+  draw(painter) {
+    painter.drawImage(this.baseTexture, this.region, TextureStyle.PIXEL_EDGE);
+    let inreg = Rect2.create(this.region.x()+this.region.width()*0.125+this.dir.x()*this.radius.x(), this.region.y()+this.region.height()*0.125-this.dir.y()*this.radius.y(), this.region.width()*0.75, this.region.height()*0.75);
+    painter.drawImage(this.topTexture, inreg, TextureStyle.PIXEL_EDGE);
+  }
+
+  onTouchStart(id, pos, size) {
+    if (this.trackedTouch!=null) {
+      return false;
+    }
+    if (!this.region.isInside(pos)) {
+      return false;
+    }
+    this.trackedTouch = id;
+    this.dir = this.calculateDirection(pos);
+    return true;
+  }
+
+  onTouchMove(id, pos, size) {
+    if (this.trackedTouch==null||!id.equals(this.trackedTouch)) {
+      return false;
+    }
+    this.dir = this.calculateDirection(pos);
+    return true;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    if (this.trackedTouch==null||!id.equals(this.trackedTouch)) {
+      return false;
+    }
+    this.trackedTouch = null;
+    this.dir = Vec2.create(0, 0);
+    return true;
+  }
+
+  getDir() {
+    return this.dir;
+  }
+
+  onContainerResize(size) {
+    this.containerSize = size;
+    this.region = Functions.apply(this.regionFnc, size);
+    this.radius = Vec2.create(this.region.width()*0.25, this.region.height()*0.25);
+  }
+
+  setBaseTexture() {
+    if (arguments.length===1&&arguments[0] instanceof TextureId) {
+      return this.setBaseTexture_1_TextureId(arguments[0]);
+    }
+    else if (arguments.length===1&& typeof arguments[0]==="string") {
+      return this.setBaseTexture_1_string(arguments[0]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  setBaseTexture_1_TextureId(baseTexture) {
+    this.baseTexture = baseTexture;
+    return this;
+  }
+
+  setBaseTexture_1_string(baseTexture) {
+    return this.setBaseTexture(TextureId.of(baseTexture));
+  }
+
+  setTopTexture() {
+    if (arguments.length===1&&arguments[0] instanceof TextureId) {
+      return this.setTopTexture_1_TextureId(arguments[0]);
+    }
+    else if (arguments.length===1&& typeof arguments[0]==="string") {
+      return this.setTopTexture_1_string(arguments[0]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  setTopTexture_1_TextureId(topTexture) {
+    this.topTexture = topTexture;
+    return this;
+  }
+
+  setTopTexture_1_string(topTexture) {
+    return this.setTopTexture(TextureId.of(topTexture));
+  }
+
+  setRegionFnc(regionFnc) {
+    Guard.notNull(regionFnc, "regionFnc cannot be null");
+    this.regionFnc = regionFnc;
+    this.onContainerResize(this.containerSize);
+    return this;
+  }
+
+  calculateDirection(pos) {
+    let cx = this.region.centerX();
+    let cy = this.region.centerY();
+    let res = Vec2.create((pos.x()-cx)/this.radius.x(), (cy-pos.y())/this.radius.y());
+    if (res.mag()>1) {
+      res = res.normalize();
+    }
+    return res;
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new TouchJoystick();
+    res.baseTexture = TextureId.of("joystick-base");
+    res.topTexture = TextureId.of("joystick-top");
+    res.regionFnc = UiRegionFncs.center(100, 25);
+    res.containerSize = Size2.create(1, 1);
+    res.region = Functions.apply(res.regionFnc, res.containerSize);
+    res.radius = Vec2.create(res.region.width()*0.25, res.region.height()*0.25);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class KeyboardJoystick extends UiComponent {
+  keyUp = "W";
+  keyDown = "S";
+  keyLeft = "A";
+  keyRight = "D";
+  dir = Vec2.create(0, 0);
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "KeyboardJoystick";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt) {
+  }
+
+  draw(painter) {
+  }
+
+  onKeyPressed(key) {
+    let dx = this.dir.x();
+    let dy = this.dir.y();
+    if (key.getUpperKey().equals(this.keyUp)) {
+      dy = 1;
+    }
+    else if (key.getUpperKey().equals(this.keyDown)) {
+      dy = -1;
+    }
+    else if (key.getUpperKey().equals(this.keyLeft)) {
+      dx = -1;
+    }
+    else if (key.getUpperKey().equals(this.keyRight)) {
+      dx = 1;
+    }
+    if (dx==0&&dy==0) {
+      this.dir = Vec2.ZERO;
+    }
+    else {
+      this.dir = Vec2.create(dx, dy).normalize();
+    }
+    return false;
+  }
+
+  onKeyReleased(key) {
+    let dx = this.dir.x();
+    let dy = this.dir.y();
+    if (key.getUpperKey().equals(this.keyUp)) {
+      dy = 0;
+    }
+    else if (key.getUpperKey().equals(this.keyDown)) {
+      dy = 0;
+    }
+    else if (key.getUpperKey().equals(this.keyLeft)) {
+      dx = 0;
+    }
+    else if (key.getUpperKey().equals(this.keyRight)) {
+      dx = 0;
+    }
+    if (dx==0&&dy==0) {
+      this.dir = Vec2.ZERO;
+    }
+    else {
+      this.dir = Vec2.create(dx, dy).normalize();
+    }
+    return false;
+  }
+
+  getDir() {
+    return this.dir;
+  }
+
+  onContainerResize(size) {
+  }
+
+  setKeys(keys) {
+    Guard.equals(4, keys.length(), "keys must to have 4 characters");
+    let parser = new StringParser(keys);
+    this.keyUp = parser.readCharacter();
+    this.keyDown = parser.readCharacter();
+    this.keyLeft = parser.readCharacter();
+    this.keyRight = parser.readCharacter();
+    return this;
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new KeyboardJoystick();
+    res.setKeys("WSAD");
+    res.guardInvariants();
+    return res;
+  }
+
+}
 class Label extends UiComponent {
   text;
   font;
@@ -10765,6 +11583,54 @@ class Fonts {
         assets.put(fid, assets.get("Font", id).withSize(size));
       }
     }
+  }
+
+}
+class FrameInterpolation {
+  start;
+  end;
+  t;
+  constructor() {
+  }
+
+  getClass() {
+    return "FrameInterpolation";
+  }
+
+  guardInvaritants() {
+    Guard.beTrue(this.t>=0&&this.t<=1, "t must be in [0, 1]: %f", this.t);
+  }
+
+  getStart() {
+    return this.start;
+  }
+
+  getEnd() {
+    return this.end;
+  }
+
+  getT() {
+    return this.t;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(start, end, t) {
+    let res = new FrameInterpolation();
+    res.start = start;
+    res.end = end;
+    res.t = t;
+    res.guardInvaritants();
+    return res;
   }
 
 }
@@ -11935,7 +12801,7 @@ class DefaultAssetBank {
     }
     let res = this.companions.get(key).get(type);
     if (res==null) {
-      throw "asset "+key+" does not have companion "+type;
+      throw "asset "+key+" does not have companion "+type.toString();
     }
     return res;
   }
@@ -12302,6 +13168,16 @@ class TapFonts {
   }
 
 }
+class MouseTouches {
+  static MOUSE_TOUCH_ID = "MOUSE";
+  constructor() {
+  }
+
+  getClass() {
+    return "MouseTouches";
+  }
+
+}
 const createBasicLoadingScreenLoadStrategy = (description) => {
   const symbol = Symbol(description);
   return {
@@ -12551,6 +13427,3132 @@ class TyracornScreenApp {
   }
 
 }
+class InMemoryActorTreeNode {
+  parent;
+  actor;
+  constructor() {
+  }
+
+  getClass() {
+    return "InMemoryActorTreeNode";
+  }
+
+  guardInvariants() {
+  }
+
+  getParent() {
+    return this.parent;
+  }
+
+  getActor() {
+    return this.actor;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(parent, actor) {
+    let res = new InMemoryActorTreeNode();
+    res.parent = parent;
+    res.actor = actor;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class InMemoryActorTree {
+  world;
+  observer;
+  rootId;
+  actors = new HashMap();
+  childrenActors = new HashMap();
+  constructor() {
+  }
+
+  getClass() {
+    return "InMemoryActorTree";
+  }
+
+  guardInvariants() {
+  }
+
+  add() {
+    if (arguments.length===1&&arguments[0] instanceof Actor) {
+      this.add_1_Actor(arguments[0]);
+    }
+    else if (arguments.length===2&&arguments[0] instanceof ActorId&&arguments[1] instanceof Actor) {
+      this.add_2_ActorId_Actor(arguments[0], arguments[1]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  add_1_Actor(actor) {
+    this.add(ActorId.ROOT, actor);
+  }
+
+  add_2_ActorId_Actor(parentId, actor) {
+    Guard.beFalse(actor.getId().equals(parentId), "actor cannot have itself as a parent");
+    Guard.beFalse(this.actors.containsKey(actor.getId()), "id is already taken: %s", actor.getId());
+    Guard.beTrue(this.actors.containsKey(parentId), "parent does not exists: %s", parentId);
+    this.actors.put(actor.getId(), InMemoryActorTreeNode.create(parentId, actor));
+    this.childrenActors.get(parentId).add(actor);
+    this.childrenActors.put(actor.getId(), new ArrayList());
+    actor.init(this.world);
+    this.observer.addActor(actor);
+  }
+
+  remove(id) {
+    Guard.beFalse(id.equals(this.rootId), "cannot remove root node: %s", id);
+    if (!this.childrenActors.containsKey(id)) {
+      return ;
+    }
+    if (!this.childrenActors.get(id).isEmpty()) {
+      let chs = Dut.copyList(this.childrenActors.get(id));
+      for (let ch of chs) {
+        this.remove(ch.getId());
+      }
+    }
+    let nd = this.actors.get(id);
+    this.childrenActors.get(nd.getParent()).remove(nd.getActor());
+    this.observer.removeActor(id);
+    this.actors.remove(id);
+    this.childrenActors.remove(id);
+  }
+
+  exists(id) {
+    return this.actors.containsKey(id);
+  }
+
+  root() {
+    return this.actors.get(this.rootId).getActor();
+  }
+
+  get(id) {
+    let node = this.actors.get(id);
+    if (node==null) {
+      throw "id does not exists: "+id;
+    }
+    return node.getActor();
+  }
+
+  parent(id) {
+    return this.actors.get(this.actors.get(id).getParent()).getActor();
+  }
+
+  children(id) {
+    return Collections.unmodifiableList(this.childrenActors.get(id));
+  }
+
+  forEach(id, action) {
+    let act = this.actors.get(id).getActor();
+    Functions.runActorAction(action, act);
+    let chs = this.childrenActors.get(id);
+    for (let i = 0; i<chs.size(); ++i) {
+      this.forEach(chs.get(i).getId(), action);
+    }
+  }
+
+  toString() {
+  }
+
+  static crete(world, observer) {
+    let res = new InMemoryActorTree();
+    res.world = world;
+    res.rootId = ActorId.ROOT;
+    res.observer = observer;
+    let rootAct = Actor.create(ActorId.ROOT);
+    res.actors.put(ActorId.ROOT, InMemoryActorTreeNode.create(ActorId.ROOT, rootAct));
+    res.childrenActors.put(ActorId.ROOT, new ArrayList());
+    rootAct.init(res.world);
+    observer.addActor(rootAct);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class QueuedActorTreeItem {
+  static TYPE_ADD = 1;
+  static TYPE_REMOVE = 2;
+  type;
+  id;
+  actor;
+  constructor() {
+  }
+
+  getClass() {
+    return "QueuedActorTreeItem";
+  }
+
+  isAdd() {
+    return this.type==QueuedActorTreeItem.TYPE_ADD;
+  }
+
+  isRemove() {
+    return this.type==QueuedActorTreeItem.TYPE_REMOVE;
+  }
+
+  getParentId() {
+    return this.id;
+  }
+
+  getId() {
+    return this.id;
+  }
+
+  getActor() {
+    return this.actor;
+  }
+
+  static createAdd(parentId, actor) {
+    let res = new QueuedActorTreeItem();
+    res.type = QueuedActorTreeItem.TYPE_ADD;
+    res.id = parentId;
+    res.actor = actor;
+    return res;
+  }
+
+  static createRemove(id) {
+    let res = new QueuedActorTreeItem();
+    res.type = QueuedActorTreeItem.TYPE_REMOVE;
+    res.id = id;
+    return res;
+  }
+
+}
+class QueuedActorTree {
+  target;
+  queue = new ArrayList();
+  lock = new Object();
+  iterators = 0;
+  constructor() {
+  }
+
+  getClass() {
+    return "QueuedActorTree";
+  }
+
+  guardInvariants() {
+  }
+
+  add() {
+    if (arguments.length===1&&arguments[0] instanceof Actor) {
+      this.add_1_Actor(arguments[0]);
+    }
+    else if (arguments.length===2&&arguments[0] instanceof ActorId&&arguments[1] instanceof Actor) {
+      this.add_2_ActorId_Actor(arguments[0], arguments[1]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  add_1_Actor(actor) {
+    this.add(ActorId.ROOT, actor);
+  }
+
+  add_2_ActorId_Actor(parentId, actor) {
+    this.target.add(parentId, actor);
+  }
+
+  remove(id) {
+    if (this.iterators==0) {
+      this.target.remove(id);
+    }
+    else {
+      this.queue.add(QueuedActorTreeItem.createRemove(id));
+    }
+  }
+
+  exists(id) {
+    return this.target.exists(id);
+  }
+
+  root() {
+    return this.target.root();
+  }
+
+  get(id) {
+    return this.target.get(id);
+  }
+
+  parent(id) {
+    return this.target.parent(id);
+  }
+
+  children(id) {
+    return this.target.children(id);
+  }
+
+  forEach(id, action) {
+    this.iterators = this.iterators+1;
+    try {
+      this.target.forEach(id, action);
+    }
+    finally {
+      this.iterators = this.iterators-1;
+      if (this.iterators==0) {
+        this.flushQueue();
+      }
+    }
+  }
+
+  flushQueue() {
+    for (let item of this.queue) {
+      if (item.isAdd()) {
+        this.target.add(item.getParentId(), item.getActor());
+      }
+      else if (item.isRemove()) {
+        this.target.remove(item.getId());
+      }
+      else {
+        throw "unsupported item type";
+      }
+    }
+    this.queue = new ArrayList();
+  }
+
+  toString() {
+  }
+
+  static create(target) {
+    let res = new QueuedActorTree();
+    res.target = target;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class ActorId extends RefId {
+  static TYPE = RefIdType.of("ACTOR_ID");
+  static ROOT = ActorId.of("ROOT");
+  mId;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "ActorId";
+  }
+
+  guardInvariants() {
+  }
+
+  type() {
+    return ActorId.TYPE;
+  }
+
+  id() {
+    return this.mId;
+  }
+
+  hashCode() {
+    return this.mId.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ActorId)) {
+      return false;
+    }
+    let other = obj;
+    return other.mId.equals(this.mId);
+  }
+
+  toString() {
+  }
+
+  static of(id) {
+    let res = new ActorId();
+    res.mId = id;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class Actor {
+  id;
+  name;
+  components = new ArrayList();
+  listeners = new HashSet();
+  tags = new HashSet();
+  immutableComponents = Collections.unmodifiableList(this.components);
+  mWorld;
+  constructor() {
+  }
+
+  getClass() {
+    return "Actor";
+  }
+
+  guardInvariants() {
+  }
+
+  getId() {
+    return this.id;
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  setName(name) {
+    Guard.notNull(name, "name cannot be null");
+    this.name = name;
+    return this;
+  }
+
+  hasEffect(effect) {
+    for (let i = 0; i<this.components.size(); ++i) {
+      if (this.components.get(i).getEffects().contains(effect)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  getComponents() {
+    return this.immutableComponents;
+  }
+
+  hasComponent(clazz) {
+    for (let i = 0; i<this.components.size(); ++i) {
+      if (clazz.equals(this.components.get(i).getClass())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  getComponent(clazz) {
+    let res = null;
+    for (let i = 0; i<this.components.size(); ++i) {
+      let comp = this.components.get(i);
+      if (comp.getClass().equals(clazz)) {
+        if (res!=null) {
+          throw "actor has more than a single component: "+this.name+" - "+clazz.getName();
+        }
+        res = comp;
+      }
+    }
+    if (res==null) {
+      throw "actor "+this.id.id()+"  doesn't have a requested compoent: "+this.name+" - "+clazz.getName();
+    }
+    return res;
+  }
+
+  getComponentNonStrict(clazz) {
+    let res = null;
+    for (let i = 0; i<this.components.size(); ++i) {
+      let comp = this.components.get(i);
+      if (comp.getClass().equals(clazz)) {
+        if (res!=null) {
+          throw "actor has more than a single component: "+this.name+" - "+clazz.getName();
+        }
+        res = comp;
+      }
+    }
+    return res;
+  }
+
+  getComponentByKey() {
+    if (arguments.length===2&& typeof arguments[0]==="string"&& typeof arguments[1]==="string") {
+      return this.getComponentByKey_2_string_string(arguments[0], arguments[1]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="string"&& typeof arguments[1]==="string"&&arguments[2] instanceof T) {
+      return this.getComponentByKey_3_string_string_T(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  getComponentByKey_2_string_string(clazz, key) {
+    for (let i = 0; i<this.components.size(); ++i) {
+      let comp = this.components.get(i);
+      if (comp.getKey().equals(key)) {
+        return comp;
+      }
+    }
+    throw "actor "+this.id.id()+"("+this.name+") doesn't have a requested compoent with a key: "+key;
+  }
+
+  getComponentByKey_3_string_string_T(clazz, key, def) {
+    for (let i = 0; i<this.components.size(); ++i) {
+      let comp = this.components.get(i);
+      if (comp.getKey().equals(key)) {
+        return comp;
+      }
+    }
+    return def;
+  }
+
+  addComponent(component) {
+    this.components.add(component);
+    if (this.mWorld!=null) {
+      component.registerActor(this);
+    }
+    for (let list of this.listeners) {
+      list.onComponentAdded(this, component);
+    }
+    return this;
+  }
+
+  removeComponent(component) {
+    if (!this.components.contains(component)) {
+      return this;
+    }
+    component.onRemove();
+    this.components.remove(component);
+    for (let list of this.listeners) {
+      list.onComponentRemoved(this, component);
+    }
+    return this;
+  }
+
+  addListener(listener) {
+    this.listeners.add(listener);
+    return this;
+  }
+
+  removeListener(listener) {
+    this.listeners.remove(listener);
+    return this;
+  }
+
+  hasTag(tag) {
+    return this.tags.contains(tag);
+  }
+
+  addTag(tag) {
+    Guard.notEmpty(tag, "tag cannot be empty");
+    this.tags.add(tag);
+    return this;
+  }
+
+  addTags(tags) {
+    Guard.notEmptyStringCollection(tags, "tag cannot have empty element");
+    this.tags.addAll(tags);
+    return this;
+  }
+
+  removeTag(tag) {
+    this.tags.remove(tag);
+    return this;
+  }
+
+  world() {
+    return this.mWorld;
+  }
+
+  init(world) {
+    Guard.notNull(world, "world cannot be null");
+    Guard.beNull(this.mWorld, "actor can be placed only in a single world");
+    this.mWorld = world;
+    for (let comp of this.components) {
+      comp.registerActor(this);
+    }
+    return this;
+  }
+
+  broadcastDomainUpdate(source, domain, upward, downward) {
+    for (let i = 0; i<this.components.size(); ++i) {
+      if (this.components.get(i).equals(source)) {
+        continue;
+      }
+      this.components.get(i).onDomainEvent(domain, PropagationType.LOCAL);
+    }
+    if (upward) {
+      if (!this.id.equals(ActorId.ROOT)) {
+        this.mWorld.actors().parent(this.id).broadcastDomainUpdateUpward(source, domain);
+      }
+    }
+    if (downward) {
+      let childrens = this.mWorld.actors().children(this.id);
+      for (let i = 0; i<childrens.size(); ++i) {
+        childrens.get(i).broadcastDomainUpdateDownward(source, domain);
+      }
+    }
+    for (let list of this.listeners) {
+      list.onDomainUpdate(this, domain);
+    }
+    return this;
+  }
+
+  broadcastDomainUpdateUpward(source, domain) {
+    let ok = true;
+    for (let i = 0; i<this.components.size()&&ok; ++i) {
+      if (this.components.get(i).equals(source)) {
+        continue;
+      }
+      ok = !this.components.get(i).onDomainEvent(domain, PropagationType.UPWARD);
+    }
+    if (ok&&!this.id.equals(ActorId.ROOT)) {
+      this.mWorld.actors().parent(this.id).broadcastDomainUpdateUpward(source, domain);
+    }
+  }
+
+  broadcastDomainUpdateDownward(source, domain) {
+    let ok = true;
+    for (let i = 0; i<this.components.size()&&ok; ++i) {
+      if (this.components.get(i).equals(source)) {
+        continue;
+      }
+      ok = !this.components.get(i).onDomainEvent(domain, PropagationType.DOWNWARD);
+    }
+    if (ok) {
+      let childrens = this.mWorld.actors().children(this.id);
+      for (let i = 0; i<childrens.size(); ++i) {
+        childrens.get(i).broadcastDomainUpdateDownward(source, domain);
+      }
+    }
+  }
+
+  broadcastEvent(type, event) {
+    for (let i = 0; i<this.components.size(); ++i) {
+      this.components.get(i).onEvent(type, event);
+    }
+    return this;
+  }
+
+  toString() {
+  }
+
+  static create() {
+    if (arguments.length===1&&arguments[0] instanceof ActorId) {
+      return Actor.create_1_ActorId(arguments[0]);
+    }
+    else if (arguments.length===1&& typeof arguments[0]==="string") {
+      return Actor.create_1_string(arguments[0]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static create_1_ActorId(id) {
+    let res = new Actor();
+    res.id = id;
+    res.name = "";
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_1_string(id) {
+    return Actor.create(ActorId.of(id));
+  }
+
+}
+class ActorActions {
+  constructor() {
+  }
+
+  getClass() {
+    return "ActorActions";
+  }
+
+  static move(dt, inputs) {
+    return (actor) => {
+      for (let comp of actor.getComponents()) {
+        if (comp instanceof Behavior) {
+          let bhv = comp;
+          bhv.move(dt, inputs);
+        }
+      }
+    };
+  }
+
+  static lateMove(dt, inputs) {
+    return (actor) => {
+      for (let comp of actor.getComponents()) {
+        if (comp instanceof Behavior) {
+          let bhv = comp;
+          bhv.lateMove(dt, inputs);
+        }
+      }
+    };
+  }
+
+}
+const createActorDomain = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const ActorDomain = Object.freeze({
+  TRANSFORM: createActorDomain("TRANSFORM"),
+  VISUAL: createActorDomain("VISUAL"),
+  COLLISION: createActorDomain("COLLISION"),
+  COLLISION_EXCLUSION: createActorDomain("COLLISION_EXCLUSION"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+const createPropagationType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const PropagationType = Object.freeze({
+  LOCAL: createPropagationType("LOCAL"),
+  UPWARD: createPropagationType("UPWARD"),
+  DOWNWARD: createPropagationType("DOWNWARD"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+const createComponentEffect = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const ComponentEffect = Object.freeze({
+  ABSOLUTE_COORDINATES: createComponentEffect("ABSOLUTE_COORDINATES"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+const createComponentFeature = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const ComponentFeature = Object.freeze({
+  AABB_PRODUCER: createComponentFeature("AABB_PRODUCER"),
+  COLLIDER: createComponentFeature("COLLIDER"),
+  COLLISION_EXCLUSION_PRODUCER: createComponentFeature("COLLISION_EXCLUSION_PRODUCER"),
+  RIGID_BODY_JOINT: createComponentFeature("RIGID_BODY_JOINT"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class Component {
+  mActor = null;
+  mKey = "";
+  constructor() {
+  }
+
+  getClass() {
+    return "Component";
+  }
+
+  registerActor(actor) {
+    Guard.beNull(this.mActor, "component can be added to the actor only once");
+    this.mActor = actor;
+    if (StringUtils.isNotEmpty(this.mKey)) {
+      let compByKey = actor.getComponentByKey("Component", this.mKey, null);
+      if (compByKey!=null&&!compByKey.equals(this)) {
+        throw "component key is duplicated: "+this.mKey;
+      }
+    }
+    this.init();
+  }
+
+  init() {
+  }
+
+  getEffects() {
+    return Collections.emptySet();
+  }
+
+  getFeatures() {
+    return Collections.emptySet();
+  }
+
+  hasFeature(feature) {
+    return this.getFeatures().contains(feature);
+  }
+
+  onDomainEvent(domain, propagationType) {
+    return false;
+  }
+
+  onRemove() {
+  }
+
+  onEvent(type, event) {
+  }
+
+  actor() {
+    return this.mActor;
+  }
+
+  world() {
+    return this.mActor.world();
+  }
+
+  getKey() {
+    return this.mKey;
+  }
+
+  setKey(key) {
+    Guard.notNull(key, "key cannot be null");
+    if (this.mActor!=null&&StringUtils.isNotEmpty(key)) {
+      if (this.mActor.getComponentByKey("Component", key, null)!=null) {
+        throw "component key is duplicated: "+key;
+      }
+    }
+    this.mKey = key;
+    return this;
+  }
+
+  broadcastDomainUpdate(domain, upward, downward) {
+    if (this.mActor!=null) {
+      this.mActor.broadcastDomainUpdate(this, domain, upward, downward);
+    }
+  }
+
+  sendEvent(targetId, type, event) {
+    if (this.world().actors().exists(targetId)) {
+      this.world().actors().get(targetId).broadcastEvent(type, event);
+    }
+  }
+
+  hashCode() {
+    return super.hashCode();
+  }
+
+  equals(obj) {
+    return this==obj;
+  }
+
+}
+class Behavior extends Component {
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "Behavior";
+  }
+
+  move(dt, inputs) {
+  }
+
+  lateMove(dt, inputs) {
+  }
+
+}
+class TransformComponent extends Component {
+  pos = Vec3.ZERO;
+  rot = Quaternion.ZERO_ROT;
+  localMat = null;
+  globalMat = null;
+  globalMatInv = null;
+  localAabb = null;
+  globalAabb = null;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "TransformComponent";
+  }
+
+  onDomainEvent(domain, propagationType) {
+    if (domain.equals(ActorDomain.TRANSFORM)) {
+      if (this.actor().hasEffect(ComponentEffect.ABSOLUTE_COORDINATES)) {
+        return true;
+      }
+      this.globalMat = null;
+      this.globalMatInv = null;
+      this.globalAabb = null;
+    }
+    else if (domain.equals(ActorDomain.VISUAL)||domain.equals(ActorDomain.COLLISION)) {
+      this.localAabb = null;
+      this.globalAabb = null;
+    }
+    return false;
+  }
+
+  isAbsolute() {
+    return this.actor().hasEffect(ComponentEffect.ABSOLUTE_COORDINATES);
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  setPos() {
+    if (arguments.length===1&&arguments[0] instanceof Vec3) {
+      return this.setPos_1_Vec3(arguments[0]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return this.setPos_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  setPos_1_Vec3(pos) {
+    this.pos = pos;
+    this.localMat = null;
+    this.globalMat = null;
+    this.globalMatInv = null;
+    this.globalAabb = null;
+    this.broadcastDomainUpdate(ActorDomain.TRANSFORM, false, true);
+    return this;
+  }
+
+  setPos_3_number_number_number(x, y, z) {
+    return this.setPos(Vec3.create(x, y, z));
+  }
+
+  getRot() {
+    return this.rot;
+  }
+
+  setRot(rot) {
+    this.rot = rot;
+    this.localMat = null;
+    this.globalMat = null;
+    this.globalMatInv = null;
+    this.globalAabb = null;
+    this.broadcastDomainUpdate(ActorDomain.TRANSFORM, false, true);
+    return this;
+  }
+
+  move() {
+    if (arguments.length===1&&arguments[0] instanceof Vec3) {
+      return this.move_1_Vec3(arguments[0]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return this.move_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  move_1_Vec3(delta) {
+    if (delta.equals(Vec3.ZERO)) {
+      return this;
+    }
+    this.pos = this.pos.add(delta);
+    this.localMat = null;
+    this.globalMat = null;
+    this.globalMatInv = null;
+    this.globalAabb = null;
+    this.broadcastDomainUpdate(ActorDomain.TRANSFORM, false, true);
+    return this;
+  }
+
+  move_3_number_number_number(dx, dy, dz) {
+    if (dx==0&&dy==0&&dz==0) {
+      return this;
+    }
+    this.pos = this.pos.add(dx, dy, dz);
+    this.localMat = null;
+    this.globalMat = null;
+    this.globalMatInv = null;
+    this.globalAabb = null;
+    this.broadcastDomainUpdate(ActorDomain.TRANSFORM, false, true);
+    return this;
+  }
+
+  rotate(dt, w) {
+    if (w.equals(Vec3.ZERO)) {
+      return this;
+    }
+    let wq = Quaternion.create(0, w.x(), w.y(), w.z());
+    this.rot = this.rot.add(wq.mul(this.rot).scale(dt*0.5)).normalize();
+    this.localMat = null;
+    this.globalMat = null;
+    this.globalMatInv = null;
+    this.globalAabb = null;
+    this.broadcastDomainUpdate(ActorDomain.TRANSFORM, false, true);
+    return this;
+  }
+
+  lookAt() {
+    if (arguments.length===3&&arguments[0] instanceof Vec3&&arguments[1] instanceof Vec3&&arguments[2] instanceof Vec3) {
+      return this.lookAt_3_Vec3_Vec3_Vec3(arguments[0], arguments[1], arguments[2]);
+    }
+    else if (arguments.length===2&&arguments[0] instanceof Vec3&&arguments[1] instanceof Vec3) {
+      return this.lookAt_2_Vec3_Vec3(arguments[0], arguments[1]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  lookAt_3_Vec3_Vec3_Vec3(pos, target, upDir) {
+    let fwd = target.sub(pos).normalize();
+    let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
+    let rotX = FMath.asin(fwd.y());
+    let rotY = fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y());
+    let rx = Quaternion.rot(1, 0, 0, rotX);
+    let ry = Quaternion.rot(0, 1, 0, rotY);
+    this.pos = pos;
+    this.rot = ry.mul(rx);
+    this.localMat = null;
+    this.globalMat = null;
+    this.globalMatInv = null;
+    this.globalAabb = null;
+    this.broadcastDomainUpdate(ActorDomain.TRANSFORM, false, true);
+    return this;
+  }
+
+  lookAt_2_Vec3_Vec3(target, upDir) {
+    return this.lookAt(this.pos, target, upDir);
+  }
+
+  getMat() {
+    this.syncCache(false);
+    return this.localMat;
+  }
+
+  getGlobalMat() {
+    this.syncCache(false);
+    return this.globalMat;
+  }
+
+  toGlobal(pt) {
+    this.syncCache(false);
+    return this.globalMat.mul(pt);
+  }
+
+  toGlobalRot(dir) {
+    this.syncCache(false);
+    let x = this.globalMat.m00()*dir.x()+this.globalMat.m01()*dir.y()+this.globalMat.m02()*dir.z();
+    let y = this.globalMat.m10()*dir.x()+this.globalMat.m11()*dir.y()+this.globalMat.m12()*dir.z();
+    let z = this.globalMat.m20()*dir.x()+this.globalMat.m21()*dir.y()+this.globalMat.m22()*dir.z();
+    return Vec3.create(x, y, z);
+  }
+
+  toLocal(pt) {
+    this.syncCache(true);
+    return this.globalMatInv.mul(pt);
+  }
+
+  toLocalRot(dir) {
+    this.syncCache(false);
+    let x = this.globalMatInv.m00()*dir.x()+this.globalMatInv.m01()*dir.y()+this.globalMatInv.m02()*dir.z();
+    let y = this.globalMatInv.m10()*dir.x()+this.globalMatInv.m11()*dir.y()+this.globalMatInv.m12()*dir.z();
+    let z = this.globalMatInv.m20()*dir.x()+this.globalMatInv.m21()*dir.y()+this.globalMatInv.m22()*dir.z();
+    return Vec3.create(x, y, z);
+  }
+
+  getGlobalAabb() {
+    this.syncCache(false);
+    if (this.localAabb==null) {
+      this.localAabb = Aabb3.create(Vec3.ZERO, Vec3.ZERO);
+      let cmps = this.actor().getComponents();
+      for (let i = 0; i<cmps.size(); ++i) {
+        let cmp = cmps.get(i);
+        if (cmp.hasFeature(ComponentFeature.AABB_PRODUCER)) {
+          let cmpLocalAabb = (cmp).getLocalAabb();
+          this.localAabb = this.localAabb.expand(cmpLocalAabb);
+        }
+      }
+    }
+    if (this.globalAabb==null&&this.localAabb!=null) {
+      this.globalAabb = this.localAabb.transform(this.globalMat).expand(0.01);
+    }
+    return this.globalAabb;
+  }
+
+  syncCache(globalMatInvReq) {
+    if (this.localMat==null) {
+      this.localMat = Mat44.transofm(this.pos, this.rot);
+    }
+    if (this.globalMat==null) {
+      this.globalMat = this.localMat;
+      let act = this.actor();
+      if (!act.hasEffect(ComponentEffect.ABSOLUTE_COORDINATES)&&!act.getId().equals(ActorId.ROOT)) {
+        let parent = this.world().actors().parent(act.getId());
+        if (parent.hasComponent("TransformComponent")) {
+          let parentGlobalMat = parent.getComponent("TransformComponent").getGlobalMat();
+          this.globalMat = parentGlobalMat.mul(this.localMat);
+        }
+      }
+    }
+    if (globalMatInvReq&&this.globalMatInv==null) {
+      this.globalMatInv = this.globalMat.inv();
+    }
+  }
+
+  toString() {
+  }
+
+  static create() {
+    return new TransformComponent();
+  }
+
+}
+class ModelComponent extends Component {
+  static FEATURES = Dut.immutableSet(ComponentFeature.AABB_PRODUCER);
+  modelId;
+  transform;
+  interpolation;
+  visible = true;
+  castShadows = true;
+  receiveShadows = true;
+  transformComp;
+  globalMat = null;
+  localAabb = null;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "ModelComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transformComp = this.actor().getComponent("TransformComponent");
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+  }
+
+  getFeatures() {
+    return ModelComponent.FEATURES;
+  }
+
+  onDomainEvent(domain, propagationType) {
+    if (domain.equals(ActorDomain.TRANSFORM)) {
+      this.globalMat = null;
+    }
+    return false;
+  }
+
+  getModelId() {
+    return this.modelId;
+  }
+
+  setModelId(modelId) {
+    Guard.notNull(modelId, "modelId cannot be null");
+    this.modelId = modelId;
+    this.localAabb = null;
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    return this;
+  }
+
+  getTransform() {
+    return this.transform;
+  }
+
+  setTransform(transform) {
+    Guard.notNull(transform, "transform cannot be null");
+    this.transform = transform;
+    this.localAabb = null;
+    this.globalMat = null;
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    return this;
+  }
+
+  getInterpolation() {
+    return this.interpolation;
+  }
+
+  setInterpolation(interpolation) {
+    Guard.notNull(interpolation, "interpolation cannot be null");
+    this.interpolation = interpolation;
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    return this;
+  }
+
+  isVisible() {
+    return this.visible;
+  }
+
+  setVisible(visible) {
+    this.visible = visible;
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    return this;
+  }
+
+  isCastShadows() {
+    return this.castShadows;
+  }
+
+  setCastShadows(castShadows) {
+    this.castShadows = castShadows;
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    return this;
+  }
+
+  isReceiveShadows() {
+    return this.receiveShadows;
+  }
+
+  setReceiveShadows(receiveShadows) {
+    this.receiveShadows = receiveShadows;
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    return this;
+  }
+
+  getModel() {
+    return this.world().assets().get("Model", this.modelId);
+  }
+
+  getLocalAabb() {
+    if (this.localAabb==null) {
+      let modelAabb = this.world().aabb(this.modelId);
+      this.localAabb = modelAabb.transform(this.transform);
+    }
+    return this.localAabb;
+  }
+
+  getGlobalMat() {
+    this.syncCache();
+    return this.globalMat;
+  }
+
+  toGlobal(pt) {
+    this.syncCache();
+    return this.globalMat.mul(pt);
+  }
+
+  syncCache() {
+    if (this.globalMat==null) {
+      let tcGlobal = this.transformComp.getGlobalMat();
+      if (this.transform.equals(Mat44.IDENTITY)) {
+        this.globalMat = tcGlobal;
+      }
+      else {
+        this.globalMat = tcGlobal.mul(this.transform);
+      }
+    }
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new ModelComponent();
+    res.modelId = ModelId.of("empty");
+    res.transform = Mat44.IDENTITY;
+    res.interpolation = FrameInterpolation.create(0, 0, 0);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class LightComponent extends Component {
+  enabled;
+  type;
+  shadow;
+  color;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "LightComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  isEnabled() {
+    return this.enabled;
+  }
+
+  setEnabled(enabled) {
+    this.enabled = enabled;
+    return this;
+  }
+
+  getType() {
+    return this.type;
+  }
+
+  setType(type) {
+    Guard.beTrue(type==LightType.DIRECTIONAL, "only DIRECTIONAL is supported at the moment");
+    this.type = type;
+    return this;
+  }
+
+  isShadow() {
+    return this.shadow;
+  }
+
+  setShadow(shadow) {
+    this.shadow = shadow;
+    return this;
+  }
+
+  getColor() {
+    return this.color;
+  }
+
+  setColor(color) {
+    this.color = color;
+    return this;
+  }
+
+  getAmbient() {
+    return this.color.getAmbient();
+  }
+
+  setAmbient(ambient) {
+    this.color = this.color.withAmbient(ambient);
+    return this;
+  }
+
+  getDiffuse() {
+    return this.color.getDiffuse();
+  }
+
+  setDiffuse(diffuse) {
+    this.color = this.color.withDiffuse(diffuse);
+    return this;
+  }
+
+  getSpecular() {
+    return this.color.getSpecular();
+  }
+
+  setSpecular(specular) {
+    this.color = this.color.withSpecular(specular);
+    return this;
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new LightComponent();
+    res.enabled = true;
+    res.type = LightType.DIRECTIONAL;
+    res.shadow = false;
+    res.color = LightColor.create(Rgb.gray(0.5), Rgb.gray(0.5), Rgb.WHITE);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class CameraComponent extends Component {
+  static FWD = Vec3.create(0, 0, -1);
+  static UP = Vec3.create(0, 1, 0);
+  type;
+  fovy;
+  aspect;
+  near;
+  far;
+  skyboxNear;
+  skyboxFar;
+  customCamera = Camera.persp(this.fovy, this.aspect, 1.0, 50.0).lookAt(Vec3.create(0, 2, 7), Vec3.ZERO, Vec3.create(0, 1, 0));
+  cameraCache = null;
+  skyboxCameraCache = null;
+  transformComp;
+  tcGlobalMatCache = Mat44.IDENTITY;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "CameraComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transformComp = this.actor().getComponent("TransformComponent");
+  }
+
+  getType() {
+    return this.type;
+  }
+
+  setType(type) {
+    Guard.notNull(type, "type cannot be null");
+    this.type = type;
+    this.tcGlobalMatCache = null;
+    return this;
+  }
+
+  getFovy() {
+    return this.fovy;
+  }
+
+  setFovy(fovy) {
+    this.fovy = fovy;
+    this.tcGlobalMatCache = null;
+    return this;
+  }
+
+  getAspect() {
+    return this.aspect;
+  }
+
+  setAspect(aspect) {
+    this.aspect = aspect;
+    this.tcGlobalMatCache = null;
+    return this;
+  }
+
+  getNear() {
+    return this.near;
+  }
+
+  setNear(near) {
+    this.near = near;
+    this.tcGlobalMatCache = null;
+    return this;
+  }
+
+  getFar() {
+    return this.far;
+  }
+
+  setFar(far) {
+    this.far = far;
+    this.tcGlobalMatCache = null;
+    return this;
+  }
+
+  getSkyboxNear() {
+    return this.skyboxNear;
+  }
+
+  setSkyboxNear(skyboxNear) {
+    this.skyboxNear = skyboxNear;
+    return this;
+  }
+
+  getSkyboxFar() {
+    return this.skyboxFar;
+  }
+
+  setSkyboxFar(skyboxFar) {
+    this.skyboxFar = skyboxFar;
+    return this;
+  }
+
+  setPersp() {
+    if (arguments.length===6&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number"&& typeof arguments[3]==="number"&& typeof arguments[4]==="number"&& typeof arguments[5]==="number") {
+      return this.setPersp_6_number_number_number_number_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5]);
+    }
+    else if (arguments.length===4&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number"&& typeof arguments[3]==="number") {
+      return this.setPersp_4_number_number_number_number(arguments[0], arguments[1], arguments[2], arguments[3]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  setPersp_6_number_number_number_number_number_number(fovy, aspect, near, far, skyboxNear, skyboxFar) {
+    this.type = CameraType.PERSPECTIVE;
+    this.fovy = fovy;
+    this.aspect = aspect;
+    this.near = near;
+    this.far = far;
+    this.skyboxNear = skyboxNear;
+    this.skyboxFar = skyboxFar;
+    this.tcGlobalMatCache = null;
+    return this;
+  }
+
+  setPersp_4_number_number_number_number(fovy, aspect, near, far) {
+    return this.setPersp(fovy, aspect, near, far, far/2, far*100);
+  }
+
+  setCustomCamera(customCamera) {
+    this.type = CameraType.CUSTOM;
+    this.customCamera = customCamera;
+    this.tcGlobalMatCache = null;
+    return this;
+  }
+
+  getCamera() {
+    if (this.type.equals(CameraType.PERSPECTIVE)) {
+      this.syncCache();
+      return this.cameraCache;
+    }
+    else if (this.type.equals(CameraType.CUSTOM)) {
+      return this.customCamera;
+    }
+    else {
+      throw "unsupported camera type: "+this.type;
+    }
+  }
+
+  getSkyboxCamera() {
+    if (this.type.equals(CameraType.PERSPECTIVE)) {
+      this.syncCache();
+      return this.skyboxCameraCache;
+    }
+    else if (this.type.equals(CameraType.CUSTOM)) {
+      return this.customCamera;
+    }
+    else {
+      throw "unsupported camera type: "+this.type;
+    }
+  }
+
+  syncCache() {
+    let tcGlobal = this.transformComp.getGlobalMat();
+    if (tcGlobal==this.tcGlobalMatCache||tcGlobal.equals(this.tcGlobalMatCache)) {
+      return ;
+    }
+    this.tcGlobalMatCache = tcGlobal;
+    let pos = this.transformComp.toGlobal(Vec3.ZERO);
+    let lookAt = this.transformComp.toGlobal(CameraComponent.FWD);
+    let upPt = this.transformComp.toGlobal(CameraComponent.UP);
+    this.cameraCache = Camera.persp(this.fovy, this.aspect, this.near, this.far).lookAt(pos, lookAt, upPt.sub(pos));
+    this.skyboxCameraCache = Camera.persp(this.fovy, this.aspect, this.skyboxNear, this.skyboxFar).lookAt(pos, lookAt, upPt.sub(pos));
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new CameraComponent();
+    res.type = CameraType.PERSPECTIVE;
+    res.fovy = FMath.toRadians(60);
+    res.aspect = 1;
+    res.near = 0.1;
+    res.far = 100.0;
+    res.skyboxNear = 50;
+    res.skyboxFar = 10000;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class CameraFovyComponent extends Behavior {
+  displaySizeInputKey = "display.size";
+  fovyLandscape = FMath.toRadians(60);
+  fovyPortrait = FMath.toRadians(90);
+  displaySize = Size2.create(1, 1);
+  camera;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "CameraFovyComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.camera = this.actor().getComponent("CameraComponent");
+  }
+
+  move(dt, inputs) {
+    let newSize = inputs.getSize2(this.displaySizeInputKey, this.displaySize);
+    if (newSize.equals(this.displaySize)) {
+      return ;
+    }
+    this.displaySize = newSize;
+    let aspect = this.displaySize.aspect();
+    let fovy = aspect>=1?this.fovyLandscape:this.fovyPortrait;
+    this.camera.setFovy(fovy).setAspect(aspect);
+  }
+
+  getDisplaySizeInputKey() {
+    return this.displaySizeInputKey;
+  }
+
+  setDisplaySizeInputKey(displaySizeInputKey) {
+    Guard.notEmpty(displaySizeInputKey, "displaySizeInputKey cannot be empty");
+    this.displaySizeInputKey = displaySizeInputKey;
+    return this;
+  }
+
+  getFovyLandscape() {
+    return this.fovyLandscape;
+  }
+
+  setFovyLandscape(fovyLandscape) {
+    Guard.beTrue(0<fovyLandscape&&fovyLandscape<=FMath.PI, "fovyLandscape must be in (0, PI]");
+    this.fovyLandscape = fovyLandscape;
+    return this;
+  }
+
+  getFovyPortrait() {
+    return this.fovyPortrait;
+  }
+
+  setFovyPortrait(fovyPortrait) {
+    Guard.beTrue(0<fovyPortrait&&fovyPortrait<=FMath.PI, "fovyPortrait must be in (0, PI]");
+    this.fovyPortrait = fovyPortrait;
+    return this;
+  }
+
+  static create() {
+    let res = new CameraFovyComponent();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class SkyboxComponent extends Component {
+  modelId;
+  transform;
+  visible = true;
+  transformComp;
+  globalMat = null;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "SkyboxComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transformComp = this.actor().getComponent("TransformComponent");
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+  }
+
+  onDomainEvent(domain, propagationType) {
+    if (domain.equals(ActorDomain.TRANSFORM)) {
+      this.globalMat = null;
+    }
+    return false;
+  }
+
+  getModelId() {
+    return this.modelId;
+  }
+
+  setModelId(modelId) {
+    Guard.notNull(modelId, "modelId cannot be null");
+    this.modelId = modelId;
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    return this;
+  }
+
+  getTransform() {
+    return this.transform;
+  }
+
+  setTransform(transform) {
+    Guard.notNull(transform, "transform cannot be null");
+    this.transform = transform;
+    this.globalMat = null;
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    return this;
+  }
+
+  isVisible() {
+    return this.visible;
+  }
+
+  setVisible(visible) {
+    this.visible = visible;
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    return this;
+  }
+
+  getModel() {
+    return this.world().assets().get("Model", this.modelId);
+  }
+
+  getGlobalMat() {
+    this.syncCache();
+    return this.globalMat;
+  }
+
+  toGlobal(pt) {
+    this.syncCache();
+    return this.globalMat.mul(pt);
+  }
+
+  syncCache() {
+    if (this.globalMat==null) {
+      let tcGlobal = this.transformComp.getGlobalMat();
+      if (this.transform.equals(Mat44.IDENTITY)) {
+        this.globalMat = tcGlobal;
+      }
+      else {
+        this.globalMat = tcGlobal.mul(this.transform);
+      }
+    }
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new SkyboxComponent();
+    res.modelId = ModelId.of("empty");
+    res.transform = Mat44.IDENTITY;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class CollisionLayer {
+  static WALL = CollisionLayer.of("WALL");
+  static OBJECT = CollisionLayer.of("OBJECT");
+  mId;
+  constructor() {
+  }
+
+  getClass() {
+    return "CollisionLayer";
+  }
+
+  guardInvariants() {
+  }
+
+  id() {
+    return this.mId;
+  }
+
+  hashCode() {
+    return this.mId.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof CollisionLayer)) {
+      return false;
+    }
+    let other = obj;
+    return other.mId.equals(this.mId);
+  }
+
+  toString() {
+  }
+
+  static of(id) {
+    let res = new CollisionLayer();
+    res.mId = id;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class CollisionLayerMatrix {
+  def;
+  matrix;
+  constructor() {
+  }
+
+  getClass() {
+    return "CollisionLayerMatrix";
+  }
+
+  guardInvariants() {
+  }
+
+  canCollide(l1, l2) {
+    if (this.matrix.containsKey(l1)) {
+      let map = this.matrix.get(l1);
+      if (map.containsKey(l2)) {
+        return map.get(l2);
+      }
+    }
+    return this.def;
+  }
+
+  withDef(def) {
+    let res = new CollisionLayerMatrix();
+    res.def = def;
+    res.matrix = this.matrix;
+    res.guardInvariants();
+    return res;
+  }
+
+  withValue(l1, l2, canCollide) {
+    let res = new CollisionLayerMatrix();
+    res.def = this.def;
+    res.matrix = new HashMap();
+    let col1 = false;
+    let col2 = false;
+    for (let layer of this.matrix.keySet()) {
+      if (layer.equals(l1)) {
+        col1 = true;
+        let subl = Dut.copyMap(this.matrix.get(layer));
+        subl.put(l2, canCollide);
+        res.matrix.put(layer, Collections.unmodifiableMap(subl));
+      }
+      if (layer.equals(l2)) {
+        col2 = true;
+        let subl = Dut.copyMap(this.matrix.get(layer));
+        subl.put(l1, canCollide);
+        res.matrix.put(layer, Collections.unmodifiableMap(subl));
+      }
+      if (!layer.equals(l1)&&!layer.equals(l2)) {
+        res.matrix.put(layer, this.matrix.get(layer));
+      }
+    }
+    if (!col1) {
+      res.matrix.put(l1, Dut.immutableMap(l2, canCollide));
+    }
+    if (!col2) {
+      res.matrix.put(l2, Dut.immutableMap(l1, canCollide));
+    }
+    res.matrix = Collections.unmodifiableMap(res.matrix);
+    res.guardInvariants();
+    return res;
+  }
+
+  withDefValue(l1, l2) {
+    let res = new CollisionLayerMatrix();
+    res.def = this.def;
+    res.matrix = new HashMap();
+    for (let layer of this.matrix.keySet()) {
+      if (layer.equals(l1)) {
+        let subl = Dut.copyMap(this.matrix.get(layer));
+        subl.remove(l2);
+        if (!subl.isEmpty()) {
+          res.matrix.put(layer, Collections.unmodifiableMap(subl));
+        }
+      }
+      else if (layer.equals(l2)) {
+        let subl = Dut.copyMap(this.matrix.get(layer));
+        subl.remove(l1);
+        if (!subl.isEmpty()) {
+          res.matrix.put(layer, Collections.unmodifiableMap(subl));
+        }
+      }
+      else {
+        res.matrix.put(layer, this.matrix.get(layer));
+      }
+    }
+    res.matrix = Collections.unmodifiableMap(res.matrix);
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new CollisionLayerMatrix();
+    res.def = true;
+    res.matrix = Collections.emptyMap();
+    res.guardInvariants();
+    return res;
+  }
+
+  static standard() {
+    return CollisionLayerMatrix.create().withDef(true).withValue(CollisionLayer.WALL, CollisionLayer.WALL, false).withValue(CollisionLayer.WALL, CollisionLayer.OBJECT, true).withValue(CollisionLayer.OBJECT, CollisionLayer.OBJECT, true);
+  }
+
+}
+class CollisionGridPlacement {
+  minX;
+  minY;
+  minZ;
+  maxX;
+  maxY;
+  maxZ;
+  constructor() {
+  }
+
+  getClass() {
+    return "CollisionGridPlacement";
+  }
+
+  guardInvariants() {
+  }
+
+  getMinX() {
+    return this.minX;
+  }
+
+  getMinY() {
+    return this.minY;
+  }
+
+  getMinZ() {
+    return this.minZ;
+  }
+
+  getMaxX() {
+    return this.maxX;
+  }
+
+  getMaxY() {
+    return this.maxY;
+  }
+
+  getMaxZ() {
+    return this.maxZ;
+  }
+
+  hashCode() {
+    return this.minX+this.minY+this.minZ+this.maxX+this.maxY+this.maxZ;
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof CollisionGridPlacement)) {
+      return false;
+    }
+    let other = obj;
+    return this.minX==other.minX&&this.minY==other.minY&&this.minZ==other.minZ&&this.maxX==other.maxX&&this.maxY==other.maxY&&this.maxZ==other.maxZ;
+  }
+
+  toString() {
+  }
+
+  static create(minX, minY, minZ, maxX, maxY, maxZ) {
+    let res = new CollisionGridPlacement();
+    res.minX = minX;
+    res.minY = minY;
+    res.minZ = minZ;
+    res.maxX = maxX;
+    res.maxY = maxY;
+    res.maxZ = maxZ;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class CollisionCandidatePair {
+  actorA;
+  actorB;
+  constructor() {
+  }
+
+  getClass() {
+    return "CollisionCandidatePair";
+  }
+
+  guardInvariants() {
+  }
+
+  getActorA() {
+    return this.actorA;
+  }
+
+  getActorB() {
+    return this.actorB;
+  }
+
+  hashCode() {
+    return this.actorA.hashCode()*this.actorB.hashCode();
+  }
+
+  equals(obj) {
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null||!(obj instanceof CollisionCandidatePair)) {
+      return false;
+    }
+    let other = obj;
+    return (this.actorA.equals(other.actorA)&&this.actorB.equals(other.actorB))||(this.actorA.equals(other.actorB)&&this.actorB.equals(other.actorA));
+  }
+
+  toString() {
+  }
+
+  static create() {
+    if (arguments.length===2&&arguments[0] instanceof ActorId&&arguments[1] instanceof ActorId) {
+      return CollisionCandidatePair.create_2_ActorId_ActorId(arguments[0], arguments[1]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="string"&& typeof arguments[1]==="string") {
+      return CollisionCandidatePair.create_2_string_string(arguments[0], arguments[1]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static create_2_ActorId_ActorId(actorA, actorB) {
+    let res = new CollisionCandidatePair();
+    res.actorA = actorA;
+    res.actorB = actorB;
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_2_string_string(actorA, actorB) {
+    let res = new CollisionCandidatePair();
+    res.actorA = ActorId.of(actorA);
+    res.actorB = ActorId.of(actorB);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class CollisionExclusion {
+  actorA;
+  actorB;
+  constructor() {
+  }
+
+  getClass() {
+    return "CollisionExclusion";
+  }
+
+  guardInvariants() {
+  }
+
+  getActorA() {
+    return this.actorA;
+  }
+
+  getActorB() {
+    return this.actorB;
+  }
+
+  hashCode() {
+    return this.actorA.hashCode()*this.actorB.hashCode();
+  }
+
+  equals(obj) {
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null||!(obj instanceof CollisionExclusion)) {
+      return false;
+    }
+    let other = obj;
+    return (this.actorA.equals(other.actorA)&&this.actorB.equals(other.actorB))||(this.actorA.equals(other.actorB)&&this.actorB.equals(other.actorA));
+  }
+
+  toString() {
+  }
+
+  static create(actorA, actorB) {
+    let res = new CollisionExclusion();
+    res.actorA = actorA;
+    res.actorB = actorB;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class CollisionGrid {
+  static GRID_COLOR = Rgb.create(0.2, 0.8, 0.5);
+  cellSize;
+  numCellsX;
+  numCellsY;
+  numCellsZ;
+  numCellsXy;
+  space;
+  cells;
+  placements;
+  aabbs;
+  constructor() {
+  }
+
+  getClass() {
+    return "CollisionGrid";
+  }
+
+  guardInvariants() {
+  }
+
+  putActor(actorId, aabb) {
+    let origPlacement = this.placements.get(actorId);
+    let placement = this.calculatePlacement(aabb);
+    if (placement.equals(origPlacement)) {
+      return ;
+    }
+    if (origPlacement!=null) {
+      for (let x = origPlacement.getMinX(); x<=origPlacement.getMaxX(); ++x) {
+        for (let y = origPlacement.getMinY(); y<=origPlacement.getMaxY(); ++y) {
+          for (let z = origPlacement.getMinZ(); z<=origPlacement.getMaxZ(); ++z) {
+            let idx = this.getCellIndex(x, y, z);
+            this.cells.get(idx).remove(actorId);
+          }
+        }
+      }
+    }
+    for (let x = placement.getMinX(); x<=placement.getMaxX(); ++x) {
+      for (let y = placement.getMinY(); y<=placement.getMaxY(); ++y) {
+        for (let z = placement.getMinZ(); z<=placement.getMaxZ(); ++z) {
+          let idx = this.getCellIndex(x, y, z);
+          this.cells.get(idx).add(actorId);
+        }
+      }
+    }
+    this.placements.put(actorId, placement);
+    this.aabbs.put(actorId, aabb);
+  }
+
+  copyActors(source) {
+    for (let id of source.aabbs.keySet()) {
+      this.putActor(id, source.aabbs.get(id));
+    }
+  }
+
+  removeActor(actorId) {
+    let placement = this.placements.get(actorId);
+    if (placement==null) {
+      return ;
+    }
+    for (let x = placement.getMinX(); x<=placement.getMaxX(); ++x) {
+      for (let y = placement.getMinY(); y<=placement.getMaxY(); ++y) {
+        for (let z = placement.getMinZ(); z<=placement.getMaxZ(); ++z) {
+          let idx = this.getCellIndex(x, y, z);
+          this.cells.get(idx).remove(actorId);
+        }
+      }
+    }
+    this.placements.remove(actorId);
+    this.aabbs.remove(actorId);
+  }
+
+  getCandidatePairs() {
+    let res = new HashSet();
+    for (let cell of this.cells) {
+      for (let i = 0; i<cell.size()-1; ++i) {
+        let actA = cell.get(i);
+        let aabbA = this.aabbs.get(actA);
+        for (let j = i+1; j<cell.size(); ++j) {
+          let actB = cell.get(j);
+          if (aabbA.isIntersect(this.aabbs.get(actB))) {
+            res.add(CollisionCandidatePair.create(actA, actB));
+          }
+        }
+      }
+    }
+    return res;
+  }
+
+  getCandidates(aabb) {
+    let spaceMin = this.space.min();
+    let res = new HashSet();
+    aabb = Aabb3.create(aabb.min().sub(spaceMin), aabb.max().sub(spaceMin));
+    let minX = Math.min(this.numCellsX, Math.max(0, FMath.trunc(aabb.min().x()/this.cellSize)));
+    let minY = Math.min(this.numCellsY, Math.max(0, FMath.trunc(aabb.min().y()/this.cellSize)));
+    let minZ = Math.min(this.numCellsZ, Math.max(0, FMath.trunc(aabb.min().z()/this.cellSize)));
+    let maxX = Math.min(this.numCellsX, Math.max(0, FMath.trunc(aabb.max().x()/this.cellSize)));
+    let maxY = Math.min(this.numCellsY, Math.max(0, FMath.trunc(aabb.max().y()/this.cellSize)));
+    let maxZ = Math.min(this.numCellsZ, Math.max(0, FMath.trunc(aabb.max().z()/this.cellSize)));
+    for (let x = minX; x<=maxX; ++x) {
+      for (let y = minY; y<=maxY; ++y) {
+        for (let z = minZ; z<=maxZ; ++z) {
+          res.addAll(this.cells.get(this.getCellIndex(x, y, z)));
+        }
+      }
+    }
+    return res;
+  }
+
+  renderDebug(gDriver, request, camera) {
+    if (request.hasDebugRenderRealm(DebugRenderRealm.SPACE_PARTITIONING)) {
+      let spaceMin = this.space.min();
+      let spaceMax = this.space.max();
+      let prend = gDriver.startRenderer("PrimitiveRenderer", BasicEnvironment.create(camera));
+      for (let cy = 0; cy<=this.numCellsY; ++cy) {
+        for (let cz = 0; cz<=this.numCellsZ; ++cz) {
+          prend.line(Vec3.create(spaceMin.x(), spaceMin.y()+this.cellSize*cy, spaceMin.y()+this.cellSize*cz), Vec3.create(spaceMax.x(), spaceMin.y()+this.cellSize*cy, spaceMin.y()+this.cellSize*cz), CollisionGrid.GRID_COLOR);
+        }
+      }
+      for (let cx = 0; cx<=this.numCellsX; ++cx) {
+        for (let cz = 0; cz<=this.numCellsZ; ++cz) {
+          prend.line(Vec3.create(spaceMin.x()+this.cellSize*cx, spaceMin.y(), spaceMin.y()+this.cellSize*cz), Vec3.create(spaceMin.x()+this.cellSize*cx, spaceMax.y(), spaceMin.y()+this.cellSize*cz), CollisionGrid.GRID_COLOR);
+        }
+      }
+      for (let cx = 0; cx<=this.numCellsX; ++cx) {
+        for (let cy = 0; cy<=this.numCellsY; ++cy) {
+          prend.line(Vec3.create(spaceMin.x()+this.cellSize*cx, spaceMin.y()+this.cellSize*cy, spaceMin.y()), Vec3.create(spaceMin.x()+this.cellSize*cx, spaceMin.y()+this.cellSize*cy, spaceMax.y()), CollisionGrid.GRID_COLOR);
+        }
+      }
+    }
+  }
+
+  getSpace() {
+    return this.space;
+  }
+
+  getNumCellsX() {
+    return this.numCellsX;
+  }
+
+  getNumCellsY() {
+    return this.numCellsY;
+  }
+
+  getNumCellsZ() {
+    return this.numCellsZ;
+  }
+
+  getPlacement(actorId) {
+    return this.placements.get(actorId);
+  }
+
+  calculatePlacement(aabb) {
+    let spaceMin = this.space.min();
+    let minX = aabb.min().x()-spaceMin.x();
+    let minY = aabb.min().y()-spaceMin.y();
+    let minZ = aabb.min().z()-spaceMin.z();
+    let maxX = aabb.max().x()-spaceMin.x();
+    let maxY = aabb.max().y()-spaceMin.y();
+    let maxZ = aabb.max().z()-spaceMin.z();
+    if (minX<0||minY<0||minZ<0) {
+      throw "box is out of the grid in minimum";
+    }
+    let res = CollisionGridPlacement.create(FMath.trunc(minX/this.cellSize), FMath.trunc(minY/this.cellSize), FMath.trunc(minZ/this.cellSize), FMath.trunc(maxX/this.cellSize), FMath.trunc(maxY/this.cellSize), FMath.trunc(maxZ/this.cellSize));
+    if (res.getMaxX()>=this.numCellsX||res.getMaxY()>=this.numCellsY||res.getMaxZ()>=this.numCellsZ) {
+      throw "box is out of the grid in maximum";
+    }
+    return res;
+  }
+
+  getCellIndex(cellX, cellY, cellZ) {
+    return cellZ*this.numCellsXy+cellY*this.numCellsX+cellX;
+  }
+
+  toString() {
+  }
+
+  static create(cellSize, min, numCellsX, numCellsY, numCellsZ) {
+    let res = new CollisionGrid();
+    res.cellSize = cellSize;
+    res.numCellsX = numCellsX;
+    res.numCellsY = numCellsY;
+    res.numCellsZ = numCellsZ;
+    res.space = Aabb3.create(min, min.add(cellSize*numCellsX, cellSize*numCellsY, cellSize*numCellsZ));
+    res.guardInvariants();
+    let numCells = numCellsX*numCellsY*numCellsZ;
+    res.numCellsXy = numCellsX*numCellsY;
+    res.cells = new ArrayList(numCells);
+    for (let i = 0; i<numCells; ++i) {
+      res.cells.add(new ArrayList());
+    }
+    res.placements = new HashMap();
+    res.aabbs = new HashMap();
+    return res;
+  }
+
+}
+class StandardCollisionManager {
+  static RECALCULATE_TRIGGER_DOMAINS = Dut.immutableSet(ActorDomain.TRANSFORM, ActorDomain.COLLISION, ActorDomain.VISUAL);
+  layerMatrix;
+  detector;
+  broadphase;
+  actors = new HashMap();
+  actorColliders = new HashMap();
+  exclusions = new HashMap();
+  actorExclusions = new HashMap();
+  warmedUp = false;
+  warmingUp = new HashSet();
+  constructor() {
+  }
+
+  getClass() {
+    return "StandardCollisionManager";
+  }
+
+  guardInvariants() {
+  }
+
+  setLayerMatrix(layerMatrix) {
+    Guard.notNull(layerMatrix, "layerMatrix cannot be null");
+    this.layerMatrix = layerMatrix;
+  }
+
+  addActor(actor) {
+    Guard.beFalse(this.actors.containsKey(actor.getId()), "actor with the same if is already registered");
+    this.recalculateActorFully(actor);
+    actor.addListener(this);
+  }
+
+  removeActor(id) {
+    this.broadphase.removeActor(id);
+    let actor = this.actors.remove(id);
+    this.actorColliders.remove(id);
+    let actExcls = this.actorExclusions.remove(id);
+    if (actor!=null) {
+      actor.removeListener(this);
+    }
+    if (actExcls!=null) {
+      for (let excl of actExcls) {
+        this.removeExclusion(excl);
+      }
+    }
+  }
+
+  onComponentAdded(actor, component) {
+    this.recalculateActorFully(actor);
+  }
+
+  onComponentRemoved(actor, component) {
+    this.recalculateActorFully(actor);
+  }
+
+  onDomainUpdate(actor, domain) {
+    if (!this.warmedUp) {
+      this.warmingUp.add(actor);
+      return ;
+    }
+    if (StandardCollisionManager.RECALCULATE_TRIGGER_DOMAINS.contains(domain)) {
+      let tc = actor.getComponent("TransformComponent");
+      let aabb = tc.getGlobalAabb();
+      this.broadphase.putActor(actor.getId(), aabb);
+    }
+    else if (domain.equals(ActorDomain.COLLISION_EXCLUSION)) {
+      this.recalculateActorFully(actor);
+    }
+    else {
+      throw "unsupported domain: "+domain;
+    }
+  }
+
+  getContacts() {
+    let candidates = this.broadphase.getCandidatePairs();
+    let excls = this.exclusions.keySet();
+    let res = new ArrayList();
+    for (let candidate of candidates) {
+      if (excls.contains(CollisionExclusion.create(candidate.getActorA(), candidate.getActorB()))) {
+        continue;
+      }
+      let colsA = this.actorColliders.get(candidate.getActorA());
+      let colsB = this.actorColliders.get(candidate.getActorB());
+      for (let i = 0; i<colsA.size(); ++i) {
+        let ca = colsA.get(i);
+        for (let j = 0; j<colsB.size(); ++j) {
+          let cb = colsB.get(j);
+          if (this.layerMatrix.canCollide(ca.getLayer(), cb.getLayer())) {
+            let contactPoints = this.detector.getContactPoints(ca.getVolume(), cb.getVolume());
+            if (!contactPoints.isEmpty()) {
+              res.add(Contact.create(ca, cb, contactPoints));
+            }
+          }
+        }
+      }
+    }
+    return res;
+  }
+
+  withCollider(collider) {
+    let candidates = this.broadphase.getCandidates(collider.getGlobalAabb());
+    let excls = this.exclusions.keySet();
+    let res = new ArrayList();
+    for (let actorId of candidates) {
+      if (excls.contains(CollisionExclusion.create(collider.actor().getId(), actorId))) {
+        continue;
+      }
+      let cols = this.actorColliders.get(actorId);
+      for (let i = 0; i<cols.size(); ++i) {
+        let ca = cols.get(i);
+        if (ca==collider||ca.actor().equals(collider.actor())) {
+          continue;
+        }
+        if (this.layerMatrix.canCollide(ca.getLayer(), collider.getLayer())) {
+          let col = this.detector.isCollision(collider.getVolume(), ca.getVolume());
+          if (col) {
+            res.add(ca);
+          }
+        }
+      }
+    }
+    return res;
+  }
+
+  withColliderContacts(collider) {
+    let candidates = this.broadphase.getCandidates(collider.getGlobalAabb());
+    let excls = this.exclusions.keySet();
+    let res = new ArrayList();
+    for (let actorId of candidates) {
+      if (excls.contains(CollisionExclusion.create(collider.actor().getId(), actorId))) {
+        continue;
+      }
+      let cols = this.actorColliders.get(actorId);
+      for (let i = 0; i<cols.size(); ++i) {
+        let ca = cols.get(i);
+        if (ca==collider||ca.actor().equals(collider.actor())) {
+          continue;
+        }
+        if (this.layerMatrix.canCollide(ca.getLayer(), collider.getLayer())) {
+          let cps = this.detector.getContactPoints(collider.getVolume(), ca.getVolume());
+          if (!cps.isEmpty()) {
+            res.add(Contact.create(collider, ca, cps));
+          }
+        }
+      }
+    }
+    return Dut.copyList(res);
+  }
+
+  renderDebug(gDriver, request, camera) {
+    if (this.broadphase instanceof DebugRenderable) {
+      (this.broadphase).this.renderDebug(gDriver, request, camera);
+    }
+  }
+
+  recalculateActorFully(actor) {
+    if (!this.warmedUp) {
+      this.warmingUp.add(actor);
+      return ;
+    }
+    let id = actor.getId();
+    let actPreviousExcls = this.actorExclusions.remove(actor.getId());
+    if (actPreviousExcls!=null) {
+      for (let excl of actPreviousExcls) {
+        this.removeExclusion(excl);
+      }
+    }
+    let actColliders = new ArrayList();
+    let actExclusions = new HashSet();
+    for (let comp of actor.getComponents()) {
+      if (comp.hasFeature(ComponentFeature.COLLIDER)) {
+        let collider = comp;
+        if (collider.isActive()) {
+          actColliders.add(comp);
+        }
+      }
+      if (comp.hasFeature(ComponentFeature.COLLISION_EXCLUSION_PRODUCER)) {
+        let compExcls = (comp).getCollisionExclusions();
+        actExclusions.addAll(compExcls);
+      }
+    }
+    this.actors.put(id, actor);
+    this.actorColliders.put(id, actColliders);
+    this.actorExclusions.put(id, actExclusions);
+    for (let excl of actExclusions) {
+      this.addExclusion(excl);
+    }
+    let tc = actor.getComponentNonStrict("TransformComponent");
+    if (tc!=null) {
+      this.broadphase.putActor(id, tc.getGlobalAabb());
+    }
+    else {
+      this.broadphase.removeActor(id);
+    }
+  }
+
+  addExclusion(exclusion) {
+    let num = this.exclusions.get(exclusion);
+    if (num==null) {
+      this.exclusions.put(exclusion, 1);
+    }
+    else {
+      this.exclusions.put(exclusion, num+1);
+    }
+  }
+
+  removeExclusion(exclusion) {
+    let num = this.exclusions.get(exclusion);
+    if (num==null||num<=1) {
+      this.exclusions.remove(exclusion);
+    }
+    else {
+      this.exclusions.put(exclusion, num-1);
+    }
+  }
+
+  warmUp() {
+    if (this.warmedUp) {
+      return ;
+    }
+    this.warmedUp = true;
+    for (let actor of this.warmingUp) {
+      this.recalculateActorFully(actor);
+    }
+    this.warmingUp = new HashSet();
+  }
+
+  toString() {
+  }
+
+  static create(error) {
+    let res = new StandardCollisionManager();
+    res.layerMatrix = CollisionLayerMatrix.standard();
+    res.broadphase = GridBroadphaseCollisionManager.create(10);
+    res.detector = PrimitiveCollisionDetector.create(error);
+    res.actors = new HashMap();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class GridBroadphaseCollisionManager {
+  cellSize;
+  cellSizeIncrement;
+  cellBuffer;
+  maxCells;
+  grid;
+  constructor() {
+  }
+
+  getClass() {
+    return "GridBroadphaseCollisionManager";
+  }
+
+  guardInvariants() {
+  }
+
+  putActor(actorId, aabb) {
+    this.ensureGrid(aabb);
+    this.grid.putActor(actorId, aabb);
+  }
+
+  removeActor(actorId) {
+    this.grid.removeActor(actorId);
+  }
+
+  getCandidatePairs() {
+    return this.grid.getCandidatePairs();
+  }
+
+  getCandidates(aabb) {
+    return this.grid.getCandidates(aabb);
+  }
+
+  renderDebug(gDriver, request, camera) {
+    this.grid.renderDebug(gDriver, request, camera);
+  }
+
+  ensureGrid(aabb) {
+    let gridMin = this.grid.getSpace().min();
+    let gridMax = this.grid.getSpace().max();
+    if (gridMin.x()<=aabb.min().x()&&gridMin.y()<=aabb.min().y()&&gridMin.z()<=aabb.min().z()&&gridMax.x()>aabb.max().x()&&gridMax.y()>aabb.max().y()&&gridMax.z()>aabb.max().z()) {
+      return ;
+    }
+    let newGridMin = Vec3.create(FMath.min(gridMin.x(), aabb.min().x()-this.cellSize*this.cellBuffer), FMath.min(gridMin.y(), aabb.min().y()-this.cellSize*this.cellBuffer), FMath.min(gridMin.z(), aabb.min().z()-this.cellSize*this.cellBuffer));
+    let newGridMax = Vec3.create(FMath.max(gridMax.x(), aabb.max().x()+this.cellSize*this.cellBuffer), FMath.max(gridMax.y(), aabb.max().y()+this.cellSize*this.cellBuffer), FMath.max(gridMax.z(), aabb.max().z()+this.cellSize*this.cellBuffer));
+    let numCellsX = FMath.trunc((newGridMax.x()-newGridMin.x())/this.cellSize)+1;
+    let numCellsY = FMath.trunc((newGridMax.x()-newGridMin.x())/this.cellSize)+1;
+    let numCellsZ = FMath.trunc((newGridMax.x()-newGridMin.x())/this.cellSize)+1;
+    while (numCellsX*numCellsY*numCellsZ>this.maxCells) {
+      this.cellSize = this.cellSize+this.cellSizeIncrement;
+      numCellsX = FMath.trunc((newGridMax.x()-newGridMin.x())/this.cellSize)+1;
+      numCellsY = FMath.trunc((newGridMax.x()-newGridMin.x())/this.cellSize)+1;
+      numCellsZ = FMath.trunc((newGridMax.x()-newGridMin.x())/this.cellSize)+1;
+    }
+    let newGrid = CollisionGrid.create(this.cellSize, newGridMin, numCellsX, numCellsY, numCellsZ);
+    newGrid.copyActors(this.grid);
+    this.grid = newGrid;
+  }
+
+  toString() {
+  }
+
+  static create(initCellSize) {
+    let res = new GridBroadphaseCollisionManager();
+    res.cellSize = initCellSize;
+    res.cellSizeIncrement = initCellSize;
+    res.cellBuffer = 5;
+    res.maxCells = 10000;
+    res.grid = CollisionGrid.create(initCellSize, Vec3.diagonal(-10), 10, 10, 10);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class SphereSphereCollisionDetector {
+  error = 0.005;
+  constructor() {
+  }
+
+  getClass() {
+    return "SphereSphereCollisionDetector";
+  }
+
+  guardInvariants() {
+  }
+
+  isCollision(volumeA, volumeB) {
+    Guard.beTrue(volumeA.getClass().equals("Sphere"), "volumeA must be sphere: %s", volumeA);
+    Guard.beTrue(volumeB.getClass().equals("Sphere"), "volumeB must be sphere: %s", volumeB);
+    let v1 = volumeA;
+    let v2 = volumeB;
+    let dst = v1.getPos().dist(v2.getPos());
+    if (dst>v1.getRadius()+v2.getRadius()+this.error) {
+      return false;
+    }
+    return true;
+  }
+
+  getContactPoints(volumeA, volumeB) {
+    Guard.beTrue(volumeA.getClass().equals("Sphere"), "volumeA must be sphere: %s", volumeA);
+    Guard.beTrue(volumeB.getClass().equals("Sphere"), "volumeB must be sphere: %s", volumeB);
+    let v1 = volumeA;
+    let v2 = volumeB;
+    let dst = v1.getPos().dist(v2.getPos());
+    if (dst>v1.getRadius()+v2.getRadius()+this.error) {
+      return Collections.emptyList();
+    }
+    let n = v2.getPos().sub(v1.getPos()).normalize();
+    let d = v1.getRadius()+v2.getRadius()-dst;
+    let posA = v1.getPos().addScaled(n, v1.getRadius());
+    let posB = v2.getPos().addScaled(n, -v2.getRadius());
+    let contactPoint = ContactPoint.create(posA, posB, n, d);
+    return Arrays.asList(contactPoint);
+  }
+
+  toString() {
+  }
+
+  static create(error) {
+    let res = new SphereSphereCollisionDetector();
+    res.error = error;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class PrimitiveCollisionDetector {
+  detectors;
+  constructor() {
+  }
+
+  getClass() {
+    return "PrimitiveCollisionDetector";
+  }
+
+  guardInvariants() {
+  }
+
+  isCollision(volumeA, volumeB) {
+    return this.getDetector(volumeA, volumeB).isCollision(volumeA, volumeB);
+  }
+
+  getContactPoints(volumeA, volumeB) {
+    return this.getDetector(volumeA, volumeB).getContactPoints(volumeA, volumeB);
+  }
+
+  getDetector(v1, v2) {
+    return this.detectors.get(Arrays.asList(v1.getClass(), v2.getClass()));
+  }
+
+  toString() {
+  }
+
+  static create(error) {
+    let res = new PrimitiveCollisionDetector();
+    let sphereSphere = SphereSphereCollisionDetector.create(error);
+    res.detectors = Dut.immutableMap(Dut.immutableList("Sphere", "Sphere"), sphereSphere);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class RigidBodies {
+  constructor() {
+  }
+
+  getClass() {
+    return "RigidBodies";
+  }
+
+  static integerateAndClearAccums(dt, actors) {
+    actors.forEach(ActorId.ROOT, (actor) => {
+  let rb = actor.getComponentNonStrict("RigidBodyComponent");
+  if (rb==null) {
+    return ;
+  }
+  rb.integrate(dt);
+  rb.clearAccums();
+});
+  }
+
+  static getJoints(actors) {
+    let res = new ArrayList();
+    actors.forEach(ActorId.ROOT, (actor) => {
+  let cmps = actor.getComponents();
+  for (let i = 0; i<cmps.size(); ++i) {
+    let comp = cmps.get(i);
+    if (comp.hasFeature(ComponentFeature.RIGID_BODY_JOINT)) {
+      res.add(comp);
+    }
+  }
+});
+    return res;
+  }
+
+}
+class SolverConfiguration {
+  timeStep;
+  maxIterations = 100;
+  posError = 1e-3;
+  velError = 5e-2;
+  impulseError = 1e-6;
+  contactBaumgarteDepth = 1e-3;
+  contactBaumgarte = 0.05;
+  contactBounceVel = 0.5;
+  jointBaumgarte = 1;
+  constructor() {
+  }
+
+  getClass() {
+    return "SolverConfiguration";
+  }
+
+  guardInvariants() {
+  }
+
+  getTimeStep() {
+    return this.timeStep;
+  }
+
+  getMaxIterations() {
+    return this.maxIterations;
+  }
+
+  getPosError() {
+    return this.posError;
+  }
+
+  getVelError() {
+    return this.velError;
+  }
+
+  getImpulseError() {
+    return this.impulseError;
+  }
+
+  getContactBaumgarteDepth() {
+    return this.contactBaumgarteDepth;
+  }
+
+  getContactBaumgarte() {
+    return this.contactBaumgarte;
+  }
+
+  getContactBounceVel() {
+    return this.contactBounceVel;
+  }
+
+  getJointBaumgarte() {
+    return this.jointBaumgarte;
+  }
+
+  static create(timeStep) {
+    let res = new SolverConfiguration();
+    res.timeStep = timeStep;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class SequentialSolverWorkBuffer {
+  bounceVelocities = [];
+  frictionCoefficients = [];
+  normalEffects = [];
+  normalSums = [];
+  tangentSums = [];
+  constructor() {
+  }
+
+  getClass() {
+    return "SequentialSolverWorkBuffer";
+  }
+
+  getBounceVelocity(idx) {
+    return this.bounceVelocities[idx];
+  }
+
+  setBounceVelocity(idx, bounceVelocity) {
+    this.bounceVelocities[idx] = bounceVelocity;
+  }
+
+  getNormalSum(idx) {
+    return this.normalSums[idx];
+  }
+
+  addNormalSum(idx, im) {
+    this.normalSums[idx] = this.normalSums[idx]+im;
+  }
+
+  getNormalEffect(idx) {
+    return this.normalEffects[idx];
+  }
+
+  setNormalEffect(idx, normalEffect) {
+    this.normalEffects[idx] = normalEffect;
+  }
+
+  getFrictionCoefficient(idx) {
+    return this.frictionCoefficients[idx];
+  }
+
+  setFrictionCoefficient(idx, coef) {
+    this.frictionCoefficients[idx] = coef;
+  }
+
+  getTangentSum(idx) {
+    return this.tangentSums[idx];
+  }
+
+  addScaledTangentSum(idx, v, s) {
+    this.tangentSums[idx] = this.tangentSums[idx].addScaled(v, s);
+  }
+
+  reset(numContactPoints) {
+    if (this.normalEffects.length<numContactPoints) {
+      this.bounceVelocities = [];
+      this.frictionCoefficients = [];
+      this.normalEffects = [];
+      this.normalSums = [];
+      this.tangentSums = [];
+    }
+    for (let i = 0; i<numContactPoints; ++i) {
+      this.bounceVelocities[i] = 0;
+      this.frictionCoefficients[i] = 0;
+      this.normalEffects[i] = 0;
+      this.normalSums[i] = 0;
+      this.tangentSums[i] = Vec3.ZERO;
+    }
+  }
+
+  static create() {
+    return new SequentialSolverWorkBuffer();
+  }
+
+}
+class SequentialSolver {
+  configuration;
+  buffer = SequentialSolverWorkBuffer.create();
+  constructor() {
+  }
+
+  getClass() {
+    return "SequentialSolver";
+  }
+
+  guardInvariants() {
+  }
+
+  solve(contacts, joints) {
+    let islands = Islands.buildIslands(contacts, joints);
+    for (let island of islands) {
+      this.solveIsland(island);
+    }
+  }
+
+  solveIsland(island) {
+    let numCp = island.getNumContactPoints();
+    this.buffer.reset(numCp);
+    this.prapareBuffers(island.getContacts());
+    let nextit = true;
+    let needFriction = true;
+    let normalPassed = false;
+    let cpIdx = -1;
+    for (let i = 0; i<this.configuration.getMaxIterations()&&(nextit||needFriction); ++i) {
+      nextit = false;
+      if (normalPassed) {
+        cpIdx = -1;
+        for (let contact of island.getContacts()) {
+          let rb1 = contact.getRigidBodyA();
+          let rb2 = contact.getRigidBodyB();
+          for (let contactPoint of contact.getContactPoints()) {
+            cpIdx = cpIdx+1;
+            let normal = contactPoint.getNormal();
+            let vA = rb1.getPointVelocity(contactPoint.getPosA());
+            let vB = rb2.getPointVelocity(contactPoint.getPosB());
+            let relVel = vA.sub(vB);
+            let tgRelVel = relVel.subScaled(normal, relVel.dot(normal));
+            if (tgRelVel.mag()<this.configuration.getVelError()) {
+              continue;
+            }
+            let tg = tgRelVel.normalize();
+            let tgUnitEf1 = rb1.getImpulseEffectOnPoint(contactPoint.getPosA(), tg, contactPoint.getPosA());
+            let tgUnitEf2 = rb2.getImpulseEffectOnPoint(contactPoint.getPosB(), tg, contactPoint.getPosB());
+            let tgUnitEfProj1 = tg.dot(tgUnitEf1);
+            let tgUnitEfProj2 = tg.dot(tgUnitEf2);
+            let tgUnitEfProj = tgUnitEfProj1+tgUnitEfProj2;
+            let maxTotalMag = this.buffer.getNormalSum(cpIdx)*this.buffer.getFrictionCoefficient(cpIdx);
+            let maxImpulse = SequentialSolver.maxTgMag(this.buffer.getTangentSum(cpIdx), tg, maxTotalMag);
+            let impulse = Math.min(maxImpulse, tgRelVel.mag()/tgUnitEfProj);
+            rb1.applyImpulse(contactPoint.getPosA(), tg.scale(-impulse));
+            rb2.applyImpulse(contactPoint.getPosB(), tg.scale(impulse));
+            this.buffer.addScaledTangentSum(cpIdx, tg, impulse);
+            nextit = nextit|(FMath.abs(impulse)>this.configuration.getImpulseError());
+          }
+        }
+        needFriction = false;
+      }
+      cpIdx = -1;
+      for (let contact of island.getContacts()) {
+        let rb1 = contact.getRigidBodyA();
+        let rb2 = contact.getRigidBodyB();
+        for (let contactPoint of contact.getContactPoints()) {
+          cpIdx = cpIdx+1;
+          let normal = contactPoint.getNormal();
+          let v1 = rb1.getPointVelocity(contactPoint.getPosA());
+          let v2 = rb2.getPointVelocity(contactPoint.getPosB());
+          let nv1 = normal.dot(v1);
+          let nv2 = normal.dot(v2);
+          let sepvel = nv2-nv1;
+          let impulse = (this.buffer.getBounceVelocity(cpIdx)-sepvel)/this.buffer.getNormalEffect(cpIdx);
+          impulse = FMath.max(impulse, -this.buffer.getNormalSum(cpIdx));
+          rb1.applyImpulse(contactPoint.getPosA(), normal.scale(-impulse));
+          rb2.applyImpulse(contactPoint.getPosB(), normal.scale(impulse));
+          this.buffer.addNormalSum(cpIdx, impulse);
+          nextit = nextit|(FMath.abs(impulse)>this.configuration.getImpulseError());
+        }
+      }
+      for (let joint of island.getJoints()) {
+        let jointRes = joint.solveVelocities(this.configuration, i);
+        nextit = nextit|jointRes;
+      }
+      if (!nextit) {
+        normalPassed = true;
+      }
+    }
+  }
+
+  prapareBuffers(contacts) {
+    let cidx = -1;
+    for (let contact of contacts) {
+      let col1 = contact.getColliderA();
+      let rb1 = contact.getRigidBodyA();
+      let col2 = contact.getColliderB();
+      let rb2 = contact.getRigidBodyB();
+      for (let contactPoint of contact.getContactPoints()) {
+        cidx = cidx+1;
+        let v1 = rb1.getPointVelocity(contactPoint.getPosA());
+        let v2 = rb2.getPointVelocity(contactPoint.getPosB());
+        let nv1 = contactPoint.getNormal().dot(v1);
+        let nv2 = contactPoint.getNormal().dot(v2);
+        let sepvel = nv2-nv1;
+        let depth = contactPoint.getDepth();
+        if (sepvel>-this.configuration.getVelError()&&depth<this.configuration.getPosError()) {
+          this.buffer.setBounceVelocity(cidx, 0);
+        }
+        else {
+          let bounceVel = 0;
+          if (sepvel<-this.configuration.getContactBounceVel()) {
+            bounceVel = -sepvel*col1.getMaterial().getBounce(col2.getMaterial());
+          }
+          if (depth>this.configuration.getContactBaumgarteDepth()) {
+            bounceVel = bounceVel+this.configuration.getContactBaumgarte()*depth/this.configuration.getTimeStep();
+          }
+          this.buffer.setBounceVelocity(cidx, FMath.max(0, bounceVel));
+        }
+        let normal = contactPoint.getNormal();
+        let uinef1 = rb1.getImpulseEffectOnPoint(contactPoint.getPosA(), normal, contactPoint.getPosA());
+        let uinef2 = rb2.getImpulseEffectOnPoint(contactPoint.getPosB(), normal, contactPoint.getPosB());
+        let uinefnorm1 = normal.dot(uinef1);
+        let uinefnorm2 = normal.dot(uinef2);
+        this.buffer.setNormalEffect(cidx, uinefnorm1+uinefnorm2);
+        let relVel = v1.sub(v2);
+        let tgRelVel = relVel.sub(normal.scale(relVel.dot(normal)));
+        if (tgRelVel.mag()<this.configuration.getVelError()) {
+          this.buffer.setFrictionCoefficient(cidx, col1.getMaterial().getStaticFriction(col2.getMaterial()));
+        }
+        else {
+          this.buffer.setFrictionCoefficient(cidx, col1.getMaterial().getDynamicFriction(col2.getMaterial()));
+        }
+      }
+    }
+  }
+
+  static maxTgMag(currSum, tgDir, maxMag) {
+    let k = maxMag*maxMag;
+    let a = tgDir.dot(tgDir);
+    let b = 2*currSum.dot(tgDir);
+    let c = currSum.dot(currSum)-k;
+    let d = b*b-4*a*c;
+    if (d<0) {
+      return 0;
+    }
+    let res = (FMath.sqrt(d)-b)/2;
+    return FMath.max(0, res);
+  }
+
+  toString() {
+  }
+
+  static create(timeStep) {
+    let res = new SequentialSolver();
+    res.configuration = SolverConfiguration.create(timeStep);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class ModelAabbs {
+  constructor() {
+  }
+
+  getClass() {
+    return "ModelAabbs";
+  }
+
+  static calculateAllModelAabbs(assets) {
+    let modelsIds = assets.getKeys(ModelId.TYPE);
+    let res = new HashMap();
+    for (let refId of modelsIds) {
+      let modelId = refId;
+      let modelAabb = ModelAabbs.calculateModelAabb(modelId, assets);
+      if (modelAabb!=null) {
+        res.put(modelId, modelAabb);
+      }
+    }
+    return res;
+  }
+
+  static calculateModelAabb(modelId, assets) {
+    let model = assets.get("Model", modelId);
+    if (model.getParts().isEmpty()) {
+      return null;
+    }
+    let res = null;
+    for (let part of model.getParts()) {
+      let meshId = part.getMesh();
+      let meshAabb = assets.getCompanion("Aabb3", meshId, AssetCompanionType.BOUNDING_AABB);
+      if (res==null) {
+        res = meshAabb;
+      }
+      else {
+        res = res.expand(meshAabb);
+      }
+    }
+    return res;
+  }
+
+}
 class InputCache {
   buffer = new HashMap();
   lock = new Object();
@@ -12564,34 +16566,32 @@ class InputCache {
   guardInvariants() {
   }
 
-  get() {
-    if (arguments.length===2&& typeof arguments[0]==="string"&& typeof arguments[1]==="string") {
-      return this.get_2_string_string(arguments[0], arguments[1]);
-    }
-    else if (arguments.length===3&& typeof arguments[0]==="string"&& typeof arguments[1]==="string"&&arguments[2] instanceof T) {
-      return this.get_3_string_string_T(arguments[0], arguments[1], arguments[2]);
-    }
-    else {
-      throw "error";
-    }
-  }
-
-  get_2_string_string(clazz, key) {
-    if (!this.buffer.containsKey(key)) {
-      throw "element doesn't exists: key = "+key;
-    }
-    return this.buffer.get(key);
-  }
-
-  get_3_string_string_T(clazz, key, def) {
+  getBoolean(key, def) {
     if (!this.buffer.containsKey(key)) {
       return def;
     }
     return this.buffer.get(key);
   }
 
-  contains(key) {
-    return this.buffer.containsKey(key);
+  getFloat(key, def) {
+    if (!this.buffer.containsKey(key)) {
+      return def;
+    }
+    return this.buffer.get(key);
+  }
+
+  getVec2(key, def) {
+    if (!this.buffer.containsKey(key)) {
+      return def;
+    }
+    return this.buffer.get(key);
+  }
+
+  getSize2(key, def) {
+    if (!this.buffer.containsKey(key)) {
+      return def;
+    }
+    return this.buffer.get(key);
   }
 
   put(key, object) {
@@ -12611,6 +16611,451 @@ class InputCache {
 
   static create() {
     let res = new InputCache();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class InputCacheDisplayListener {
+  inputs;
+  key;
+  constructor() {
+  }
+
+  getClass() {
+    return "InputCacheDisplayListener";
+  }
+
+  guardInvariants() {
+  }
+
+  onDisplayResize(size) {
+    this.inputs.put(this.key, size);
+  }
+
+  static create(inputs) {
+    let res = new InputCacheDisplayListener();
+    res.inputs = inputs;
+    res.key = "display.size";
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class RigidBodyWorld {
+  static FWD = Vec3.create(0, 0, -1);
+  static UP = Vec3.create(0, 1, 0);
+  static AMBIENT_LIGHTS = Dut.immutableList(Light.directional(LightColor.AMBIENT_WHITE, Vec3.DOWN));
+  assetManager;
+  gDriver;
+  audioMixer;
+  actorTree;
+  actorFactory;
+  collisionManager;
+  contacts = Collections.emptyList();
+  joints = Collections.emptyList();
+  solver;
+  timeStep;
+  shadowBuffersIds;
+  modelAabbs;
+  cumDt = 0;
+  constructor() {
+  }
+
+  getClass() {
+    return "RigidBodyWorld";
+  }
+
+  guardInvariants() {
+  }
+
+  destroy(drivers) {
+    for (let id of this.shadowBuffersIds) {
+      this.assetManager.remove(id);
+    }
+    this.shadowBuffersIds = null;
+  }
+
+  warmUp() {
+    this.modelAabbs = ModelAabbs.calculateAllModelAabbs(this.assetManager);
+    this.collisionManager.warmUp();
+  }
+
+  move(dt, inputs) {
+    this.cumDt = this.cumDt+dt;
+    while (this.cumDt>this.timeStep) {
+      this.actorTree.forEach(ActorId.ROOT, ActorActions.move(this.timeStep, inputs));
+      RigidBodies.integerateAndClearAccums(this.timeStep, this.actorTree);
+      this.contacts = this.collisionManager.getContacts();
+      let solvableContacts = new ArrayList();
+      for (let contact of this.contacts) {
+        if (!contact.getColliderA().isTrigger()&&!contact.getColliderB().isTrigger()) {
+          solvableContacts.add(contact);
+        }
+      }
+      this.joints = RigidBodies.getJoints(this.actorTree);
+      if (!solvableContacts.isEmpty()||!this.joints.isEmpty()) {
+        this.solver.solve(solvableContacts, this.joints);
+      }
+      this.actorTree.forEach(ActorId.ROOT, ActorActions.lateMove(this.timeStep, inputs));
+      this.cumDt = this.cumDt-this.timeStep;
+    }
+  }
+
+  render(request) {
+    let cameras = this.getCameras(this.actorTree);
+    let models = this.getRenderables(this.actorTree);
+    let skyboxes = this.getSkyboxes(this.actorTree);
+    for (let cidx = 0; cidx<cameras.size(); ++cidx) {
+      this.gDriver.clearBuffers(BufferId.DEPTH);
+      let camera = cameras.get(cidx).getCamera();
+      let skyboxCamera = cameras.get(cidx).getSkyboxCamera();
+      let lights = this.getLights(camera, models, this.actorTree);
+      let shadowlessLights = this.getShadowlessLights(lights);
+      for (let lidx = 0; lidx<lights.size(); ++lidx) {
+        let light = lights.get(lidx);
+        if (light.isShadow()) {
+          let rndr = this.gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(light));
+          for (let r of models) {
+            if (r.isCastShadows()) {
+              rndr.render(r.getModel(), r.getInterpolation().getStart(), r.getInterpolation().getEnd(), r.getInterpolation().getT(), r.getGlobalMat());
+            }
+          }
+          rndr.end();
+        }
+      }
+      if (!skyboxes.isEmpty()) {
+        this.gDriver.clearBuffers(BufferId.DEPTH);
+        let scn = null;
+        scn = this.gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(skyboxCamera, RigidBodyWorld.AMBIENT_LIGHTS));
+        for (let sb of skyboxes) {
+          if (sb.isVisible()) {
+            scn.render(sb.getModel(), sb.getGlobalMat());
+          }
+        }
+        scn.end();
+      }
+      this.gDriver.clearBuffers(BufferId.DEPTH);
+      let scn = null;
+      scn = this.gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(camera, lights));
+      for (let r of models) {
+        if (r.isVisible()&&r.isReceiveShadows()) {
+          scn.render(r.getModel(), r.getInterpolation().getStart(), r.getInterpolation().getEnd(), r.getInterpolation().getT(), r.getGlobalMat());
+        }
+      }
+      scn.end();
+      scn = this.gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(camera, shadowlessLights));
+      for (let r of models) {
+        if (r.isVisible()&&!r.isReceiveShadows()) {
+          scn.render(r.getModel(), r.getInterpolation().getStart(), r.getInterpolation().getEnd(), r.getInterpolation().getT(), r.getGlobalMat());
+        }
+      }
+      scn.end();
+      if (request.isDebugEnabled()) {
+        DebugRendering.renderDebug(this.gDriver, request, camera, this.collisionManager, this.actorTree, this.contacts);
+      }
+    }
+  }
+
+  actors() {
+    return this.actorTree;
+  }
+
+  constructActor(request) {
+    return this.actorFactory.construct(request);
+  }
+
+  collisions() {
+    return this.collisionManager;
+  }
+
+  audio() {
+    return this.audioMixer;
+  }
+
+  assets() {
+    return this.assetManager;
+  }
+
+  aabb(modelId) {
+    let res = this.modelAabbs.get(modelId);
+    Guard.notNull(res, "there is no AABB box defined for: "+modelId);
+    return res;
+  }
+
+  setCollisionLayerMatrix(matrix) {
+    this.collisionManager.setLayerMatrix(matrix);
+    return this;
+  }
+
+  getCameras(actors) {
+    let res = new ArrayList();
+    actors.forEach(ActorId.ROOT, (actor) => {
+  if (!actor.hasComponent("CameraComponent")) {
+    return ;
+  }
+  let cc = actor.getComponent("CameraComponent");
+  res.add(cc);
+});
+    return res;
+  }
+
+  getLights(camera, models, actors) {
+    let sbidx = new ArrayList();
+    sbidx.add(0);
+    let res = new ArrayList();
+    actors.forEach(ActorId.ROOT, (actor) => {
+  let cmps = actor.getComponents();
+  for (let i = 0; i<cmps.size(); ++i) {
+    let cmp = cmps.get(i);
+    if (cmp instanceof LightComponent) {
+      let lcmp = cmp;
+      if (!lcmp.isEnabled()) {
+        continue;
+      }
+      if (lcmp.getType().equals(LightType.DIRECTIONAL)) {
+        let tc = actor.getComponent("TransformComponent");
+        let pos = tc.toGlobal(Vec3.ZERO);
+        let lookAt = tc.toGlobal(RigidBodyWorld.FWD);
+        let dir = lookAt.subAndNormalize(pos);
+        if (lcmp.isShadow()) {
+          let sb = this.shadowBuffersIds.get(sbidx.get(0));
+          sbidx.set(0, sbidx.get(0)+1);
+          let smap = ShadowMap.createDir(sb, pos, dir, 80, 60);
+          let light = Light.directional(lcmp.getColor(), dir, smap);
+          res.add(light);
+        }
+        else {
+          let light = Light.directional(lcmp.getColor(), dir);
+          res.add(light);
+        }
+      }
+      else {
+        throw "unsupported light type: "+lcmp.getType();
+      }
+    }
+  }
+});
+    return res;
+  }
+
+  getShadowlessLights(lights) {
+    let res = new ArrayList();
+    for (let i = 0; i<lights.size(); ++i) {
+      let light = lights.get(i);
+      if (light.isShadow()) {
+        res.add(light.withShadowMap(null));
+      }
+      else {
+        res.add(light);
+      }
+    }
+    return res;
+  }
+
+  getRenderables(actors) {
+    let res = new ArrayList();
+    actors.forEach(ActorId.ROOT, (actor) => {
+  let cmps = actor.getComponents();
+  for (let i = 0; i<cmps.size(); ++i) {
+    let cmp = cmps.get(i);
+    if (cmp instanceof ModelComponent) {
+      res.add(cmp);
+    }
+  }
+});
+    return res;
+  }
+
+  getSkyboxes(actors) {
+    let res = new ArrayList();
+    actors.forEach(ActorId.ROOT, (actor) => {
+  let cmps = actor.getComponents();
+  for (let i = 0; i<cmps.size(); ++i) {
+    let cmp = cmps.get(i);
+    if (cmp instanceof SkyboxComponent) {
+      res.add(cmp);
+    }
+  }
+});
+    return res;
+  }
+
+  static create(drivers) {
+    let res = new RigidBodyWorld();
+    res.assetManager = drivers.getDriver("AssetManager");
+    res.collisionManager = StandardCollisionManager.create(0.005);
+    res.actorTree = QueuedActorTree.create(InMemoryActorTree.crete(res, res.collisionManager));
+    res.actorFactory = RigidBodyWorldActorFactory.create(res.actorTree, SequenceIdGenerator.create());
+    res.timeStep = 0.02;
+    res.solver = SequentialSolver.create(res.timeStep);
+    res.gDriver = drivers.getDriver("GraphicsDriver");
+    res.audioMixer = drivers.getDriver("AudioDriver").getSystemMixer();
+    let shadow1 = ShadowBufferId.of("physicsWorld.shadow1");
+    let shadow2 = ShadowBufferId.of("physicsWorld.shadow2");
+    let shadow3 = ShadowBufferId.of("physicsWorld.shadow3");
+    res.assetManager.put(shadow1, ShadowBuffer.create(2048, 2048));
+    res.assetManager.put(shadow2, ShadowBuffer.create(2048, 2048));
+    res.assetManager.put(shadow3, ShadowBuffer.create(2048, 2048));
+    res.shadowBuffersIds = Dut.immutableList(shadow1, shadow2, shadow3);
+    res.modelAabbs = ModelAabbs.calculateAllModelAabbs(res.assetManager);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class RigidBodyWorldActorFactory {
+  actors;
+  idGenerator;
+  constructor() {
+  }
+
+  getClass() {
+    return "RigidBodyWorldActorFactory";
+  }
+
+  guardInvariants() {
+  }
+
+  construct(request) {
+    return this.constructRoot(request.getPrefab(), request.getPos(), request.getRot(), request.getActorId());
+  }
+
+  constructRoot(prefab, pos, rot, rootId) {
+    let id = rootId==null?ActorId.of(this.idGenerator.generateId()):rootId;
+    let actor = Actor.create(id).setName(prefab.getName()).addTags(prefab.getTags());
+    for (let cp of prefab.getComponents()) {
+      actor.addComponent(cp.toComponent());
+    }
+    if (actor.hasComponent("TransformComponent")) {
+      this.applyTransform(actor.getComponent("TransformComponent"), pos, rot);
+    }
+    this.actors.add(ActorId.ROOT, actor);
+    for (let child of prefab.getChildren()) {
+      this.constructActor(id, child, pos, rot);
+    }
+    return actor;
+  }
+
+  constructActor(parentId, prefab, pos, rot) {
+    let id = ActorId.of(this.idGenerator.generateId());
+    let actor = Actor.create(id).setName(prefab.getName()).addTags(prefab.getTags());
+    for (let cp of prefab.getComponents()) {
+      actor.addComponent(cp.toComponent());
+    }
+    if (actor.hasEffect(ComponentEffect.ABSOLUTE_COORDINATES)) {
+      this.applyTransform(actor.getComponent("TransformComponent"), pos, rot);
+    }
+    this.actors.add(parentId, actor);
+    for (let child of prefab.getChildren()) {
+      this.constructActor(id, child, pos, rot);
+    }
+  }
+
+  applyTransform(tc, pos, rot) {
+    let lprot = rot.rotate(tc.getPos());
+    tc.setPos(lprot.add(pos));
+    tc.setRot(rot.mul(tc.getRot()));
+  }
+
+  toString() {
+  }
+
+  static create(actors, idGenerator) {
+    let res = new RigidBodyWorldActorFactory();
+    res.actors = actors;
+    res.idGenerator = idGenerator;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+const createDebugRenderRealm = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const DebugRenderRealm = Object.freeze({
+  BOUNDING_VOLUME: createDebugRenderRealm("BOUNDING_VOLUME"),
+  SPACE_PARTITIONING: createDebugRenderRealm("SPACE_PARTITIONING"),
+  COLLIDER: createDebugRenderRealm("COLLIDER"),
+  CONTACT_POINT: createDebugRenderRealm("CONTACT_POINT"),
+  JOINT: createDebugRenderRealm("JOINT"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class RenderRequest {
+  static NORMAL = RenderRequest.create(Collections.emptySet());
+  static DEBUG_LIGHT = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.COLLIDER));
+  static DEBUG_JOINT = RenderRequest.create(Dut.set(DebugRenderRealm.JOINT));
+  static DEBUG_FULL = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.SPACE_PARTITIONING, DebugRenderRealm.COLLIDER, DebugRenderRealm.CONTACT_POINT, DebugRenderRealm.JOINT));
+  debugRenderRealms;
+  constructor() {
+  }
+
+  getClass() {
+    return "RenderRequest";
+  }
+
+  guardInvariants() {
+  }
+
+  isDebugEnabled() {
+    return !this.debugRenderRealms.isEmpty();
+  }
+
+  hasDebugRenderRealm(realm) {
+    return this.debugRenderRealms.contains(realm);
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(debugRenderRealms) {
+    let res = new RenderRequest();
+    res.debugRenderRealms = Dut.copyImmutableSet(debugRenderRealms);
     res.guardInvariants();
     return res;
   }
