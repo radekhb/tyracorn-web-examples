@@ -10681,7 +10681,20 @@ class ImageToggleButton extends UiComponent {
   }
 
 }
-class TouchJoystick extends UiComponent {
+class Joystick extends UiComponent {
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "Joystick";
+  }
+
+  getDir() {
+  }
+
+}
+class TouchJoystick extends Joystick {
   baseTexture;
   topTexture;
   regionFnc;
@@ -10824,7 +10837,7 @@ class TouchJoystick extends UiComponent {
   }
 
 }
-class KeyboardJoystick extends UiComponent {
+class KeyboardJoystick extends Joystick {
   keyUp = "W";
   keyDown = "S";
   keyLeft = "A";
@@ -13254,10 +13267,12 @@ class BasicLoadingScreen {
     uiRenderer.end();
   }
 
-  warmUp(drivers, screenManager) {
+  init(drivers, screenManager, properties) {
+    this.ui = StretchUi.create(UiSizeFncs.constantHeight(1600));
+    this.ui.subscribe(drivers);
   }
 
-  init(drivers, screenManager, properties) {
+  load(drivers, screenManager, properties) {
     let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
     if (!assets.containsKey(this.texture)) {
@@ -13271,12 +13286,11 @@ class BasicLoadingScreen {
         throw "unknown loadStrategy: "+this.strategy;
       }
     }
-    this.ui = StretchUi.create(UiSizeFncs.constantHeight(1600));
-    this.ui.subscribe(drivers);
     return res;
   }
 
   leave(drivers) {
+    this.ui.unsubscribe(drivers);
   }
 
   static simple(texturePath) {
@@ -13347,6 +13361,7 @@ class TyracornScreenApp {
   activeScreen;
   loadingFutures;
   resetNextDt = false;
+  loadinScreenInitialized = false;
   constructor() {
   }
 
@@ -13360,8 +13375,14 @@ class TyracornScreenApp {
   init(drivers, properties) {
     this.properties = Dut.copyImmutableMap(properties);
     this.screenManager = TyracornScreenAppScreenManager.create();
-    let res = this.loadingScreen.init(drivers, this.screenManager, this.properties);
-    this.loadingFutures = this.activeScreen.init(drivers, this.screenManager, this.properties);
+    let res = this.loadingScreen.load(drivers, this.screenManager, this.properties);
+    this.loadingFutures = this.activeScreen.load(drivers, this.screenManager, this.properties);
+    if (this.loadingFutures.isEmpty()) {
+      drivers.getDriver("AssetManager").syncToDrivers();
+      this.activeScreen.init(drivers, this.screenManager, properties);
+      drivers.getDriver("AssetManager").syncToDrivers();
+      this.resetNextDt = true;
+    }
     return res;
   }
 
@@ -13378,16 +13399,23 @@ class TyracornScreenApp {
         }
         this.activeScreen = this.screenManager.getNextScreen();
         this.screenManager = TyracornScreenAppScreenManager.create();
-        this.loadingFutures = this.activeScreen.init(drivers, this.screenManager, this.properties);
+        this.loadingFutures = this.activeScreen.load(drivers, this.screenManager, this.properties);
         if (this.loadingFutures.isEmpty()) {
           drivers.getDriver("AssetManager").syncToDrivers();
-          this.activeScreen.warmUp(drivers, this.screenManager);
+          this.activeScreen.init(drivers, this.screenManager, this.properties);
+          drivers.getDriver("AssetManager").syncToDrivers();
           this.resetNextDt = true;
         }
       }
     }
     else {
-      this.loadingScreen.move(drivers, this.screenManager, dt);
+      if (this.loadinScreenInitialized) {
+        this.loadingScreen.move(drivers, this.screenManager, dt);
+      }
+      else {
+        this.loadingScreen.init(drivers, this.screenManager, this.properties);
+        this.loadinScreenInitialized = true;
+      }
       let futs = new ArrayList();
       for (let future of this.loadingFutures) {
         if (future.isDone()) {
@@ -13403,7 +13431,8 @@ class TyracornScreenApp {
       }
       if (this.loadingFutures.isEmpty()) {
         drivers.getDriver("AssetManager").syncToDrivers();
-        this.activeScreen.warmUp(drivers, this.screenManager);
+        this.activeScreen.init(drivers, this.screenManager, this.properties);
+        drivers.getDriver("AssetManager").syncToDrivers();
         this.resetNextDt = true;
       }
     }
@@ -15783,8 +15812,6 @@ class StandardCollisionManager {
   actorColliders = new HashMap();
   exclusions = new HashMap();
   actorExclusions = new HashMap();
-  warmedUp = false;
-  warmingUp = new HashSet();
   constructor() {
   }
 
@@ -15830,10 +15857,6 @@ class StandardCollisionManager {
   }
 
   onDomainUpdate(actor, domain) {
-    if (!this.warmedUp) {
-      this.warmingUp.add(actor);
-      return ;
-    }
     if (StandardCollisionManager.RECALCULATE_TRIGGER_DOMAINS.contains(domain)) {
       let tc = actor.getComponent("TransformComponent");
       let aabb = tc.getGlobalAabb();
@@ -15930,10 +15953,6 @@ class StandardCollisionManager {
   }
 
   recalculateActorFully(actor) {
-    if (!this.warmedUp) {
-      this.warmingUp.add(actor);
-      return ;
-    }
     let id = actor.getId();
     let actPreviousExcls = this.actorExclusions.remove(actor.getId());
     if (actPreviousExcls!=null) {
@@ -15988,17 +16007,6 @@ class StandardCollisionManager {
     else {
       this.exclusions.put(exclusion, num-1);
     }
-  }
-
-  warmUp() {
-    if (this.warmedUp) {
-      return ;
-    }
-    this.warmedUp = true;
-    for (let actor of this.warmingUp) {
-      this.recalculateActorFully(actor);
-    }
-    this.warmingUp = new HashSet();
   }
 
   toString() {
@@ -16170,8 +16178,7 @@ class PrimitiveCollisionDetector {
 
   static create(error) {
     let res = new PrimitiveCollisionDetector();
-    let sphereSphere = SphereSphereCollisionDetector.create(error);
-    res.detectors = Dut.immutableMap(Dut.immutableList("Sphere", "Sphere"), sphereSphere);
+    res.detectors = Collections.emptyMap();
     res.guardInvariants();
     return res;
   }
@@ -16674,11 +16681,6 @@ class RigidBodyWorld {
       this.assetManager.remove(id);
     }
     this.shadowBuffersIds = null;
-  }
-
-  warmUp() {
-    this.modelAabbs = ModelAabbs.calculateAllModelAabbs(this.assetManager);
-    this.collisionManager.warmUp();
   }
 
   move(dt, inputs) {
