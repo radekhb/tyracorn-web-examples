@@ -1593,6 +1593,18 @@ class Taps {
             if (entry.getType().equals(TapEntryType.TEXTURE)) {
                 const ag = TapTextures.toAssetGroup(entry);
                 res = res.mergeStrict(ag);
+            } else if (entry.getType().equals(TapEntryType.MATERIAL)) {
+                const ag = TapMaterials.toAssetGroup(entry);
+                res = res.mergeStrict(ag);
+            } else if (entry.getType().equals(TapEntryType.MESH)) {
+                const ag = TapMeshes.toAssetGroup(entry);
+                res = res.mergeStrict(ag);
+            } else if (entry.getType().equals(TapEntryType.MODEL)) {
+                const ag = TapModels.toAssetGroup(entry);
+                res = res.mergeStrict(ag);
+            } else if (entry.getType().equals(TapEntryType.PHYSICAL_MATERIAL)) {
+                const ag = TapPhysicalMaterials.toAssetGroup(entry);
+                res = res.mergeStrict(ag);
             } else if (entry.getType().equals(TapEntryType.FONT)) {
                 const ag = TapFonts.toAssetGroup(entry);
                 res = res.mergeStrict(ag);
@@ -1600,22 +1612,6 @@ class Taps {
                 throw new Error("unsupported entry type: " + entry.getType().toString());
             }
             /*
-             if (entry.getType().equals(TapEntryType.MESH)) {
-             AssetGroup ag = TapMeshes.toAssetGroup(entry);
-             res = res.mergeStrict(ag);
-             }
-             else if (entry.getType().equals(TapEntryType.MATERIAL)) {
-             AssetGroup ag = TapMaterials.toAssetGroup(entry);
-             res = res.mergeStrict(ag);
-             }
-             else if (entry.getType().equals(TapEntryType.PHYSICAL_MATERIAL)) {
-             AssetGroup ag = TapPhysicalMaterials.toAssetGroup(entry);
-             res = res.mergeStrict(ag);
-             }
-             else if (entry.getType().equals(TapEntryType.MODEL)) {
-             AssetGroup ag = TapModels.toAssetGroup(entry);
-             res = res.mergeStrict(ag);
-             }
              else if (entry.getType().equals(TapEntryType.CLIP_ANIMATION_COLLECTION)) {
              AssetGroup ag = TapClipAnimationCollections.toAssetGroup(entry);
              res = res.mergeStrict(ag);
@@ -3098,7 +3094,11 @@ class WebglSceneRenderer {
      * Performs rendering. Arguments determines how the object is rendered.
      */
     render() {
-        if (arguments.length === 3 && arguments[0] instanceof MeshId && arguments[1] instanceof Mat44 && arguments[2] instanceof Material) {
+        if (arguments.length === 2 && arguments[0] instanceof Model && arguments[1] instanceof Mat44) {
+            for (const part of arguments[0].getParts()) {
+                this.renderMesh(part.getMesh(), 0, 0, 0, arguments[1], part.getMaterial());
+            }
+        } else if (arguments.length === 3 && arguments[0] instanceof MeshId && arguments[1] instanceof Mat44 && arguments[2] instanceof Material) {
             this.renderMesh(arguments[0], 0, 0, 0, arguments[1], arguments[2]);
         } else if (arguments.length === 5 && arguments[0] instanceof Model &&
                 typeof arguments[1] === "number" && typeof arguments[2] === "number" && typeof arguments[3] === "number" &&
@@ -3406,6 +3406,10 @@ class WebglShadowMapRenderer {
     render() {
         if (arguments.length === 2 && arguments[0] instanceof MeshId && arguments[1] instanceof Mat44) {
             this.renderMesh(arguments[0], 0, 0, 0, arguments[1]);
+        } else if (arguments.length === 2 && arguments[0] instanceof Model && arguments[1] instanceof Mat44) {
+            for (const part of arguments[0].getParts()) {
+                this.renderMesh(part.getMesh(), 0, 0, 0, arguments[1]);
+            }
         } else if (arguments.length === 5 && arguments[0] instanceof Model &&
                 typeof arguments[1] === "number" && typeof arguments[2] === "number" && typeof arguments[3] === "number" &&
                 arguments[4] instanceof Mat44) {
@@ -12642,10 +12646,10 @@ class Assets {
     let id = PhysicalMaterialId.of(taskJson.getString("physicalMaterialId"));
     let pmJson = taskJson.getJSONObject("physicalMaterial");
     let bounciness = pmJson.getFloat("bounciness");
-    let bouninessCombineType = pmJson.getEnum("CombineType", "bouninessCombineType");
+    let bouninessCombineType = pmJson.getEnum("PhysicalMaterialCombineType", "bouninessCombineType");
     let staticFriction = pmJson.getFloat("staticFriction");
     let dynamicFriction = pmJson.getFloat("dynamicFriction");
-    let frictionCombineType = pmJson.getEnum("CombineType", "frictionCombineType");
+    let frictionCombineType = pmJson.getEnum("PhysicalMaterialCombineType", "frictionCombineType");
     let res = PhysicalMaterial.create(bounciness, bouninessCombineType, staticFriction, dynamicFriction, frictionCombineType);
     return AssetGroup.of(id, res);
   }
@@ -13064,6 +13068,299 @@ class TapTextures {
         reader.close();
       }
       return AssetGroup.of(TextureId.of(entry.getId()), texture);
+    }
+    else {
+      throw "unsupported version, implement me: "+entry.getVersion();
+    }
+  }
+
+}
+class TapMaterials {
+  constructor() {
+  }
+
+  getClass() {
+    return "TapMaterials";
+  }
+
+  static toEntry(id, material) {
+    let buf = null;
+    let bos = new ByteArrayOutputStream();
+    try {
+      bos.write(TapBytes.floatToBytes(material.getAmbient().r()));
+      bos.write(TapBytes.floatToBytes(material.getAmbient().g()));
+      bos.write(TapBytes.floatToBytes(material.getAmbient().b()));
+      bos.write(TapBytes.floatToBytes(material.getDiffuse().r()));
+      bos.write(TapBytes.floatToBytes(material.getDiffuse().g()));
+      bos.write(TapBytes.floatToBytes(material.getDiffuse().b()));
+      bos.write(TapBytes.floatToBytes(material.getSpecular().r()));
+      bos.write(TapBytes.floatToBytes(material.getSpecular().g()));
+      bos.write(TapBytes.floatToBytes(material.getSpecular().b()));
+      bos.write(TapBytes.floatToBytes(material.getShininess()));
+      bos.write(TapBytes.intToBytes(material.getTextures().size()));
+      for (let tex of material.getTextures()) {
+        bos.write(TapBytes.stringToBytes(tex.getType().name()));
+        bos.write(TapBytes.stringToBytes(tex.getTexture().id()));
+        bos.write(TapBytes.stringToBytes(tex.getStyle().getHorizWrapType().name()));
+        bos.write(TapBytes.stringToBytes(tex.getStyle().getVertWrapType().name()));
+        bos.write(TapBytes.floatToBytes(tex.getStyle().getBorderColor().r()));
+        bos.write(TapBytes.floatToBytes(tex.getStyle().getBorderColor().g()));
+        bos.write(TapBytes.floatToBytes(tex.getStyle().getBorderColor().b()));
+        bos.write(TapBytes.floatToBytes(tex.getStyle().getBorderColor().a()));
+        bos.write(TapBytes.stringToBytes(tex.getStyle().getMinFilterType().name()));
+        bos.write(TapBytes.stringToBytes(tex.getStyle().getMagFilterType().name()));
+      }
+      buf = bos.toByteArray();
+    }
+    catch (e) {
+      throw e;
+    }
+    finally {
+      if (bos!=null) {
+        try {
+          bos.close();
+        }
+        catch (ex) {
+        }
+      }
+    }
+    return TapEntry.create(TapEntryType.MATERIAL, id.id(), 1, buf);
+  }
+
+  static toAssetGroup(entry) {
+    Guard.equals(entry.getType(), TapEntryType.MATERIAL, "entry must be a material type");
+    if (entry.getVersion()==1) {
+      let reader = TapBufferReader.create(entry);
+      try {
+        let mb = MaterialBase.create(Rgb.create(reader.readFloat(), reader.readFloat(), reader.readFloat()), Rgb.create(reader.readFloat(), reader.readFloat(), reader.readFloat()), Rgb.create(reader.readFloat(), reader.readFloat(), reader.readFloat()), reader.readFloat());
+        let numAttch = reader.readInt();
+        let tas = new ArrayList();
+        for (let i = 0; i<numAttch; ++i) {
+          let type = TextureType.valueOf(reader.readString());
+          let id = TextureId.of(reader.readString());
+          let style = TextureStyle.create(TextureWrapType.valueOf(reader.readString()), TextureWrapType.valueOf(reader.readString()), Rgba.create(reader.readFloat(), reader.readFloat(), reader.readFloat(), reader.readFloat()), TextureFilterType.valueOf(reader.readString()), TextureFilterType.valueOf(reader.readString()));
+          tas.add(TextureAttachment.create(type, id, style));
+        }
+        let mat = Material.create(mb, tas);
+        return AssetGroup.of(MaterialId.of(entry.getId()), mat);
+      }
+      finally {
+        reader.close();
+      }
+    }
+    else {
+      throw "unsupported version, implement me: "+entry.getVersion();
+    }
+  }
+
+}
+class TapMeshes {
+  constructor() {
+  }
+
+  getClass() {
+    return "TapMeshes";
+  }
+
+  static toEntry(id, mesh) {
+    let buf = null;
+    let bos = new ByteArrayOutputStream();
+    try {
+      bos.write(TapBytes.intToBytes(mesh.getVertexAttrs().size()));
+      for (let attr of mesh.getVertexAttrs()) {
+        bos.write(TapBytes.stringToBytes(attr.getType().name()));
+        bos.write(TapBytes.intToBytes(attr.getSize()));
+      }
+      bos.write(TapBytes.intToBytes(mesh.getNumVertices()));
+      for (let vert of mesh.getVertices()) {
+        for (let i = 0; i<vert.dim(); ++i) {
+          bos.write(TapBytes.floatToBytes(vert.coord(i)));
+        }
+      }
+      bos.write(TapBytes.intToBytes(mesh.getNumFaces()));
+      for (let face of mesh.getFaces()) {
+        bos.write(TapBytes.intToBytes(face.getNumIndices()));
+        for (let i = 0; i<face.getNumIndices(); ++i) {
+          bos.write(TapBytes.intToBytes(face.getIndices().get(i)));
+        }
+      }
+      buf = bos.toByteArray();
+    }
+    catch (e) {
+      throw e;
+    }
+    finally {
+      if (bos!=null) {
+        try {
+          bos.close();
+        }
+        catch (ex) {
+        }
+      }
+    }
+    return TapEntry.create(TapEntryType.MESH, id.id(), 1, buf);
+  }
+
+  static toAssetGroup(entry) {
+    Guard.equals(entry.getType(), TapEntryType.MESH, "entry must be a mesh type");
+    if (entry.getVersion()==1) {
+      let reader = TapBufferReader.create(entry);
+      try {
+        let attrs = new ArrayList();
+        let verts = new ArrayList();
+        let faces = new ArrayList();
+        let numAttrs = reader.readInt();
+        for (let i = 0; i<numAttrs; ++i) {
+          let type = VertexAttrType.valueOf(reader.readString());
+          let size = reader.readInt();
+          attrs.add(VertexAttr.create(type, size));
+        }
+        let vertSize = TapMeshes.getVertexSize(attrs);
+        let numVerts = reader.readInt();
+        let vbuf = [];
+        for (let i = 0; i<numVerts; ++i) {
+          for (let j = 0; j<vertSize; ++j) {
+            vbuf[j] = reader.readFloat();
+          }
+          verts.add(Vertex.create(vbuf));
+        }
+        let numFaces = reader.readInt();
+        for (let i = 0; i<numFaces; ++i) {
+          let numIdxs = reader.readInt();
+          let idxs = [];
+          for (let j = 0; j<numIdxs; ++j) {
+            idxs[j] = reader.readInt();
+          }
+          faces.add(Face.create(idxs));
+        }
+        return AssetGroup.of(MeshId.of(entry.getId()), Mesh.create(attrs, verts, faces));
+      }
+      finally {
+        reader.close();
+      }
+    }
+    else {
+      throw "unsupported version, implement me: "+entry.getVersion();
+    }
+  }
+
+  static getVertexSize(attrs) {
+    let res = 0;
+    for (let attr of attrs) {
+      res = res+attr.getSize();
+    }
+    return res;
+  }
+
+}
+class TapModels {
+  constructor() {
+  }
+
+  getClass() {
+    return "TapModels";
+  }
+
+  static toEntry(id, model) {
+    let buf = null;
+    let bos = new ByteArrayOutputStream();
+    try {
+      bos.write(TapBytes.intToBytes(model.getParts().size()));
+      for (let part of model.getParts()) {
+        bos.write(TapBytes.stringToBytes(part.getMesh().id()));
+        bos.write(TapBytes.stringToBytes(part.getMaterial().id()));
+      }
+      buf = bos.toByteArray();
+    }
+    catch (e) {
+      throw e;
+    }
+    finally {
+      if (bos!=null) {
+        try {
+          bos.close();
+        }
+        catch (ex) {
+        }
+      }
+    }
+    return TapEntry.create(TapEntryType.MODEL, id.id(), 1, buf);
+  }
+
+  static toAssetGroup(entry) {
+    Guard.equals(entry.getType(), TapEntryType.MODEL, "entry must be a model type");
+    if (entry.getVersion()==1) {
+      let model = Model.empty();
+      let reader = TapBufferReader.create(entry);
+      try {
+        let num = reader.readInt();
+        for (let i = 0; i<num; ++i) {
+          let mesh = reader.readString();
+          let mat = reader.readString();
+          model = model.addPart(ModelPart.of(MeshId.of(mesh), MaterialId.of(mat)));
+        }
+      }
+      finally {
+        reader.close();
+      }
+      return AssetGroup.of(ModelId.of(entry.getId()), model);
+    }
+    else {
+      throw "unsupported version, implement me: "+entry.getVersion();
+    }
+  }
+
+}
+class TapPhysicalMaterials {
+  constructor() {
+  }
+
+  getClass() {
+    return "TapPhysicalMaterials";
+  }
+
+  static toEntry(id, material) {
+    let buf = null;
+    let bos = new ByteArrayOutputStream();
+    try {
+      bos.write(TapBytes.floatToBytes(material.getBounciness()));
+      bos.write(TapBytes.stringToBytes(material.getBouninessCombineType().name()));
+      bos.write(TapBytes.floatToBytes(material.getStaticFriction()));
+      bos.write(TapBytes.floatToBytes(material.getDynamicFriction()));
+      bos.write(TapBytes.stringToBytes(material.getFrictionCombineType().name()));
+      buf = bos.toByteArray();
+    }
+    catch (e) {
+      throw e;
+    }
+    finally {
+      if (bos!=null) {
+        try {
+          bos.close();
+        }
+        catch (ex) {
+        }
+      }
+    }
+    return TapEntry.create(TapEntryType.PHYSICAL_MATERIAL, id.id(), 1, buf);
+  }
+
+  static toAssetGroup(entry) {
+    Guard.equals(entry.getType(), TapEntryType.PHYSICAL_MATERIAL, "entry must be a PHYSICAL_MATERIAL type");
+    if (entry.getVersion()==1) {
+      let reader = TapBufferReader.create(entry);
+      try {
+        let bounciness = reader.readFloat();
+        let bct = PhysicalMaterialCombineType.valueOf(reader.readString());
+        let statfric = reader.readFloat();
+        let dynfric = reader.readFloat();
+        let fricct = PhysicalMaterialCombineType.valueOf(reader.readString());
+        let mat = PhysicalMaterial.create(bounciness, bct, statfric, dynfric, fricct);
+        return AssetGroup.of(PhysicalMaterialId.of(entry.getId()), mat);
+      }
+      finally {
+        reader.close();
+      }
     }
     else {
       throw "unsupported version, implement me: "+entry.getVersion();
@@ -14653,6 +14950,48 @@ class TransformComponent extends Component {
   }
 
 }
+class AutoRotateComponent extends Behavior {
+  angularVelocity = Vec3.ZERO;
+  transform;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "AutoRotateComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+  }
+
+  getAngularVelocity() {
+    return this.angularVelocity;
+  }
+
+  setAngularVelocity(angularVelocity) {
+    Guard.notNull(angularVelocity, "angularVelocity cannot be null");
+    this.angularVelocity = angularVelocity;
+    return this;
+  }
+
+  move(dt, inputs) {
+    this.transform.rotate(dt, this.angularVelocity);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new AutoRotateComponent();
+    res.guardInvariants();
+    return res;
+  }
+
+}
 class ModelComponent extends Component {
   static FEATURES = Dut.immutableSet(ComponentFeature.AABB_PRODUCER);
   modelId;
@@ -15253,6 +15592,1086 @@ class SkyboxComponent extends Component {
     res.modelId = ModelId.of("empty");
     res.transform = Mat44.IDENTITY;
     res.guardInvariants();
+    return res;
+  }
+
+}
+class WorldComponent extends Behavior {
+  gravity;
+  drag = 0.5;
+  angularDrag = 0.5;
+  boundary = Aabb3.create(-1000, -1000, -1000, 1000, 1000, 1000);
+  action;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "WorldComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt, inputs) {
+    this.world().actors().forEach(ActorId.ROOT, this.action);
+  }
+
+  getGravity() {
+    return this.gravity;
+  }
+
+  setGravity(gravity) {
+    Guard.notNull(gravity, "gravity cannot be null");
+    this.gravity = gravity;
+    this.action = this.createActorAction();
+    return this;
+  }
+
+  getDrag() {
+    return this.drag;
+  }
+
+  setDrag(drag) {
+    this.drag = drag;
+    this.action = this.createActorAction();
+    return this;
+  }
+
+  getAngularDrag() {
+    return this.angularDrag;
+  }
+
+  setAngularDrag(angularDrag) {
+    this.angularDrag = angularDrag;
+    this.action = this.createActorAction();
+    return this;
+  }
+
+  getBoundary() {
+    return this.boundary;
+  }
+
+  setBoundary(boundary) {
+    this.boundary = boundary;
+    return this;
+  }
+
+  createActorAction() {
+    return (fncActor) => {
+      let rb = fncActor.getComponentNonStrict("RigidBodyComponent");
+      if (rb!=null) {
+        if (!rb.isKinematic()) {
+          let gForce = this.gravity.scale(rb.getMass());
+          rb.applyForce(rb.getPos(), gForce);
+          let dragForce = rb.getVelocity().scale(-this.drag);
+          rb.applyForce(rb.getPos(), dragForce);
+          let dragTorque = rb.getAngularVelocity().scale(-this.angularDrag);
+          rb.applyTorque(dragTorque);
+        }
+        if (!this.boundary.isInside(rb.getPos())) {
+          fncActor.broadcastEvent(ActorEventType.OUTSPACE, null);
+        }
+      }
+      else {
+        let tc = fncActor.getComponentNonStrict("TransformComponent");
+        if (tc!=null) {
+          let pos = tc.toGlobal(Vec3.ZERO);
+          if (!this.boundary.isInside(pos)) {
+            fncActor.broadcastEvent(ActorEventType.OUTSPACE, null);
+          }
+        }
+      }
+    };
+  }
+
+  static create() {
+    let res = new WorldComponent();
+    res.gravity = Vec3.create(0, -9.81, 0);
+    res.drag = 0.5;
+    res.angularDrag = 0.5;
+    res.boundary = Aabb3.create(-1000, -1000, -1000, 1000, 1000, 1000);
+    res.guardInvariants();
+    res.action = res.createActorAction();
+    return res;
+  }
+
+}
+class ColliderComponent extends Component {
+  static FEATURES = Dut.immutableSet(ComponentFeature.AABB_PRODUCER, ComponentFeature.COLLIDER);
+  active = true;
+  trigger = false;
+  layer;
+  materialId;
+  pos = Vec3.ZERO;
+  rot = Quaternion.ZERO_ROT;
+  shape = ColliderShape.SPHERE;
+  radius = 1;
+  ex = 0.5;
+  ey = 0.5;
+  ez = 0.5;
+  height = 2;
+  localMat = Mat44.IDENTITY;
+  transformComp;
+  globalMat = null;
+  volume = null;
+  localAabb = null;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "ColliderComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transformComp = this.actor().getComponent("TransformComponent");
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+  }
+
+  getFeatures() {
+    return ColliderComponent.FEATURES;
+  }
+
+  onDomainEvent(domain, propagationType) {
+    if (domain.equals(ActorDomain.TRANSFORM)) {
+      this.globalMat = null;
+      this.volume = null;
+    }
+    return false;
+  }
+
+  isActive() {
+    return this.active;
+  }
+
+  setActive(active) {
+    this.active = active;
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    return this;
+  }
+
+  isTrigger() {
+    return this.trigger;
+  }
+
+  setTrigger(trigger) {
+    this.trigger = trigger;
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    return this;
+  }
+
+  getLayer() {
+    return this.layer;
+  }
+
+  setLayer(layer) {
+    Guard.notNull(layer, "layer cannot be null");
+    this.layer = layer;
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    return this;
+  }
+
+  getGlobalAabb() {
+    this.syncCache();
+    return this.transformComp.getGlobalAabb();
+  }
+
+  getMaterialId() {
+    return this.materialId;
+  }
+
+  setMaterialId(materialId) {
+    Guard.notNull(materialId, "materialId cannot be null");
+    this.materialId = materialId;
+    return this;
+  }
+
+  getMaterial() {
+    return this.world().assets().get("PhysicalMaterial", this.materialId);
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  setPos() {
+    if (arguments.length===1&&arguments[0] instanceof Vec3) {
+      return this.setPos_1_Vec3(arguments[0]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return this.setPos_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  setPos_1_Vec3(pos) {
+    this.pos = pos;
+    this.localMat = null;
+    this.globalMat = null;
+    this.volume = null;
+    this.localAabb = null;
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    return this;
+  }
+
+  setPos_3_number_number_number(x, y, z) {
+    return this.setPos(Vec3.create(x, y, z));
+  }
+
+  getRot() {
+    return this.rot;
+  }
+
+  setRot(rot) {
+    this.rot = rot;
+    this.localMat = null;
+    this.globalMat = null;
+    this.volume = null;
+    this.localAabb = null;
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    return this;
+  }
+
+  getShape() {
+    return this.shape;
+  }
+
+  setShape(shape) {
+    this.shape = shape;
+    this.volume = null;
+    this.localAabb = null;
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    return this;
+  }
+
+  getRadius() {
+    return this.radius;
+  }
+
+  setRadius(radius) {
+    this.radius = radius;
+    this.volume = null;
+    this.localAabb = null;
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    return this;
+  }
+
+  getSize() {
+    return Vec3.create(this.ex*2, this.ey*2, this.ez*2);
+  }
+
+  setSize() {
+    if (arguments.length===1&&arguments[0] instanceof Vec3) {
+      return this.setSize_1_Vec3(arguments[0]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return this.setSize_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  setSize_1_Vec3(size) {
+    this.ex = size.x()/2;
+    this.ey = size.y()/2;
+    this.ez = size.z()/2;
+    this.volume = null;
+    this.localAabb = null;
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    return this;
+  }
+
+  setSize_3_number_number_number(sx, sy, sz) {
+    return this.setSize(Vec3.create(sx, sy, sz));
+  }
+
+  getHeight() {
+    return this.height;
+  }
+
+  setHeight(height) {
+    this.height = height;
+    this.volume = null;
+    this.localAabb = null;
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    return this;
+  }
+
+  getVolume() {
+    this.syncCache();
+    return this.volume;
+  }
+
+  toGlobal(pt) {
+    this.syncCache();
+    return this.globalMat.mul(pt);
+  }
+
+  getLocalAabb() {
+    this.syncCache();
+    return this.localAabb;
+  }
+
+  randomPoint() {
+    this.syncCache();
+    if (this.shape.equals(ColliderShape.SPHERE)) {
+      let r = RandomUtils.nextFloat(0, this.radius);
+      let nx = RandomUtils.nextFloat(0, 1)-1;
+      let ny = RandomUtils.nextFloat(0, 1)-1;
+      let nz = RandomUtils.nextFloat(0, 1)-1;
+      let mag = FMath.sqrt(nx*nx+ny*ny+nz*nz);
+      nx = nx/mag;
+      ny = ny/mag;
+      nz = nz/mag;
+      return this.globalMat.mul(nx*this.radius, ny*this.radius, nz*this.radius);
+    }
+    else if (this.shape.equals(ColliderShape.BOX)) {
+      let x = RandomUtils.nextFloat(-this.ex, this.ex);
+      let y = RandomUtils.nextFloat(-this.ey, this.ey);
+      let z = RandomUtils.nextFloat(-this.ez, this.ez);
+      return this.globalMat.mul(x, y, z);
+    }
+    else if (this.shape.equals(ColliderShape.CAPSULE)) {
+      throw "TODO";
+    }
+    else {
+      throw "unsupported shape: "+this.shape;
+    }
+  }
+
+  syncCache() {
+    if (this.localMat==null) {
+      if (this.pos.equals(Vec3.ZERO)&&this.rot.equals(Quaternion.ZERO_ROT)) {
+        this.localMat = Mat44.IDENTITY;
+        this.globalMat = this.transformComp.getGlobalMat();
+      }
+      else {
+        this.localMat = Mat44.transofm(this.pos, this.rot);
+        this.globalMat = this.transformComp.getGlobalMat().mul(this.localMat);
+      }
+    }
+    if (this.globalMat==null) {
+      this.globalMat = this.transformComp.getGlobalMat().mul(this.localMat);
+    }
+    if (this.volume==null) {
+      if (this.shape.equals(ColliderShape.SPHERE)) {
+        let p = Vec3.create(this.globalMat.m03(), this.globalMat.m13(), this.globalMat.m23());
+        this.volume = CollisionSphere.create(p, this.radius);
+      }
+      else if (this.shape.equals(ColliderShape.BOX)) {
+        let p = Vec3.create(this.globalMat.m03(), this.globalMat.m13(), this.globalMat.m23());
+        let dirX = Vec3.create(this.globalMat.m00(), this.globalMat.m10(), this.globalMat.m20());
+        let dirY = Vec3.create(this.globalMat.m01(), this.globalMat.m11(), this.globalMat.m21());
+        let dirZ = Vec3.create(this.globalMat.m02(), this.globalMat.m12(), this.globalMat.m22());
+        this.volume = CollisionBox.create(p, dirX, dirY, dirZ, this.ex, this.ey, this.ez);
+      }
+      else if (this.shape.equals(ColliderShape.CAPSULE)) {
+        let p1 = this.globalMat.mul(Vec3.create(0, this.height/2-this.radius, 0));
+        let p2 = this.globalMat.mul(Vec3.create(0, this.radius-this.height/2, 0));
+        this.volume = CollisionCapsule.create(p1, p2, this.radius);
+      }
+      else {
+        throw "unsupported shape: "+this.shape;
+      }
+    }
+    if (this.localAabb==null) {
+      let baseAabb = null;
+      if (this.shape.equals(ColliderShape.SPHERE)) {
+        baseAabb = Aabb3.create(-this.radius, -this.radius, -this.radius, this.radius, this.radius, this.radius);
+      }
+      else if (this.shape.equals(ColliderShape.BOX)) {
+        baseAabb = Aabb3.create(-this.ex, -this.ey, -this.ez, this.ex, this.ey, this.ez);
+      }
+      else if (this.shape.equals(ColliderShape.CAPSULE)) {
+        baseAabb = Aabb3.create(-this.radius, -this.height/2, -this.radius, this.radius, this.height/2, this.radius);
+      }
+      else {
+        throw "unsupported shape: "+this.shape;
+      }
+      this.localAabb = this.localMat.equals(Mat44.IDENTITY)?baseAabb:baseAabb.transform(this.localMat);
+    }
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new ColliderComponent();
+    res.layer = CollisionLayer.OBJECT;
+    res.materialId = PhysicalMaterialId.of("default");
+    res.shape = ColliderShape.SPHERE;
+    res.pos = Vec3.ZERO;
+    res.rot = Quaternion.ZERO_ROT;
+    res.radius = 1;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class RigidBodyComponent extends Component {
+  static RB_EFFECTS = Dut.immutableSet(ComponentEffect.ABSOLUTE_COORDINATES);
+  kinematic = false;
+  mass = 1;
+  inverseMass = 1/this.mass;
+  localInertia = null;
+  inverseInertia = null;
+  rotationLock = false;
+  damp = 0.995;
+  angularDamp = 0.995;
+  velocity = Vec3.ZERO;
+  angularVelocity = Vec3.ZERO;
+  forceAccum = Vec3.ZERO;
+  torqueAccum = Vec3.ZERO;
+  transform;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "RigidBodyComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.localInertia = null;
+  }
+
+  onDomainEvent(domain, propagationType) {
+    if (domain.equals(ActorDomain.TRANSFORM)) {
+      this.inverseInertia = null;
+    }
+    else if (domain.equals(ActorDomain.COLLISION)) {
+      this.localInertia = null;
+      this.inverseInertia = null;
+    }
+    return false;
+  }
+
+  getEffects() {
+    return RigidBodyComponent.RB_EFFECTS;
+  }
+
+  isKinematic() {
+    return this.kinematic;
+  }
+
+  getInverseMass() {
+    return this.kinematic?0:this.inverseMass;
+  }
+
+  getInverseInertia() {
+    if (this.kinematic||this.rotationLock) {
+      return Mat33.ZERO;
+    }
+    if (this.localInertia==null) {
+      this.localInertia = this.calculateLocalInertia();
+      this.inverseInertia = null;
+    }
+    if (this.inverseInertia==null) {
+      this.inverseInertia = Inertias.toWorldCoords(this.localInertia, this.transform.getRot()).inv();
+    }
+    return this.inverseInertia;
+  }
+
+  setKinematic(kinematic) {
+    this.kinematic = kinematic;
+    return this;
+  }
+
+  getMass() {
+    return this.mass;
+  }
+
+  setMass(mass) {
+    Guard.positive(mass, "mass must be positive");
+    this.mass = mass;
+    this.inverseMass = 1/mass;
+    this.localInertia = null;
+    this.inverseInertia = null;
+    return this;
+  }
+
+  isRotationLock() {
+    return this.rotationLock;
+  }
+
+  setRotationLock(rotationLock) {
+    this.rotationLock = rotationLock;
+    return this;
+  }
+
+  getDamp() {
+    return this.damp;
+  }
+
+  setDamp(damp) {
+    this.damp = damp;
+    return this;
+  }
+
+  getAngularDamp() {
+    return this.angularDamp;
+  }
+
+  setAngularDamp(angularDamp) {
+    this.angularDamp = angularDamp;
+    return this;
+  }
+
+  getVelocity() {
+    return this.velocity;
+  }
+
+  setVelocity(velocity) {
+    Guard.notNull(velocity, "velocity cannot be null");
+    this.velocity = velocity;
+    return this;
+  }
+
+  getAngularVelocity() {
+    return this.angularVelocity;
+  }
+
+  setAngularVelocity(angularVelocity) {
+    Guard.notNull(angularVelocity, "angularVelocity cannot be null");
+    this.angularVelocity = angularVelocity;
+    return this;
+  }
+
+  getPointVelocity(point) {
+    if (this.kinematic) {
+      return Vec3.ZERO;
+    }
+    if (this.rotationLock) {
+      return this.velocity;
+    }
+    let r = point.sub(this.transform.getPos());
+    let c = Vec3.cross(this.angularVelocity, r);
+    return this.velocity.add(c);
+  }
+
+  applyForce(pos, f) {
+    if (this.kinematic) {
+      return ;
+    }
+    this.forceAccum = this.forceAccum.add(f);
+    if (this.rotationLock) {
+      return ;
+    }
+    let r = pos.sub(this.transform.getPos());
+    this.torqueAccum = this.torqueAccum.add(Vec3.cross(r, f));
+  }
+
+  applyTorque(t) {
+    if (this.kinematic||this.rotationLock) {
+      return ;
+    }
+    this.torqueAccum = this.torqueAccum.add(t);
+  }
+
+  getImpulseEffectOnPoint(impulsePos, impulse, targetPos) {
+    if (this.kinematic) {
+      return Vec3.ZERO;
+    }
+    let mef = impulse.scale(this.inverseMass);
+    if (this.rotationLock) {
+      return mef;
+    }
+    let applyR = impulsePos.sub(this.transform.getPos());
+    let angveldif = this.getInverseInertia().mul(Vec3.cross(applyR, impulse));
+    let targetR = targetPos.sub(this.transform.getPos());
+    let ref = Vec3.cross(angveldif, targetR);
+    return mef.add(ref);
+  }
+
+  applyImpulse(pos, im) {
+    if (this.kinematic) {
+      return ;
+    }
+    this.velocity = this.velocity.addScaled(im, this.inverseMass);
+    if (this.rotationLock) {
+      return ;
+    }
+    let r = pos.sub(this.transform.getPos());
+    this.angularVelocity = this.angularVelocity.add(this.getInverseInertia().mul(Vec3.cross(r, im)));
+  }
+
+  getTorqueImpulseEffect(tim) {
+    if (this.kinematic||this.rotationLock) {
+      return Vec3.ZERO;
+    }
+    return this.getInverseInertia().mul(tim);
+  }
+
+  applyTorqueImpulse(tim) {
+    if (this.kinematic||this.rotationLock) {
+      return ;
+    }
+    this.angularVelocity = this.angularVelocity.add(this.getInverseInertia().mul(tim));
+  }
+
+  isAbsolute() {
+    return true;
+  }
+
+  getPos() {
+    return this.transform.getPos();
+  }
+
+  getRot() {
+    return this.transform.getRot();
+  }
+
+  toGlobal(pt) {
+    return this.transform.toGlobal(pt);
+  }
+
+  toGlobalRot(dir) {
+    return this.transform.toGlobalRot(dir);
+  }
+
+  toLocal(pt) {
+    return this.transform.toLocal(pt);
+  }
+
+  toLocalRot(dir) {
+    return this.transform.toLocalRot(dir);
+  }
+
+  integrate(dt) {
+    if (this.kinematic) {
+      return ;
+    }
+    this.transform.move(this.velocity.scale(dt));
+    this.velocity = this.velocity.add(this.forceAccum.scale(dt*this.inverseMass));
+    this.velocity = this.velocity.scale(FMath.pow(this.damp, dt));
+    if (!this.rotationLock) {
+      let ininv = this.getInverseInertia();
+      this.transform.rotate(dt, this.angularVelocity);
+      this.angularVelocity = this.angularVelocity.add(ininv.mul(this.torqueAccum).scale(dt));
+      this.angularVelocity = this.angularVelocity.scale(FMath.pow(this.angularDamp, dt));
+    }
+  }
+
+  clearAccums() {
+    this.forceAccum = Vec3.ZERO;
+    this.torqueAccum = Vec3.ZERO;
+  }
+
+  calculateLocalInertia() {
+    let numColliders = 0;
+    let res = Mat33.ZERO;
+    for (let component of this.actor().getComponents()) {
+      if (component instanceof ColliderComponent) {
+        let collider = component;
+        if (!collider.isActive()||collider.isTrigger()) {
+          continue;
+        }
+        if (collider.getShape().equals(ColliderShape.SPHERE)) {
+          res = res.add(Inertias.sphere(this.mass, collider.getRadius()));
+          numColliders = numColliders+1;
+        }
+        else if (collider.getShape().equals(ColliderShape.CAPSULE)) {
+          res = res.add(Inertias.cylinder(this.mass, collider.getRadius(), collider.getHeight()));
+          numColliders = numColliders+1;
+        }
+        else if (collider.getShape().equals(ColliderShape.BOX)) {
+          res = res.add(Inertias.box(this.mass, collider.getSize().x(), collider.getSize().y(), collider.getSize().z()));
+          numColliders = numColliders+1;
+        }
+        else {
+          throw "unsupported collider shape, implement me: "+collider.getShape();
+        }
+      }
+    }
+    res = numColliders>0?res.mulel(1/numColliders):Inertias.sphere(this.mass, 1);
+    return res;
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new RigidBodyComponent();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+const createColliderShape = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const ColliderShape = Object.freeze({
+  SPHERE: createColliderShape("SPHERE"),
+  BOX: createColliderShape("BOX"),
+  CAPSULE: createColliderShape("CAPSULE"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class CollisionSphere {
+  pos;
+  radius;
+  constructor() {
+  }
+
+  getClass() {
+    return "CollisionSphere";
+  }
+
+  guardInvariants() {
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getRadius() {
+    return this.radius;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(pos, radius) {
+    let res = new CollisionSphere();
+    res.pos = pos;
+    res.radius = radius;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class CollisionCapsule {
+  pivot1;
+  pivot2;
+  radius;
+  dir;
+  pivotDst;
+  constructor() {
+  }
+
+  getClass() {
+    return "CollisionCapsule";
+  }
+
+  guardInvariants() {
+  }
+
+  initialize() {
+    let sub = this.pivot2.sub(this.pivot1);
+    this.dir = sub.normalize();
+    this.pivotDst = sub.mag();
+  }
+
+  getPivot1() {
+    return this.pivot1;
+  }
+
+  getPivot2() {
+    return this.pivot2;
+  }
+
+  getRadius() {
+    return this.radius;
+  }
+
+  getDir() {
+    return this.dir;
+  }
+
+  getPivotDst() {
+    return this.pivotDst;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(pivot1, pivot2, radius) {
+    let res = new CollisionCapsule();
+    res.pivot1 = pivot1;
+    res.pivot2 = pivot2;
+    res.radius = radius;
+    res.guardInvariants();
+    res.initialize();
+    return res;
+  }
+
+}
+class CollisionBox {
+  pos;
+  ux;
+  uy;
+  uz;
+  ex;
+  ey;
+  ez;
+  point1;
+  point2;
+  point3;
+  point4;
+  point5;
+  point6;
+  point7;
+  point8;
+  constructor() {
+  }
+
+  getClass() {
+    return "CollisionBox";
+  }
+
+  guardInvariants() {
+  }
+
+  initPoints() {
+    let dx = this.ux.scale(this.ex);
+    let dy = this.uy.scale(this.ey);
+    let dz = this.uz.scale(this.ez);
+    this.point1 = this.pos.sub(dx).sub(dy).sub(dz);
+    this.point2 = this.pos.sub(dx).sub(dy).add(dz);
+    this.point3 = this.pos.add(dx).sub(dy).add(dz);
+    this.point4 = this.pos.add(dx).sub(dy).sub(dz);
+    this.point5 = this.pos.sub(dx).add(dy).sub(dz);
+    this.point6 = this.pos.add(dx).add(dy).sub(dz);
+    this.point7 = this.pos.add(dx).add(dy).add(dz);
+    this.point8 = this.pos.sub(dx).add(dy).add(dz);
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getUx() {
+    return this.ux;
+  }
+
+  getUy() {
+    return this.uy;
+  }
+
+  getUz() {
+    return this.uz;
+  }
+
+  getEx() {
+    return this.ex;
+  }
+
+  getEy() {
+    return this.ey;
+  }
+
+  getEz() {
+    return this.ez;
+  }
+
+  getPoint1() {
+    return this.point1;
+  }
+
+  getPoint2() {
+    return this.point2;
+  }
+
+  getPoint3() {
+    return this.point3;
+  }
+
+  getPoint4() {
+    return this.point4;
+  }
+
+  getPoint5() {
+    return this.point5;
+  }
+
+  getPoint6() {
+    return this.point6;
+  }
+
+  getPoint7() {
+    return this.point7;
+  }
+
+  getPoint8() {
+    return this.point8;
+  }
+
+  closestPoint(pt) {
+    let d = pt.sub(this.pos);
+    let dx = d.dot(this.ux);
+    let dy = d.dot(this.uy);
+    let dz = d.dot(this.uz);
+    if (dx>=-this.ex&&dx<=this.ex&&dy>=-this.ey&&dy<=this.ey&&dz>=-this.ez&&dz<=this.ez) {
+      return pt;
+    }
+    if (dx>this.ex) {
+      dx = this.ex;
+    }
+    if (dx<-this.ex) {
+      dx = -this.ex;
+    }
+    if (dy>this.ey) {
+      dy = this.ey;
+    }
+    if (dy<-this.ey) {
+      dy = -this.ey;
+    }
+    if (dz>this.ez) {
+      dz = this.ez;
+    }
+    if (dz<-this.ez) {
+      dz = -this.ez;
+    }
+    return this.pos.add(this.ux.scale(dx)).add(this.uy.scale(dy)).add(this.uz.scale(dz));
+  }
+
+  collides(center, radius) {
+    let d = center.sub(this.pos);
+    let dx = FMath.abs(d.dot(this.ux));
+    let dy = FMath.abs(d.dot(this.uy));
+    let dz = FMath.abs(d.dot(this.uz));
+    return dx<=this.ex+radius&&dy<=this.ey+radius&&dz<=this.ez+radius;
+  }
+
+  projectToNormal(n) {
+    let p = n.dot(this.point1);
+    let max = p;
+    let min = p;
+    p = n.dot(this.point2);
+    max = FMath.max(max, p);
+    min = FMath.min(min, p);
+    p = n.dot(this.point3);
+    max = FMath.max(max, p);
+    min = FMath.min(min, p);
+    p = n.dot(this.point4);
+    max = FMath.max(max, p);
+    min = FMath.min(min, p);
+    p = n.dot(this.point5);
+    max = FMath.max(max, p);
+    min = FMath.min(min, p);
+    p = n.dot(this.point6);
+    max = FMath.max(max, p);
+    min = FMath.min(min, p);
+    p = n.dot(this.point7);
+    max = FMath.max(max, p);
+    min = FMath.min(min, p);
+    p = n.dot(this.point8);
+    max = FMath.max(max, p);
+    min = FMath.min(min, p);
+    return Interval2.create(min, max);
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    if (arguments.length===7&&arguments[0] instanceof Vec3&&arguments[1] instanceof Vec3&&arguments[2] instanceof Vec3&&arguments[3] instanceof Vec3&& typeof arguments[4]==="number"&& typeof arguments[5]==="number"&& typeof arguments[6]==="number") {
+      return CollisionBox.create_7_Vec3_Vec3_Vec3_Vec3_number_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5], arguments[6]);
+    }
+    else if (arguments.length===5&&arguments[0] instanceof Vec3&&arguments[1] instanceof Mat33&& typeof arguments[2]==="number"&& typeof arguments[3]==="number"&& typeof arguments[4]==="number") {
+      return CollisionBox.create_5_Vec3_Mat33_number_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static create_7_Vec3_Vec3_Vec3_Vec3_number_number_number(pos, ux, uy, uz, ex, ey, ez) {
+    let res = new CollisionBox();
+    res.pos = pos;
+    res.ux = ux;
+    res.uy = uy;
+    res.uz = uz;
+    res.ex = ex;
+    res.ey = ey;
+    res.ez = ez;
+    res.guardInvariants();
+    res.initPoints();
+    return res;
+  }
+
+  static create_5_Vec3_Mat33_number_number_number(pos, rot, ex, ey, ez) {
+    let res = new CollisionBox();
+    res.pos = pos;
+    res.ux = rot.mul(Vec3.create(1, 0, 0)).normalize();
+    res.uy = rot.mul(Vec3.create(0, 1, 0)).normalize();
+    res.uz = rot.mul(Vec3.create(0, 0, 1)).normalize();
+    res.ex = ex;
+    res.ey = ey;
+    res.ez = ez;
+    res.guardInvariants();
+    res.initPoints();
     return res;
   }
 
@@ -16524,6 +17943,254 @@ class PrimitiveCollisionDetector {
     res.error = error;
     res.parallelError = 0.01;
     res.crossError = 1e-5;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+const createPhysicalMaterialCombineType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const PhysicalMaterialCombineType = Object.freeze({
+  AVG: createPhysicalMaterialCombineType("AVG"),
+  MIN: createPhysicalMaterialCombineType("MIN"),
+  MUL: createPhysicalMaterialCombineType("MUL"),
+  MAX: createPhysicalMaterialCombineType("MAX"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class PhysicalMaterialId extends RefId {
+  static TYPE = RefIdType.of("PHYSICAL_MATERIAL_ID");
+  mId;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "PhysicalMaterialId";
+  }
+
+  guardInvariants() {
+  }
+
+  type() {
+    return PhysicalMaterialId.TYPE;
+  }
+
+  id() {
+    return this.mId;
+  }
+
+  hashCode() {
+    return this.mId.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof PhysicalMaterialId)) {
+      return false;
+    }
+    let other = obj;
+    return other.mId.equals(this.mId);
+  }
+
+  toString() {
+  }
+
+  static of(id) {
+    let res = new PhysicalMaterialId();
+    res.mId = id;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class PhysicalMaterial {
+  static COMBINE_PRIORITY = Dut.immutableMap(PhysicalMaterialCombineType.AVG, 0, PhysicalMaterialCombineType.MIN, 1, PhysicalMaterialCombineType.MUL, 2, PhysicalMaterialCombineType.MAX, 3);
+  bounciness;
+  bouninessCombineType;
+  staticFriction;
+  dynamicFriction;
+  frictionCombineType;
+  constructor() {
+  }
+
+  getClass() {
+    return "PhysicalMaterial";
+  }
+
+  guardInvariants() {
+  }
+
+  getBounciness() {
+    return this.bounciness;
+  }
+
+  getBouninessCombineType() {
+    return this.bouninessCombineType;
+  }
+
+  getStaticFriction() {
+    if (arguments.length===0) {
+      return this.getStaticFriction_0();
+    }
+    else if (arguments.length===1&&arguments[0] instanceof PhysicalMaterial) {
+      return this.getStaticFriction_1_PhysicalMaterial(arguments[0]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  getStaticFriction_0() {
+    return this.staticFriction;
+  }
+
+  getStaticFriction_1_PhysicalMaterial(other) {
+    return this.combine(this.staticFriction, this.frictionCombineType, other.staticFriction, other.frictionCombineType);
+  }
+
+  getDynamicFriction() {
+    if (arguments.length===0) {
+      return this.getDynamicFriction_0();
+    }
+    else if (arguments.length===1&&arguments[0] instanceof PhysicalMaterial) {
+      return this.getDynamicFriction_1_PhysicalMaterial(arguments[0]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  getDynamicFriction_0() {
+    return this.dynamicFriction;
+  }
+
+  getDynamicFriction_1_PhysicalMaterial(other) {
+    return this.combine(this.dynamicFriction, this.frictionCombineType, other.dynamicFriction, other.frictionCombineType);
+  }
+
+  getFrictionCombineType() {
+    return this.frictionCombineType;
+  }
+
+  getBounce(other) {
+    return this.combine(this.bounciness, this.bouninessCombineType, other.bounciness, other.bouninessCombineType);
+  }
+
+  combine(v1, c1, v2, c2) {
+    let p1 = PhysicalMaterial.COMBINE_PRIORITY.get(c1);
+    Guard.notNull(p1, "unsupported combine type: %s", c1);
+    let p2 = PhysicalMaterial.COMBINE_PRIORITY.get(c2);
+    Guard.notNull(p2, "unsupported combine type: %s", c2);
+    let c = p1>p2?c1:c2;
+    if (c.equals(PhysicalMaterialCombineType.AVG)) {
+      return (v1+v2)/2;
+    }
+    else if (c.equals(PhysicalMaterialCombineType.MIN)) {
+      return FMath.min(v1, v2);
+    }
+    else if (c.equals(PhysicalMaterialCombineType.MUL)) {
+      return v1*v2;
+    }
+    else if (c.equals(PhysicalMaterialCombineType.MAX)) {
+      return FMath.max(v1, v2);
+    }
+    else {
+      throw "unsupported combine type: "+c;
+    }
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(bounciness, bouninessCombineType, staticFriction, dynamicFriction, frictionCombineType) {
+    let res = new PhysicalMaterial();
+    res.bounciness = bounciness;
+    res.bouninessCombineType = bouninessCombineType;
+    res.staticFriction = staticFriction;
+    res.dynamicFriction = dynamicFriction;
+    res.frictionCombineType = frictionCombineType;
+    res.guardInvariants();
+    return res;
+  }
+
+  static simple() {
+    if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return PhysicalMaterial.simple_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="number"&& typeof arguments[1]==="number") {
+      return PhysicalMaterial.simple_2_number_number(arguments[0], arguments[1]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static simple_3_number_number_number(bounciness, staticFriction, dynamicFriction) {
+    let res = new PhysicalMaterial();
+    res.bounciness = bounciness;
+    res.bouninessCombineType = PhysicalMaterialCombineType.AVG;
+    res.staticFriction = staticFriction;
+    res.dynamicFriction = dynamicFriction;
+    res.frictionCombineType = PhysicalMaterialCombineType.AVG;
+    res.guardInvariants();
+    return res;
+  }
+
+  static simple_2_number_number(bounciness, friction) {
+    let res = new PhysicalMaterial();
+    res.bounciness = bounciness;
+    res.bouninessCombineType = PhysicalMaterialCombineType.AVG;
+    res.staticFriction = friction;
+    res.dynamicFriction = friction;
+    res.frictionCombineType = PhysicalMaterialCombineType.AVG;
     res.guardInvariants();
     return res;
   }
