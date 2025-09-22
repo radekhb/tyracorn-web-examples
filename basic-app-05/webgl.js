@@ -15630,6 +15630,7 @@ class CollisionGrid {
   putActor(actorId, aabb) {
     let origPlacement = this.placements.get(actorId);
     let placement = this.calculatePlacement(aabb);
+    this.aabbs.put(actorId, aabb);
     if (placement.equals(origPlacement)) {
       return ;
     }
@@ -15652,7 +15653,6 @@ class CollisionGrid {
       }
     }
     this.placements.put(actorId, placement);
-    this.aabbs.put(actorId, aabb);
   }
 
   copyActors(source) {
@@ -15803,7 +15803,81 @@ class CollisionGrid {
   }
 
 }
-class StandardCollisionManager {
+class CollisionGridBroadphaseManager {
+  cellSize;
+  cellSizeIncrement;
+  cellBuffer;
+  maxCells;
+  grid;
+  constructor() {
+  }
+
+  getClass() {
+    return "CollisionGridBroadphaseManager";
+  }
+
+  guardInvariants() {
+  }
+
+  putActor(actorId, aabb) {
+    this.ensureGrid(aabb);
+    this.grid.putActor(actorId, aabb);
+  }
+
+  removeActor(actorId) {
+    this.grid.removeActor(actorId);
+  }
+
+  getCandidatePairs() {
+    return this.grid.getCandidatePairs();
+  }
+
+  getCandidates(aabb) {
+    return this.grid.getCandidates(aabb);
+  }
+
+  renderDebug(gDriver, request, camera) {
+    this.grid.renderDebug(gDriver, request, camera);
+  }
+
+  ensureGrid(aabb) {
+    let gridMin = this.grid.getSpace().min();
+    let gridMax = this.grid.getSpace().max();
+    if (gridMin.x()<=aabb.min().x()&&gridMin.y()<=aabb.min().y()&&gridMin.z()<=aabb.min().z()&&gridMax.x()>aabb.max().x()&&gridMax.y()>aabb.max().y()&&gridMax.z()>aabb.max().z()) {
+      return ;
+    }
+    let newGridMin = Vec3.create(FMath.min(gridMin.x(), aabb.min().x()-this.cellSize*this.cellBuffer), FMath.min(gridMin.y(), aabb.min().y()-this.cellSize*this.cellBuffer), FMath.min(gridMin.z(), aabb.min().z()-this.cellSize*this.cellBuffer));
+    let newGridMax = Vec3.create(FMath.max(gridMax.x(), aabb.max().x()+this.cellSize*this.cellBuffer), FMath.max(gridMax.y(), aabb.max().y()+this.cellSize*this.cellBuffer), FMath.max(gridMax.z(), aabb.max().z()+this.cellSize*this.cellBuffer));
+    let numCellsX = FMath.trunc((newGridMax.x()-newGridMin.x())/this.cellSize)+1;
+    let numCellsY = FMath.trunc((newGridMax.x()-newGridMin.x())/this.cellSize)+1;
+    let numCellsZ = FMath.trunc((newGridMax.x()-newGridMin.x())/this.cellSize)+1;
+    while (numCellsX*numCellsY*numCellsZ>this.maxCells) {
+      this.cellSize = this.cellSize+this.cellSizeIncrement;
+      numCellsX = FMath.trunc((newGridMax.x()-newGridMin.x())/this.cellSize)+1;
+      numCellsY = FMath.trunc((newGridMax.x()-newGridMin.x())/this.cellSize)+1;
+      numCellsZ = FMath.trunc((newGridMax.x()-newGridMin.x())/this.cellSize)+1;
+    }
+    let newGrid = CollisionGrid.create(this.cellSize, newGridMin, numCellsX, numCellsY, numCellsZ);
+    newGrid.copyActors(this.grid);
+    this.grid = newGrid;
+  }
+
+  toString() {
+  }
+
+  static create(initCellSize) {
+    let res = new CollisionGridBroadphaseManager();
+    res.cellSize = initCellSize;
+    res.cellSizeIncrement = initCellSize;
+    res.cellBuffer = 5;
+    res.maxCells = 10000;
+    res.grid = CollisionGrid.create(initCellSize, Vec3.diagonal(-10), 10, 10, 10);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class BroadphaseCollisionManager {
   static RECALCULATE_TRIGGER_DOMAINS = Dut.immutableSet(ActorDomain.TRANSFORM, ActorDomain.COLLISION, ActorDomain.VISUAL);
   layerMatrix;
   detector;
@@ -15816,7 +15890,7 @@ class StandardCollisionManager {
   }
 
   getClass() {
-    return "StandardCollisionManager";
+    return "BroadphaseCollisionManager";
   }
 
   guardInvariants() {
@@ -15857,7 +15931,7 @@ class StandardCollisionManager {
   }
 
   onDomainUpdate(actor, domain) {
-    if (StandardCollisionManager.RECALCULATE_TRIGGER_DOMAINS.contains(domain)) {
+    if (BroadphaseCollisionManager.RECALCULATE_TRIGGER_DOMAINS.contains(domain)) {
       let tc = actor.getComponent("TransformComponent");
       let aabb = tc.getGlobalAabb();
       this.broadphase.putActor(actor.getId(), aabb);
@@ -15870,7 +15944,7 @@ class StandardCollisionManager {
     }
   }
 
-  getContacts() {
+  getAllContacts() {
     let candidates = this.broadphase.getCandidatePairs();
     let excls = this.exclusions.keySet();
     let res = new ArrayList();
@@ -16013,9 +16087,9 @@ class StandardCollisionManager {
   }
 
   static create(error) {
-    let res = new StandardCollisionManager();
+    let res = new BroadphaseCollisionManager();
     res.layerMatrix = CollisionLayerMatrix.standard();
-    res.broadphase = GridBroadphaseCollisionManager.create(10);
+    res.broadphase = CollisionGridBroadphaseManager.create(10);
     res.detector = PrimitiveCollisionDetector.create(error);
     res.actors = new HashMap();
     res.guardInvariants();
@@ -16023,134 +16097,341 @@ class StandardCollisionManager {
   }
 
 }
-class GridBroadphaseCollisionManager {
-  cellSize;
-  cellSizeIncrement;
-  cellBuffer;
-  maxCells;
-  grid;
+class SphereSphereCollisions {
   constructor() {
   }
 
   getClass() {
-    return "GridBroadphaseCollisionManager";
+    return "SphereSphereCollisions";
   }
 
-  guardInvariants() {
-  }
-
-  putActor(actorId, aabb) {
-    this.ensureGrid(aabb);
-    this.grid.putActor(actorId, aabb);
-  }
-
-  removeActor(actorId) {
-    this.grid.removeActor(actorId);
-  }
-
-  getCandidatePairs() {
-    return this.grid.getCandidatePairs();
-  }
-
-  getCandidates(aabb) {
-    return this.grid.getCandidates(aabb);
-  }
-
-  renderDebug(gDriver, request, camera) {
-    this.grid.renderDebug(gDriver, request, camera);
-  }
-
-  ensureGrid(aabb) {
-    let gridMin = this.grid.getSpace().min();
-    let gridMax = this.grid.getSpace().max();
-    if (gridMin.x()<=aabb.min().x()&&gridMin.y()<=aabb.min().y()&&gridMin.z()<=aabb.min().z()&&gridMax.x()>aabb.max().x()&&gridMax.y()>aabb.max().y()&&gridMax.z()>aabb.max().z()) {
-      return ;
-    }
-    let newGridMin = Vec3.create(FMath.min(gridMin.x(), aabb.min().x()-this.cellSize*this.cellBuffer), FMath.min(gridMin.y(), aabb.min().y()-this.cellSize*this.cellBuffer), FMath.min(gridMin.z(), aabb.min().z()-this.cellSize*this.cellBuffer));
-    let newGridMax = Vec3.create(FMath.max(gridMax.x(), aabb.max().x()+this.cellSize*this.cellBuffer), FMath.max(gridMax.y(), aabb.max().y()+this.cellSize*this.cellBuffer), FMath.max(gridMax.z(), aabb.max().z()+this.cellSize*this.cellBuffer));
-    let numCellsX = FMath.trunc((newGridMax.x()-newGridMin.x())/this.cellSize)+1;
-    let numCellsY = FMath.trunc((newGridMax.x()-newGridMin.x())/this.cellSize)+1;
-    let numCellsZ = FMath.trunc((newGridMax.x()-newGridMin.x())/this.cellSize)+1;
-    while (numCellsX*numCellsY*numCellsZ>this.maxCells) {
-      this.cellSize = this.cellSize+this.cellSizeIncrement;
-      numCellsX = FMath.trunc((newGridMax.x()-newGridMin.x())/this.cellSize)+1;
-      numCellsY = FMath.trunc((newGridMax.x()-newGridMin.x())/this.cellSize)+1;
-      numCellsZ = FMath.trunc((newGridMax.x()-newGridMin.x())/this.cellSize)+1;
-    }
-    let newGrid = CollisionGrid.create(this.cellSize, newGridMin, numCellsX, numCellsY, numCellsZ);
-    newGrid.copyActors(this.grid);
-    this.grid = newGrid;
-  }
-
-  toString() {
-  }
-
-  static create(initCellSize) {
-    let res = new GridBroadphaseCollisionManager();
-    res.cellSize = initCellSize;
-    res.cellSizeIncrement = initCellSize;
-    res.cellBuffer = 5;
-    res.maxCells = 10000;
-    res.grid = CollisionGrid.create(initCellSize, Vec3.diagonal(-10), 10, 10, 10);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-class SphereSphereCollisionDetector {
-  error = 0.005;
-  constructor() {
-  }
-
-  getClass() {
-    return "SphereSphereCollisionDetector";
-  }
-
-  guardInvariants() {
-  }
-
-  isCollision(volumeA, volumeB) {
-    Guard.beTrue(volumeA.getClass().equals("Sphere"), "volumeA must be sphere: %s", volumeA);
-    Guard.beTrue(volumeB.getClass().equals("Sphere"), "volumeB must be sphere: %s", volumeB);
-    let v1 = volumeA;
-    let v2 = volumeB;
-    let dst = v1.getPos().dist(v2.getPos());
-    if (dst>v1.getRadius()+v2.getRadius()+this.error) {
+  static isCollision(sphereA, sphereB, error) {
+    let dst = sphereA.getPos().dist(sphereB.getPos());
+    if (dst>sphereA.getRadius()+sphereB.getRadius()+error) {
       return false;
     }
     return true;
   }
 
-  getContactPoints(volumeA, volumeB) {
-    Guard.beTrue(volumeA.getClass().equals("Sphere"), "volumeA must be sphere: %s", volumeA);
-    Guard.beTrue(volumeB.getClass().equals("Sphere"), "volumeB must be sphere: %s", volumeB);
-    let v1 = volumeA;
-    let v2 = volumeB;
-    let dst = v1.getPos().dist(v2.getPos());
-    if (dst>v1.getRadius()+v2.getRadius()+this.error) {
+  static getContactPoints(sphereA, sphereB, error) {
+    let dst = sphereA.getPos().dist(sphereB.getPos());
+    if (dst>sphereA.getRadius()+sphereB.getRadius()+error) {
       return Collections.emptyList();
     }
-    let n = v2.getPos().sub(v1.getPos()).normalize();
-    let d = v1.getRadius()+v2.getRadius()-dst;
-    let posA = v1.getPos().addScaled(n, v1.getRadius());
-    let posB = v2.getPos().addScaled(n, -v2.getRadius());
+    let n = sphereB.getPos().sub(sphereA.getPos()).normalize();
+    let d = sphereA.getRadius()+sphereB.getRadius()-dst;
+    let posA = sphereA.getPos().addScaled(n, sphereA.getRadius());
+    let posB = sphereB.getPos().addScaled(n, -sphereB.getRadius());
     let contactPoint = ContactPoint.create(posA, posB, n, d);
     return Arrays.asList(contactPoint);
   }
 
-  toString() {
+}
+class CapsuleSphereCollisions {
+  constructor() {
   }
 
-  static create(error) {
-    let res = new SphereSphereCollisionDetector();
-    res.error = error;
-    res.guardInvariants();
+  getClass() {
+    return "CapsuleSphereCollisions";
+  }
+
+  static isCollision(capsule, sphere, error) {
+    let closest = CollisionGeometry.lineSegmentClosest(capsule.getPivot1(), capsule.getPivot2(), sphere.getPos());
+    let dst = closest.dist(sphere.getPos());
+    if (dst>capsule.getRadius()+sphere.getRadius()+error) {
+      return false;
+    }
+    return true;
+  }
+
+  static getContactPoints(capsule, sphere, error) {
+    let closest = CollisionGeometry.lineSegmentClosest(capsule.getPivot1(), capsule.getPivot2(), sphere.getPos());
+    let dst = closest.dist(sphere.getPos());
+    if (dst>capsule.getRadius()+sphere.getRadius()+error) {
+      return Collections.emptyList();
+    }
+    let n = sphere.getPos().sub(closest).normalize();
+    let depth = capsule.getRadius()+sphere.getRadius()-dst;
+    let posA = closest.addScaled(n, capsule.getRadius());
+    let posB = sphere.getPos().addScaled(n, -sphere.getRadius());
+    let contactPoint = ContactPoint.create(posA, posB, n, depth);
+    return Collections.singletonList(contactPoint);
+  }
+
+}
+class CapsuleCapsuleCollisions {
+  constructor() {
+  }
+
+  getClass() {
+    return "CapsuleCapsuleCollisions";
+  }
+
+  static isCollision(capsuleA, capsuleB, error, parallelError) {
+    let n = Vec3.cross(capsuleA.getDir(), capsuleB.getDir());
+    if (n.sqrMag()<parallelError) {
+      let p1 = CollisionGeometry.lineSegmentClosest(capsuleA.getPivot1(), capsuleA.getPivot2(), capsuleB.getPivot1());
+      let dst1 = p1.dist(capsuleB.getPivot1());
+      let p2 = CollisionGeometry.lineSegmentClosest(capsuleA.getPivot1(), capsuleA.getPivot2(), capsuleB.getPivot2());
+      let dst2 = p2.dist(capsuleB.getPivot2());
+      let p3 = CollisionGeometry.lineSegmentClosest(capsuleB.getPivot1(), capsuleB.getPivot2(), capsuleA.getPivot1());
+      let dst3 = p3.dist(capsuleA.getPivot1());
+      let p4 = CollisionGeometry.lineSegmentClosest(capsuleB.getPivot1(), capsuleB.getPivot2(), capsuleA.getPivot2());
+      let dst4 = p4.dist(capsuleA.getPivot2());
+      if (dst1<=error||dst2<=error||dst3<=error||dst4<=error) {
+        return false;
+      }
+      let cut = capsuleA.getRadius()+capsuleB.getRadius()+error;
+      if (dst1>cut&&dst2>cut&&dst3>cut&&dst4>cut) {
+        return false;
+      }
+      return true;
+    }
+    else {
+      n = n.normalize();
+      let n1 = Vec3.cross(capsuleA.getDir(), n);
+      let n2 = Vec3.cross(capsuleB.getDir(), n);
+      let t1 = capsuleB.getPivot1().sub(capsuleA.getPivot1()).dot(n2)/capsuleA.getDir().dot(n2);
+      let t2 = capsuleA.getPivot1().sub(capsuleB.getPivot1()).dot(n1)/capsuleB.getDir().dot(n1);
+      let p1 = capsuleA.getPivot1().add(capsuleA.getDir().scale(t1));
+      let p2 = capsuleB.getPivot1().add(capsuleB.getDir().scale(t2));
+      if (t1<0||t1>capsuleA.getPivotDst()) {
+        t1 = FMath.clamp(t1, 0, capsuleA.getPivotDst());
+        p1 = capsuleA.getPivot1().add(capsuleA.getDir().scale(t1));
+        t2 = CollisionGeometry.lineProjectedDst(capsuleB.getPivot1(), capsuleB.getDir(), p1);
+        p2 = capsuleB.getPivot1().add(capsuleB.getDir().scale(t2));
+      }
+      if (t2<0||t2>capsuleB.getPivotDst()) {
+        t2 = FMath.clamp(t2, 0, capsuleB.getPivotDst());
+        p2 = capsuleB.getPivot1().add(capsuleB.getDir().scale(t2));
+        t1 = FMath.clamp(CollisionGeometry.lineProjectedDst(capsuleA.getPivot1(), capsuleA.getDir(), p2), 0, capsuleA.getPivotDst());
+        p1 = capsuleA.getPivot1().add(capsuleA.getDir().scale(t1));
+      }
+      let dst = p1.dist(p2);
+      if (dst<error) {
+        return false;
+      }
+      if (dst>capsuleA.getRadius()+capsuleB.getRadius()+error) {
+        return false;
+      }
+      return true;
+    }
+  }
+
+  static getContactPoints(capsuleA, capsuleB, error, parallelError) {
+    let n = Vec3.cross(capsuleA.getDir(), capsuleB.getDir());
+    if (n.sqrMag()<parallelError) {
+      let p1 = CollisionGeometry.lineSegmentClosest(capsuleA.getPivot1(), capsuleA.getPivot2(), capsuleB.getPivot1());
+      let dst1 = p1.dist(capsuleB.getPivot1());
+      let p2 = CollisionGeometry.lineSegmentClosest(capsuleA.getPivot1(), capsuleA.getPivot2(), capsuleB.getPivot2());
+      let dst2 = p2.dist(capsuleB.getPivot2());
+      let p3 = CollisionGeometry.lineSegmentClosest(capsuleB.getPivot1(), capsuleB.getPivot2(), capsuleA.getPivot1());
+      let dst3 = p3.dist(capsuleA.getPivot1());
+      let p4 = CollisionGeometry.lineSegmentClosest(capsuleB.getPivot1(), capsuleB.getPivot2(), capsuleA.getPivot2());
+      let dst4 = p4.dist(capsuleA.getPivot2());
+      if (dst1<=error||dst2<=error||dst3<=error||dst4<=error) {
+        return Collections.emptyList();
+      }
+      let cut = capsuleA.getRadius()+capsuleB.getRadius()+error;
+      if (dst1>cut&&dst2>cut&&dst3>cut&&dst4>cut) {
+        return Collections.emptyList();
+      }
+      let res = new ArrayList();
+      if (dst1<=cut) {
+        let cn = capsuleB.getPivot1().sub(p1).normalize();
+        let d = capsuleA.getRadius()+capsuleB.getRadius()-dst1;
+        let posA = p1.addScaled(cn, capsuleA.getRadius());
+        let posB = capsuleB.getPivot1().addScaled(cn, -capsuleB.getRadius());
+        res.add(ContactPoint.create(posA, posB, cn, d));
+      }
+      if (dst2<=cut) {
+        let cn = capsuleB.getPivot2().sub(p2).normalize();
+        let d = capsuleA.getRadius()+capsuleB.getRadius()-dst2;
+        let posA = p2.addScaled(cn, capsuleA.getRadius());
+        let posB = capsuleB.getPivot2().addScaled(cn, -capsuleB.getRadius());
+        res.add(ContactPoint.create(posA, posB, cn, d));
+      }
+      if (dst3<=cut) {
+        let cn = p3.sub(capsuleA.getPivot1()).normalize();
+        let d = capsuleA.getRadius()+capsuleB.getRadius()-dst3;
+        let posA = capsuleA.getPivot1().addScaled(cn, capsuleA.getRadius());
+        let posB = p3.addScaled(cn, -capsuleB.getRadius());
+        res.add(ContactPoint.create(posA, posB, cn, d));
+      }
+      if (dst4<=cut) {
+        let cn = p4.sub(capsuleA.getPivot2()).normalize();
+        let d = capsuleA.getRadius()+capsuleB.getRadius()-dst4;
+        let posA = capsuleA.getPivot2().addScaled(cn, capsuleA.getRadius());
+        let posB = p4.addScaled(cn, -capsuleB.getRadius());
+        res.add(ContactPoint.create(posA, posB, cn, d));
+      }
+      return res;
+    }
+    else {
+      n = n.normalize();
+      let n1 = Vec3.cross(capsuleA.getDir(), n);
+      let n2 = Vec3.cross(capsuleB.getDir(), n);
+      let t1 = capsuleB.getPivot1().sub(capsuleA.getPivot1()).dot(n2)/capsuleA.getDir().dot(n2);
+      let t2 = capsuleA.getPivot1().sub(capsuleB.getPivot1()).dot(n1)/capsuleB.getDir().dot(n1);
+      let p1 = capsuleA.getPivot1().add(capsuleA.getDir().scale(t1));
+      let p2 = capsuleB.getPivot1().add(capsuleB.getDir().scale(t2));
+      if (t1<0||t1>capsuleA.getPivotDst()) {
+        t1 = FMath.clamp(t1, 0, capsuleA.getPivotDst());
+        p1 = capsuleA.getPivot1().add(capsuleA.getDir().scale(t1));
+        t2 = CollisionGeometry.lineProjectedDst(capsuleB.getPivot1(), capsuleB.getDir(), p1);
+        p2 = capsuleB.getPivot1().add(capsuleB.getDir().scale(t2));
+      }
+      if (t2<0||t2>capsuleB.getPivotDst()) {
+        t2 = FMath.clamp(t2, 0, capsuleB.getPivotDst());
+        p2 = capsuleB.getPivot1().add(capsuleB.getDir().scale(t2));
+        t1 = FMath.clamp(CollisionGeometry.lineProjectedDst(capsuleA.getPivot1(), capsuleA.getDir(), p2), 0, capsuleA.getPivotDst());
+        p1 = capsuleA.getPivot1().add(capsuleA.getDir().scale(t1));
+      }
+      let dst = p1.dist(p2);
+      if (dst<error) {
+        return Collections.emptyList();
+      }
+      if (dst>capsuleA.getRadius()+capsuleB.getRadius()+error) {
+        return Collections.emptyList();
+      }
+      let r1 = capsuleA.getRadius();
+      let r2 = capsuleB.getRadius();
+      let inter = r1/(r1+r2);
+      let normal = p2.sub(p1).normalize();
+      let d = capsuleA.getRadius()+capsuleB.getRadius()-dst;
+      let posA = p1.addScaled(normal, capsuleA.getRadius());
+      let posB = p2.addScaled(normal, -capsuleB.getRadius());
+      return Collections.singletonList(ContactPoint.create(posA, posB, normal, d));
+    }
+  }
+
+}
+class BoxSphereCollisions {
+  constructor() {
+  }
+
+  getClass() {
+    return "BoxSphereCollisions";
+  }
+
+  static isCollision(box, sphere, error) {
+    let closest = box.closestPoint(sphere.getPos());
+    let sub = closest.sub(sphere.getPos());
+    if (sub.mag()<error) {
+      return true;
+    }
+    let dst = sub.mag();
+    if (dst>sphere.getRadius()+error) {
+      return false;
+    }
+    return true;
+  }
+
+  static getContactPoints(box, sphere, error) {
+    let closest = box.closestPoint(sphere.getPos());
+    let sub = sphere.getPos().sub(closest);
+    let dst = sub.mag();
+    if (sub.mag()<error) {
+      let d = sphere.getPos().sub(box.getPos());
+      let dx = d.dot(box.getUx());
+      let dy = d.dot(box.getUy());
+      let dz = d.dot(box.getUz());
+      let dxp = box.getEx()-dx;
+      let dxm = box.getEx()+dx;
+      let dyp = box.getEy()-dy;
+      let dym = box.getEy()+dy;
+      let dzp = box.getEz()-dz;
+      let dzm = box.getEz()+dz;
+      let min = dxp;
+      let n = box.getUx();
+      if (dxm<min) {
+        min = dxm;
+        n = box.getUx().scale(-1);
+      }
+      if (dyp<min) {
+        min = dyp;
+        n = box.getUy();
+      }
+      if (dym<min) {
+        min = dym;
+        n = box.getUy().scale(-1);
+      }
+      if (dzp<min) {
+        min = dzp;
+        n = box.getUz();
+      }
+      if (dzm<min) {
+        min = dzm;
+        n = box.getUz().scale(-1);
+      }
+      return Collections.singletonList(ContactPoint.create(closest.addScaled(n, min), sphere.getPos().addScaled(n, -sphere.getRadius()), n, sphere.getRadius()+min));
+    }
+    if (dst>sphere.getRadius()+error) {
+      return Collections.emptyList();
+    }
+    let normal = sub.normalize();
+    return Collections.singletonList(ContactPoint.create(closest, sphere.getPos().addScaled(normal, -sphere.getRadius()), normal, sphere.getRadius()-dst));
+  }
+
+}
+class BoxCapsuleCollisions {
+  constructor() {
+  }
+
+  getClass() {
+    return "BoxCapsuleCollisions";
+  }
+
+  static isCollision(box, capsule, error, parallelError) {
+    return !(BoxCapsuleCollisions.getContactPoints(box, capsule, error, parallelError).isEmpty());
+  }
+
+  static getContactPoints(box, capsule, error, parallelError) {
+    let res = new ArrayList();
+    let closest = null;
+    let sub = null;
+    let dst = 0;
+    closest = box.closestPoint(capsule.getPivot1());
+    sub = capsule.getPivot1().sub(closest);
+    dst = sub.mag();
+    if (dst>error&&dst<=capsule.getRadius()+error) {
+      let n = sub.normalize();
+      res.add(ContactPoint.create(closest, capsule.getPivot1().addScaled(n, -capsule.getRadius()), n, capsule.getRadius()-dst));
+    }
+    closest = box.closestPoint(capsule.getPivot2());
+    sub = capsule.getPivot2().sub(closest);
+    dst = sub.mag();
+    if (dst>error&&dst<=capsule.getRadius()+error) {
+      let n = sub.normalize();
+      res.add(ContactPoint.create(closest, capsule.getPivot2().addScaled(n, -capsule.getRadius()), n, capsule.getRadius()-dst));
+    }
+    BoxCapsuleCollisions.insertEdgeContact(box.getPos(), box.getPoint1(), box.getPoint2(), capsule, res, error, parallelError);
+    BoxCapsuleCollisions.insertEdgeContact(box.getPos(), box.getPoint2(), box.getPoint3(), capsule, res, error, parallelError);
+    BoxCapsuleCollisions.insertEdgeContact(box.getPos(), box.getPoint3(), box.getPoint4(), capsule, res, error, parallelError);
+    BoxCapsuleCollisions.insertEdgeContact(box.getPos(), box.getPoint4(), box.getPoint1(), capsule, res, error, parallelError);
+    BoxCapsuleCollisions.insertEdgeContact(box.getPos(), box.getPoint5(), box.getPoint6(), capsule, res, error, parallelError);
+    BoxCapsuleCollisions.insertEdgeContact(box.getPos(), box.getPoint6(), box.getPoint7(), capsule, res, error, parallelError);
+    BoxCapsuleCollisions.insertEdgeContact(box.getPos(), box.getPoint7(), box.getPoint8(), capsule, res, error, parallelError);
+    BoxCapsuleCollisions.insertEdgeContact(box.getPos(), box.getPoint8(), box.getPoint5(), capsule, res, error, parallelError);
+    BoxCapsuleCollisions.insertEdgeContact(box.getPos(), box.getPoint1(), box.getPoint5(), capsule, res, error, parallelError);
+    BoxCapsuleCollisions.insertEdgeContact(box.getPos(), box.getPoint2(), box.getPoint8(), capsule, res, error, parallelError);
+    BoxCapsuleCollisions.insertEdgeContact(box.getPos(), box.getPoint3(), box.getPoint7(), capsule, res, error, parallelError);
+    BoxCapsuleCollisions.insertEdgeContact(box.getPos(), box.getPoint4(), box.getPoint6(), capsule, res, error, parallelError);
     return res;
+  }
+
+  static insertEdgeContact(boxPos, boxEdgeA, boxEdgeB, cap, outBuf, error, parallelError) {
+    let c = CollisionGeometry.edgeEdgeContactPoint(boxPos, boxEdgeA, boxEdgeB, cap.getPivot1(), cap.getPivot2(), cap.getRadius(), error, cap.getRadius(), parallelError);
+    if (c!=null) {
+      outBuf.add(c);
+    }
   }
 
 }
 class PrimitiveCollisionDetector {
-  detectors;
+  error;
+  parallelError;
+  crossError;
   constructor() {
   }
 
@@ -16162,15 +16443,77 @@ class PrimitiveCollisionDetector {
   }
 
   isCollision(volumeA, volumeB) {
-    return this.getDetector(volumeA, volumeB).isCollision(volumeA, volumeB);
+    if (volumeA instanceof CollisionSphere&&volumeB instanceof CollisionSphere) {
+      return SphereSphereCollisions.isCollision(volumeA, volumeB, this.error);
+    }
+    else if (volumeA instanceof CollisionCapsule&&volumeB instanceof CollisionSphere) {
+      return CapsuleSphereCollisions.isCollision(volumeA, volumeB, this.error);
+    }
+    else if (volumeA instanceof CollisionSphere&&volumeB instanceof CollisionCapsule) {
+      return CapsuleSphereCollisions.isCollision(volumeB, volumeA, this.error);
+    }
+    else if (volumeA instanceof CollisionCapsule&&volumeB instanceof CollisionCapsule) {
+      return CapsuleCapsuleCollisions.isCollision(volumeA, volumeB, this.error, this.parallelError);
+    }
+    else if (volumeA instanceof CollisionBox&&volumeB instanceof CollisionSphere) {
+      return BoxSphereCollisions.isCollision(volumeA, volumeB, this.error);
+    }
+    else if (volumeA instanceof CollisionSphere&&volumeB instanceof CollisionBox) {
+      return BoxSphereCollisions.isCollision(volumeB, volumeA, this.error);
+    }
+    else if (volumeA instanceof CollisionBox&&volumeB instanceof CollisionCapsule) {
+      return BoxCapsuleCollisions.isCollision(volumeA, volumeB, this.error, this.parallelError);
+    }
+    else if (volumeA instanceof CollisionCapsule&&volumeB instanceof CollisionBox) {
+      return BoxCapsuleCollisions.isCollision(volumeB, volumeA, this.error, this.parallelError);
+    }
+    else if (volumeA instanceof CollisionBox&&volumeB instanceof CollisionBox) {
+      return BoxBoxCollisions.isCollision(volumeA, volumeB, this.error, this.crossError);
+    }
+    else {
+      throw "unsupported volume classes, implement me";
+    }
   }
 
   getContactPoints(volumeA, volumeB) {
-    return this.getDetector(volumeA, volumeB).getContactPoints(volumeA, volumeB);
+    if (volumeA instanceof CollisionSphere&&volumeB instanceof CollisionSphere) {
+      return SphereSphereCollisions.getContactPoints(volumeA, volumeB, this.error);
+    }
+    else if (volumeA instanceof CollisionCapsule&&volumeB instanceof CollisionSphere) {
+      return CapsuleSphereCollisions.getContactPoints(volumeA, volumeB, this.error);
+    }
+    else if (volumeA instanceof CollisionSphere&&volumeB instanceof CollisionCapsule) {
+      return this.swapDirections(CapsuleSphereCollisions.getContactPoints(volumeB, volumeA, this.error));
+    }
+    else if (volumeA instanceof CollisionCapsule&&volumeB instanceof CollisionCapsule) {
+      return CapsuleCapsuleCollisions.getContactPoints(volumeA, volumeB, this.error, this.parallelError);
+    }
+    else if (volumeA instanceof CollisionBox&&volumeB instanceof CollisionSphere) {
+      return BoxSphereCollisions.getContactPoints(volumeA, volumeB, this.error);
+    }
+    else if (volumeA instanceof CollisionSphere&&volumeB instanceof CollisionBox) {
+      return this.swapDirections(BoxSphereCollisions.getContactPoints(volumeB, volumeA, this.error));
+    }
+    else if (volumeA instanceof CollisionBox&&volumeB instanceof CollisionCapsule) {
+      return BoxCapsuleCollisions.getContactPoints(volumeA, volumeB, this.error, this.parallelError);
+    }
+    else if (volumeA instanceof CollisionCapsule&&volumeB instanceof CollisionBox) {
+      return this.swapDirections(BoxCapsuleCollisions.getContactPoints(volumeB, volumeA, this.error, this.parallelError));
+    }
+    else if (volumeA instanceof CollisionBox&&volumeB instanceof CollisionBox) {
+      return BoxBoxCollisions.getContactPoints(volumeA, volumeB, this.error, this.crossError);
+    }
+    else {
+      throw "unsupported volume classes, implement me";
+    }
   }
 
-  getDetector(v1, v2) {
-    return this.detectors.get(Arrays.asList(v1.getClass(), v2.getClass()));
+  swapDirections(cps) {
+    let res = new ArrayList();
+    for (let cp of cps) {
+      res.add(cp.swap());
+    }
+    return res;
   }
 
   toString() {
@@ -16178,7 +16521,9 @@ class PrimitiveCollisionDetector {
 
   static create(error) {
     let res = new PrimitiveCollisionDetector();
-    res.detectors = Collections.emptyMap();
+    res.error = error;
+    res.parallelError = 0.01;
+    res.crossError = 1e-5;
     res.guardInvariants();
     return res;
   }
@@ -16688,7 +17033,7 @@ class RigidBodyWorld {
     while (this.cumDt>this.timeStep) {
       this.actorTree.forEach(ActorId.ROOT, ActorActions.move(this.timeStep, inputs));
       RigidBodies.integerateAndClearAccums(this.timeStep, this.actorTree);
-      this.contacts = this.collisionManager.getContacts();
+      this.contacts = this.collisionManager.getAllContacts();
       let solvableContacts = new ArrayList();
       for (let contact of this.contacts) {
         if (!contact.getColliderA().isTrigger()&&!contact.getColliderB().isTrigger()) {
@@ -16886,7 +17231,7 @@ class RigidBodyWorld {
   static create(drivers) {
     let res = new RigidBodyWorld();
     res.assetManager = drivers.getDriver("AssetManager");
-    res.collisionManager = StandardCollisionManager.create(0.005);
+    res.collisionManager = BroadphaseCollisionManager.create(0.005);
     res.actorTree = QueuedActorTree.create(InMemoryActorTree.crete(res, res.collisionManager));
     res.actorFactory = RigidBodyWorldActorFactory.create(res.actorTree, SequenceIdGenerator.create());
     res.timeStep = 0.02;
