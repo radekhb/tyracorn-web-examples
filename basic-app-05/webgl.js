@@ -1238,6 +1238,25 @@ class Dut {
     }
 }
 /**
+ * Utility class for formatting various things to string.
+ *
+ * @author radek.hecl
+ */
+class Formats {
+
+    /**
+     * Formats float number to fixed decimals.
+     *
+     * @param {Number} x number to format (float)
+     * @param {Number} numDecimals number of decimals (integer)
+     * @return {String} returned string
+     */
+    static floatToFixedDecimals(x, numDecimals) {
+        return "" + x.toFixed(numDecimals);
+    }
+
+}
+/**
  * Id generator which produces ids in the sequence.
  *
  * @author radek.hecl
