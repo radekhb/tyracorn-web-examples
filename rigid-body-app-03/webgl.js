@@ -1257,6 +1257,37 @@ class Formats {
 
 }
 /**
+ * Utility class for producing the random numbers.
+ *
+ * @author radek.hecl
+ */
+class Randoms {
+
+    /**
+     * Returns a random float within the specified range.
+     *
+     * @param {Number} start start number (inclusive)
+     * @param {Number} end end number (exclusive)
+     * @return {Number} random number
+     */
+    static nextFloat(start, end) {
+        const rnd = Math.random();
+        return rnd * (end - start) - start;
+    }
+
+    /**
+     * Creates Random alphabetic string.
+     *
+     * @param {Number} count number of characters
+     * @return {String} created string
+     */
+    static randomAlphabetic(count) {
+        // TODO - fix me here
+        return "" + Randoms.nextFloat(0, 100000);
+    }
+
+}
+/**
  * Id generator which produces ids in the sequence.
  *
  * @author radek.hecl
@@ -14399,6 +14430,49 @@ class Actor {
   }
 
 }
+class ActorEventType {
+  static OUTSPACE = ActorEventType.create("OUTSPACE");
+  type;
+  constructor() {
+  }
+
+  getClass() {
+    return "ActorEventType";
+  }
+
+  guardInvariants() {
+  }
+
+  getType() {
+    return this.type;
+  }
+
+  hashCode() {
+    return this.type.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ActorEventType)) {
+      return false;
+    }
+    let other = obj;
+    return other.type.equals(this.type);
+  }
+
+  toString() {
+  }
+
+  static create(type) {
+    let res = new ActorEventType();
+    res.type = type;
+    res.guardInvariants();
+    return res;
+  }
+
+}
 class ActorActions {
   constructor() {
   }
@@ -16327,6 +16401,31 @@ class RigidBodyComponent extends Component {
   }
 
 }
+class RemoveOnOutspaceComponent extends Component {
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "RemoveOnOutspaceComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  onEvent(type, event) {
+    if (type.equals(ActorEventType.OUTSPACE)) {
+      this.world().actors().remove(this.actor().getId());
+    }
+  }
+
+  static create() {
+    let res = new RemoveOnOutspaceComponent();
+    res.guardInvariants();
+    return res;
+  }
+
+}
 const createColliderShape = (description) => {
   const symbol = Symbol(description);
   return {
@@ -17967,6 +18066,33 @@ class PrimitiveCollisionDetector {
   }
 
 }
+class Inertias {
+  constructor() {
+  }
+
+  getClass() {
+    return "Inertias";
+  }
+
+  static box(m, sx, sy, sz) {
+    return Mat33.create(m*(sy*sy+sz*sz)/12, 0, 0, 0, m*(sx*sx+sz*sz)/12, 0, 0, 0, m*(sx*sx+sy*sy)/12);
+  }
+
+  static sphere(m, r) {
+    return Mat33.create(m*r*r*2/5, 0, 0, 0, m*r*r*2/5, 0, 0, 0, m*r*r*2/5);
+  }
+
+  static cylinder(m, r, h) {
+    return Mat33.create(m*h*h/12+m*r*r/4, 0, 0, 0, m*r*r/2, 0, 0, 0, m*h*h/12+m*r*r/4);
+  }
+
+  static toWorldCoords(local, rot) {
+    let mat = Mat33.rot(rot);
+    let mati = mat.transpose();
+    return mat.mul(local.mul(mati));
+  }
+
+}
 const createPhysicalMaterialCombineType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -19490,27 +19616,27 @@ class RigidBodyApp03 {
     this.ui.addComponent(this.gamePad);
     let btnFont = FontId.of("rubik-regular-20");
     let addSphereAct = (evtSource) => {
-      let r = RandomUtils.nextFloat(0.5, 1.5);
-      let m = RandomUtils.nextFloat(1, 2);
-      let sphere = Actor.create(RandomStringUtils.randomAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(objectColMatId));
+      let r = Randoms.nextFloat(0.5, 1.5);
+      let m = Randoms.nextFloat(1, 2);
+      let sphere = Actor.create(Randoms.randomAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(objectColMatId));
       this.world.actors().add(ActorId.ROOT, sphere);
     };
     let sphereBtn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.leftTop(20, 20, 120, 30)).setText("Sphere").setFont(btnFont).addOnClickAction(addSphereAct);
     this.ui.addComponent(sphereBtn);
     let addBoxAct = (evtSource) => {
-      let box = Actor.create(RandomStringUtils.randomAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId));
+      let box = Actor.create(Randoms.randomAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId));
       this.world.actors().add(ActorId.ROOT, box);
     };
     let boxBtn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.leftTop(20, 70, 120, 30)).setText("Box").setFont(btnFont).addOnClickAction(addBoxAct);
     this.ui.addComponent(boxBtn);
     let addBoxStraightAct = (evtSource) => {
-      let box = Actor.create(RandomStringUtils.randomAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 12, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId));
+      let box = Actor.create(Randoms.randomAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 12, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId));
       this.world.actors().add(ActorId.ROOT, box);
     };
     let boxStraightBtn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.leftTop(20, 120, 120, 30)).setText("Box Straight").setFont(btnFont).addOnClickAction(addBoxStraightAct);
     this.ui.addComponent(boxStraightBtn);
     let addCapsuleAct = (evtSource) => {
-      let capsule = Actor.create(RandomStringUtils.randomAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(cylinderRoundModelId).setTransform(Mat44.rotX(FMath.PI/2).mul(Mat44.scale(1, 1, 1)))).addComponent(ModelComponent.create().setModelId(halfSphereModelId).setTransform(Mat44.trans(0, 1, 0).mul(Mat44.rotX(FMath.PI/2)))).addComponent(ModelComponent.create().setModelId(halfSphereModelId).setTransform(Mat44.trans(0, -1, 0).mul(Mat44.rotX(-FMath.PI/2)))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.CAPSULE).setRadius(1).setHeight(4).setMaterialId(objectColMatId));
+      let capsule = Actor.create(Randoms.randomAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(cylinderRoundModelId).setTransform(Mat44.rotX(FMath.PI/2).mul(Mat44.scale(1, 1, 1)))).addComponent(ModelComponent.create().setModelId(halfSphereModelId).setTransform(Mat44.trans(0, 1, 0).mul(Mat44.rotX(FMath.PI/2)))).addComponent(ModelComponent.create().setModelId(halfSphereModelId).setTransform(Mat44.trans(0, -1, 0).mul(Mat44.rotX(-FMath.PI/2)))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.CAPSULE).setRadius(1).setHeight(4).setMaterialId(objectColMatId));
       this.world.actors().add(ActorId.ROOT, capsule);
     };
     let capsuleBtn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.leftTop(20, 170, 120, 30)).setText("Capsule").setFont(btnFont).addOnClickAction(addCapsuleAct);
@@ -19529,9 +19655,9 @@ class RigidBodyApp03 {
   }
 
   getRandomVelocity() {
-    let vx = RandomUtils.nextFloat(0, 2)-1;
-    let vy = RandomUtils.nextFloat(0, 2)-1;
-    let vz = RandomUtils.nextFloat(0, 2)-1;
+    let vx = Randoms.nextFloat(0, 2)-1;
+    let vy = Randoms.nextFloat(0, 2)-1;
+    let vz = Randoms.nextFloat(0, 2)-1;
     return Vec3.create(vx, vy, vz);
   }
 

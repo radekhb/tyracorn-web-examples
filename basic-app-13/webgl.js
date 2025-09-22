@@ -1257,6 +1257,37 @@ class Formats {
 
 }
 /**
+ * Utility class for producing the random numbers.
+ *
+ * @author radek.hecl
+ */
+class Randoms {
+
+    /**
+     * Returns a random float within the specified range.
+     *
+     * @param {Number} start start number (inclusive)
+     * @param {Number} end end number (exclusive)
+     * @return {Number} random number
+     */
+    static nextFloat(start, end) {
+        const rnd = Math.random();
+        return rnd * (end - start) - start;
+    }
+
+    /**
+     * Creates Random alphabetic string.
+     *
+     * @param {Number} count number of characters
+     * @return {String} created string
+     */
+    static randomAlphabetic(count) {
+        // TODO - fix me here
+        return "" + Randoms.nextFloat(0, 100000);
+    }
+
+}
+/**
  * Id generator which produces ids in the sequence.
  *
  * @author radek.hecl
@@ -14399,6 +14430,49 @@ class Actor {
   }
 
 }
+class ActorEventType {
+  static OUTSPACE = ActorEventType.create("OUTSPACE");
+  type;
+  constructor() {
+  }
+
+  getClass() {
+    return "ActorEventType";
+  }
+
+  guardInvariants() {
+  }
+
+  getType() {
+    return this.type;
+  }
+
+  hashCode() {
+    return this.type.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ActorEventType)) {
+      return false;
+    }
+    let other = obj;
+    return other.type.equals(this.type);
+  }
+
+  toString() {
+  }
+
+  static create(type) {
+    let res = new ActorEventType();
+    res.type = type;
+    res.guardInvariants();
+    return res;
+  }
+
+}
 class ActorActions {
   constructor() {
   }
@@ -16327,6 +16401,31 @@ class RigidBodyComponent extends Component {
   }
 
 }
+class RemoveOnOutspaceComponent extends Component {
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "RemoveOnOutspaceComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  onEvent(type, event) {
+    if (type.equals(ActorEventType.OUTSPACE)) {
+      this.world().actors().remove(this.actor().getId());
+    }
+  }
+
+  static create() {
+    let res = new RemoveOnOutspaceComponent();
+    res.guardInvariants();
+    return res;
+  }
+
+}
 const createColliderShape = (description) => {
   const symbol = Symbol(description);
   return {
@@ -17964,6 +18063,33 @@ class PrimitiveCollisionDetector {
     res.crossError = 1e-5;
     res.guardInvariants();
     return res;
+  }
+
+}
+class Inertias {
+  constructor() {
+  }
+
+  getClass() {
+    return "Inertias";
+  }
+
+  static box(m, sx, sy, sz) {
+    return Mat33.create(m*(sy*sy+sz*sz)/12, 0, 0, 0, m*(sx*sx+sz*sz)/12, 0, 0, 0, m*(sx*sx+sy*sy)/12);
+  }
+
+  static sphere(m, r) {
+    return Mat33.create(m*r*r*2/5, 0, 0, 0, m*r*r*2/5, 0, 0, 0, m*r*r*2/5);
+  }
+
+  static cylinder(m, r, h) {
+    return Mat33.create(m*h*h/12+m*r*r/4, 0, 0, 0, m*r*r/2, 0, 0, 0, m*h*h/12+m*r*r/4);
+  }
+
+  static toWorldCoords(local, rot) {
+    let mat = Mat33.rot(rot);
+    let mati = mat.transpose();
+    return mat.mul(local.mul(mati));
   }
 
 }
