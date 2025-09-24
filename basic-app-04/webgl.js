@@ -10230,6 +10230,7 @@ class StretchUi {
 
 }
 class UiComponent {
+  hash = Randoms.nextInt(0, 10000000);
   getClass() {
     return "UiComponent";
   }
@@ -10289,7 +10290,7 @@ class UiComponent {
   }
 
   hashCode() {
-    return super.hashCode();
+    return this.hash;
   }
 
   equals(obj) {

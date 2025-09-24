@@ -10230,6 +10230,7 @@ class StretchUi {
 
 }
 class UiComponent {
+  hash = Randoms.nextInt(0, 10000000);
   getClass() {
     return "UiComponent";
   }
@@ -10289,7 +10290,7 @@ class UiComponent {
   }
 
   hashCode() {
-    return super.hashCode();
+    return this.hash;
   }
 
   equals(obj) {
@@ -20414,7 +20415,7 @@ class PlayerCharacterBehavior extends Behavior {
     let punch = ClipAnimation.create(Clip.simple(14, 15, 16, 17, 18), 0.5, false, 0.45, "punch");
     let hit = ClipAnimation.create(Clip.simple(19, 20, 19), 0.3, false);
     this.animationPlayer = ClipAnimationPlayer.create("idle", ClipAnimationCollection.create(Dut.map("idle", idle, "walk", walk, "run", run, "punch", punch, "hit", hit)));
-    this.state = this::this.stateIdle;
+    this.state = this.stateIdle.bind(this);
   }
 
   getClass() {
@@ -20495,10 +20496,10 @@ class PlayerCharacterBehavior extends Behavior {
   stateIdle(input) {
     this.animationPlayer.play("idle");
     if (input.isPunch()) {
-      this.state = this::this.statePunch;
+      this.state = this.statePunch.bind(this);
     }
     else if (input.getDir().mag()>=PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
-      this.state = input.isRun()?this::this.stateRun:this::this.stateWalk;
+      this.state = input.isRun()?this.stateRun.bind(this):this.stateWalk.bind(this);
     }
     return null;
   }
@@ -20506,13 +20507,13 @@ class PlayerCharacterBehavior extends Behavior {
   stateWalk(input) {
     this.animationPlayer.play("walk");
     if (input.isPunch()) {
-      this.state = this::this.statePunch;
+      this.state = this.statePunch.bind(this);
     }
     else if (input.getDir().mag()<PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
-      this.state = this::this.stateIdle;
+      this.state = this.stateIdle.bind(this);
     }
     else if (input.isRun()) {
-      this.state = this::this.stateRun;
+      this.state = this.stateRun.bind(this);
     }
     else {
       let dir = input.getDir().normalize();
@@ -20558,13 +20559,13 @@ class PlayerCharacterBehavior extends Behavior {
   stateRun(input) {
     this.animationPlayer.play("run");
     if (input.isPunch()) {
-      this.state = this::this.statePunch;
+      this.state = this.statePunch.bind(this);
     }
     else if (input.getDir().mag()<PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
-      this.state = this::this.stateIdle;
+      this.state = this.stateIdle.bind(this);
     }
     else if (!input.isRun()) {
-      this.state = this::this.stateWalk;
+      this.state = this.stateWalk.bind(this);
     }
     else {
       let dir = input.getDir().normalize();
@@ -20614,10 +20615,10 @@ class PlayerCharacterBehavior extends Behavior {
         this.animationPlayer.playFromStart("punch");
       }
       else if (input.getDir().mag()>=PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
-        this.state = input.isRun()?this::this.stateRun:this::this.stateWalk;
+        this.state = input.isRun()?this.stateRun.bind(this):this.stateWalk.bind(this);
       }
       else {
-        this.state = this::this.stateIdle;
+        this.state = this.stateIdle.bind(this);
       }
     }
     return null;
