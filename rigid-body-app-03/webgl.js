@@ -967,6 +967,10 @@ class FMath {
         return Math.max(a, b);
     }
 
+    static clamp(x, min, max) {
+        return Math.max(min, Math.min(max, x));
+    }
+
     static abs(a) {
         return Math.abs(a);
     }
@@ -1111,6 +1115,18 @@ class Collections {
     }
 
     /**
+     * Returns list with one item.
+     * 
+     * @param {Any} item
+     * @returns {ArrayList} list with one item
+     */
+    static singletonList(item) {
+        const res = new ArrayList();
+        res.add(item);
+        return res;
+    }
+
+    /**
      * Returns empty set.
      * 
      * @returns {HashSet} empty set
@@ -1190,7 +1206,7 @@ class Dut {
         }
         return res;
     }
-    
+
     static copySet(collection) {
         let res = new HashSet();
         res.addAll(collection);
@@ -1236,6 +1252,18 @@ class Dut {
         res.putAll(map);
         return res;
     }
+
+    /**
+     * Returns string representation of this object, dumping all fields.
+     * This method uses reflection and makes the private fields accessible.
+     *
+     * @param {Any} obj object
+     * @return {String} string representation
+     */
+    static reflectionToString(obj) {
+        return "<placeholder>";
+    }
+
 }
 /**
  * Utility class for formatting various things to string.
@@ -1264,6 +1292,17 @@ class Formats {
 class Randoms {
 
     /**
+     * Returns a random integer within the specified range.
+     *
+     * @param {Number} start start number (inclusive)
+     * @param {Number} end end number (exclusive)
+     * @return {Number} random number
+     */
+    static nextInt(start, end) {
+        return Math.floor(Math.random() * (end - start + 1)) + start;
+    }
+
+    /**
      * Returns a random float within the specified range.
      *
      * @param {Number} start start number (inclusive)
@@ -1272,7 +1311,7 @@ class Randoms {
      */
     static nextFloat(start, end) {
         const rnd = Math.random();
-        return rnd * (end - start) - start;
+        return rnd * (end - start) + start;
     }
 
     /**
@@ -1281,7 +1320,7 @@ class Randoms {
      * @param {Number} count number of characters
      * @return {String} created string
      */
-    static randomAlphabetic(count) {
+    static nextAlphabetic(count) {
         // TODO - fix me here
         return "" + Randoms.nextFloat(0, 100000);
     }
@@ -5418,6 +5457,61 @@ class Vec4 {
   }
 
 }
+class Interval2 {
+  mMin;
+  mMax;
+  constructor() {
+  }
+
+  getClass() {
+    return "Interval2";
+  }
+
+  guardInvariants() {
+  }
+
+  min() {
+    return this.mMin;
+  }
+
+  max() {
+    return this.mMax;
+  }
+
+  length() {
+    return this.mMax-this.mMin;
+  }
+
+  hashCode() {
+    return this.mMin+13*this.mMax;
+  }
+
+  equals(obj) {
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof Interval2)) {
+      return false;
+    }
+    let ob = obj;
+    return ob.mMin==this.mMin&&ob.mMax==this.mMax;
+  }
+
+  toString() {
+  }
+
+  static create(min, max) {
+    let res = new Interval2();
+    res.mMin = min;
+    res.mMax = max;
+    res.guardInvariants();
+    return res;
+  }
+
+}
 class Mat33 {
   static ZERO = Mat33.create(0, 0, 0, 0, 0, 0, 0, 0, 0);
   static IDENTITY = Mat33.create(1, 0, 0, 0, 1, 0, 0, 0, 1);
@@ -5897,7 +5991,7 @@ class Mat44 {
   inv() {
     let determinant = this.det();
     if (FMath.abs(determinant)<1e-9) {
-      throw "matrix inversion doesn't exists: "+this;
+      throw "matrix inversion doesn't exists: "+determinant+", "+this.toString();
     }
     let res = new Mat44();
     res.mm00 = (this.mm11*this.mm22*this.mm33+this.mm12*this.mm23*this.mm31+this.mm13*this.mm21*this.mm32-this.mm13*this.mm22*this.mm31-this.mm12*this.mm21*this.mm33-this.mm11*this.mm23*this.mm32)/determinant;
@@ -11653,6 +11747,240 @@ class Fonts {
   }
 
 }
+class Clip {
+  frames;
+  constructor() {
+  }
+
+  getClass() {
+    return "Clip";
+  }
+
+  guardInvaritants() {
+    Guard.notNullCollection(this.frames, "frames cannot have null element");
+    Guard.beTrue(this.frames.size()>=2, "at least 2 frames must be defined");
+  }
+
+  getNumFrames() {
+    return this.frames.size();
+  }
+
+  getFrames() {
+    return this.frames;
+  }
+
+  getFrame(idx) {
+    return this.frames.get(idx);
+  }
+
+  hashCode() {
+    return this.frames.hashCode();
+  }
+
+  equals(obj) {
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof Clip)) {
+      return false;
+    }
+    let other = obj;
+    return this.frames.equals(other.frames);
+  }
+
+  toString() {
+  }
+
+  static create(frames) {
+    let res = new Clip();
+    res.frames = Dut.copyImmutableList(frames);
+    res.guardInvaritants();
+    return res;
+  }
+
+  static simple(...frames) {
+    if (Array.isArray(frames)&&frames.length===1&&Array.isArray(frames[0])) {
+      frames = frames[0];
+    }
+    let list = new ArrayList(frames.length);
+    for (let f of frames) {
+      list.add(f);
+    }
+    return Clip.create(list);
+  }
+
+}
+class ClipAnimation {
+  clip;
+  duration;
+  loop;
+  triggers;
+  constructor() {
+  }
+
+  getClass() {
+    return "ClipAnimation";
+  }
+
+  guardInvaritants() {
+    Guard.notNull(this.clip, "clip cannot be null");
+    Guard.positive(this.duration, "duration must be positive");
+    Guard.notNullMap(this.triggers, "triggers cannot have null key or value");
+  }
+
+  getClip() {
+    return this.clip;
+  }
+
+  isLoop() {
+    return this.loop;
+  }
+
+  getDuration() {
+    return this.duration;
+  }
+
+  getTriggers() {
+    if (arguments.length===0) {
+      return this.getTriggers_0();
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="number"&& typeof arguments[1]==="number") {
+      return this.getTriggers_2_number_number(arguments[0], arguments[1]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  getTriggers_0() {
+    return this.triggers;
+  }
+
+  getTriggers_2_number_number(tStart, tEnd) {
+    if (this.triggers.isEmpty()) {
+      return Collections.emptySet();
+    }
+    if (this.loop) {
+      tStart = tStart%this.duration;
+      tStart = tStart<0?tStart+this.duration:tStart;
+      tEnd = tEnd%this.duration;
+      tEnd = tEnd<0?tEnd+this.duration:tEnd;
+    }
+    if (tEnd<tStart) {
+      let res = new HashSet();
+      for (let t of this.triggers.keySet()) {
+        if (t<tEnd||t>=tStart) {
+          res.addAll(this.triggers.get(t));
+        }
+      }
+      return res;
+    }
+    else {
+      let res = new HashSet();
+      for (let t of this.triggers.keySet()) {
+        if (t>=tStart&&t<tEnd) {
+          res.addAll(this.triggers.get(t));
+        }
+      }
+      return res;
+    }
+  }
+
+  interpolate(t) {
+    if (this.loop) {
+      t = t%this.duration;
+      t = t<0?t+this.duration:t;
+    }
+    Guard.beTrue(t>=0&&t<=this.duration, "t must be in [0, duration] interval");
+    if (t==0) {
+      let frame = this.clip.getFrame(0);
+      return FrameInterpolation.create(frame, frame, 0);
+    }
+    if (t==this.duration) {
+      let frame = this.clip.getFrame(this.clip.getNumFrames()-1);
+      return FrameInterpolation.create(frame, frame, 0);
+    }
+    let frameTime = this.duration/(this.clip.getNumFrames()-1);
+    let sfidx = (t/frameTime);
+    let intt = (t-(frameTime*sfidx))/frameTime;
+    intt = intt<0?0:(intt>1?1:intt);
+    return FrameInterpolation.create(this.clip.getFrame(sfidx), this.clip.getFrame(sfidx+1), intt);
+  }
+
+  hashCode() {
+    return this.clip.hashCode()+(7*this.duration)+13*this.triggers.hashCode();
+  }
+
+  equals(obj) {
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ClipAnimation)) {
+      return false;
+    }
+    let other = obj;
+    return this.clip.equals(other.clip)&&this.duration==other.duration&&this.loop==other.loop&&this.triggers.equals(other.triggers);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    if (arguments.length===3&&arguments[0] instanceof Clip&& typeof arguments[1]==="number"&& typeof arguments[2]==="boolean") {
+      return ClipAnimation.create_3_Clip_number_boolean(arguments[0], arguments[1], arguments[2]);
+    }
+    else if (arguments.length===5&&arguments[0] instanceof Clip&& typeof arguments[1]==="number"&& typeof arguments[2]==="boolean"&& typeof arguments[3]==="number"&& typeof arguments[4]==="string") {
+      return ClipAnimation.create_5_Clip_number_boolean_number_string(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
+    }
+    else if (arguments.length===4&&arguments[0] instanceof Clip&& typeof arguments[1]==="number"&& typeof arguments[2]==="boolean"&&arguments[3] instanceof HashMap) {
+      return ClipAnimation.create_4_Clip_number_boolean_Map(arguments[0], arguments[1], arguments[2], arguments[3]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static create_3_Clip_number_boolean(clip, duration, loop) {
+    let res = new ClipAnimation();
+    res.clip = clip;
+    res.duration = duration;
+    res.loop = loop;
+    res.triggers = Collections.emptySortedMap();
+    res.guardInvaritants();
+    return res;
+  }
+
+  static create_5_Clip_number_boolean_number_string(clip, duration, loop, triggerT, tigger) {
+    let res = new ClipAnimation();
+    res.clip = clip;
+    res.duration = duration;
+    res.loop = loop;
+    res.triggers = Dut.immutableSortedMap(triggerT, Dut.immutableSet(tigger));
+    res.guardInvaritants();
+    return res;
+  }
+
+  static create_4_Clip_number_boolean_Map(clip, duration, loop, triggers) {
+    let res = new ClipAnimation();
+    res.clip = clip;
+    res.duration = duration;
+    res.loop = loop;
+    res.triggers = new TreeMap();
+    for (let t of triggers.keySet()) {
+      res.triggers.put(t, Dut.copyImmutableSet(triggers.get(t)));
+    }
+    res.triggers = Collections.unmodifiableSortedMap(res.triggers);
+    res.guardInvaritants();
+    return res;
+  }
+
+}
 class FrameInterpolation {
   start;
   end;
@@ -14691,6 +15019,7 @@ const ComponentFeature = Object.freeze({
 class Component {
   mActor = null;
   mKey = "";
+  hash = Randoms.nextInt(0, 10000000);
   constructor() {
   }
 
@@ -14771,7 +15100,7 @@ class Component {
   }
 
   hashCode() {
-    return super.hashCode();
+    return this.hash;
   }
 
   equals(obj) {
@@ -16426,6 +16755,71 @@ class RemoveOnOutspaceComponent extends Component {
   }
 
 }
+class CollisionGeometry {
+  constructor() {
+  }
+
+  getClass() {
+    return "CollisionGeometry";
+  }
+
+  static lineProjectedDst(start, dir, pt) {
+    let dx = pt.x()-start.x();
+    let dy = pt.y()-start.y();
+    let dz = pt.z()-start.z();
+    return dx*dir.x()+dy*dir.y()+dz*dir.z();
+  }
+
+  static lineSegmentClosest(start, end, pt) {
+    let diff = end.sub(start);
+    let ptdiff = pt.sub(start);
+    let t = FMath.clamp(diff.dot(ptdiff)/diff.dot(diff), 0, 1);
+    return start.addScaled(diff, t);
+  }
+
+  static edgeEdgeContactPoint(aCenter, a1, a2, b1, b2, bShift, maxSep, maxPen, parThres) {
+    let adir = a2.subAndNormalize(a1);
+    let bdir = b2.subAndNormalize(b1);
+    let n = Vec3.cross(adir, bdir);
+    if (n.sqrMag()<parThres) {
+      return null;
+    }
+    n = n.normalize();
+    let bToa = a1.sub(b1);
+    let sab = adir.dot(bdir);
+    let ra = bToa.dot(adir);
+    let rb = bToa.dot(bdir);
+    let t1 = (ra-sab*rb)/(sab*sab-1);
+    let t2 = (-rb+ra*sab)/(sab*sab-1);
+    if (t1<0||t1*t1>a2.sqrDist(a1)||t2<0||t2*t2>b2.sqrDist(b1)) {
+      return null;
+    }
+    let ap = a1.addScaled(adir, t1);
+    let bp = b1.addScaled(bdir, t2);
+    let centerToAp = ap.sub(aCenter);
+    let negN = n.scale(-1);
+    if (centerToAp.dot(negN)>centerToAp.dot(n)) {
+      n = negN;
+    }
+    if (bShift!=0) {
+      bp = bp.addScaled(n, -bShift);
+    }
+    let depth = ap.dot(n)-bp.dot(n);
+    let depthSqr = depth*depth;
+    if (depth>=0) {
+      if (depthSqr>maxPen) {
+        return null;
+      }
+    }
+    else {
+      if (depthSqr>maxSep) {
+        return null;
+      }
+    }
+    return ContactPoint.create(ap, bp, n, depth);
+  }
+
+}
 const createColliderShape = (description) => {
   const symbol = Symbol(description);
   return {
@@ -17634,6 +18028,154 @@ class BroadphaseCollisionManager {
   }
 
 }
+class ContactPoint {
+  posA;
+  posB;
+  normal;
+  tangent1;
+  tangent2;
+  depth;
+  constructor() {
+  }
+
+  getClass() {
+    return "ContactPoint";
+  }
+
+  guardInvariants() {
+  }
+
+  getPosA() {
+    return this.posA;
+  }
+
+  getPosB() {
+    return this.posB;
+  }
+
+  getNormal() {
+    return this.normal;
+  }
+
+  getTangent1() {
+    return this.tangent1;
+  }
+
+  getTangent2() {
+    return this.tangent2;
+  }
+
+  getDepth() {
+    return this.depth;
+  }
+
+  swap() {
+    let res = new ContactPoint();
+    res.posA = this.posB;
+    res.posB = this.posA;
+    res.normal = this.normal.scale(-1);
+    res.tangent1 = this.tangent1.scale(-1);
+    res.tangent2 = this.tangent2.scale(-1);
+    res.depth = this.depth;
+    return res;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(posA, posB, normal, depth) {
+    let res = new ContactPoint();
+    res.posA = posA;
+    res.posB = posB;
+    res.normal = normal;
+    if (FMath.abs(normal.x())>=0.57735) {
+      res.tangent1 = Vec3.create(normal.y(), -normal.x(), 0.0).normalize();
+    }
+    else {
+      res.tangent1 = Vec3.create(0, normal.z(), -normal.y()).normalize();
+    }
+    res.tangent2 = Vec3.cross(normal, res.tangent1);
+    res.depth = depth;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class Contact {
+  colliderA;
+  colliderB;
+  contactPoints;
+  constructor() {
+  }
+
+  getClass() {
+    return "Contact";
+  }
+
+  guardInvariants() {
+  }
+
+  getRigidBodyA() {
+    return this.colliderA.actor().getComponent("RigidBodyComponent");
+  }
+
+  getRigidBodyB() {
+    return this.colliderB.actor().getComponent("RigidBodyComponent");
+  }
+
+  getColliderA() {
+    return this.colliderA;
+  }
+
+  getColliderB() {
+    return this.colliderB;
+  }
+
+  getContactPoints() {
+    return this.contactPoints;
+  }
+
+  swap() {
+    let res = new Contact();
+    res.colliderA = this.colliderB;
+    res.colliderB = this.colliderA;
+    res.contactPoints = new ArrayList();
+    for (let cp of this.contactPoints) {
+      res.contactPoints.add(cp.swap());
+    }
+    res.contactPoints = Collections.unmodifiableList(res.contactPoints);
+    return res;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(colliderA, colliderB, contactPoints) {
+    let res = new Contact();
+    res.colliderA = colliderA;
+    res.colliderB = colliderB;
+    res.contactPoints = Dut.copyImmutableList(contactPoints);
+    res.guardInvariants();
+    return res;
+  }
+
+}
 class SphereSphereCollisions {
   constructor() {
   }
@@ -17660,7 +18202,7 @@ class SphereSphereCollisions {
     let posA = sphereA.getPos().addScaled(n, sphereA.getRadius());
     let posB = sphereB.getPos().addScaled(n, -sphereB.getRadius());
     let contactPoint = ContactPoint.create(posA, posB, n, d);
-    return Arrays.asList(contactPoint);
+    return Dut.list(contactPoint);
   }
 
 }
@@ -17962,6 +18504,286 @@ class BoxCapsuleCollisions {
     if (c!=null) {
       outBuf.add(c);
     }
+  }
+
+}
+class BoxBoxSat {
+  depth = Float.POSITIVE_INFINITY;
+  normal = null;
+  constructor() {
+  }
+
+  getClass() {
+    return "BoxBoxSat";
+  }
+
+  isCollision() {
+    return this.normal!=null;
+  }
+
+  getNormal() {
+    return this.normal;
+  }
+
+  getDepth() {
+    return this.depth;
+  }
+
+  calculateSat(v1, v2, error, crossError) {
+    let testedDir = null;
+    testedDir = v1.getUx();
+    if (this.testSatAxis(v1, v2, testedDir, error)) {
+      this.normal = null;
+      return ;
+    }
+    testedDir = v1.getUy();
+    if (this.testSatAxis(v1, v2, testedDir, error)) {
+      this.normal = null;
+      return ;
+    }
+    testedDir = v1.getUz();
+    if (this.testSatAxis(v1, v2, testedDir, error)) {
+      this.normal = null;
+      return ;
+    }
+    testedDir = v2.getUx();
+    if (this.testSatAxis(v1, v2, testedDir, error)) {
+      this.normal = null;
+      return ;
+    }
+    testedDir = v2.getUy();
+    if (this.testSatAxis(v1, v2, testedDir, error)) {
+      this.normal = null;
+      return ;
+    }
+    testedDir = v2.getUz();
+    if (this.testSatAxis(v1, v2, testedDir, error)) {
+      this.normal = null;
+      return ;
+    }
+    testedDir = Vec3.cross(v1.getUx(), v2.getUx());
+    if (testedDir.mag()>crossError) {
+      testedDir = testedDir.normalize();
+      if (this.testSatAxis(v1, v2, testedDir, error)) {
+        this.normal = null;
+        return ;
+      }
+    }
+    testedDir = Vec3.cross(v1.getUx(), v2.getUy());
+    if (testedDir.mag()>crossError) {
+      testedDir = testedDir.normalize();
+      if (this.testSatAxis(v1, v2, testedDir, error)) {
+        this.normal = null;
+        return ;
+      }
+    }
+    testedDir = Vec3.cross(v1.getUx(), v2.getUz());
+    if (testedDir.mag()>crossError) {
+      testedDir = testedDir.normalize();
+      if (this.testSatAxis(v1, v2, testedDir, error)) {
+        this.normal = null;
+        return ;
+      }
+    }
+    testedDir = Vec3.cross(v1.getUy(), v2.getUx());
+    if (testedDir.mag()>crossError) {
+      testedDir = testedDir.normalize();
+      if (this.testSatAxis(v1, v2, testedDir, error)) {
+        this.normal = null;
+        return ;
+      }
+    }
+    testedDir = Vec3.cross(v1.getUy(), v2.getUy());
+    if (testedDir.mag()>crossError) {
+      testedDir = testedDir.normalize();
+      if (this.testSatAxis(v1, v2, testedDir, error)) {
+        this.normal = null;
+        return ;
+      }
+    }
+    testedDir = Vec3.cross(v1.getUy(), v2.getUz());
+    if (testedDir.mag()>crossError) {
+      testedDir = testedDir.normalize();
+      if (this.testSatAxis(v1, v2, testedDir, error)) {
+        this.normal = null;
+        return ;
+      }
+    }
+    testedDir = Vec3.cross(v1.getUz(), v2.getUx());
+    if (testedDir.mag()>crossError) {
+      testedDir = testedDir.normalize();
+      if (this.testSatAxis(v1, v2, testedDir, error)) {
+        this.normal = null;
+        return ;
+      }
+    }
+    testedDir = Vec3.cross(v1.getUz(), v2.getUy());
+    if (testedDir.mag()>crossError) {
+      testedDir = testedDir.normalize();
+      if (this.testSatAxis(v1, v2, testedDir, error)) {
+        this.normal = null;
+        return ;
+      }
+    }
+    testedDir = Vec3.cross(v1.getUz(), v2.getUz());
+    if (testedDir.mag()>crossError) {
+      testedDir = testedDir.normalize();
+      if (this.testSatAxis(v1, v2, testedDir, error)) {
+        this.normal = null;
+        return ;
+      }
+    }
+  }
+
+  testSatAxis(v1, v2, dir, error) {
+    let int1 = v1.projectToNormal(dir);
+    let int2 = v2.projectToNormal(dir);
+    let diff = this.totalLength(int1, int2)-this.sumLength(int1, int2);
+    if (diff>error) {
+      return true;
+    }
+    let d1 = int1.max()-int2.min();
+    let d2 = int2.max()-int1.min();
+    if (d1<=d2) {
+      if (d1<this.depth) {
+        this.depth = d1;
+        this.normal = dir;
+      }
+    }
+    else {
+      if (d2<this.depth) {
+        this.depth = d2;
+        this.normal = dir.scale(-1);
+      }
+    }
+    return false;
+  }
+
+  totalLength(int1, int2) {
+    return Math.max(int1.max(), int2.max())-Math.min(int1.min(), int2.min());
+  }
+
+  sumLength(int1, int2) {
+    return int1.length()+int2.length();
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(box1, box2, error, crossError) {
+    let res = new BoxBoxSat();
+    res.calculateSat(box1, box2, error, crossError);
+    return res;
+  }
+
+}
+class BoxBoxCollisions {
+  constructor() {
+  }
+
+  getClass() {
+    return "BoxBoxCollisions";
+  }
+
+  static isCollision(boxA, boxB, error, crossError) {
+    let sat = BoxBoxSat.create(boxA, boxB, error, crossError);
+    return sat.isCollision();
+  }
+
+  static getContactPoints(boxA, boxB, error, crossError) {
+    let sat = BoxBoxSat.create(boxA, boxB, error, crossError);
+    if (!sat.isCollision()) {
+      return Collections.emptyList();
+    }
+    let res = new ArrayList();
+    if (boxA.collides(boxB.getPoint1(), error)) {
+      res.add(ContactPoint.create(boxB.getPoint1(), boxB.getPoint1(), sat.getNormal(), sat.getDepth()));
+    }
+    if (boxA.collides(boxB.getPoint2(), error)) {
+      res.add(ContactPoint.create(boxB.getPoint2(), boxB.getPoint2(), sat.getNormal(), sat.getDepth()));
+    }
+    if (boxA.collides(boxB.getPoint3(), error)) {
+      res.add(ContactPoint.create(boxB.getPoint3(), boxB.getPoint3(), sat.getNormal(), sat.getDepth()));
+    }
+    if (boxA.collides(boxB.getPoint4(), error)) {
+      res.add(ContactPoint.create(boxB.getPoint4(), boxB.getPoint4(), sat.getNormal(), sat.getDepth()));
+    }
+    if (boxA.collides(boxB.getPoint5(), error)) {
+      res.add(ContactPoint.create(boxB.getPoint5(), boxB.getPoint5(), sat.getNormal(), sat.getDepth()));
+    }
+    if (boxA.collides(boxB.getPoint6(), error)) {
+      res.add(ContactPoint.create(boxB.getPoint6(), boxB.getPoint6(), sat.getNormal(), sat.getDepth()));
+    }
+    if (boxA.collides(boxB.getPoint7(), error)) {
+      res.add(ContactPoint.create(boxB.getPoint7(), boxB.getPoint7(), sat.getNormal(), sat.getDepth()));
+    }
+    if (boxA.collides(boxB.getPoint8(), error)) {
+      res.add(ContactPoint.create(boxB.getPoint8(), boxB.getPoint8(), sat.getNormal(), sat.getDepth()));
+    }
+    if (boxB.collides(boxA.getPoint1(), error)) {
+      res.add(ContactPoint.create(boxA.getPoint1(), boxA.getPoint1(), sat.getNormal(), sat.getDepth()));
+    }
+    if (boxB.collides(boxA.getPoint2(), error)) {
+      res.add(ContactPoint.create(boxA.getPoint2(), boxA.getPoint2(), sat.getNormal(), sat.getDepth()));
+    }
+    if (boxB.collides(boxA.getPoint3(), error)) {
+      res.add(ContactPoint.create(boxA.getPoint3(), boxA.getPoint3(), sat.getNormal(), sat.getDepth()));
+    }
+    if (boxB.collides(boxA.getPoint4(), error)) {
+      res.add(ContactPoint.create(boxA.getPoint4(), boxA.getPoint4(), sat.getNormal(), sat.getDepth()));
+    }
+    if (boxB.collides(boxA.getPoint5(), error)) {
+      res.add(ContactPoint.create(boxA.getPoint5(), boxA.getPoint5(), sat.getNormal(), sat.getDepth()));
+    }
+    if (boxB.collides(boxA.getPoint6(), error)) {
+      res.add(ContactPoint.create(boxA.getPoint6(), boxA.getPoint6(), sat.getNormal(), sat.getDepth()));
+    }
+    if (boxB.collides(boxA.getPoint7(), error)) {
+      res.add(ContactPoint.create(boxA.getPoint7(), boxA.getPoint7(), sat.getNormal(), sat.getDepth()));
+    }
+    if (boxB.collides(boxA.getPoint8(), error)) {
+      res.add(ContactPoint.create(boxA.getPoint8(), boxA.getPoint8(), sat.getNormal(), sat.getDepth()));
+    }
+    let edges1 = BoxBoxCollisions.getEdges(boxA);
+    let edges2 = BoxBoxCollisions.getEdges(boxB);
+    for (let edge1 of edges1) {
+      for (let edge2 of edges2) {
+        let mid = BoxBoxCollisions.cross(edge1.get(0), edge1.get(1), edge2.get(0), edge2.get(1), error);
+        if (mid!=null&&boxA.collides(mid, error)&&boxB.collides(mid, error)) {
+          res.add(ContactPoint.create(mid, mid, sat.getNormal(), sat.getDepth()));
+        }
+      }
+    }
+    return res;
+  }
+
+  static getEdges(box) {
+    return Dut.list(Dut.list(box.getPoint1(), box.getPoint2()), Dut.list(box.getPoint2(), box.getPoint3()), Dut.list(box.getPoint3(), box.getPoint4()), Dut.list(box.getPoint4(), box.getPoint1()), Dut.list(box.getPoint5(), box.getPoint6()), Dut.list(box.getPoint6(), box.getPoint7()), Dut.list(box.getPoint7(), box.getPoint8()), Dut.list(box.getPoint8(), box.getPoint5()), Dut.list(box.getPoint1(), box.getPoint5()), Dut.list(box.getPoint2(), box.getPoint8()), Dut.list(box.getPoint3(), box.getPoint7()), Dut.list(box.getPoint4(), box.getPoint6()));
+  }
+
+  static cross(a1, a2, b1, b2, error) {
+    let da = a2.sub(a1).normalize();
+    let db = b2.sub(b1).normalize();
+    let n = Vec3.cross(da, db);
+    if (n.sqrMag()<0.01) {
+      return null;
+    }
+    let na = Vec3.cross(da, n);
+    let nb = Vec3.cross(db, n);
+    let ca = a1.add(da.scale(b1.sub(a1).dot(nb)/da.dot(nb)));
+    let cb = b1.add(db.scale(a1.sub(b1).dot(na)/db.dot(na)));
+    if (ca.sqrDist(cb)>error*error) {
+      return null;
+    }
+    return Vec3.interpolate(ca, cb, 0.5);
   }
 
 }
@@ -18371,6 +19193,185 @@ class RigidBodies {
     }
   }
 });
+    return res;
+  }
+
+}
+class Island {
+  contacts;
+  joints;
+  constructor() {
+  }
+
+  getClass() {
+    return "Island";
+  }
+
+  guardInvariants() {
+  }
+
+  getContacts() {
+    return this.contacts;
+  }
+
+  getJoints() {
+    return this.joints;
+  }
+
+  getNumContactPoints() {
+    let res = 0;
+    for (let contact of this.contacts) {
+      res = res+contact.getContactPoints().size();
+    }
+    return res;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(contacts, joints) {
+    let res = new Island();
+    res.contacts = Dut.copyImmutableList(contacts);
+    res.joints = Dut.copyImmutableList(joints);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class Islands {
+  getClass() {
+    return "Islands";
+  }
+
+  static buildIslands(contacts, joints) {
+    if (contacts.isEmpty()&&joints.isEmpty()) {
+      return Collections.emptyList();
+    }
+    let islsContacts = new ArrayList();
+    let islsJoints = new ArrayList();
+    let islsBodies = new ArrayList();
+    for (let contact of contacts) {
+      if (contact.getRigidBodyA().isKinematic()&&contact.getRigidBodyB().isKinematic()) {
+        continue;
+      }
+      let m1 = -1;
+      let m2 = -1;
+      for (let i = 0; i<islsBodies.size(); ++i) {
+        let bodies = islsBodies.get(i);
+        if (!contact.getRigidBodyA().isKinematic()&&bodies.contains(contact.getRigidBodyA())) {
+          if (m1==-1) {
+            m1 = i;
+          }
+          else {
+            m2 = i;
+            break;
+          }
+        }
+        if (!contact.getRigidBodyB().isKinematic()&&bodies.contains(contact.getRigidBodyB())) {
+          if (m1==-1) {
+            m1 = i;
+          }
+          else {
+            m2 = i;
+            break;
+          }
+        }
+      }
+      if (m1==-1&&m2==-1) {
+        let nContacts = new ArrayList();
+        let nJoints = new ArrayList();
+        let nBodies = new HashSet();
+        nContacts.add(contact);
+        nBodies.add(contact.getRigidBodyA());
+        nBodies.add(contact.getRigidBodyB());
+        islsContacts.add(nContacts);
+        islsJoints.add(nJoints);
+        islsBodies.add(nBodies);
+      }
+      else if (m2==-1||m2==m1) {
+        islsContacts.get(m1).add(contact);
+        islsBodies.get(m1).add(contact.getRigidBodyA());
+        islsBodies.get(m1).add(contact.getRigidBodyB());
+      }
+      else {
+        islsContacts.get(m1).addAll(islsContacts.get(m2));
+        islsJoints.get(m1).addAll(islsJoints.get(m2));
+        islsBodies.get(m1).addAll(islsBodies.get(m2));
+        islsContacts.get(m1).add(contact);
+        islsBodies.get(m1).add(contact.getRigidBodyA());
+        islsBodies.get(m1).add(contact.getRigidBodyB());
+        islsContacts.remove(m2);
+        islsJoints.remove(m2);
+        islsBodies.remove(m2);
+      }
+    }
+    for (let joint of joints) {
+      if (joint.getRigidBodyA().isKinematic()&&joint.getRigidBodyB().isKinematic()) {
+        continue;
+      }
+      let m1 = -1;
+      let m2 = -1;
+      for (let i = 0; i<islsBodies.size(); ++i) {
+        let bodies = islsBodies.get(i);
+        if (!joint.getRigidBodyA().isKinematic()&&bodies.contains(joint.getRigidBodyA())) {
+          if (m1==-1) {
+            m1 = i;
+          }
+          else {
+            m2 = i;
+            break;
+          }
+        }
+        if (!joint.getRigidBodyB().isKinematic()&&bodies.contains(joint.getRigidBodyB())) {
+          if (m1==-1) {
+            m1 = i;
+          }
+          else {
+            m2 = i;
+            break;
+          }
+        }
+      }
+      if (m1==-1&&m2==-1) {
+        let nContacts = new ArrayList();
+        let nJoints = new ArrayList();
+        let nBodies = new HashSet();
+        nJoints.add(joint);
+        nBodies.add(joint.getRigidBodyA());
+        nBodies.add(joint.getRigidBodyB());
+        islsContacts.add(nContacts);
+        islsJoints.add(nJoints);
+        islsBodies.add(nBodies);
+      }
+      else if (m2==-1||m2==m1) {
+        islsJoints.get(m1).add(joint);
+        islsBodies.get(m1).add(joint.getRigidBodyA());
+        islsBodies.get(m1).add(joint.getRigidBodyB());
+      }
+      else {
+        islsContacts.get(m1).addAll(islsContacts.get(m2));
+        islsJoints.get(m1).addAll(islsJoints.get(m2));
+        islsBodies.get(m1).addAll(islsBodies.get(m2));
+        islsJoints.get(m1).add(joint);
+        islsBodies.get(m1).add(joint.getRigidBodyA());
+        islsBodies.get(m1).add(joint.getRigidBodyB());
+        islsContacts.remove(m2);
+        islsJoints.remove(m2);
+        islsBodies.remove(m2);
+      }
+    }
+    let res = new ArrayList(islsBodies.size());
+    for (let i = 0; i<islsBodies.size(); ++i) {
+      res.add(Island.create(islsContacts.get(i), islsJoints.get(i)));
+    }
     return res;
   }
 
@@ -19513,28 +20514,6 @@ class FreeCameraBehavior extends Behavior {
   }
 
 }
-class RotationBehavior extends Behavior {
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "RotationBehavior";
-  }
-
-  move(dt, inputs) {
-    let tx = this.actor().getComponent("TransformComponent");
-    let x = inputs.getFloat("x", 0);
-    let y = inputs.getFloat("y", 0);
-    let z = inputs.getFloat("z", 0);
-    tx.rotate(dt, Vec3.create(x, y, z));
-  }
-
-  static create() {
-    return new RotationBehavior();
-  }
-
-}
 class RigidBodyApp03 {
   time = 0;
   world;
@@ -19618,25 +20597,25 @@ class RigidBodyApp03 {
     let addSphereAct = (evtSource) => {
       let r = Randoms.nextFloat(0.5, 1.5);
       let m = Randoms.nextFloat(1, 2);
-      let sphere = Actor.create(Randoms.randomAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(objectColMatId));
+      let sphere = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(objectColMatId));
       this.world.actors().add(ActorId.ROOT, sphere);
     };
     let sphereBtn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.leftTop(20, 20, 120, 30)).setText("Sphere").setFont(btnFont).addOnClickAction(addSphereAct);
     this.ui.addComponent(sphereBtn);
     let addBoxAct = (evtSource) => {
-      let box = Actor.create(Randoms.randomAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId));
+      let box = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId));
       this.world.actors().add(ActorId.ROOT, box);
     };
     let boxBtn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.leftTop(20, 70, 120, 30)).setText("Box").setFont(btnFont).addOnClickAction(addBoxAct);
     this.ui.addComponent(boxBtn);
     let addBoxStraightAct = (evtSource) => {
-      let box = Actor.create(Randoms.randomAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 12, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId));
+      let box = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 12, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId));
       this.world.actors().add(ActorId.ROOT, box);
     };
     let boxStraightBtn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.leftTop(20, 120, 120, 30)).setText("Box Straight").setFont(btnFont).addOnClickAction(addBoxStraightAct);
     this.ui.addComponent(boxStraightBtn);
     let addCapsuleAct = (evtSource) => {
-      let capsule = Actor.create(Randoms.randomAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(cylinderRoundModelId).setTransform(Mat44.rotX(FMath.PI/2).mul(Mat44.scale(1, 1, 1)))).addComponent(ModelComponent.create().setModelId(halfSphereModelId).setTransform(Mat44.trans(0, 1, 0).mul(Mat44.rotX(FMath.PI/2)))).addComponent(ModelComponent.create().setModelId(halfSphereModelId).setTransform(Mat44.trans(0, -1, 0).mul(Mat44.rotX(-FMath.PI/2)))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.CAPSULE).setRadius(1).setHeight(4).setMaterialId(objectColMatId));
+      let capsule = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(cylinderRoundModelId).setTransform(Mat44.rotX(FMath.PI/2).mul(Mat44.scale(1, 1, 1)))).addComponent(ModelComponent.create().setModelId(halfSphereModelId).setTransform(Mat44.trans(0, 1, 0).mul(Mat44.rotX(FMath.PI/2)))).addComponent(ModelComponent.create().setModelId(halfSphereModelId).setTransform(Mat44.trans(0, -1, 0).mul(Mat44.rotX(-FMath.PI/2)))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.CAPSULE).setRadius(1).setHeight(4).setMaterialId(objectColMatId));
       this.world.actors().add(ActorId.ROOT, capsule);
     };
     let capsuleBtn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.leftTop(20, 170, 120, 30)).setText("Capsule").setFont(btnFont).addOnClickAction(addCapsuleAct);

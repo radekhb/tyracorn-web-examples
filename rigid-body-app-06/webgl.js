@@ -20290,51 +20290,493 @@ class BoxMeshFactory {
   }
 
 }
-class BasicApp01 {
-  box1 = MeshId.of("box1");
-  box2 = MeshId.of("box2");
-  box3 = MeshId.of("box3");
-  boxT = MeshId.of("boxT");
+class CameraTrackBehavior extends Behavior {
+  targetId;
+  offset;
+  up;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "CameraTrackBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  lateMove(dt, inputs) {
+    let tc = this.actor().getComponent("TransformComponent");
+    let target = this.world().actors().get(this.targetId);
+    let targetTc = target.getComponent("TransformComponent");
+    tc.lookAt(targetTc.getPos().add(this.offset), targetTc.getPos(), this.up);
+  }
+
+  static create() {
+    if (arguments.length===0) {
+      return CameraTrackBehavior.create_0();
+    }
+    else if (arguments.length===3&&arguments[0] instanceof ActorId&&arguments[1] instanceof Vec3&&arguments[2] instanceof Vec3) {
+      return CameraTrackBehavior.create_3_ActorId_Vec3_Vec3(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static create_0() {
+    let res = new CameraTrackBehavior();
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_3_ActorId_Vec3_Vec3(targetId, offset, up) {
+    let res = new CameraTrackBehavior();
+    res.targetId = targetId;
+    res.offset = offset;
+    res.up = up;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class PlayerCharacterInput extends Behavior {
+  dt;
+  dir;
+  punch;
+  run;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "PlayerCharacterInput";
+  }
+
+  guardInvariants() {
+  }
+
+  getDt() {
+    return this.dt;
+  }
+
+  getDir() {
+    return this.dir;
+  }
+
+  isPunch() {
+    return this.punch;
+  }
+
+  isRun() {
+    return this.run;
+  }
+
+  static create(dt, dir, punch, run) {
+    let res = new PlayerCharacterInput();
+    res.dt = dt;
+    res.dir = dir;
+    res.punch = punch;
+    res.run = run;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class PlayerCharacterBehavior extends Behavior {
+  static JOYSTICK_SENSITIVITY = 1e-5;
+  static FWD = Vec3.create(0, 0, -1);
+  transform;
+  model;
+  rigidBody;
+  groundedColliderKey = "body-collider";
+  groundedCollider;
+  punchColliderKey = "punch-collider";
+  punchCollider;
+  animationPlayer;
+  state;
+  grounded = false;
+  groundedBefore = false;
+  walkForce = 40;
+  runForce = 80;
+  airForce = 10;
+  groundedMaxYDiff = 0.5;
+  groundFriction = 10;
+  airFriction = 5;
+  turnSpeed = 4*FMath.PI;
+  punchImpact = 7;
+  turn = 0;
+  constructor() {
+    super();
+    let idle = ClipAnimation.create(Clip.simple(0, 1, 0), 2, true);
+    let walk = ClipAnimation.create(Clip.simple(2, 3, 4, 5, 6, 2), 1, true);
+    let run = ClipAnimation.create(Clip.simple(7, 8, 9, 10, 11, 12, 13, 7), 1, true);
+    let punch = ClipAnimation.create(Clip.simple(14, 15, 16, 17, 18), 0.5, false, 0.45, "punch");
+    let hit = ClipAnimation.create(Clip.simple(19, 20, 19), 0.3, false);
+    this.animationPlayer = ClipAnimationPlayer.create("idle", ClipAnimationCollection.create(Dut.map("idle", idle, "walk", walk, "run", run, "punch", punch, "hit", hit)));
+    this.state = this::this.stateIdle;
+  }
+
+  getClass() {
+    return "PlayerCharacterBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.model = this.actor().getComponent("ModelComponent");
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
+    this.groundedCollider = this.actor().getComponentByKey("ColliderComponent", this.groundedColliderKey);
+    this.punchCollider = this.actor().getComponentByKey("ColliderComponent", this.punchColliderKey);
+  }
+
+  move(dt, inputs) {
+    this.updateGrounded();
+    let friction = this.grounded?this.groundFriction:this.airFriction;
+    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*this.rigidBody.getMass()*this.rigidBody.getVelocity().x(), 0, -friction*this.rigidBody.getMass()*this.rigidBody.getVelocity().z()));
+    let dir = inputs.getVec2("dir", Vec2.ZERO);
+    let run = inputs.getBoolean("run", false);
+    let punch = inputs.getBoolean("punch", false);
+    let input = PlayerCharacterInput.create(dt, dir, punch, run);
+    this.state.apply(input);
+    let triggers = this.animationPlayer.move(dt);
+    if (triggers.contains("punch")) {
+      for (let cmp of this.actor().getComponents()) {
+        let punchWorld = this.punchCollider.toGlobal(Vec3.ZERO);
+        let punchDir = this.punchCollider.toGlobal(PlayerCharacterBehavior.FWD).subAndNormalize(punchWorld);
+        let hits = this.world().collisions().withCollider(this.punchCollider);
+        for (let hitCollider of hits) {
+          let hitAct = hitCollider.actor();
+          for (let tgtCmp of hitAct.getComponents()) {
+            if (tgtCmp instanceof Hittable) {
+              (tgtCmp).onHit(punchWorld, punchDir, this.punchImpact);
+            }
+          }
+        }
+      }
+    }
+    let interpolation = this.animationPlayer.getInterpolation();
+    this.model.setInterpolation(interpolation);
+    this.transform.setRot(Quaternion.rotY(this.turn));
+    if (!this.grounded&&this.groundedBefore&&this.rigidBody.getVelocity().y()>0) {
+      this.rigidBody.setVelocity(Vec3.create(this.rigidBody.getVelocity().x(), 0, this.rigidBody.getVelocity().y()));
+    }
+    if (this.grounded&&this.animationPlayer.getAnimationKey().equals("idle")) {
+      this.rigidBody.clearAccums();
+      this.rigidBody.setVelocity(Vec3.ZERO);
+      this.rigidBody.setAngularVelocity(Vec3.ZERO);
+    }
+  }
+
+  updateGrounded() {
+    this.groundedBefore = this.grounded;
+    let pos = this.transform.getPos();
+    let bestGroundPoint = Vec3.create(pos.x(), pos.y()+2, pos.z());
+    let contacts = this.world().collisions().withColliderContacts(this.groundedCollider);
+    for (let cont of contacts) {
+      if (cont.getColliderB().getLayer().equals(CollisionLayer.WALL)) {
+        for (let cp of cont.getContactPoints()) {
+          if (cp.getPosA().y()<bestGroundPoint.y()) {
+            bestGroundPoint = cp.getPosA();
+          }
+        }
+      }
+    }
+    if (bestGroundPoint.y()<pos.y()+this.groundedMaxYDiff) {
+      this.grounded = true;
+    }
+    else {
+      this.grounded = false;
+    }
+  }
+
+  stateIdle(input) {
+    this.animationPlayer.play("idle");
+    if (input.isPunch()) {
+      this.state = this::this.statePunch;
+    }
+    else if (input.getDir().mag()>=PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
+      this.state = input.isRun()?this::this.stateRun:this::this.stateWalk;
+    }
+    return null;
+  }
+
+  stateWalk(input) {
+    this.animationPlayer.play("walk");
+    if (input.isPunch()) {
+      this.state = this::this.statePunch;
+    }
+    else if (input.getDir().mag()<PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
+      this.state = this::this.stateIdle;
+    }
+    else if (input.isRun()) {
+      this.state = this::this.stateRun;
+    }
+    else {
+      let dir = input.getDir().normalize();
+      let moveMag = this.grounded?this.walkForce:this.airForce;
+      this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x(), 0, -dir.y()).scale(moveMag*this.rigidBody.getMass()));
+      let targetTurn = -FMath.atan2(dir.x(), dir.y());
+      let maxdTurn = input.getDt()*this.turnSpeed;
+      if (FMath.abs(this.turn-targetTurn)<=maxdTurn) {
+        this.turn = targetTurn;
+      }
+      else if (targetTurn>this.turn) {
+        if (targetTurn-this.turn<this.turn-targetTurn+FMath.PI*2) {
+          this.turn = this.turn+maxdTurn;
+          if (this.turn>FMath.PI) {
+            this.turn = this.turn-2*FMath.PI;
+          }
+        }
+        else {
+          this.turn = this.turn-maxdTurn;
+          if (this.turn<-FMath.PI) {
+            this.turn = this.turn+2*FMath.PI;
+          }
+        }
+      }
+      else {
+        if (this.turn-targetTurn<targetTurn-this.turn+FMath.PI*2) {
+          this.turn = this.turn-maxdTurn;
+          if (this.turn<-FMath.PI) {
+            this.turn = this.turn+2*FMath.PI;
+          }
+        }
+        else {
+          this.turn = this.turn+maxdTurn;
+          if (this.turn>FMath.PI) {
+            this.turn = this.turn-2*FMath.PI;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  stateRun(input) {
+    this.animationPlayer.play("run");
+    if (input.isPunch()) {
+      this.state = this::this.statePunch;
+    }
+    else if (input.getDir().mag()<PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
+      this.state = this::this.stateIdle;
+    }
+    else if (!input.isRun()) {
+      this.state = this::this.stateWalk;
+    }
+    else {
+      let dir = input.getDir().normalize();
+      let moveMag = this.grounded?this.runForce:this.airForce;
+      this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x(), 0, -dir.y()).scale(moveMag*this.rigidBody.getMass()));
+      let targetTurn = -FMath.atan2(dir.x(), dir.y());
+      let maxdTurn = input.getDt()*this.turnSpeed;
+      if (FMath.abs(this.turn-targetTurn)<=maxdTurn) {
+        this.turn = targetTurn;
+      }
+      else if (targetTurn>this.turn) {
+        if (targetTurn-this.turn<this.turn-targetTurn+FMath.PI*2) {
+          this.turn = this.turn+maxdTurn;
+          if (this.turn>FMath.PI) {
+            this.turn = this.turn-2*FMath.PI;
+          }
+        }
+        else {
+          this.turn = this.turn-maxdTurn;
+          if (this.turn<-FMath.PI) {
+            this.turn = this.turn+2*FMath.PI;
+          }
+        }
+      }
+      else {
+        if (this.turn-targetTurn<targetTurn-this.turn+FMath.PI*2) {
+          this.turn = this.turn-maxdTurn;
+          if (this.turn<-FMath.PI) {
+            this.turn = this.turn+2*FMath.PI;
+          }
+        }
+        else {
+          this.turn = this.turn+maxdTurn;
+          if (this.turn>FMath.PI) {
+            this.turn = this.turn-2*FMath.PI;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  statePunch(input) {
+    this.animationPlayer.play("punch");
+    if (this.animationPlayer.isAnimationEnd()) {
+      if (input.isPunch()) {
+        this.animationPlayer.playFromStart("punch");
+      }
+      else if (input.getDir().mag()>=PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
+        this.state = input.isRun()?this::this.stateRun:this::this.stateWalk;
+      }
+      else {
+        this.state = this::this.stateIdle;
+      }
+    }
+    return null;
+  }
+
+  static create() {
+    let res = new PlayerCharacterBehavior();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class RigidBodyApp06 {
   time = 0;
+  world;
+  inputs = InputCache.create();
+  ui;
+  controller;
   constructor() {
   }
 
   getClass() {
-    return "BasicApp01";
+    return "RigidBodyApp06";
   }
 
-  move(drivers, dt) {
+  move(drivers, screenManager, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
-    let aspect = gDriver.getScreenViewport().getAspect();
-    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
-    let m = 2*FMath.sin(this.time/3);
-    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 7), Vec3.ZERO, Vec3.create(0, 1, 0));
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let renderer = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
-    renderer.render(this.box1, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1, Mat44.trans(-4, 0, -2).mul(Mat44.rotX(this.time/2)));
-    renderer.render(this.box2, Mat44.trans(-4, 0, 0).mul(Mat44.rotY(this.time/1)));
-    renderer.render(this.box3, Mat44.trans(-4, 0, 2).mul(Mat44.rotZ(this.time/0.4)));
-    renderer.render(this.box1, Mat44.trans(-2, 0, 0));
-    renderer.renderTransparent(this.boxT, Mat44.trans(-2, 0, 2), BlendType.ALPHA);
-    renderer.render(this.box2, Mat44.trans(0, 0, 0));
-    renderer.renderTransparent(this.boxT, Mat44.trans(0, 0, 2), BlendType.ADDITIVE);
-    renderer.render(this.box3, Mat44.trans(2, 0, 0));
-    renderer.renderTransparent(this.boxT, Mat44.trans(2, 0, 2), BlendType.MULTIPLICATIVE);
-    renderer.end();
+    this.inputs.put("dir", this.controller.getDir());
+    this.inputs.put("run", this.controller.isRun());
+    this.inputs.put("punch", this.controller.isPunch());
+    this.world.move(dt, this.inputs);
+    this.world.render(RenderRequest.NORMAL);
+    gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
   }
 
-  init(drivers, properties) {
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
-    assets.put(this.box1, BoxMeshFactory.rgbBox(Rgb.RED, Rgb.GREEN, Rgb.BLUE, Rgb.WHITE));
-    assets.put(this.box2, BoxMeshFactory.rgbBox(Rgb.GREEN, Rgb.GREEN, Rgb.create(1, 1, 0), Rgb.BLUE));
-    assets.put(this.box3, BoxMeshFactory.rgbBox(Rgb.create(1, 0, 1), Rgb.GREEN, Rgb.create(0, 1, 1), Rgb.BLUE));
-    assets.put(this.boxT, BoxMeshFactory.rgbaBox(Rgb.WHITE, Rgb.BLUE, Rgb.create(1, 0, 1), Rgb.RED, 0.5));
-    return Collections.emptyList();
+    res.add(assets.resolveAsync(Path.of("asset:controls")));
+    res.add(assets.resolveAsync(Path.of("asset:buttons")));
+    res.add(assets.resolveAsync(Path.of("asset:fonts/rubik-regular-64.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:characters")));
+    res.add(assets.resolveAsync(Path.of("asset:primitives")));
+    return res;
   }
 
-  close(drivers) {
+  init(drivers, screenManager, properties) {
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(20));
+    assets.put(MaterialId.of("brass"), Material.BRASS);
+    assets.put(MaterialId.of("copper"), Material.COPPER);
+    const sphereModelId = ModelId.of("sphere");
+    const skyboxModelId = ModelId.of("skybox-1");
+    assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
+    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("brass"));
+    const groundModelId = ModelId.of("ground");
+    assets.put(groundModelId, groundModel);
+    let sphereModel = assets.get("Model", ModelId.of("sphere"));
+    let boxModel = Model.simple(MeshId.of("modelBox"), sphereModel.getParts().get(0).getMaterial());
+    const boxModelId = ModelId.of("box");
+    assets.put(boxModelId, boxModel);
+    const characterModelId = ModelId.of("tyracorn-202011");
+    const wallColMatId = PhysicalMaterialId.of("wall");
+    assets.put(wallColMatId, PhysicalMaterial.simple(0.6, 1.8, 1.8));
+    const objectColMatId = PhysicalMaterialId.of("object");
+    assets.put(objectColMatId, PhysicalMaterial.create(0.6, PhysicalMaterialCombineType.AVG, 18, 18, PhysicalMaterialCombineType.MAX));
+    const charColMatId = PhysicalMaterialId.of("character");
+    assets.put(charColMatId, PhysicalMaterial.create(0, PhysicalMaterialCombineType.MIN, 0, 0, PhysicalMaterialCombineType.MIN));
+    this.world = RigidBodyWorld.create(drivers);
+    let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create().setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-300, -30, -300, 300, 30, 300)));
+    this.world.actors().add(ActorId.ROOT, worldActor);
+    let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create()).addComponent(SkyboxComponent.create().setModelId(skyboxModelId).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create().setAngularVelocity(Vec3.create(0, 0.1, 0)));
+    this.world.actors().add(ActorId.ROOT, skybox);
+    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create().move(Vec3.create(10, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(40, 1, 30)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 2, 32)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, ground);
+    let back = Actor.create("back").setName("back").addComponent(TransformComponent.create().move(Vec3.create(10, 0, -15))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(42, 1, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 7, 1)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, back);
+    let front = Actor.create("front").setName("front").addComponent(TransformComponent.create().move(Vec3.create(10, 0, 15))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(42, 1, 3)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 3, 1)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, front);
+    let left = Actor.create("left").setName("left").addComponent(TransformComponent.create().move(Vec3.create(-10, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 32, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 32)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, left);
+    let right = Actor.create("right").setName("right").addComponent(TransformComponent.create().move(Vec3.create(30, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 32, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 32)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, right);
+    let slope1 = Actor.create("slope-1").setName("slope-1").addComponent(TransformComponent.create().move(Vec3.create(8, 2, 5)).rotate(FMath.PI/4, Vec3.create(0, 0, 1))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(7, 1, 6))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(7, 1, 6)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, slope1);
+    let slope2 = Actor.create("slope-2").setName("slope-2").addComponent(TransformComponent.create().move(Vec3.create(20, 2, 5)).rotate(-FMath.PI/4, Vec3.create(0, 0, 1))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(7, 1, 6))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(7, 1, 6)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, slope2);
+    let bridge = Actor.create("bridge").setName("bridge").addComponent(TransformComponent.create().move(Vec3.create(14, 4.25, 5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(7.5, 1, 6))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(7.5, 1, 6)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, bridge);
+    let stair = Actor.create("stair").setName("stair").addComponent(TransformComponent.create().move(Vec3.create(-2, -0.1, 3)).rotate(-FMath.PI/3, Vec3.create(0, 1, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(3, 1, 3))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(3, 1, 3)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, stair);
+    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create().lookAt(Vec3.create(2, 5, 4), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create().setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
+    this.world.actors().add(ActorId.ROOT, light);
+    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create().lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create().setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create()).addComponent(CameraTrackBehavior.create(ActorId.of("character"), Vec3.create(0, 10, 8), Vec3.create(0, 0, -1)));
+    this.world.actors().add(ActorId.ROOT, camera);
+    let character = Actor.create("character").setName("character").addComponent(TransformComponent.create().move(Vec3.create(0, 5, 0))).addComponent(ModelComponent.create().setModelId(characterModelId).setTransform(Mat44.rotY(FMath.PI))).addComponent(RigidBodyComponent.create().setMass(20).setRotationLock(true).setKinematic(false)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setPos(Vec3.create(0, 1.5, 0)).setShape(ColliderShape.CAPSULE).setRadius(0.7).setHeight(3).setMaterialId(charColMatId).setKey("body-collider")).addComponent(ColliderComponent.create().setTrigger(true).setActive(false).setLayer(CollisionLayer.OBJECT).setPos(Vec3.create(0.3, 1.7, -1.6)).setShape(ColliderShape.SPHERE).setRadius(0.1).setKey("punch-collider")).addComponent(PlayerCharacterBehavior.create());
+    this.world.actors().add(ActorId.ROOT, character);
+    let sphere1 = Actor.create("sphere-1").setName("sphere-1").addComponent(TransformComponent.create().move(Vec3.create(-3, 4, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(0.5).setMaterialId(objectColMatId));
+    this.world.actors().add(ActorId.ROOT, sphere1);
+    let sphere2 = Actor.create("sphere-2").setName("sphere-2").addComponent(TransformComponent.create().move(Vec3.create(-3, 3.2, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setRadius(0.5).setSize(Vec3.create(1, 1, 1)).setMaterialId(objectColMatId)).addComponent(PunchableBehavior.create()).addComponent(BallSocketJointComponent.create().setJoint("sphere-1", "sphere-2", Vec3.create(-3, 3.6, 0)));
+    this.world.actors().add(ActorId.ROOT, sphere2);
+    let sphere3 = Actor.create("sphere-3").setName("sphere-3").addComponent(TransformComponent.create().move(Vec3.create(-3, 2.4, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setRadius(0.5).setSize(Vec3.create(1, 1, 1)).setMaterialId(objectColMatId)).addComponent(PunchableBehavior.create()).addComponent(BallSocketJointComponent.create().setJoint("sphere-2", "sphere-3", Vec3.create(-3, 2.7, 0)));
+    this.world.actors().add(ActorId.ROOT, sphere3);
+    let sphere4 = Actor.create("sphere-4").setName("sphere-4").addComponent(TransformComponent.create().move(Vec3.create(-3, 1.6, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setRadius(0.5).setSize(Vec3.create(1, 1, 1)).setMaterialId(objectColMatId)).addComponent(PunchableBehavior.create()).addComponent(BallSocketJointComponent.create().setJoint("sphere-3", "sphere-4", Vec3.create(-3, 1.8, 0)));
+    this.world.actors().add(ActorId.ROOT, sphere4);
+    let fixedBase = Actor.create("fixed-base").setName("fixed-base").addComponent(TransformComponent.create().move(Vec3.create(-1, 2, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(1, 4, 1))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 4, 1)).setMaterialId(objectColMatId));
+    this.world.actors().add(ActorId.ROOT, fixedBase);
+    let fixedBlock = Actor.create("fixed-block").setName("fixed-block").addComponent(TransformComponent.create().move(Vec3.create(-3, 3, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(4, 2, 0.5))).addComponent(RigidBodyComponent.create().setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(4, 2, 0.5)).setMaterialId(objectColMatId)).addComponent(FixedJointComponent.create().setJoint("fixed-base", "fixed-block"));
+    this.world.actors().add(ActorId.ROOT, fixedBlock);
+    let hingeBase = Actor.create("hinge-base").setName("hinge-base").addComponent(TransformComponent.create().move(Vec3.create(9, 2, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(1, 4, 1))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 4, 1)).setMaterialId(objectColMatId));
+    this.world.actors().add(ActorId.ROOT, hingeBase);
+    let hingeBlock = Actor.create("hinge-block").setName("hinge-block").addComponent(TransformComponent.create().move(Vec3.create(9, 3, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.trans(-2, 0, 0).mul(Mat44.scale(4, 2, 0.5)))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(10)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(4, 2, 0.5)).setPos(Vec3.create(-2, 0, 0)).setMaterialId(objectColMatId)).addComponent(HingeJointComponent.create().setJoint("hinge-base", "hinge-block", Vec3.create(9, 3, -8), Vec3.UP));
+    this.world.actors().add(ActorId.ROOT, hingeBlock);
+    let prismaticBase = Actor.create("prismatic-base").setName("prismatic-base").addComponent(TransformComponent.create().move(Vec3.create(20, 4, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(10, 0.5, 0.5))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(10, 0.5, 0.5)).setMaterialId(objectColMatId));
+    this.world.actors().add(ActorId.ROOT, prismaticBase);
+    let prismaticEnds = Actor.create("prismatic-ends").setName("prismatic-ends").addComponent(TransformComponent.create().move(Vec3.create(20, 4, -8))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setPos(Vec3.create(-5.125, 0, 0)).setSize(Vec3.create(0.25, 0.5, 0.5)).setMaterialId(objectColMatId)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setPos(Vec3.create(5.125, 0, 0)).setSize(Vec3.create(0.25, 0.5, 0.5)).setMaterialId(objectColMatId));
+    this.world.actors().add(ActorId.ROOT, prismaticEnds);
+    let prismaticBlock = Actor.create("prismatic-block").setName("prismatic-block").addComponent(TransformComponent.create().move(Vec3.create(20, 3, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(10)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId)).addComponent(PrismaticJointComponent.create().setJoint("prismatic-base", "prismatic-block", Vec3.create(20, 4, -8), Vec3.RIGHT));
+    this.world.actors().add(ActorId.ROOT, prismaticBlock);
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
+    let btnFont = FontId.of("rubik-regular-20");
+    let addObjectAct = (evetSource) => {
+      let r = Randoms.nextFloat(1, 3);
+      let m = Randoms.nextFloat(1, 2);
+      let id1 = Randoms.nextAlphabetic(32);
+      let id2 = Randoms.nextAlphabetic(32);
+      let sphereObj1 = Actor.create(id1).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(objectColMatId)).addComponent(BreakableSphereBehavior.create().setSphereModelId(sphereModelId));
+      this.world.actors().add(ActorId.ROOT, sphereObj1);
+      let sphereObj2 = Actor.create(id2).addComponent(TransformComponent.create().move(Vec3.create(0, 8, r))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(r/2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m/10)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r/2).setMaterialId(objectColMatId)).addComponent(BreakableSphereBehavior.create().setSphereModelId(sphereModelId)).addComponent(FixedJointComponent.create().setJoint(id1, id2));
+      this.world.actors().add(sphereObj2.getId(), sphere2);
+    };
+    let objectBtn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.leftTop(20, 20, 120, 30)).setText("Object").setFont(btnFont).addOnClickAction(addObjectAct);
+    this.ui.addComponent(objectBtn);
+    this.controller = CharacterController.create(drivers);
+    this.ui.addComponent(this.controller);
+    let exitBtn = ImageButton.create().setUpTexture("shadedDark35").setDownTexture("shadedLight35").setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager));
+    this.ui.addComponent(exitBtn);
+    this.ui.subscribe(drivers);
+    let dlist = InputCacheDisplayListener.create(this.inputs);
+    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
+    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+    this.world.destroy(drivers);
+  }
+
+  getRandomVelocity() {
+    let vx = Randoms.nextFloat(0, 2)-1;
+    let vy = Randoms.nextFloat(0, 2)-1;
+    let vz = Randoms.nextFloat(0, 2)-1;
+    return Vec3.create(vx, vy, vz);
   }
 
 }
@@ -20616,7 +21058,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = new BasicApp01();
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simple("asset:loading.png"), new RigidBodyApp06());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
