@@ -62,6 +62,9 @@ class Guard {
     static notNullCollection() {
     }
 
+    static notEmptyStringCollection() {
+    }
+
 }
 // -------------------------------------
 // Float
@@ -993,6 +996,10 @@ class FMath {
 
     static tan(x) {
         return Math.tan(x);
+    }
+
+    static atan2(y, x) {
+        return Math.atan2(y, x);
     }
 
     static sqrt(x) {
@@ -10673,7 +10680,7 @@ class ImageToggleButton extends UiComponent {
 
   onContainerResize(size) {
     this.containerSize = size;
-    this.region = this.regionFnc.apply(size);
+    this.region = Functions.apply(this.regionFnc, size);
   }
 
   toggleDown() {
@@ -10823,7 +10830,7 @@ class ImageToggleButton extends UiComponent {
     res.font = FontId.DEFAULT;
     res.regionFnc = UiRegionFncs.center(100, 25);
     res.containerSize = Size2.create(1, 1);
-    res.region = res.regionFnc.apply(res.containerSize);
+    res.region = Functions.apply(res.regionFnc, res.containerSize);
     res.onToggleActions = new HashSet();
     res.guardInvariants();
     return res;
@@ -11814,6 +11821,91 @@ class Clip {
   }
 
 }
+class ClipAnimationTrigger {
+  time;
+  triggers;
+  constructor() {
+  }
+
+  getClass() {
+    return "ClipAnimationTrigger";
+  }
+
+  guardInvaritants() {
+    Guard.notNegative(this.time, "time cannot be negative");
+    Guard.notEmptyStringCollection(this.triggers, "triggers cannot have empty element");
+  }
+
+  getTime() {
+    return this.time;
+  }
+
+  getTriggers() {
+    return this.triggers;
+  }
+
+  merge(other) {
+    Guard.equals(this.time, other.time, "triggers must have same time, otherwise cannot merge");
+    let res = new ClipAnimationTrigger();
+    res.time = this.time;
+    let trgs = new HashSet();
+    trgs.addAll(this.triggers);
+    trgs.addAll(other.triggers);
+    res.triggers = Collections.unmodifiableSet(trgs);
+    res.guardInvaritants();
+    return res;
+  }
+
+  hashCode() {
+    return (7*this.time)+13*this.triggers.hashCode();
+  }
+
+  equals(obj) {
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ClipAnimationTrigger)) {
+      return false;
+    }
+    let other = obj;
+    return this.time==other.time&&this.triggers.equals(other.triggers);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    if (arguments.length===2&& typeof arguments[0]==="number"&& typeof arguments[1]==="string") {
+      return ClipAnimationTrigger.create_2_number_string(arguments[0], arguments[1]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="number"&&arguments[1] instanceof Set) {
+      return ClipAnimationTrigger.create_2_number_Set(arguments[0], arguments[1]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static create_2_number_string(time, trigger) {
+    let res = new ClipAnimationTrigger();
+    res.time = time;
+    res.triggers = Dut.immutableSet(trigger);
+    res.guardInvaritants();
+    return res;
+  }
+
+  static create_2_number_Set(time, triggers) {
+    let res = new ClipAnimationTrigger();
+    res.time = time;
+    res.triggers = Dut.copyImmutableSet(triggers);
+    res.guardInvaritants();
+    return res;
+  }
+
+}
 class ClipAnimation {
   clip;
   duration;
@@ -11826,10 +11918,7 @@ class ClipAnimation {
     return "ClipAnimation";
   }
 
-  guardInvaritants() {
-    Guard.notNull(this.clip, "clip cannot be null");
-    Guard.positive(this.duration, "duration must be positive");
-    Guard.notNullMap(this.triggers, "triggers cannot have null key or value");
+  guardInvariants() {
   }
 
   getClip() {
@@ -11864,26 +11953,34 @@ class ClipAnimation {
     if (this.triggers.isEmpty()) {
       return Collections.emptySet();
     }
-    if (this.loop) {
-      tStart = tStart%this.duration;
-      tStart = tStart<0?tStart+this.duration:tStart;
-      tEnd = tEnd%this.duration;
-      tEnd = tEnd<0?tEnd+this.duration:tEnd;
+    if (tStart<0||tEnd<0||tEnd<tStart) {
+      throw "tStart or tEnd cannot be negative, and tStart must be <= tEnd: "+tStart+", "+tEnd;
     }
-    if (tEnd<tStart) {
+    if (this.loop) {
+      if (tEnd-tStart>=this.duration) {
+        let res = new HashSet();
+        for (let t of this.triggers) {
+          res.addAll(t.getTriggers());
+        }
+        return res;
+      }
+      tStart = tStart%this.duration;
+      tEnd = tEnd%this.duration;
+    }
+    if (tEnd<=tStart) {
       let res = new HashSet();
-      for (let t of this.triggers.keySet()) {
-        if (t<tEnd||t>=tStart) {
-          res.addAll(this.triggers.get(t));
+      for (let t of this.triggers) {
+        if (t.getTime()<tEnd||t.getTime()>=tStart) {
+          res.addAll(t.getTriggers());
         }
       }
       return res;
     }
     else {
       let res = new HashSet();
-      for (let t of this.triggers.keySet()) {
-        if (t>=tStart&&t<tEnd) {
-          res.addAll(this.triggers.get(t));
+      for (let t of this.triggers) {
+        if (t.getTime()>=tStart&&t.getTime()<tEnd) {
+          res.addAll(t.getTriggers());
         }
       }
       return res;
@@ -11905,10 +12002,63 @@ class ClipAnimation {
       return FrameInterpolation.create(frame, frame, 0);
     }
     let frameTime = this.duration/(this.clip.getNumFrames()-1);
-    let sfidx = (t/frameTime);
+    let sfidx = FMath.trunc(t/frameTime);
     let intt = (t-(frameTime*sfidx))/frameTime;
     intt = intt<0?0:(intt>1?1:intt);
     return FrameInterpolation.create(this.clip.getFrame(sfidx), this.clip.getFrame(sfidx+1), intt);
+  }
+
+  withAddedTrigger() {
+    if (arguments.length===2&& typeof arguments[0]==="number"&& typeof arguments[1]==="string") {
+      return this.withAddedTrigger_2_number_string(arguments[0], arguments[1]);
+    }
+    else if (arguments.length===1&&arguments[0] instanceof ClipAnimationTrigger) {
+      return this.withAddedTrigger_1_ClipAnimationTrigger(arguments[0]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  withAddedTrigger_2_number_string(time, trigger) {
+    return this.withAddedTrigger(ClipAnimationTrigger.create(time, trigger));
+  }
+
+  withAddedTrigger_1_ClipAnimationTrigger(trigger) {
+    let added = false;
+    let trgs = new ArrayList();
+    for (let tr of this.triggers) {
+      if (!added&&trigger.getTime()<tr.getTime()) {
+        trgs.add(trigger);
+        trgs.add(tr);
+        added = true;
+      }
+      else if (!added&&tr.getTime()==trigger.getTime()) {
+        trgs.add(tr.merge(trigger));
+        added = true;
+      }
+      else {
+        trgs.add(tr);
+      }
+    }
+    if (!added) {
+      trgs.add(trigger);
+    }
+    let res = new ClipAnimation();
+    res.clip = this.clip;
+    res.duration = this.duration;
+    res.loop = this.loop;
+    res.triggers = Collections.unmodifiableList(trgs);
+    res.guardInvariants();
+    return res;
+  }
+
+  withAddedTriggers(triggers) {
+    let res = this;
+    for (let tr of triggers) {
+      res = res.withAddedTrigger(tr);
+    }
+    return res;
   }
 
   hashCode() {
@@ -11932,52 +12082,175 @@ class ClipAnimation {
   toString() {
   }
 
-  static create() {
-    if (arguments.length===3&&arguments[0] instanceof Clip&& typeof arguments[1]==="number"&& typeof arguments[2]==="boolean") {
-      return ClipAnimation.create_3_Clip_number_boolean(arguments[0], arguments[1], arguments[2]);
-    }
-    else if (arguments.length===5&&arguments[0] instanceof Clip&& typeof arguments[1]==="number"&& typeof arguments[2]==="boolean"&& typeof arguments[3]==="number"&& typeof arguments[4]==="string") {
-      return ClipAnimation.create_5_Clip_number_boolean_number_string(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
-    }
-    else if (arguments.length===4&&arguments[0] instanceof Clip&& typeof arguments[1]==="number"&& typeof arguments[2]==="boolean"&&arguments[3] instanceof HashMap) {
-      return ClipAnimation.create_4_Clip_number_boolean_Map(arguments[0], arguments[1], arguments[2], arguments[3]);
-    }
-    else {
-      throw "error";
-    }
-  }
-
-  static create_3_Clip_number_boolean(clip, duration, loop) {
+  static create(clip, duration, loop) {
     let res = new ClipAnimation();
     res.clip = clip;
     res.duration = duration;
     res.loop = loop;
-    res.triggers = Collections.emptySortedMap();
-    res.guardInvaritants();
+    res.triggers = Collections.emptyList();
+    res.guardInvariants();
     return res;
   }
 
-  static create_5_Clip_number_boolean_number_string(clip, duration, loop, triggerT, tigger) {
-    let res = new ClipAnimation();
-    res.clip = clip;
-    res.duration = duration;
-    res.loop = loop;
-    res.triggers = Dut.immutableSortedMap(triggerT, Dut.immutableSet(tigger));
-    res.guardInvaritants();
+}
+class ClipAnimationCollectionId extends RefId {
+  static TYPE = RefIdType.of("CLIP_ANIMATION_COLLECTION_ID");
+  mId;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "ClipAnimationCollectionId";
+  }
+
+  guardInvariants() {
+  }
+
+  type() {
+    return ClipAnimationCollectionId.TYPE;
+  }
+
+  id() {
+    return this.mId;
+  }
+
+  hashCode() {
+    return this.mId.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ClipAnimationCollectionId)) {
+      return false;
+    }
+    let other = obj;
+    return other.mId.equals(this.mId);
+  }
+
+  toString() {
+  }
+
+  static of(id) {
+    let res = new ClipAnimationCollectionId();
+    res.mId = id;
+    res.guardInvariants();
     return res;
   }
 
-  static create_4_Clip_number_boolean_Map(clip, duration, loop, triggers) {
-    let res = new ClipAnimation();
-    res.clip = clip;
-    res.duration = duration;
-    res.loop = loop;
-    res.triggers = new TreeMap();
-    for (let t of triggers.keySet()) {
-      res.triggers.put(t, Dut.copyImmutableSet(triggers.get(t)));
+}
+class ClipAnimationCollection {
+  animations;
+  constructor() {
+  }
+
+  getClass() {
+    return "ClipAnimationCollection";
+  }
+
+  guardInvariants() {
+  }
+
+  getAnimations() {
+    return this.animations;
+  }
+
+  getAnimation(key) {
+    let res = this.animations.get(key);
+    Guard.notNull(res, "no animation under key: "+key);
+    return res;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(animations) {
+    let res = new ClipAnimationCollection();
+    res.animations = Dut.copyImmutableMap(animations);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class ClipAnimationPlayer {
+  collection;
+  animationKey = null;
+  animation = null;
+  time = 0;
+  constructor() {
+  }
+
+  getClass() {
+    return "ClipAnimationPlayer";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt) {
+    let st = this.time;
+    this.time = this.time+dt;
+    let triggers = this.animation.getTriggers(st, this.time);
+    return triggers;
+  }
+
+  play(key) {
+    if (this.animationKey.equals(key)) {
+      return ;
     }
-    res.triggers = Collections.unmodifiableSortedMap(res.triggers);
-    res.guardInvaritants();
+    this.animationKey = key;
+    this.animation = this.collection.getAnimation(key);
+    this.time = 0;
+  }
+
+  playFromStart(key) {
+    this.animationKey = key;
+    this.animation = this.collection.getAnimation(key);
+    this.time = 0;
+  }
+
+  isAnimationEnd() {
+    if (this.animation.isLoop()) {
+      return false;
+    }
+    return this.time>=this.animation.getDuration();
+  }
+
+  getAnimationKey() {
+    return this.animationKey;
+  }
+
+  getTime() {
+    return this.time;
+  }
+
+  getInterpolation() {
+    if (!this.animation.isLoop()&&this.time>this.animation.getDuration()) {
+      return this.animation.interpolate(this.animation.getDuration());
+    }
+    return this.animation.interpolate(this.time);
+  }
+
+  toString() {
+  }
+
+  static create(start, collection) {
+    let res = new ClipAnimationPlayer();
+    res.collection = collection;
+    res.animationKey = start;
+    res.animation = collection.getAnimation(start);
+    res.time = 0;
+    res.guardInvariants();
     return res;
   }
 
@@ -13014,8 +13287,8 @@ class Assets {
       let clip = Assets.parseClip(animJson.getJSONArray("clip"));
       let dur = Float.valueOf(animJson.getString("duration"));
       let loop = animJson.getBoolean("loop");
-      let triggers = animJson.has("triggers")?Assets.parseTriggers(animJson.getJSONArray("triggers")):Collections.emptyMap();
-      animations.put(key, ClipAnimation.create(clip, dur, loop, triggers));
+      let triggers = animJson.has("triggers")?Assets.parseClipAnimationTriggers(animJson.getJSONArray("triggers")):Collections.emptyList();
+      animations.put(key, ClipAnimation.create(clip, dur, loop).withAddedTriggers(triggers));
     }
     let res = ClipAnimationCollection.create(animations);
     return AssetGroup.of(id, res);
@@ -13042,8 +13315,8 @@ class Assets {
       let sheet = SpriteSheet.create(key, assets.get("Texture", tid), Assets.getNumStripFrames(tid), 1);
       let dur = Float.valueOf(spriteJson.getString("duration"));
       let loop = spriteJson.getBoolean("loop");
-      let triggers = spriteJson.has("triggers")?Assets.parseTriggers(spriteJson.getJSONArray("triggers")):Collections.emptyMap();
-      let sprite = sheet.createSprite(dur, loop, triggers);
+      let triggers = spriteJson.has("triggers")?Assets.parseSpriteTriggers(spriteJson.getJSONArray("triggers")):Collections.emptyList();
+      let sprite = sheet.createSprite(dur, loop).withAddedTriggers(triggers);
       let id = SpriteId.of(key);
       res = res.remove(tid).mergeStrict(sheet.getAssets()).put(id, sprite);
     }
@@ -13079,8 +13352,8 @@ class Assets {
     return Clip.create(frames);
   }
 
-  static parseTriggers(array) {
-    let res = new HashMap();
+  static parseClipAnimationTriggers(array) {
+    let res = new ArrayList();
     for (let i = 0; i<array.length(); ++i) {
       let tJson = array.getJSONObject(i);
       let t = Float.valueOf(tJson.getString("t"));
@@ -13089,7 +13362,22 @@ class Assets {
       for (let j = 0; j<trgsJson.length(); ++j) {
         triggers.add(trgsJson.getString(j));
       }
-      res.put(t, triggers);
+      res.add(ClipAnimationTrigger.create(t, triggers));
+    }
+    return res;
+  }
+
+  static parseSpriteTriggers(array) {
+    let res = new ArrayList();
+    for (let i = 0; i<array.length(); ++i) {
+      let tJson = array.getJSONObject(i);
+      let t = Float.valueOf(tJson.getString("t"));
+      let trgsJson = tJson.getJSONArray("triggers");
+      let triggers = new HashSet();
+      for (let j = 0; j<trgsJson.length(); ++j) {
+        triggers.add(trgsJson.getString(j));
+      }
+      res.add(SpriteTrigger.create(t, triggers));
     }
     return res;
   }
@@ -14494,6 +14782,7 @@ class Actor {
   tags = new HashSet();
   immutableComponents = Collections.unmodifiableList(this.components);
   mWorld;
+  hash = Randoms.nextInt(0, 10000000);
   constructor() {
   }
 
@@ -14571,19 +14860,7 @@ class Actor {
     return res;
   }
 
-  getComponentByKey() {
-    if (arguments.length===2&& typeof arguments[0]==="string"&& typeof arguments[1]==="string") {
-      return this.getComponentByKey_2_string_string(arguments[0], arguments[1]);
-    }
-    else if (arguments.length===3&& typeof arguments[0]==="string"&& typeof arguments[1]==="string"&&arguments[2] instanceof T) {
-      return this.getComponentByKey_3_string_string_T(arguments[0], arguments[1], arguments[2]);
-    }
-    else {
-      throw "error";
-    }
-  }
-
-  getComponentByKey_2_string_string(clazz, key) {
+  getComponentByKey(clazz, key) {
     for (let i = 0; i<this.components.size(); ++i) {
       let comp = this.components.get(i);
       if (comp.getKey().equals(key)) {
@@ -14593,14 +14870,14 @@ class Actor {
     throw "actor "+this.id.id()+"("+this.name+") doesn't have a requested compoent with a key: "+key;
   }
 
-  getComponentByKey_3_string_string_T(clazz, key, def) {
+  getComponentByKeyNonStrict(clazz, key) {
     for (let i = 0; i<this.components.size(); ++i) {
       let comp = this.components.get(i);
       if (comp.getKey().equals(key)) {
         return comp;
       }
     }
-    return def;
+    return null;
   }
 
   addComponent(component) {
@@ -14729,6 +15006,14 @@ class Actor {
       this.components.get(i).onEvent(type, event);
     }
     return this;
+  }
+
+  hashCode() {
+    return this.hash;
+  }
+
+  equals(obj) {
+    return this==obj;
   }
 
   toString() {
@@ -15032,7 +15317,7 @@ class Component {
     Guard.beNull(this.mActor, "component can be added to the actor only once");
     this.mActor = actor;
     if (StringUtils.isNotEmpty(this.mKey)) {
-      let compByKey = actor.getComponentByKey("Component", this.mKey, null);
+      let compByKey = actor.getComponentByKeyNonStrict("Component", this.mKey);
       if (compByKey!=null&&!compByKey.equals(this)) {
         throw "component key is duplicated: "+this.mKey;
       }
@@ -15080,7 +15365,7 @@ class Component {
   setKey(key) {
     Guard.notNull(key, "key cannot be null");
     if (this.mActor!=null&&StringUtils.isNotEmpty(key)) {
-      if (this.mActor.getComponentByKey("Component", key, null)!=null) {
+      if (this.mActor.getComponentByKeyNonStrict("Component", key)!=null) {
         throw "component key is duplicated: "+key;
       }
     }
@@ -19783,6 +20068,7 @@ class InputCache {
 
 }
 class InputCacheDisplayListener {
+  static DEFAULT_KEY = "display.size";
   inputs;
   key;
   constructor() {
@@ -19802,7 +20088,7 @@ class InputCacheDisplayListener {
   static create(inputs) {
     let res = new InputCacheDisplayListener();
     res.inputs = inputs;
-    res.key = "display.size";
+    res.key = InputCacheDisplayListener.DEFAULT_KEY;
     res.guardInvariants();
     return res;
   }

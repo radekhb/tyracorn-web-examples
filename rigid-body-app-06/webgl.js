@@ -62,6 +62,9 @@ class Guard {
     static notNullCollection() {
     }
 
+    static notEmptyStringCollection() {
+    }
+
 }
 // -------------------------------------
 // Float
@@ -993,6 +996,10 @@ class FMath {
 
     static tan(x) {
         return Math.tan(x);
+    }
+
+    static atan2(y, x) {
+        return Math.atan2(y, x);
     }
 
     static sqrt(x) {
@@ -10673,7 +10680,7 @@ class ImageToggleButton extends UiComponent {
 
   onContainerResize(size) {
     this.containerSize = size;
-    this.region = this.regionFnc.apply(size);
+    this.region = Functions.apply(this.regionFnc, size);
   }
 
   toggleDown() {
@@ -10823,7 +10830,7 @@ class ImageToggleButton extends UiComponent {
     res.font = FontId.DEFAULT;
     res.regionFnc = UiRegionFncs.center(100, 25);
     res.containerSize = Size2.create(1, 1);
-    res.region = res.regionFnc.apply(res.containerSize);
+    res.region = Functions.apply(res.regionFnc, res.containerSize);
     res.onToggleActions = new HashSet();
     res.guardInvariants();
     return res;
@@ -11814,6 +11821,91 @@ class Clip {
   }
 
 }
+class ClipAnimationTrigger {
+  time;
+  triggers;
+  constructor() {
+  }
+
+  getClass() {
+    return "ClipAnimationTrigger";
+  }
+
+  guardInvaritants() {
+    Guard.notNegative(this.time, "time cannot be negative");
+    Guard.notEmptyStringCollection(this.triggers, "triggers cannot have empty element");
+  }
+
+  getTime() {
+    return this.time;
+  }
+
+  getTriggers() {
+    return this.triggers;
+  }
+
+  merge(other) {
+    Guard.equals(this.time, other.time, "triggers must have same time, otherwise cannot merge");
+    let res = new ClipAnimationTrigger();
+    res.time = this.time;
+    let trgs = new HashSet();
+    trgs.addAll(this.triggers);
+    trgs.addAll(other.triggers);
+    res.triggers = Collections.unmodifiableSet(trgs);
+    res.guardInvaritants();
+    return res;
+  }
+
+  hashCode() {
+    return (7*this.time)+13*this.triggers.hashCode();
+  }
+
+  equals(obj) {
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ClipAnimationTrigger)) {
+      return false;
+    }
+    let other = obj;
+    return this.time==other.time&&this.triggers.equals(other.triggers);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    if (arguments.length===2&& typeof arguments[0]==="number"&& typeof arguments[1]==="string") {
+      return ClipAnimationTrigger.create_2_number_string(arguments[0], arguments[1]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="number"&&arguments[1] instanceof Set) {
+      return ClipAnimationTrigger.create_2_number_Set(arguments[0], arguments[1]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static create_2_number_string(time, trigger) {
+    let res = new ClipAnimationTrigger();
+    res.time = time;
+    res.triggers = Dut.immutableSet(trigger);
+    res.guardInvaritants();
+    return res;
+  }
+
+  static create_2_number_Set(time, triggers) {
+    let res = new ClipAnimationTrigger();
+    res.time = time;
+    res.triggers = Dut.copyImmutableSet(triggers);
+    res.guardInvaritants();
+    return res;
+  }
+
+}
 class ClipAnimation {
   clip;
   duration;
@@ -11826,10 +11918,7 @@ class ClipAnimation {
     return "ClipAnimation";
   }
 
-  guardInvaritants() {
-    Guard.notNull(this.clip, "clip cannot be null");
-    Guard.positive(this.duration, "duration must be positive");
-    Guard.notNullMap(this.triggers, "triggers cannot have null key or value");
+  guardInvariants() {
   }
 
   getClip() {
@@ -11864,26 +11953,34 @@ class ClipAnimation {
     if (this.triggers.isEmpty()) {
       return Collections.emptySet();
     }
-    if (this.loop) {
-      tStart = tStart%this.duration;
-      tStart = tStart<0?tStart+this.duration:tStart;
-      tEnd = tEnd%this.duration;
-      tEnd = tEnd<0?tEnd+this.duration:tEnd;
+    if (tStart<0||tEnd<0||tEnd<tStart) {
+      throw "tStart or tEnd cannot be negative, and tStart must be <= tEnd: "+tStart+", "+tEnd;
     }
-    if (tEnd<tStart) {
+    if (this.loop) {
+      if (tEnd-tStart>=this.duration) {
+        let res = new HashSet();
+        for (let t of this.triggers) {
+          res.addAll(t.getTriggers());
+        }
+        return res;
+      }
+      tStart = tStart%this.duration;
+      tEnd = tEnd%this.duration;
+    }
+    if (tEnd<=tStart) {
       let res = new HashSet();
-      for (let t of this.triggers.keySet()) {
-        if (t<tEnd||t>=tStart) {
-          res.addAll(this.triggers.get(t));
+      for (let t of this.triggers) {
+        if (t.getTime()<tEnd||t.getTime()>=tStart) {
+          res.addAll(t.getTriggers());
         }
       }
       return res;
     }
     else {
       let res = new HashSet();
-      for (let t of this.triggers.keySet()) {
-        if (t>=tStart&&t<tEnd) {
-          res.addAll(this.triggers.get(t));
+      for (let t of this.triggers) {
+        if (t.getTime()>=tStart&&t.getTime()<tEnd) {
+          res.addAll(t.getTriggers());
         }
       }
       return res;
@@ -11905,10 +12002,63 @@ class ClipAnimation {
       return FrameInterpolation.create(frame, frame, 0);
     }
     let frameTime = this.duration/(this.clip.getNumFrames()-1);
-    let sfidx = (t/frameTime);
+    let sfidx = FMath.trunc(t/frameTime);
     let intt = (t-(frameTime*sfidx))/frameTime;
     intt = intt<0?0:(intt>1?1:intt);
     return FrameInterpolation.create(this.clip.getFrame(sfidx), this.clip.getFrame(sfidx+1), intt);
+  }
+
+  withAddedTrigger() {
+    if (arguments.length===2&& typeof arguments[0]==="number"&& typeof arguments[1]==="string") {
+      return this.withAddedTrigger_2_number_string(arguments[0], arguments[1]);
+    }
+    else if (arguments.length===1&&arguments[0] instanceof ClipAnimationTrigger) {
+      return this.withAddedTrigger_1_ClipAnimationTrigger(arguments[0]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  withAddedTrigger_2_number_string(time, trigger) {
+    return this.withAddedTrigger(ClipAnimationTrigger.create(time, trigger));
+  }
+
+  withAddedTrigger_1_ClipAnimationTrigger(trigger) {
+    let added = false;
+    let trgs = new ArrayList();
+    for (let tr of this.triggers) {
+      if (!added&&trigger.getTime()<tr.getTime()) {
+        trgs.add(trigger);
+        trgs.add(tr);
+        added = true;
+      }
+      else if (!added&&tr.getTime()==trigger.getTime()) {
+        trgs.add(tr.merge(trigger));
+        added = true;
+      }
+      else {
+        trgs.add(tr);
+      }
+    }
+    if (!added) {
+      trgs.add(trigger);
+    }
+    let res = new ClipAnimation();
+    res.clip = this.clip;
+    res.duration = this.duration;
+    res.loop = this.loop;
+    res.triggers = Collections.unmodifiableList(trgs);
+    res.guardInvariants();
+    return res;
+  }
+
+  withAddedTriggers(triggers) {
+    let res = this;
+    for (let tr of triggers) {
+      res = res.withAddedTrigger(tr);
+    }
+    return res;
   }
 
   hashCode() {
@@ -11932,52 +12082,175 @@ class ClipAnimation {
   toString() {
   }
 
-  static create() {
-    if (arguments.length===3&&arguments[0] instanceof Clip&& typeof arguments[1]==="number"&& typeof arguments[2]==="boolean") {
-      return ClipAnimation.create_3_Clip_number_boolean(arguments[0], arguments[1], arguments[2]);
-    }
-    else if (arguments.length===5&&arguments[0] instanceof Clip&& typeof arguments[1]==="number"&& typeof arguments[2]==="boolean"&& typeof arguments[3]==="number"&& typeof arguments[4]==="string") {
-      return ClipAnimation.create_5_Clip_number_boolean_number_string(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
-    }
-    else if (arguments.length===4&&arguments[0] instanceof Clip&& typeof arguments[1]==="number"&& typeof arguments[2]==="boolean"&&arguments[3] instanceof HashMap) {
-      return ClipAnimation.create_4_Clip_number_boolean_Map(arguments[0], arguments[1], arguments[2], arguments[3]);
-    }
-    else {
-      throw "error";
-    }
-  }
-
-  static create_3_Clip_number_boolean(clip, duration, loop) {
+  static create(clip, duration, loop) {
     let res = new ClipAnimation();
     res.clip = clip;
     res.duration = duration;
     res.loop = loop;
-    res.triggers = Collections.emptySortedMap();
-    res.guardInvaritants();
+    res.triggers = Collections.emptyList();
+    res.guardInvariants();
     return res;
   }
 
-  static create_5_Clip_number_boolean_number_string(clip, duration, loop, triggerT, tigger) {
-    let res = new ClipAnimation();
-    res.clip = clip;
-    res.duration = duration;
-    res.loop = loop;
-    res.triggers = Dut.immutableSortedMap(triggerT, Dut.immutableSet(tigger));
-    res.guardInvaritants();
+}
+class ClipAnimationCollectionId extends RefId {
+  static TYPE = RefIdType.of("CLIP_ANIMATION_COLLECTION_ID");
+  mId;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "ClipAnimationCollectionId";
+  }
+
+  guardInvariants() {
+  }
+
+  type() {
+    return ClipAnimationCollectionId.TYPE;
+  }
+
+  id() {
+    return this.mId;
+  }
+
+  hashCode() {
+    return this.mId.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ClipAnimationCollectionId)) {
+      return false;
+    }
+    let other = obj;
+    return other.mId.equals(this.mId);
+  }
+
+  toString() {
+  }
+
+  static of(id) {
+    let res = new ClipAnimationCollectionId();
+    res.mId = id;
+    res.guardInvariants();
     return res;
   }
 
-  static create_4_Clip_number_boolean_Map(clip, duration, loop, triggers) {
-    let res = new ClipAnimation();
-    res.clip = clip;
-    res.duration = duration;
-    res.loop = loop;
-    res.triggers = new TreeMap();
-    for (let t of triggers.keySet()) {
-      res.triggers.put(t, Dut.copyImmutableSet(triggers.get(t)));
+}
+class ClipAnimationCollection {
+  animations;
+  constructor() {
+  }
+
+  getClass() {
+    return "ClipAnimationCollection";
+  }
+
+  guardInvariants() {
+  }
+
+  getAnimations() {
+    return this.animations;
+  }
+
+  getAnimation(key) {
+    let res = this.animations.get(key);
+    Guard.notNull(res, "no animation under key: "+key);
+    return res;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(animations) {
+    let res = new ClipAnimationCollection();
+    res.animations = Dut.copyImmutableMap(animations);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class ClipAnimationPlayer {
+  collection;
+  animationKey = null;
+  animation = null;
+  time = 0;
+  constructor() {
+  }
+
+  getClass() {
+    return "ClipAnimationPlayer";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt) {
+    let st = this.time;
+    this.time = this.time+dt;
+    let triggers = this.animation.getTriggers(st, this.time);
+    return triggers;
+  }
+
+  play(key) {
+    if (this.animationKey.equals(key)) {
+      return ;
     }
-    res.triggers = Collections.unmodifiableSortedMap(res.triggers);
-    res.guardInvaritants();
+    this.animationKey = key;
+    this.animation = this.collection.getAnimation(key);
+    this.time = 0;
+  }
+
+  playFromStart(key) {
+    this.animationKey = key;
+    this.animation = this.collection.getAnimation(key);
+    this.time = 0;
+  }
+
+  isAnimationEnd() {
+    if (this.animation.isLoop()) {
+      return false;
+    }
+    return this.time>=this.animation.getDuration();
+  }
+
+  getAnimationKey() {
+    return this.animationKey;
+  }
+
+  getTime() {
+    return this.time;
+  }
+
+  getInterpolation() {
+    if (!this.animation.isLoop()&&this.time>this.animation.getDuration()) {
+      return this.animation.interpolate(this.animation.getDuration());
+    }
+    return this.animation.interpolate(this.time);
+  }
+
+  toString() {
+  }
+
+  static create(start, collection) {
+    let res = new ClipAnimationPlayer();
+    res.collection = collection;
+    res.animationKey = start;
+    res.animation = collection.getAnimation(start);
+    res.time = 0;
+    res.guardInvariants();
     return res;
   }
 
@@ -13014,8 +13287,8 @@ class Assets {
       let clip = Assets.parseClip(animJson.getJSONArray("clip"));
       let dur = Float.valueOf(animJson.getString("duration"));
       let loop = animJson.getBoolean("loop");
-      let triggers = animJson.has("triggers")?Assets.parseTriggers(animJson.getJSONArray("triggers")):Collections.emptyMap();
-      animations.put(key, ClipAnimation.create(clip, dur, loop, triggers));
+      let triggers = animJson.has("triggers")?Assets.parseClipAnimationTriggers(animJson.getJSONArray("triggers")):Collections.emptyList();
+      animations.put(key, ClipAnimation.create(clip, dur, loop).withAddedTriggers(triggers));
     }
     let res = ClipAnimationCollection.create(animations);
     return AssetGroup.of(id, res);
@@ -13042,8 +13315,8 @@ class Assets {
       let sheet = SpriteSheet.create(key, assets.get("Texture", tid), Assets.getNumStripFrames(tid), 1);
       let dur = Float.valueOf(spriteJson.getString("duration"));
       let loop = spriteJson.getBoolean("loop");
-      let triggers = spriteJson.has("triggers")?Assets.parseTriggers(spriteJson.getJSONArray("triggers")):Collections.emptyMap();
-      let sprite = sheet.createSprite(dur, loop, triggers);
+      let triggers = spriteJson.has("triggers")?Assets.parseSpriteTriggers(spriteJson.getJSONArray("triggers")):Collections.emptyList();
+      let sprite = sheet.createSprite(dur, loop).withAddedTriggers(triggers);
       let id = SpriteId.of(key);
       res = res.remove(tid).mergeStrict(sheet.getAssets()).put(id, sprite);
     }
@@ -13079,8 +13352,8 @@ class Assets {
     return Clip.create(frames);
   }
 
-  static parseTriggers(array) {
-    let res = new HashMap();
+  static parseClipAnimationTriggers(array) {
+    let res = new ArrayList();
     for (let i = 0; i<array.length(); ++i) {
       let tJson = array.getJSONObject(i);
       let t = Float.valueOf(tJson.getString("t"));
@@ -13089,7 +13362,22 @@ class Assets {
       for (let j = 0; j<trgsJson.length(); ++j) {
         triggers.add(trgsJson.getString(j));
       }
-      res.put(t, triggers);
+      res.add(ClipAnimationTrigger.create(t, triggers));
+    }
+    return res;
+  }
+
+  static parseSpriteTriggers(array) {
+    let res = new ArrayList();
+    for (let i = 0; i<array.length(); ++i) {
+      let tJson = array.getJSONObject(i);
+      let t = Float.valueOf(tJson.getString("t"));
+      let trgsJson = tJson.getJSONArray("triggers");
+      let triggers = new HashSet();
+      for (let j = 0; j<trgsJson.length(); ++j) {
+        triggers.add(trgsJson.getString(j));
+      }
+      res.add(SpriteTrigger.create(t, triggers));
     }
     return res;
   }
@@ -14494,6 +14782,7 @@ class Actor {
   tags = new HashSet();
   immutableComponents = Collections.unmodifiableList(this.components);
   mWorld;
+  hash = Randoms.nextInt(0, 10000000);
   constructor() {
   }
 
@@ -14571,19 +14860,7 @@ class Actor {
     return res;
   }
 
-  getComponentByKey() {
-    if (arguments.length===2&& typeof arguments[0]==="string"&& typeof arguments[1]==="string") {
-      return this.getComponentByKey_2_string_string(arguments[0], arguments[1]);
-    }
-    else if (arguments.length===3&& typeof arguments[0]==="string"&& typeof arguments[1]==="string"&&arguments[2] instanceof T) {
-      return this.getComponentByKey_3_string_string_T(arguments[0], arguments[1], arguments[2]);
-    }
-    else {
-      throw "error";
-    }
-  }
-
-  getComponentByKey_2_string_string(clazz, key) {
+  getComponentByKey(clazz, key) {
     for (let i = 0; i<this.components.size(); ++i) {
       let comp = this.components.get(i);
       if (comp.getKey().equals(key)) {
@@ -14593,14 +14870,14 @@ class Actor {
     throw "actor "+this.id.id()+"("+this.name+") doesn't have a requested compoent with a key: "+key;
   }
 
-  getComponentByKey_3_string_string_T(clazz, key, def) {
+  getComponentByKeyNonStrict(clazz, key) {
     for (let i = 0; i<this.components.size(); ++i) {
       let comp = this.components.get(i);
       if (comp.getKey().equals(key)) {
         return comp;
       }
     }
-    return def;
+    return null;
   }
 
   addComponent(component) {
@@ -14729,6 +15006,14 @@ class Actor {
       this.components.get(i).onEvent(type, event);
     }
     return this;
+  }
+
+  hashCode() {
+    return this.hash;
+  }
+
+  equals(obj) {
+    return this==obj;
   }
 
   toString() {
@@ -15032,7 +15317,7 @@ class Component {
     Guard.beNull(this.mActor, "component can be added to the actor only once");
     this.mActor = actor;
     if (StringUtils.isNotEmpty(this.mKey)) {
-      let compByKey = actor.getComponentByKey("Component", this.mKey, null);
+      let compByKey = actor.getComponentByKeyNonStrict("Component", this.mKey);
       if (compByKey!=null&&!compByKey.equals(this)) {
         throw "component key is duplicated: "+this.mKey;
       }
@@ -15080,7 +15365,7 @@ class Component {
   setKey(key) {
     Guard.notNull(key, "key cannot be null");
     if (this.mActor!=null&&StringUtils.isNotEmpty(key)) {
-      if (this.mActor.getComponentByKey("Component", key, null)!=null) {
+      if (this.mActor.getComponentByKeyNonStrict("Component", key)!=null) {
         throw "component key is duplicated: "+key;
       }
     }
@@ -19783,6 +20068,7 @@ class InputCache {
 
 }
 class InputCacheDisplayListener {
+  static DEFAULT_KEY = "display.size";
   inputs;
   key;
   constructor() {
@@ -19802,7 +20088,7 @@ class InputCacheDisplayListener {
   static create(inputs) {
     let res = new InputCacheDisplayListener();
     res.inputs = inputs;
-    res.key = "display.size";
+    res.key = InputCacheDisplayListener.DEFAULT_KEY;
     res.guardInvariants();
     return res;
   }
@@ -20291,6 +20577,190 @@ class BoxMeshFactory {
   }
 
 }
+class CharacterController extends UiComponent {
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "CharacterController";
+  }
+
+  getDir() {
+  }
+
+  isRun() {
+  }
+
+  isPunch() {
+  }
+
+  static create(drivers) {
+    if (drivers.isDriverAvailable("KeyboardDriver")) {
+      return KeyboardCharacterController.create(drivers);
+    }
+    else if (drivers.isDriverAvailable("TouchDriver")) {
+      return TouchCharacterController.create(drivers);
+    }
+    else {
+      throw "unable to create game pad, unable to find possible drivers";
+    }
+  }
+
+}
+class KeyboardCharacterController extends CharacterController {
+  joystick;
+  run = false;
+  punch = false;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "KeyboardCharacterController";
+  }
+
+  guardInvariants() {
+  }
+
+  getDir() {
+    return this.joystick.getDir();
+  }
+
+  isRun() {
+    return this.run;
+  }
+
+  isPunch() {
+    return this.punch;
+  }
+
+  onKeyPressed(key) {
+    this.joystick.onKeyPressed(key);
+    if (key.getCode()==KeyCode.SHIFT_CODE) {
+      this.run = true;
+    }
+    else if (key.getCode()==KeyCode.CONTROL_CODE) {
+      this.punch = true;
+    }
+    return false;
+  }
+
+  onKeyReleased(key) {
+    this.joystick.onKeyReleased(key);
+    if (key.getCode()==KeyCode.SHIFT_CODE) {
+      this.run = false;
+    }
+    else if (key.getCode()==KeyCode.CONTROL_CODE) {
+      this.punch = false;
+    }
+    return false;
+  }
+
+  move(dt) {
+    this.joystick.move(dt);
+  }
+
+  draw(painter) {
+    this.joystick.draw(painter);
+  }
+
+  onContainerResize(size) {
+    this.joystick.onContainerResize(size);
+  }
+
+  toString() {
+  }
+
+  static create(drivers) {
+    Guard.beTrue(drivers.isDriverAvailable("KeyboardDriver"), "keybboard driver is not available");
+    let res = new KeyboardCharacterController();
+    res.joystick = KeyboardJoystick.create().setKeys("WSAD");
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class TouchCharacterController extends CharacterController {
+  joystick;
+  runButton;
+  punchButton;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "TouchCharacterController";
+  }
+
+  guardInvariants() {
+  }
+
+  getDir() {
+    return this.joystick.getDir();
+  }
+
+  isRun() {
+    return this.runButton.isToggledDown();
+  }
+
+  isPunch() {
+    return this.punchButton.isDown();
+  }
+
+  move(dt) {
+    this.joystick.move(dt);
+    this.runButton.move(dt);
+    this.punchButton.move(dt);
+  }
+
+  draw(painter) {
+    this.joystick.draw(painter);
+    this.runButton.draw(painter);
+    this.punchButton.draw(painter);
+  }
+
+  onContainerResize(size) {
+    this.joystick.onContainerResize(size);
+    this.runButton.onContainerResize(size);
+    this.punchButton.onContainerResize(size);
+  }
+
+  onTouchStart(id, pos, size) {
+    this.joystick.onTouchStart(id, pos, size);
+    this.runButton.onTouchStart(id, pos, size);
+    this.punchButton.onTouchStart(id, pos, size);
+    return false;
+  }
+
+  onTouchMove(id, pos, size) {
+    this.joystick.onTouchMove(id, pos, size);
+    this.runButton.onTouchMove(id, pos, size);
+    this.punchButton.onTouchMove(id, pos, size);
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    this.joystick.onTouchEnd(id, pos, size, cancel);
+    this.runButton.onTouchEnd(id, pos, size, cancel);
+    this.punchButton.onTouchEnd(id, pos, size, cancel);
+    return false;
+  }
+
+  toString() {
+  }
+
+  static create(drivers) {
+    Guard.beTrue(drivers.isDriverAvailable("TouchDriver"), "touch driver is not available");
+    let res = new TouchCharacterController();
+    res.joystick = TouchJoystick.create().setBaseTexture("shadedDark11").setTopTexture("shadedDark01").setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.leftBottom(25, 125, 100, 100), UiRegionFncs.leftBottom(10, 125, 80, 80)));
+    res.runButton = ImageToggleButton.create().setUpTexture("shadedDark47").setDownTexture("shadedLight47").setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.rightBottom(150, 75, 50, 50), UiRegionFncs.rightBottom(140, 75, 40, 40)));
+    res.punchButton = ImageButton.create().setUpTexture("shadedDark36").setDownTexture("shadedLight36").setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.rightBottom(85, 85, 60, 60), UiRegionFncs.rightBottom(75, 85, 50, 50)));
+    res.guardInvariants();
+    return res;
+  }
+
+}
 class CameraTrackBehavior extends Behavior {
   targetId;
   offset;
@@ -20384,6 +20854,46 @@ class PlayerCharacterInput extends Behavior {
   }
 
 }
+class PunchableBehavior extends Behavior {
+  hit = false;
+  hitPos;
+  hitDir;
+  hitImpact;
+  impactMultiplier = 5;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "PunchableBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt, inputs) {
+    if (!this.hit) {
+      return ;
+    }
+    this.hit = false;
+    let rb = this.actor().getComponent("RigidBodyComponent");
+    rb.applyForce(this.hitPos, this.hitDir.scale(this.hitImpact*this.impactMultiplier));
+  }
+
+  onHit(pos, dir, impact) {
+    this.hitPos = pos;
+    this.hitDir = dir;
+    this.hitImpact = impact;
+    this.hit = true;
+  }
+
+  static create() {
+    let res = new PunchableBehavior();
+    res.guardInvariants();
+    return res;
+  }
+
+}
 class PlayerCharacterBehavior extends Behavior {
   static JOYSTICK_SENSITIVITY = 1e-5;
   static FWD = Vec3.create(0, 0, -1);
@@ -20412,7 +20922,7 @@ class PlayerCharacterBehavior extends Behavior {
     let idle = ClipAnimation.create(Clip.simple(0, 1, 0), 2, true);
     let walk = ClipAnimation.create(Clip.simple(2, 3, 4, 5, 6, 2), 1, true);
     let run = ClipAnimation.create(Clip.simple(7, 8, 9, 10, 11, 12, 13, 7), 1, true);
-    let punch = ClipAnimation.create(Clip.simple(14, 15, 16, 17, 18), 0.5, false, 0.45, "punch");
+    let punch = ClipAnimation.create(Clip.simple(14, 15, 16, 17, 18), 0.5, false).withAddedTrigger(0.45, "punch");
     let hit = ClipAnimation.create(Clip.simple(19, 20, 19), 0.3, false);
     this.animationPlayer = ClipAnimationPlayer.create("idle", ClipAnimationCollection.create(Dut.map("idle", idle, "walk", walk, "run", run, "punch", punch, "hit", hit)));
     this.state = this.stateIdle.bind(this);
@@ -20722,28 +21232,6 @@ class RigidBodyApp06 {
     this.world.actors().add(ActorId.ROOT, camera);
     let character = Actor.create("character").setName("character").addComponent(TransformComponent.create().move(Vec3.create(0, 5, 0))).addComponent(ModelComponent.create().setModelId(characterModelId).setTransform(Mat44.rotY(FMath.PI))).addComponent(RigidBodyComponent.create().setMass(20).setRotationLock(true).setKinematic(false)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setPos(Vec3.create(0, 1.5, 0)).setShape(ColliderShape.CAPSULE).setRadius(0.7).setHeight(3).setMaterialId(charColMatId).setKey("body-collider")).addComponent(ColliderComponent.create().setTrigger(true).setActive(false).setLayer(CollisionLayer.OBJECT).setPos(Vec3.create(0.3, 1.7, -1.6)).setShape(ColliderShape.SPHERE).setRadius(0.1).setKey("punch-collider")).addComponent(PlayerCharacterBehavior.create());
     this.world.actors().add(ActorId.ROOT, character);
-    let sphere1 = Actor.create("sphere-1").setName("sphere-1").addComponent(TransformComponent.create().move(Vec3.create(-3, 4, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(0.5).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, sphere1);
-    let sphere2 = Actor.create("sphere-2").setName("sphere-2").addComponent(TransformComponent.create().move(Vec3.create(-3, 3.2, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setRadius(0.5).setSize(Vec3.create(1, 1, 1)).setMaterialId(objectColMatId)).addComponent(PunchableBehavior.create()).addComponent(BallSocketJointComponent.create().setJoint("sphere-1", "sphere-2", Vec3.create(-3, 3.6, 0)));
-    this.world.actors().add(ActorId.ROOT, sphere2);
-    let sphere3 = Actor.create("sphere-3").setName("sphere-3").addComponent(TransformComponent.create().move(Vec3.create(-3, 2.4, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setRadius(0.5).setSize(Vec3.create(1, 1, 1)).setMaterialId(objectColMatId)).addComponent(PunchableBehavior.create()).addComponent(BallSocketJointComponent.create().setJoint("sphere-2", "sphere-3", Vec3.create(-3, 2.7, 0)));
-    this.world.actors().add(ActorId.ROOT, sphere3);
-    let sphere4 = Actor.create("sphere-4").setName("sphere-4").addComponent(TransformComponent.create().move(Vec3.create(-3, 1.6, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setRadius(0.5).setSize(Vec3.create(1, 1, 1)).setMaterialId(objectColMatId)).addComponent(PunchableBehavior.create()).addComponent(BallSocketJointComponent.create().setJoint("sphere-3", "sphere-4", Vec3.create(-3, 1.8, 0)));
-    this.world.actors().add(ActorId.ROOT, sphere4);
-    let fixedBase = Actor.create("fixed-base").setName("fixed-base").addComponent(TransformComponent.create().move(Vec3.create(-1, 2, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(1, 4, 1))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 4, 1)).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, fixedBase);
-    let fixedBlock = Actor.create("fixed-block").setName("fixed-block").addComponent(TransformComponent.create().move(Vec3.create(-3, 3, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(4, 2, 0.5))).addComponent(RigidBodyComponent.create().setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(4, 2, 0.5)).setMaterialId(objectColMatId)).addComponent(FixedJointComponent.create().setJoint("fixed-base", "fixed-block"));
-    this.world.actors().add(ActorId.ROOT, fixedBlock);
-    let hingeBase = Actor.create("hinge-base").setName("hinge-base").addComponent(TransformComponent.create().move(Vec3.create(9, 2, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(1, 4, 1))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 4, 1)).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, hingeBase);
-    let hingeBlock = Actor.create("hinge-block").setName("hinge-block").addComponent(TransformComponent.create().move(Vec3.create(9, 3, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.trans(-2, 0, 0).mul(Mat44.scale(4, 2, 0.5)))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(10)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(4, 2, 0.5)).setPos(Vec3.create(-2, 0, 0)).setMaterialId(objectColMatId)).addComponent(HingeJointComponent.create().setJoint("hinge-base", "hinge-block", Vec3.create(9, 3, -8), Vec3.UP));
-    this.world.actors().add(ActorId.ROOT, hingeBlock);
-    let prismaticBase = Actor.create("prismatic-base").setName("prismatic-base").addComponent(TransformComponent.create().move(Vec3.create(20, 4, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(10, 0.5, 0.5))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(10, 0.5, 0.5)).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, prismaticBase);
-    let prismaticEnds = Actor.create("prismatic-ends").setName("prismatic-ends").addComponent(TransformComponent.create().move(Vec3.create(20, 4, -8))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setPos(Vec3.create(-5.125, 0, 0)).setSize(Vec3.create(0.25, 0.5, 0.5)).setMaterialId(objectColMatId)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setPos(Vec3.create(5.125, 0, 0)).setSize(Vec3.create(0.25, 0.5, 0.5)).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, prismaticEnds);
-    let prismaticBlock = Actor.create("prismatic-block").setName("prismatic-block").addComponent(TransformComponent.create().move(Vec3.create(20, 3, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(10)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId)).addComponent(PrismaticJointComponent.create().setJoint("prismatic-base", "prismatic-block", Vec3.create(20, 4, -8), Vec3.RIGHT));
-    this.world.actors().add(ActorId.ROOT, prismaticBlock);
     this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
     let btnFont = FontId.of("rubik-regular-20");
     let addObjectAct = (evetSource) => {
@@ -20754,7 +21242,7 @@ class RigidBodyApp06 {
       let sphereObj1 = Actor.create(id1).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(objectColMatId)).addComponent(BreakableSphereBehavior.create().setSphereModelId(sphereModelId));
       this.world.actors().add(ActorId.ROOT, sphereObj1);
       let sphereObj2 = Actor.create(id2).addComponent(TransformComponent.create().move(Vec3.create(0, 8, r))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(r/2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m/10)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r/2).setMaterialId(objectColMatId)).addComponent(BreakableSphereBehavior.create().setSphereModelId(sphereModelId)).addComponent(FixedJointComponent.create().setJoint(id1, id2));
-      this.world.actors().add(sphereObj2.getId(), sphere2);
+      this.world.actors().add(sphereObj1.getId(), sphereObj2);
     };
     let objectBtn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.leftTop(20, 20, 120, 30)).setText("Object").setFont(btnFont).addOnClickAction(addObjectAct);
     this.ui.addComponent(objectBtn);
