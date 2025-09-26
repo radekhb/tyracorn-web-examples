@@ -956,7 +956,11 @@ class HashMap {
  * This is wrapper to match the java implementatino.
  */
 class FMath {
+    static E = Math.E;
     static PI = Math.PI;
+    static PI_HALF = Math.PI / 2;
+    static PI_THIRD = Math.PI / 3;
+    static PI_QUARTER = Math.PI / 4;
 
     static trunc(a) {
         return Math.trunc(a);
@@ -6926,6 +6930,23 @@ class Quaternion {
 
   static rotZ(theta) {
     return Quaternion.rot(0, 0, 1, theta);
+  }
+
+}
+class Geometry3 {
+  constructor() {
+  }
+
+  getClass() {
+    return "Geometry3";
+  }
+
+  static projectToLine(linePt, lineDir, pt) {
+    let dx = pt.x()-linePt.x();
+    let dy = pt.y()-linePt.y();
+    let dz = pt.z()-linePt.z();
+    let t = dx*lineDir.x()+dy*lineDir.y()+dz*lineDir.z();
+    return linePt.addScaled(lineDir, t);
   }
 
 }
@@ -17016,6 +17037,797 @@ class RigidBodyComponent extends Component {
   }
 
 }
+class BallSocketJointConfig {
+  actorA;
+  actorB;
+  pos;
+  constructor() {
+  }
+
+  getClass() {
+    return "BallSocketJointConfig";
+  }
+
+  guardInvariants() {
+  }
+
+  getActorA() {
+    return this.actorA;
+  }
+
+  getActorB() {
+    return this.actorB;
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(actorA, actorB, pos) {
+    let res = new BallSocketJointConfig();
+    res.actorA = actorA;
+    res.actorB = actorB;
+    res.pos = pos;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class BallSocketJointComponent extends Behavior {
+  static FEATURES = Dut.immutableSet(ComponentFeature.COLLISION_EXCLUSION_PRODUCER, ComponentFeature.RIGID_BODY_JOINT);
+  localPosA;
+  localPosB;
+  rigidBodyA;
+  rigidBodyB;
+  collisionExclusions;
+  initDone = false;
+  config;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "BallSocketJointComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.initDone = true;
+    if (this.config==null) {
+      return ;
+    }
+    let actA = this.world().actors().get(this.config.getActorA());
+    let actB = this.world().actors().get(this.config.getActorB());
+    this.rigidBodyA = actA.getComponent("RigidBodyComponent");
+    this.rigidBodyB = actB.getComponent("RigidBodyComponent");
+    this.localPosA = this.rigidBodyA.toLocal(this.config.getPos());
+    this.localPosB = this.rigidBodyB.toLocal(this.config.getPos());
+    this.collisionExclusions = Dut.immutableSet(CollisionExclusion.create(this.config.getActorA(), this.config.getActorB()));
+    this.broadcastDomainUpdate(ActorDomain.COLLISION_EXCLUSION, false, false);
+    this.config = null;
+  }
+
+  getFeatures() {
+    return BallSocketJointComponent.FEATURES;
+  }
+
+  move(dt, inputs) {
+  }
+
+  getCollisionExclusions() {
+    return this.collisionExclusions;
+  }
+
+  getRigidBodyA() {
+    return this.rigidBodyA;
+  }
+
+  getRigidBodyB() {
+    return this.rigidBodyB;
+  }
+
+  solveVelocities(configuration, iteration) {
+    let posA = this.rigidBodyA.toGlobal(this.localPosA);
+    let posB = this.rigidBodyB.toGlobal(this.localPosB);
+    let va = this.rigidBodyA.getPointVelocity(posA);
+    let vb = this.rigidBodyB.getPointVelocity(posB);
+    let vDiffCurrent = vb.sub(va);
+    let vDiffWanted = posA.subAndScale(posB, 1/configuration.getTimeStep());
+    let vDiff = vDiffWanted.sub(vDiffCurrent);
+    let mag = vDiff.mag();
+    if (mag<configuration.getVelError()) {
+      return false;
+    }
+    let normal = vDiff.normalize();
+    let uinefA = this.rigidBodyA.getImpulseEffectOnPoint(posA, normal, posA);
+    let uinefB = this.rigidBodyB.getImpulseEffectOnPoint(posB, normal, posB);
+    let uinefnorm1 = normal.dot(uinefA);
+    let uinefnorm2 = normal.dot(uinefB);
+    let uinefnorm = uinefnorm1+uinefnorm2;
+    let immag = mag/uinefnorm;
+    Guard.notNegative(immag, "immag cannot be negative: %s", immag);
+    this.rigidBodyA.applyImpulse(posA, normal.scale(-immag));
+    this.rigidBodyB.applyImpulse(posB, normal.scale(immag));
+    return immag>configuration.getImpulseError();
+  }
+
+  setJoint() {
+    if (arguments.length===1&&arguments[0] instanceof BallSocketJointConfig) {
+      return this.setJoint_1_BallSocketJointConfig(arguments[0]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="string"&& typeof arguments[1]==="string"&&arguments[2] instanceof Vec3) {
+      return this.setJoint_3_string_string_Vec3(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  setJoint_1_BallSocketJointConfig(config) {
+    this.config = config;
+    if (this.initDone) {
+      this.init();
+    }
+    return this;
+  }
+
+  setJoint_3_string_string_Vec3(actorA, actorB, pos) {
+    return this.setJoint(BallSocketJointConfig.create(ActorId.of(actorA), ActorId.of(actorB), pos));
+  }
+
+  renderDebug(gDriver, request, camera) {
+    if (!request.hasDebugRenderRealm(DebugRenderRealm.JOINT)) {
+      return ;
+    }
+    let prend = gDriver.startRenderer("PrimitiveRenderer", BasicEnvironment.create(camera));
+    DebugRendering.sphere(prend, this.rigidBodyA.toGlobal(this.localPosA), 0.3, Rgb.BLUE);
+    DebugRendering.sphere(prend, this.rigidBodyB.toGlobal(this.localPosB), 0.3, Rgb.BLUE);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new BallSocketJointComponent();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class HingeJointConfig {
+  actorA;
+  actorB;
+  pos;
+  axis;
+  constructor() {
+  }
+
+  getClass() {
+    return "HingeJointConfig";
+  }
+
+  guardInvariants() {
+  }
+
+  getActorA() {
+    return this.actorA;
+  }
+
+  getActorB() {
+    return this.actorB;
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getAxis() {
+    return this.axis;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(actorA, actorB, pos, axis) {
+    let res = new HingeJointConfig();
+    res.actorA = actorA;
+    res.actorB = actorB;
+    res.pos = pos;
+    res.axis = axis;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class HingeJointComponent extends Behavior {
+  static FEATURES = Dut.immutableSet(ComponentFeature.COLLISION_EXCLUSION_PRODUCER, ComponentFeature.RIGID_BODY_JOINT);
+  rigidBodyA;
+  rigidBodyB;
+  collisionExclusions = Collections.emptySet();
+  initDone = false;
+  config;
+  localPosA;
+  localAxisA;
+  localPosB;
+  localAxisB;
+  q0Conjs = Collections.emptyList();
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "HingeJointComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.initDone = true;
+    if (this.config==null) {
+      return ;
+    }
+    let actA = this.world().actors().get(this.config.getActorA());
+    let actB = this.world().actors().get(this.config.getActorB());
+    this.rigidBodyA = actA.getComponent("RigidBodyComponent");
+    this.rigidBodyB = actB.getComponent("RigidBodyComponent");
+    this.localPosA = this.rigidBodyA.toLocal(this.config.getPos());
+    this.localAxisA = this.rigidBodyA.toLocalRot(this.config.getAxis()).normalize();
+    this.localPosB = this.rigidBodyB.toLocal(this.config.getPos());
+    this.localAxisB = this.rigidBodyB.toLocalRot(this.config.getAxis()).normalize();
+    this.q0Conjs = new ArrayList();
+    for (let i = 0; i<8; ++i) {
+      let rot = Quaternion.rot(this.config.getAxis(), FMath.PI_HALF*i);
+      this.q0Conjs.add(this.rigidBodyA.getRot().conj().mul(this.rigidBodyB.getRot().mul(rot)));
+    }
+    this.collisionExclusions = Dut.immutableSet(CollisionExclusion.create(this.config.getActorA(), this.config.getActorB()));
+    this.broadcastDomainUpdate(ActorDomain.COLLISION_EXCLUSION, false, false);
+    this.config = null;
+  }
+
+  getFeatures() {
+    return HingeJointComponent.FEATURES;
+  }
+
+  move(dt, inputs) {
+  }
+
+  getCollisionExclusions() {
+    return this.collisionExclusions;
+  }
+
+  getRigidBodyA() {
+    return this.rigidBodyA;
+  }
+
+  getRigidBodyB() {
+    return this.rigidBodyB;
+  }
+
+  solveVelocities(configuration, iteration) {
+    let res = false;
+    let qA = this.rigidBodyA.getRot();
+    let qB = this.rigidBodyB.getRot();
+    let dq1 = qA.conj().mul(qB);
+    let dr = dq1.mul(this.q0Conjs.get(0));
+    if (dr.a()<0) {
+      dr = dr.scale(-1);
+    }
+    for (let i = 1; i<this.q0Conjs.size(); ++i) {
+      let drCand = dq1.mul(this.q0Conjs.get(i));
+      if (drCand.a()<0) {
+        drCand = drCand.scale(-1);
+      }
+      if (FMath.abs(drCand.a())>FMath.abs(dr.a())) {
+        dr = drCand;
+      }
+    }
+    let wBaum = HingeJointComponent.getAngularVelocity(configuration.getTimeStep(), Quaternion.ZERO_ROT, dr).scale(configuration.getJointBaumgarte());
+    let wA = this.rigidBodyA.getAngularVelocity();
+    let wB = this.rigidBodyB.getAngularVelocity();
+    let axisWorld = this.rigidBodyA.toGlobalRot(this.localAxisA);
+    let wAmB = wA.sub(wB).sub(wBaum);
+    let wRem = wAmB.subScaled(axisWorld, wAmB.dot(axisWorld));
+    let iA = this.rigidBodyA.getInverseInertia();
+    let iB = this.rigidBodyB.getInverseInertia();
+    let angFact = iA.add(iB).inv();
+    let angIm = angFact.mul(wRem);
+    this.rigidBodyA.applyTorqueImpulse(angIm.scale(-1));
+    this.rigidBodyB.applyTorqueImpulse(angIm);
+    res = res|angIm.mag()>configuration.getImpulseError();
+    let pA = this.rigidBodyA.toGlobal(this.localPosA);
+    let pB = this.rigidBodyB.toGlobal(this.localPosB);
+    let vBaum = pA.subAndScale(pB, configuration.getJointBaumgarte()/configuration.getTimeStep());
+    let vA = this.rigidBodyA.getPointVelocity(pA);
+    let vB = this.rigidBodyB.getPointVelocity(pB);
+    let vAmB = vA.sub(vB);
+    let mA = Mat33.diagonal(this.rigidBodyA.getInverseMass());
+    let mB = Mat33.diagonal(this.rigidBodyB.getInverseMass());
+    let lFact = mA.add(mB).inv();
+    let im = lFact.mul(vAmB.add(vBaum));
+    this.rigidBodyA.applyImpulse(this.rigidBodyA.getPos(), im.scale(-1));
+    this.rigidBodyB.applyImpulse(this.rigidBodyB.getPos(), im);
+    res = res|im.mag()>configuration.getImpulseError();
+    return res;
+  }
+
+  setJoint() {
+    if (arguments.length===1&&arguments[0] instanceof HingeJointConfig) {
+      return this.setJoint_1_HingeJointConfig(arguments[0]);
+    }
+    else if (arguments.length===4&& typeof arguments[0]==="string"&& typeof arguments[1]==="string"&&arguments[2] instanceof Vec3&&arguments[3] instanceof Vec3) {
+      return this.setJoint_4_string_string_Vec3_Vec3(arguments[0], arguments[1], arguments[2], arguments[3]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  setJoint_1_HingeJointConfig(config) {
+    this.config = config;
+    if (this.initDone) {
+      this.init();
+    }
+    return this;
+  }
+
+  setJoint_4_string_string_Vec3_Vec3(actorA, actorB, pos, axis) {
+    return this.setJoint(HingeJointConfig.create(ActorId.of(actorA), ActorId.of(actorB), pos, axis));
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new HingeJointComponent();
+    res.guardInvariants();
+    return res;
+  }
+
+  static getAngularVelocity(dt, q1, q2) {
+    let sub = q2.sub(q1);
+    let wRecQ = sub.scale(1/(dt*0.5)).mul(q1.conj());
+    return Vec3.create(wRecQ.b(), wRecQ.c(), wRecQ.d());
+  }
+
+}
+class PrismaticJointConfig {
+  actorA;
+  actorB;
+  pos;
+  dir;
+  constructor() {
+  }
+
+  getClass() {
+    return "PrismaticJointConfig";
+  }
+
+  guardInvariants() {
+  }
+
+  getActorA() {
+    return this.actorA;
+  }
+
+  getActorB() {
+    return this.actorB;
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getDir() {
+    return this.dir;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(actorA, actorB, pos, dir) {
+    let res = new PrismaticJointConfig();
+    res.actorA = actorA;
+    res.actorB = actorB;
+    res.pos = pos;
+    res.dir = dir;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class PrismaticJointComponent extends Behavior {
+  static FEATURES = Dut.immutableSet(ComponentFeature.COLLISION_EXCLUSION_PRODUCER, ComponentFeature.RIGID_BODY_JOINT);
+  rigidBodyA;
+  rigidBodyB;
+  collisionExclusions;
+  initDone = false;
+  config;
+  localPosA;
+  localDirA;
+  localPosB;
+  localDirB;
+  q0;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "PrismaticJointComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.initDone = true;
+    if (this.config==null) {
+      return ;
+    }
+    let actA = this.world().actors().get(this.config.getActorA());
+    let actB = this.world().actors().get(this.config.getActorB());
+    this.rigidBodyA = actA.getComponent("RigidBodyComponent");
+    this.rigidBodyB = actB.getComponent("RigidBodyComponent");
+    this.localPosA = this.rigidBodyA.toLocal(this.config.getPos());
+    this.localDirA = this.rigidBodyA.toLocalRot(this.config.getDir()).normalize();
+    this.localPosB = this.rigidBodyB.toLocal(this.config.getPos());
+    this.localDirB = this.rigidBodyB.toLocalRot(this.config.getDir()).normalize();
+    this.q0 = this.rigidBodyA.getRot().conj().mul(this.rigidBodyB.getRot());
+    this.collisionExclusions = Dut.immutableSet(CollisionExclusion.create(this.config.getActorA(), this.config.getActorB()));
+    this.broadcastDomainUpdate(ActorDomain.COLLISION_EXCLUSION, false, false);
+    this.config = null;
+  }
+
+  getFeatures() {
+    return PrismaticJointComponent.FEATURES;
+  }
+
+  move(dt, inputs) {
+  }
+
+  getCollisionExclusions() {
+    return this.collisionExclusions;
+  }
+
+  getRigidBodyA() {
+    return this.rigidBodyA;
+  }
+
+  getRigidBodyB() {
+    return this.rigidBodyB;
+  }
+
+  solveVelocities(configuration, iteration) {
+    let res = false;
+    let qA = this.rigidBodyA.getRot();
+    let qB = this.rigidBodyB.getRot();
+    let dq1 = qA.conj().mul(qB);
+    let dr = dq1.mul(this.q0.conj());
+    let wBaum = PrismaticJointComponent.getAngularVelocity(configuration.getTimeStep(), Quaternion.ZERO_ROT, dr).scale(configuration.getJointBaumgarte());
+    let wA = this.rigidBodyA.getAngularVelocity();
+    let wB = this.rigidBodyB.getAngularVelocity();
+    let wAmB = wA.sub(wB).sub(wBaum);
+    let iA = this.rigidBodyA.getInverseInertia();
+    let iB = this.rigidBodyB.getInverseInertia();
+    let angFact = iA.add(iB).inv();
+    let angIm = angFact.mul(wAmB);
+    this.rigidBodyA.applyTorqueImpulse(angIm.scale(-1));
+    this.rigidBodyB.applyTorqueImpulse(angIm);
+    res = res|angIm.mag()>configuration.getImpulseError();
+    let dirWorld = this.rigidBodyA.toGlobalRot(this.localDirA);
+    let pA = this.rigidBodyA.toGlobal(this.localPosA);
+    let pB = this.rigidBodyB.toGlobal(this.localPosB);
+    let vA = this.rigidBodyA.getPointVelocity(pA);
+    let vB = this.rigidBodyB.getPointVelocity(pB);
+    let vAmB = vA.sub(vB);
+    let vBaum = pA.subAndScale(pB, configuration.getJointBaumgarte()/configuration.getTimeStep());
+    let vBaumFix = vBaum.subScaled(dirWorld, vBaum.dot(dirWorld));
+    let vFix = vAmB.subScaled(dirWorld, vAmB.dot(dirWorld));
+    let mA = Mat33.diagonal(this.rigidBodyA.getInverseMass());
+    let mB = Mat33.diagonal(this.rigidBodyB.getInverseMass());
+    let lFact = mA.add(mB).inv();
+    let im = lFact.mul(vFix.add(vBaumFix));
+    this.rigidBodyA.applyImpulse(this.rigidBodyA.getPos(), im.scale(-1));
+    this.rigidBodyB.applyImpulse(this.rigidBodyB.getPos(), im);
+    res = res|im.mag()>configuration.getImpulseError();
+    return res;
+  }
+
+  setJoint() {
+    if (arguments.length===1&&arguments[0] instanceof PrismaticJointConfig) {
+      return this.setJoint_1_PrismaticJointConfig(arguments[0]);
+    }
+    else if (arguments.length===4&& typeof arguments[0]==="string"&& typeof arguments[1]==="string"&&arguments[2] instanceof Vec3&&arguments[3] instanceof Vec3) {
+      return this.setJoint_4_string_string_Vec3_Vec3(arguments[0], arguments[1], arguments[2], arguments[3]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  setJoint_1_PrismaticJointConfig(config) {
+    this.config = config;
+    if (this.initDone) {
+      this.init();
+    }
+    return this;
+  }
+
+  setJoint_4_string_string_Vec3_Vec3(actorA, actorB, pos, dir) {
+    return this.setJoint(PrismaticJointConfig.create(ActorId.of(actorA), ActorId.of(actorB), pos, dir));
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new PrismaticJointComponent();
+    res.guardInvariants();
+    return res;
+  }
+
+  static getAngularVelocity(dt, q1, q2) {
+    let sub = q2.sub(q1);
+    let wRecQ = sub.scale(1/(dt*0.5)).mul(q1.conj());
+    return Vec3.create(wRecQ.b(), wRecQ.c(), wRecQ.d());
+  }
+
+}
+class FixedJointConfig {
+  actorA;
+  actorB;
+  pos;
+  constructor() {
+  }
+
+  getClass() {
+    return "FixedJointConfig";
+  }
+
+  guardInvariants() {
+  }
+
+  getActorA() {
+    return this.actorA;
+  }
+
+  getActorB() {
+    return this.actorB;
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    if (arguments.length===3&&arguments[0] instanceof ActorId&&arguments[1] instanceof ActorId&&arguments[2] instanceof Vec3) {
+      return FixedJointConfig.create_3_ActorId_ActorId_Vec3(arguments[0], arguments[1], arguments[2]);
+    }
+    else if (arguments.length===2&&arguments[0] instanceof ActorId&&arguments[1] instanceof ActorId) {
+      return FixedJointConfig.create_2_ActorId_ActorId(arguments[0], arguments[1]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static create_3_ActorId_ActorId_Vec3(actorA, actorB, pos) {
+    let res = new FixedJointConfig();
+    res.actorA = actorA;
+    res.actorB = actorB;
+    res.pos = pos;
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_2_ActorId_ActorId(actorA, actorB) {
+    let res = new FixedJointConfig();
+    res.actorA = actorA;
+    res.actorB = actorB;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class FixedJointComponent extends Behavior {
+  static FEATURES = Dut.immutableSet(ComponentFeature.COLLISION_EXCLUSION_PRODUCER, ComponentFeature.RIGID_BODY_JOINT);
+  actorA;
+  actorB;
+  rigidBodyA;
+  rigidBodyB;
+  collisionExclusions;
+  initDone = false;
+  config;
+  localPosA;
+  localPosB;
+  q0;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "FixedJointComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.initDone = true;
+    if (this.config==null) {
+      return ;
+    }
+    this.actorA = this.config.getActorA();
+    this.actorB = this.config.getActorB();
+    let actA = this.world().actors().get(this.actorA);
+    let actB = this.world().actors().get(this.actorB);
+    this.rigidBodyA = actA.getComponent("RigidBodyComponent");
+    this.rigidBodyB = actB.getComponent("RigidBodyComponent");
+    let pos = this.config.getPos()!=null?this.config.getPos():this.rigidBodyA.toGlobal(Vec3.ZERO).add(this.rigidBodyB.toGlobal(Vec3.ZERO)).scale(0.5);
+    this.localPosA = this.rigidBodyA.toLocal(pos);
+    this.localPosB = this.rigidBodyB.toLocal(pos);
+    this.q0 = this.rigidBodyA.getRot().conj().mul(this.rigidBodyB.getRot());
+    this.collisionExclusions = Dut.immutableSet(CollisionExclusion.create(this.actorA, this.actorB));
+    this.broadcastDomainUpdate(ActorDomain.COLLISION_EXCLUSION, false, false);
+    this.config = null;
+  }
+
+  getFeatures() {
+    return FixedJointComponent.FEATURES;
+  }
+
+  move(dt, inputs) {
+  }
+
+  getCollisionExclusions() {
+    return this.collisionExclusions;
+  }
+
+  getRigidBodyA() {
+    return this.rigidBodyA;
+  }
+
+  getRigidBodyB() {
+    return this.rigidBodyB;
+  }
+
+  solveVelocities(configuration, iteration) {
+    if (!this.world().actors().exists(this.actorA)||!this.world().actors().exists(this.actorB)||(this.rigidBodyA.isKinematic()&&this.rigidBodyB.isKinematic())) {
+      return false;
+    }
+    let res = false;
+    let posA = this.rigidBodyA.toGlobal(this.localPosA);
+    let posB = this.rigidBodyB.toGlobal(this.localPosB);
+    let va = this.rigidBodyA.getPointVelocity(posA);
+    let vb = this.rigidBodyB.getPointVelocity(posB);
+    let vDiffCurrent = vb.sub(va);
+    let vDiffWanted = posA.subAndScale(posB, 1/configuration.getTimeStep());
+    let vDiff = vDiffWanted.sub(vDiffCurrent);
+    let mag = vDiff.mag();
+    if (mag<configuration.getVelError()) {
+      return false;
+    }
+    let normal = vDiff.normalize();
+    let uinefA = this.rigidBodyA.getImpulseEffectOnPoint(posA, normal, posA);
+    let uinefB = this.rigidBodyB.getImpulseEffectOnPoint(posB, normal, posB);
+    let uinefnorm1 = normal.dot(uinefA);
+    let uinefnorm2 = normal.dot(uinefB);
+    let uinefnorm = uinefnorm1+uinefnorm2;
+    let immag = mag/uinefnorm;
+    Guard.notNegative(immag, "immag cannot be negative: %s", immag);
+    this.rigidBodyA.applyImpulse(posA, normal.scale(-immag));
+    this.rigidBodyB.applyImpulse(posB, normal.scale(immag));
+    res = res|(immag>configuration.getImpulseError());
+    let qA = this.rigidBodyA.getRot();
+    let qB = this.rigidBodyB.getRot();
+    let dq1 = qA.conj().mul(qB);
+    let dr = dq1.mul(this.q0.conj());
+    let wBaum = Vec3.ZERO;
+    let wA = this.rigidBodyA.getAngularVelocity();
+    let wB = this.rigidBodyB.getAngularVelocity();
+    let wAmB = wA.sub(wB).sub(wBaum);
+    let iA = this.rigidBodyA.getInverseInertia();
+    let iB = this.rigidBodyB.getInverseInertia();
+    let angFact = iA.add(iB).inv();
+    let angIm = angFact.mul(wAmB);
+    this.rigidBodyA.applyTorqueImpulse(angIm.scale(-1));
+    this.rigidBodyB.applyTorqueImpulse(angIm);
+    res = res|(angIm.mag()>configuration.getImpulseError());
+    return res;
+  }
+
+  setJoint() {
+    if (arguments.length===1&&arguments[0] instanceof FixedJointConfig) {
+      return this.setJoint_1_FixedJointConfig(arguments[0]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="string"&& typeof arguments[1]==="string") {
+      return this.setJoint_2_string_string(arguments[0], arguments[1]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  setJoint_1_FixedJointConfig(config) {
+    this.config = config;
+    if (this.initDone) {
+      this.init();
+    }
+    return this;
+  }
+
+  setJoint_2_string_string(actorA, actorB) {
+    return this.setJoint(FixedJointConfig.create(ActorId.of(actorA), ActorId.of(actorB)));
+  }
+
+  renderDebug(gDriver, request, camera) {
+    if (!request.hasDebugRenderRealm(DebugRenderRealm.JOINT)) {
+      return ;
+    }
+    let prend = gDriver.startRenderer("PrimitiveRenderer", BasicEnvironment.create(camera));
+    let pA = this.rigidBodyA.toGlobal(this.localPosA);
+    let pB = this.rigidBodyB.toGlobal(this.localPosB);
+    DebugRendering.sphere(prend, pA, 0.3, Rgb.BLUE);
+    DebugRendering.sphere(prend, pB, 0.3, Rgb.BLUE);
+    DebugRendering.line(prend, pA, pB, Rgb.BLUE);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new FixedJointComponent();
+    res.guardInvariants();
+    return res;
+  }
+
+  static getAngularVelocity(dt, q1, q2) {
+    let sub = q2.sub(q1);
+    let wRecQ = sub.scale(1/(dt*0.5)).mul(q1.conj());
+    return Vec3.create(wRecQ.b(), wRecQ.c(), wRecQ.d());
+  }
+
+}
 class RemoveOnOutspaceComponent extends Component {
   constructor() {
     super();
@@ -20951,7 +21763,7 @@ class PlayerCharacterBehavior extends Behavior {
     let run = inputs.getBoolean("run", false);
     let punch = inputs.getBoolean("punch", false);
     let input = PlayerCharacterInput.create(dt, dir, punch, run);
-    this.state.apply(input);
+    this.state(input);
     let triggers = this.animationPlayer.move(dt);
     if (triggers.contains("punch")) {
       for (let cmp of this.actor().getComponents()) {
@@ -21232,6 +22044,28 @@ class RigidBodyApp06 {
     this.world.actors().add(ActorId.ROOT, camera);
     let character = Actor.create("character").setName("character").addComponent(TransformComponent.create().move(Vec3.create(0, 5, 0))).addComponent(ModelComponent.create().setModelId(characterModelId).setTransform(Mat44.rotY(FMath.PI))).addComponent(RigidBodyComponent.create().setMass(20).setRotationLock(true).setKinematic(false)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setPos(Vec3.create(0, 1.5, 0)).setShape(ColliderShape.CAPSULE).setRadius(0.7).setHeight(3).setMaterialId(charColMatId).setKey("body-collider")).addComponent(ColliderComponent.create().setTrigger(true).setActive(false).setLayer(CollisionLayer.OBJECT).setPos(Vec3.create(0.3, 1.7, -1.6)).setShape(ColliderShape.SPHERE).setRadius(0.1).setKey("punch-collider")).addComponent(PlayerCharacterBehavior.create());
     this.world.actors().add(ActorId.ROOT, character);
+    let sphere1 = Actor.create("sphere-1").setName("sphere-1").addComponent(TransformComponent.create().move(Vec3.create(-3, 4, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(0.5).setMaterialId(objectColMatId));
+    this.world.actors().add(ActorId.ROOT, sphere1);
+    let sphere2 = Actor.create("sphere-2").setName("sphere-2").addComponent(TransformComponent.create().move(Vec3.create(-3, 3.2, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setRadius(0.5).setSize(Vec3.create(1, 1, 1)).setMaterialId(objectColMatId)).addComponent(PunchableBehavior.create()).addComponent(BallSocketJointComponent.create().setJoint("sphere-1", "sphere-2", Vec3.create(-3, 3.6, 0)));
+    this.world.actors().add(ActorId.ROOT, sphere2);
+    let sphere3 = Actor.create("sphere-3").setName("sphere-3").addComponent(TransformComponent.create().move(Vec3.create(-3, 2.4, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setRadius(0.5).setSize(Vec3.create(1, 1, 1)).setMaterialId(objectColMatId)).addComponent(PunchableBehavior.create()).addComponent(BallSocketJointComponent.create().setJoint("sphere-2", "sphere-3", Vec3.create(-3, 2.7, 0)));
+    this.world.actors().add(ActorId.ROOT, sphere3);
+    let sphere4 = Actor.create("sphere-4").setName("sphere-4").addComponent(TransformComponent.create().move(Vec3.create(-3, 1.6, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setRadius(0.5).setSize(Vec3.create(1, 1, 1)).setMaterialId(objectColMatId)).addComponent(PunchableBehavior.create()).addComponent(BallSocketJointComponent.create().setJoint("sphere-3", "sphere-4", Vec3.create(-3, 1.8, 0)));
+    this.world.actors().add(ActorId.ROOT, sphere4);
+    let fixedBase = Actor.create("fixed-base").setName("fixed-base").addComponent(TransformComponent.create().move(Vec3.create(-1, 2, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(1, 4, 1))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 4, 1)).setMaterialId(objectColMatId));
+    this.world.actors().add(ActorId.ROOT, fixedBase);
+    let fixedBlock = Actor.create("fixed-block").setName("fixed-block").addComponent(TransformComponent.create().move(Vec3.create(-3, 3, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(4, 2, 0.5))).addComponent(RigidBodyComponent.create().setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(4, 2, 0.5)).setMaterialId(objectColMatId)).addComponent(FixedJointComponent.create().setJoint("fixed-base", "fixed-block"));
+    this.world.actors().add(ActorId.ROOT, fixedBlock);
+    let hingeBase = Actor.create("hinge-base").setName("hinge-base").addComponent(TransformComponent.create().move(Vec3.create(9, 2, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(1, 4, 1))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 4, 1)).setMaterialId(objectColMatId));
+    this.world.actors().add(ActorId.ROOT, hingeBase);
+    let hingeBlock = Actor.create("hinge-block").setName("hinge-block").addComponent(TransformComponent.create().move(Vec3.create(9, 3, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.trans(-2, 0, 0).mul(Mat44.scale(4, 2, 0.5)))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(10)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(4, 2, 0.5)).setPos(Vec3.create(-2, 0, 0)).setMaterialId(objectColMatId)).addComponent(HingeJointComponent.create().setJoint("hinge-base", "hinge-block", Vec3.create(9, 3, -8), Vec3.UP));
+    this.world.actors().add(ActorId.ROOT, hingeBlock);
+    let prismaticBase = Actor.create("prismatic-base").setName("prismatic-base").addComponent(TransformComponent.create().move(Vec3.create(20, 4, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(10, 0.5, 0.5))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(10, 0.5, 0.5)).setMaterialId(objectColMatId));
+    this.world.actors().add(ActorId.ROOT, prismaticBase);
+    let prismaticEnds = Actor.create("prismatic-ends").setName("prismatic-ends").addComponent(TransformComponent.create().move(Vec3.create(20, 4, -8))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setPos(Vec3.create(-5.125, 0, 0)).setSize(Vec3.create(0.25, 0.5, 0.5)).setMaterialId(objectColMatId)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setPos(Vec3.create(5.125, 0, 0)).setSize(Vec3.create(0.25, 0.5, 0.5)).setMaterialId(objectColMatId));
+    this.world.actors().add(ActorId.ROOT, prismaticEnds);
+    let prismaticBlock = Actor.create("prismatic-block").setName("prismatic-block").addComponent(TransformComponent.create().move(Vec3.create(20, 3, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(10)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId)).addComponent(PrismaticJointComponent.create().setJoint("prismatic-base", "prismatic-block", Vec3.create(20, 4, -8), Vec3.RIGHT));
+    this.world.actors().add(ActorId.ROOT, prismaticBlock);
     this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
     let btnFont = FontId.of("rubik-regular-20");
     let addObjectAct = (evetSource) => {
