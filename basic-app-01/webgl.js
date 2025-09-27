@@ -2303,60 +2303,183 @@ class WebAssetManager {
 /**
  * GL mesh reference.
  */
-class WebglMeshRef {
-  vbo;
-  ebo;
-  vao;
-  vertexAttrs;
-  numIndices;
-  vertexSize;
-  constructor() {
-  }
+class WebglMeshFrameRef {
+    /**
+     * Vertex buffer pointer.
+     */
+    vbo;
 
-  guardInvariants() {
-  }
+    /**
+     * List of the vertex attributes.
+     */
+    vertexAttrs;
 
-  getVbo() {
-    return this.vbo;
-  }
-
-  getEbo() {
-    return this.ebo;
-  }
-
-  getVao() {
-    return this.vao;
-  }
-
-  getVertexAttrs() {
-    return this.vertexAttrs;
-  }
-
-  getNumIndices() {
-    return this.numIndices;
-  }
-
-  getVertexSize() {
-    return this.vertexSize;
-  }
-
-  toString() {
-  }
-
-  static create(vbo, ebo, vao, vertexAttrs, numIndices) {
-    let res = new WebglMeshRef();
-    res.vbo = vbo;
-    res.ebo = ebo;
-    res.vao = vao;
-    res.vertexAttrs = Dut.copyImmutableList(vertexAttrs);
-    res.numIndices = numIndices;
-    res.vertexSize = 0;
-    for (let va of vertexAttrs) {
-      res.vertexSize = res.vertexSize+va.getSize();
+    /**
+     * Vertex size.
+     */
+    vertexSize;
+    constructor() {
     }
-    res.guardInvariants();
-    return res;
-  }
+
+    guardInvariants() {
+        Guard.notNullCollection(this.vertexAttrs, "vertexAttrs cannot have null element");
+    }
+
+    /**
+     * Returns vertex buffer pointer.
+     *
+     * @return {Number} vertex buffer pointer (integer)
+     */
+    getVbo() {
+        return this.vbo;
+    }
+
+    /**
+     * Returns vertex attributes.
+     *
+     * @return {ArrayList of VertexAttr} vertex attributes
+     */
+    getVertexAttrs() {
+        return this.vertexAttrs;
+    }
+
+    /**
+     * Returns vertex size.
+     *
+     * @return (Number} vertex size (integer)
+     */
+    getVertexSize() {
+        return this.vertexSize;
+    }
+
+    toString() {
+    }
+
+    /**
+     * Creates new instance.
+     *
+     * @param {Number} vbo vertex buffer pointer (integer)
+     * @param {List of VertexAttr} vertexAttrs vertex attributes
+     * @return {WebglMeshFrameRef} created object
+     */
+    static create(vbo, vertexAttrs) {
+        const res = new WebglMeshFrameRef();
+        res.vbo = vbo;
+        res.vertexAttrs = Dut.copyImmutableList(vertexAttrs);
+        res.vertexSize = 0;
+        for (let va of vertexAttrs) {
+            res.vertexSize = res.vertexSize + va.getSize();
+        }
+        res.guardInvariants();
+        return res;
+    }
+
+}
+
+/**
+ * GL mesh reference.
+ */
+class WebglMeshRef {
+    /**
+     * Vertex array object (integer).
+     */
+    vao;
+
+    /**
+     * Element buffer pointer (integer).
+     */
+    ebo;
+
+    /**
+     * Number of indices (integer).
+     */
+    numIndices;
+
+    /**
+     * Frames (ArrayList of JoglMeshFrameRef).
+     */
+    frames;
+
+    /**
+     * Creates new instance.
+     */
+    constructor() {
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvariants() {
+        Guard.notNullCollection(this.frames, "frames cannot have null element");
+        Guard.positive(this.frames.size(), "at least 1 frame is required");
+    }
+
+    /**
+     * Returns vertex array pointer.
+     *
+     * @return {Number} vertex array pointer (integer)
+     */
+    getVao() {
+        return this.vao;
+    }
+
+    /**
+     * Returns element buffer pointer.
+     *
+     * @return {Number} element buffer pointer (integer)
+     */
+    getEbo() {
+        return this.ebo;
+    }
+
+    /**
+     * Returns number of indices.
+     *
+     * @return {Number} number of indices (integer)
+     */
+    getNumIndices() {
+        return this.numIndices;
+    }
+
+    /**
+     * Returns frames.
+     *
+     * @return {ArrayList of JoglMeshFrameRef} frames
+     */
+    getFrames() {
+        return this.frames;
+    }
+
+    /**
+     * Returns number of frames.
+     *
+     * @return {Number} number of frames (integer)
+     */
+    getNumFrames() {
+        return this.frames.size();
+    }
+
+    toString() {
+    }
+
+    /**
+     * Creates new instance.
+     *
+     * @param {Number} vao vertex array pointer (integer)
+     * @param {Number} ebo element buffer pointer (integer)
+     * @param {Number} numIndices number of indices (integer)
+     * @param {ArrayList of JoglMeshFrameRef} frames frames
+     * @return {WebglMeshRef} created object
+     */
+    static create(vao, ebo, numIndices, frames) {
+        const res = new WebglMeshRef();
+        res.vao = vao;
+        res.ebo = ebo;
+        res.numIndices = numIndices;
+        res.frames = Dut.copyImmutableList(frames);
+        res.guardInvariants();
+        return res;
+    }
 
 }
 
@@ -2838,7 +2961,7 @@ class WebglColorRenderer {
     render(mesh, mat) {
         const m = this.refProvider.getMeshRef(mesh);
 
-        if (this.arraysEqual(m.getVertexAttrs(), [VertexAttr.POS3, VertexAttr.RGB])) {
+        if (m.getFrames().get(0).getVertexAttrs().equals(Dut.list(VertexAttr.POS3, VertexAttr.RGB))) {
             gl.disable(gl.BLEND);
             this.shader.use();
             this.shader.setUniformMat44("modelMat", mat);
@@ -2846,7 +2969,7 @@ class WebglColorRenderer {
             this.shader.setUniformMat44("projMat", this.camera.getProj());
 
             gl.bindVertexArray(m.getVao());
-            gl.bindBuffer(gl.ARRAY_BUFFER, m.getVbo());
+            gl.bindBuffer(gl.ARRAY_BUFFER, m.getFrames().get(0).getVbo());
 
             // Position attribute (3 floats)
             gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 6 * 4, 0);
@@ -2860,7 +2983,7 @@ class WebglColorRenderer {
             gl.bindVertexArray(null);
 
         } else {
-            throw "unsupported mesh in this method: " + m.getVertexAttrs();
+            throw "unsupported mesh in this method";
         }
     }
 
@@ -2874,7 +2997,7 @@ class WebglColorRenderer {
     renderTransparent(mesh, mat, blendType) {
         const m = this.refProvider.getMeshRef(mesh);
 
-        if (this.arraysEqual(m.getVertexAttrs(), [VertexAttr.POS3, VertexAttr.RGBA])) {
+        if (m.getFrames().get(0).getVertexAttrs().equals(Dut.list(VertexAttr.POS3, VertexAttr.RGBA))) {
             gl.enable(gl.BLEND);
 
             if (blendType === BlendType.ALPHA) {
@@ -2893,7 +3016,7 @@ class WebglColorRenderer {
             this.shader.setUniformMat44("projMat", this.camera.getProj());
 
             gl.bindVertexArray(m.getVao());
-            gl.bindBuffer(gl.ARRAY_BUFFER, m.getVbo());
+            gl.bindBuffer(gl.ARRAY_BUFFER, m.getFrames().get(0).getVbo());
 
             // Position attribute (3 floats)
             gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 7 * 4, 0);
@@ -2907,7 +3030,7 @@ class WebglColorRenderer {
             gl.bindVertexArray(null);
 
         } else {
-            throw "unsupported mesh in this method: " + m.getVertexAttrs();
+            throw "unsupported mesh in this method";
         }
     }
 
@@ -3017,6 +3140,8 @@ class WebglSceneRenderer {
         this.defaultTexture = null;
         this.camera = null;
         this.rgbaBuf = [];
+        this.pos3Norm3VertexAttrs = Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3);
+        this.pos3Norm3Tex2VertexAttrs = Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3, VertexAttr.TEX2);
     }
 
     /**
@@ -3330,10 +3455,10 @@ class WebglSceneRenderer {
         this.shader.setUniformInt("numSpecularTextures", numSpecularTextures);
         this.shader.setUniformInt("numAlphaTextures", numAlphaTextures);
 
-        if (m.getVertexAttrs().equals(Dut.list(VertexAttr.POS3, VertexAttr.NORM3))) {
+        if (m.getNumFrames() === 1 && m.getFrames().get(0).getVertexAttrs().equals(this.pos3Norm3VertexAttrs)) {
             this.shader.setUniformFloat("t", 0);
             gl.bindVertexArray(m.getVao());
-            gl.bindBuffer(gl.ARRAY_BUFFER, m.getVbo());
+            gl.bindBuffer(gl.ARRAY_BUFFER, m.getFrames().get(0).getVbo());
             gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 6 * 4, 0);
             gl.enableVertexAttribArray(0);
             gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 6 * 4, 0);
@@ -3344,25 +3469,28 @@ class WebglSceneRenderer {
             gl.enableVertexAttribArray(3);
             gl.drawElements(gl.TRIANGLES, m.getNumIndices(), gl.UNSIGNED_INT, 0);
             gl.bindVertexArray(null);
-        } else if (this.isAnimatedModel(m.getVertexAttrs())) {
+        } else {
+            const frRef1 = m.getFrames().get(frame1);
+            const frRef2 = m.getFrames().get(frame2);
+            Guard.equals(this.pos3Norm3Tex2VertexAttrs, frRef1.getVertexAttrs(), "frame must have POS3, NORM3, TEX2 vertex attributes: %s", frRef1.getVertexAttrs());
+            Guard.equals(this.pos3Norm3Tex2VertexAttrs, frRef2.getVertexAttrs(), "frame must have POS3, NORM3, TEX2 vertex attributes: %s", frRef2.getVertexAttrs());
             this.shader.setUniformFloat("t", t);
-            const vsize = m.getVertexSize();
+            const vsize = frRef1.getVertexSize();
             gl.bindVertexArray(m.getVao());
-            gl.bindBuffer(gl.ARRAY_BUFFER, m.getVbo());
-            gl.vertexAttribPointer(0, 3, gl.FLOAT, false, vsize * 4, frame1 * 6 * 4);
+            gl.bindBuffer(gl.ARRAY_BUFFER, frRef1.getVbo());
+            gl.vertexAttribPointer(0, 3, gl.FLOAT, false, vsize * 4, 0);
             gl.enableVertexAttribArray(0);
-            gl.vertexAttribPointer(1, 3, gl.FLOAT, false, vsize * 4, frame2 * 6 * 4);
-            gl.enableVertexAttribArray(1);
-            gl.vertexAttribPointer(2, 3, gl.FLOAT, false, vsize * 4, frame1 * 6 * 4 + 3 * 4);
+            gl.vertexAttribPointer(2, 3, gl.FLOAT, false, vsize * 4, 3 * 4);
             gl.enableVertexAttribArray(2);
-            gl.vertexAttribPointer(3, 3, gl.FLOAT, false, vsize * 4, frame2 * 6 * 4 + 3 * 4);
+            gl.bindBuffer(gl.ARRAY_BUFFER, frRef2.getVbo());
+            gl.vertexAttribPointer(1, 3, gl.FLOAT, false, vsize * 4, 0);
+            gl.enableVertexAttribArray(1);
+            gl.vertexAttribPointer(3, 3, gl.FLOAT, false, vsize * 4, 3 * 4);
             gl.enableVertexAttribArray(3);
-            gl.vertexAttribPointer(4, 2, gl.FLOAT, false, vsize * 4, (vsize - 2) * 4);
+            gl.vertexAttribPointer(4, 2, gl.FLOAT, false, vsize * 4, 6 * 4);
             gl.enableVertexAttribArray(4);
             gl.drawElements(gl.TRIANGLES, m.getNumIndices(), gl.UNSIGNED_INT, 0);
             gl.bindVertexArray(null);
-        } else {
-            throw new IllegalArgumentException("unsupported mesh attributes for " + mesh + " in this method: " + m.getVertexAttrs());
         }
     }
 
@@ -3407,24 +3535,6 @@ class WebglSceneRenderer {
     }
 
     /**
-     * Returns if attribute set is animated model.
-     *
-     * @param {ArrayList of VertexAttr} attrs vertex attributes
-     * @returns {Boolean} whether thi is an animated model
-     */
-    isAnimatedModel(attrs) {
-        if (attrs.size() < 3 || !attrs.get(attrs.size() - 1).equals(VertexAttr.TEX2)) {
-            return false;
-        }
-        for (let i = 0; i < attrs.size() - 1; i = i + 2) {
-            if (!attrs.get(i).equals(VertexAttr.POS3) || !attrs.get(i + 1).equals(VertexAttr.NORM3)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
      * Creates new instance.
      * 
      * @param {AssetBank} assetBank asset bank
@@ -3453,6 +3563,8 @@ class WebglShadowMapRenderer {
     constructor() {
         this.refProvider = null;
         this.shader = null;
+        this.pos3Norm3VertexAttrs = Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3);
+        this.pos3Norm3Tex2VertexAttrs = Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3, VertexAttr.TEX2);
     }
 
     /**
@@ -3535,29 +3647,32 @@ class WebglShadowMapRenderer {
         gl.disable(gl.BLEND);
         this.shader.setUniformMat44("modelMat", mat);
 
-        if (m.getVertexAttrs().equals(Dut.list(VertexAttr.POS3, VertexAttr.NORM3))) {
+        if (m.getNumFrames() === 1 && m.getFrames().get(0).getVertexAttrs().equals(this.pos3Norm3VertexAttrs)) {
             this.shader.setUniformFloat("t", 0);
             gl.bindVertexArray(m.getVao());
-            gl.bindBuffer(gl.ARRAY_BUFFER, m.getVbo());
+            gl.bindBuffer(gl.ARRAY_BUFFER, m.getFrames().get(0).getVbo());
             gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 6 * 4, 0);
             gl.enableVertexAttribArray(0);
             gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 6 * 4, 0);
             gl.enableVertexAttribArray(1);
             gl.drawElements(gl.TRIANGLES, m.getNumIndices(), gl.UNSIGNED_INT, 0);
             gl.bindVertexArray(null);
-        } else if (this.isAnimatedModel(m.getVertexAttrs())) {
+        } else {
+            const frRef1 = m.getFrames().get(frame1);
+            const frRef2 = m.getFrames().get(frame2);
+            Guard.equals(this.pos3Norm3Tex2VertexAttrs, frRef1.getVertexAttrs(), "frame must have POS3, NORM3, TEX2 vertex attributes: %s", frRef1.getVertexAttrs());
+            Guard.equals(this.pos3Norm3Tex2VertexAttrs, frRef2.getVertexAttrs(), "frame must have POS3, NORM3, TEX2 vertex attributes: %s", frRef2.getVertexAttrs());
             this.shader.setUniformFloat("t", t);
-            const vsize = m.getVertexSize();
+            const vsize = frRef1.getVertexSize();
             gl.bindVertexArray(m.getVao());
-            gl.bindBuffer(gl.ARRAY_BUFFER, m.getVbo());
-            gl.vertexAttribPointer(0, 3, gl.FLOAT, false, vsize * 4, frame1 * 6 * 4);
+            gl.bindBuffer(gl.ARRAY_BUFFER, frRef1.getVbo());
+            gl.vertexAttribPointer(0, 3, gl.FLOAT, false, vsize * 4, 0);
             gl.enableVertexAttribArray(0);
-            gl.vertexAttribPointer(1, 3, gl.FLOAT, false, vsize * 4, frame2 * 6 * 4);
+            gl.bindBuffer(gl.ARRAY_BUFFER, frRef2.getVbo());
+            gl.vertexAttribPointer(1, 3, gl.FLOAT, false, vsize * 4, 0);
             gl.enableVertexAttribArray(1);
             gl.drawElements(gl.TRIANGLES, m.getNumIndices(), gl.UNSIGNED_INT, 0);
             gl.bindVertexArray(null);
-        } else {
-            throw new IllegalArgumentException("unsupported mesh attributes for " + mesh + " in this method: " + m.getVertexAttrs());
         }
     }
 
@@ -3785,7 +3900,7 @@ class WebglUiPainter {
         }
 
         gl.bindVertexArray(this.spriteMesh.getVao());
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.spriteMesh.getVbo());
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.spriteMesh.getFrames().get(0).getVbo());
         gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 5 * 4, 0);
         gl.enableVertexAttribArray(0);
         gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 5 * 4, 3 * 4);
@@ -4591,20 +4706,31 @@ class WebglGraphicsDriver {
      * @returns {WebglMeshRef} mesh reference
      */
     pushMeshToGraphicCard(mesh) {
-        let attrs = mesh.getVertexAttrs();
-        let varr = new Float32Array(this.getVertexArray(mesh));
+        const numFrames = this.getNumFrames(mesh);
         let iarr = new Uint32Array(this.getIndexArray(mesh));
-        let vbuf = null;
         let ibuf = null;
         let vao = null;
+        const frameRefs = new ArrayList();
 
         try {
             vao = gl.createVertexArray();
             gl.bindVertexArray(vao);
 
-            vbuf = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, vbuf);
-            gl.bufferData(gl.ARRAY_BUFFER, varr, gl.STATIC_DRAW);
+            for (let i = 0; i < numFrames; ++i) {
+                let varr = null;
+                let frameVertexAttrs = null;
+                if (numFrames === 1) {
+                    varr = new Float32Array(this.getVertexArray(mesh));
+                    frameVertexAttrs = mesh.getVertexAttrs();
+                } else {
+                    varr = new Float32Array(this.getVertexFrameArray(mesh, i));
+                    frameVertexAttrs = Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3, VertexAttr.TEX2);
+                }
+                const vbuf = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, vbuf);
+                gl.bufferData(gl.ARRAY_BUFFER, varr, gl.STATIC_DRAW);
+                frameRefs.add(WebglMeshFrameRef.create(vbuf, frameVertexAttrs));
+            }
 
             ibuf = gl.createBuffer();
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibuf);
@@ -4616,15 +4742,15 @@ class WebglGraphicsDriver {
             if (vao !== null) {
                 gl.deleteVertexArray(vao)
             }
-            if (vbuf !== null) {
-                gl.deleteBuffer(vbuf);
+            for (const fr of frameRefs) {
+                gl.deleteBuffer(fr.getVbo());
             }
             if (ibuf !== null) {
                 gl.deleteBuffer(ibuf);
             }
             throw "error during pushin mesh to the driver";
         }
-        return WebglMeshRef.create(vbuf, ibuf, vao, attrs, iarr.length);
+        return WebglMeshRef.create(vao, ibuf, iarr.length, frameRefs);
     }
 
     /**
@@ -4658,20 +4784,61 @@ class WebglGraphicsDriver {
     }
 
     /**
+     * Returns the number of frames of the mesh.
+     *
+     * @param {Mesh} mesh mesh
+     * @return {Number} number of frames of the mesh (integer)
+     */
+    getNumFrames(mesh) {
+        if (this.isAnimatedModel(mesh.getVertexAttrs())) {
+            return (mesh.getVertexAttrs().size() - 1) / 2;
+        } else {
+            return 1;
+        }
+    }
+
+    /**
      * Returns vertex array. 
      * 
      * @param {Mesh} mesh
-     * @returns {Array} array with vertex dara
+     * @returns {Array} array with vertex dara (array of float)
      */
     getVertexArray(mesh) {
-        let num = mesh.getNumVertices();
-        let s = mesh.getVertexSize();
-        let res = [];
+        const num = mesh.getNumVertices();
+        const s = mesh.getVertexSize();
+        const res = [];
         for (let i = 0; i < num; ++i) {
             let v = mesh.getVertex(i);
             for (let j = 0; j < s; ++j) {
                 res[i * s + j] = v.coord(j);
             }
+        }
+        return res;
+    }
+
+    /**
+     * Returns an array containing all vertex data for the given frame.
+     *
+     * @param {Mesh} mesh mesh that need to be in animated style
+     * @param {Number} frame frame to target (integer)
+     * @return array containing all vertex data (array of float)
+     */
+    getVertexFrameArray(mesh, frame) {
+        Guard.beTrue(this.isAnimatedModel(mesh.getVertexAttrs()), "mesh must be animated");
+        const vertexSize = mesh.getVertexSize();
+        const numVertices = mesh.getNumVertices();
+        const numFrames = (vertexSize - 2) / 6;
+        const res = []; // POS3, NORM3, TEXT2
+        for (let i = 0; i < numVertices; ++i) {
+            const v = mesh.getVertex(i);
+            res[i * 8 + 0] = v.coord(frame * 6 + 0);
+            res[i * 8 + 1] = v.coord(frame * 6 + 1);
+            res[i * 8 + 2] = v.coord(frame * 6 + 2);
+            res[i * 8 + 3] = v.coord(frame * 6 + 3);
+            res[i * 8 + 4] = v.coord(frame * 6 + 4);
+            res[i * 8 + 5] = v.coord(frame * 6 + 5);
+            res[i * 8 + 6] = v.coord(numFrames * 6);
+            res[i * 8 + 7] = v.coord(numFrames * 6 + 1);
         }
         return res;
     }
@@ -4691,6 +4858,24 @@ class WebglGraphicsDriver {
             res[i * 3 + 2] = f.getIndices().get(2);
         }
         return res;
+    }
+
+    /**
+     * Returns if attribute set is animated model.
+     *
+     * @param {ArrayList of VertexAttr} attrs vertex attributes
+     * @returns {Boolean} whether thi is an animated model
+     */
+    isAnimatedModel(attrs) {
+        if (attrs.size() < 3 || !attrs.get(attrs.size() - 1).equals(VertexAttr.TEX2)) {
+            return false;
+        }
+        for (let i = 0; i < attrs.size() - 1; i = i + 2) {
+            if (!attrs.get(i).equals(VertexAttr.POS3) || !attrs.get(i + 1).equals(VertexAttr.NORM3)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -4736,20 +4921,22 @@ class WebglGraphicsDriver {
      * @param {WebglMeshRed} meshRef mesh reference
      */
     disposeMeshFromGraphicCard(meshRef) {
-        if (!meshRef) {
+        if (meshRef === null || meshRef === undefined) {
             return;
         }
-
-        gl.deleteBuffer(meshRef.vbo);
-        gl.deleteBuffer(meshRef.ebo);
-        gl.deleteVertexArray(meshRef.vao);
+        const numFrames = meshRef.getFrames().size();
+        for (let i = 0; i < numFrames; ++i) {
+            gl.deleteBuffer(meshRef.getFrames().get(i).getVbo());
+        }
+        gl.deleteBuffer(meshRef.getEbo());
+        gl.deleteVertexArray(meshRef.getVao());
     }
 
     /**
      * Disposes texture from graphics card.
      */
     disposeTextureFromGraphicCard(textureRef) {
-        if (!textureRef) {
+        if (textureRef === null || textureRef === undefined) {
             return;
         }
         gl.deleteTexture(textureRef.textureId);
@@ -4759,7 +4946,7 @@ class WebglGraphicsDriver {
      * Disposes shadow buffer from graphics card.
      */
     disposeShadowBufferFromGraphicCard(shadowBufferRef) {
-        if (!shadowBufferRef) {
+        if (shadowBufferRef === null || shadowBufferRef === undefined) {
             return;
         }
         gl.deleteTexture(shadowBufferRef.depthTexture);
