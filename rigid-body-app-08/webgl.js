@@ -15326,53 +15326,52 @@ class ActorActions {
   }
 
 }
-const createActorDomain = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const ActorDomain = Object.freeze({
-  TRANSFORM: createActorDomain("TRANSFORM"),
-  VISUAL: createActorDomain("VISUAL"),
-  COLLISION: createActorDomain("COLLISION"),
-  COLLISION_EXCLUSION: createActorDomain("COLLISION_EXCLUSION"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+class ActorDomain {
+  static TRANSFORM = ActorDomain.create("TRANSFORM");
+  static VISUAL = ActorDomain.create("VISUAL");
+  static COLLISION = ActorDomain.create("COLLISION");
+  static COLLISION_EXCLUSION = ActorDomain.create("COLLISION_EXCLUSION");
+  mDomain;
+  constructor() {
   }
-});
+
+  getClass() {
+    return "ActorDomain";
+  }
+
+  guardInvariants() {
+  }
+
+  domain() {
+    return this.mDomain;
+  }
+
+  hashCode() {
+    return this.mDomain.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ActorDomain)) {
+      return false;
+    }
+    let other = obj;
+    return other.mDomain.equals(this.mDomain);
+  }
+
+  toString() {
+  }
+
+  static create(domain) {
+    let res = new ActorDomain();
+    res.mDomain = domain;
+    res.guardInvariants();
+    return res;
+  }
+
+}
 const createPropagationType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -15419,97 +15418,95 @@ const PropagationType = Object.freeze({
     return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
   }
 });
-const createComponentEffect = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const ComponentEffect = Object.freeze({
-  ABSOLUTE_COORDINATES: createComponentEffect("ABSOLUTE_COORDINATES"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+class ComponentEffect {
+  static ABSOLUTE_COORDINATES = ComponentEffect.create("ABSOLUTE_COORDINATES");
+  mEffect;
+  constructor() {
   }
-});
-const createComponentFeature = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const ComponentFeature = Object.freeze({
-  AABB_PRODUCER: createComponentFeature("AABB_PRODUCER"),
-  COLLIDER: createComponentFeature("COLLIDER"),
-  COLLISION_EXCLUSION_PRODUCER: createComponentFeature("COLLISION_EXCLUSION_PRODUCER"),
-  RIGID_BODY_JOINT: createComponentFeature("RIGID_BODY_JOINT"),
 
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  getClass() {
+    return "ComponentEffect";
   }
-});
+
+  guardInvariants() {
+  }
+
+  effect() {
+    return this.mEffect;
+  }
+
+  hashCode() {
+    return this.mEffect.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ComponentEffect)) {
+      return false;
+    }
+    let other = obj;
+    return other.mEffect.equals(this.mEffect);
+  }
+
+  toString() {
+  }
+
+  static create(effect) {
+    let res = new ComponentEffect();
+    res.mEffect = effect;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class ComponentFeature {
+  static AABB_PRODUCER = ComponentFeature.create("AABB_PRODUCER");
+  static COLLIDER = ComponentFeature.create("COLLIDER");
+  static COLLISION_EXCLUSION_PRODUCER = ComponentFeature.create("COLLISION_EXCLUSION_PRODUCER");
+  static RIGID_BODY_JOINT = ComponentFeature.create("RIGID_BODY_JOINT");
+  mFeature;
+  constructor() {
+  }
+
+  getClass() {
+    return "ComponentFeature";
+  }
+
+  guardInvariants() {
+  }
+
+  feature() {
+    return this.mFeature;
+  }
+
+  hashCode() {
+    return this.mFeature.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ComponentFeature)) {
+      return false;
+    }
+    let other = obj;
+    return other.mFeature.equals(this.mFeature);
+  }
+
+  toString() {
+  }
+
+  static create(feature) {
+    let res = new ComponentFeature();
+    res.mFeature = feature;
+    res.guardInvariants();
+    return res;
+  }
+
+}
 class Component {
   mActor = null;
   mKey = "";
@@ -18035,6 +18032,77 @@ class RemoveOnOutspaceComponent extends Component {
 
   static create() {
     let res = new RemoveOnOutspaceComponent();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class LifetimeComponent extends Behavior {
+  active;
+  remaining;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "LifetimeComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt, inputs) {
+    if (!this.active) {
+      return ;
+    }
+    this.remaining = this.remaining-dt;
+    if (this.remaining<=0) {
+      this.world().actors().remove(this.actor().getId());
+    }
+  }
+
+  isActive() {
+    return this.active;
+  }
+
+  setActive(active) {
+    this.active = active;
+    return this;
+  }
+
+  getRemaining() {
+    return this.remaining;
+  }
+
+  setRemaining() {
+    if (arguments.length===1&& typeof arguments[0]==="number") {
+      return this.setRemaining_1_number(arguments[0]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="number"&& typeof arguments[1]==="number") {
+      return this.setRemaining_2_number_number(arguments[0], arguments[1]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  setRemaining_1_number(remaining) {
+    Guard.notNegative(remaining, "remaining cannot be negative");
+    this.remaining = remaining;
+    return this;
+  }
+
+  setRemaining_2_number_number(remaining, random) {
+    Guard.notNegative(remaining, "remaining cannot be negative");
+    Guard.notNegative(random, "random cannot be negative");
+    this.remaining = remaining+(random>0?Randoms.nextFloat(0, random):0);
+    return this;
+  }
+
+  static create() {
+    let res = new LifetimeComponent();
+    res.active = true;
+    res.remaining = 1;
     res.guardInvariants();
     return res;
   }
@@ -21853,6 +21921,7 @@ class CameraTrackBehavior extends Behavior {
 
 }
 class BreakableSphereBehavior extends Behavior {
+  static FEATURES = Dut.immutableSet(ComponentFeature.create("HITTABLE"));
   numPieces = 10;
   radiusFactor = 0.3;
   sphereModelId;
@@ -21871,6 +21940,10 @@ class BreakableSphereBehavior extends Behavior {
   guardInvariants() {
   }
 
+  getFeatures() {
+    return BreakableSphereBehavior.FEATURES;
+  }
+
   move(dt, inputs) {
     if (!this.hit) {
       return ;
@@ -21882,9 +21955,9 @@ class BreakableSphereBehavior extends Behavior {
     let r = this.radiusFactor*collider.getRadius();
     let m = Math.max(0.2, rb.getMass()/this.numPieces);
     for (let i = 0; i<this.numPieces; ++i) {
-      let posRandom = Vec3.create(RandomUtils.nextFloat(0, r)-r/2, RandomUtils.nextFloat(0, r)-r/2, RandomUtils.nextFloat(0, r)-r/2);
-      let velRand = Vec3.create(RandomUtils.nextFloat(0, this.hitImpact)-this.hitImpact/2, RandomUtils.nextFloat(0, this.hitImpact)-this.hitImpact/2, RandomUtils.nextFloat(0, this.hitImpact)-this.hitImpact/2);
-      let sphere = Actor.create(RandomStringUtils.randomAlphabetic(32)).addComponent(TransformComponent.create().setPos(tc.getPos().add(posRandom))).addComponent(ModelComponent.create().setModelId(this.sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m).setVelocity(this.hitDir.scale(this.hitImpact).add(velRand))).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(this.childMaterialId)).addComponent(LifetimeComponent.create().setRemaining(10, 3));
+      let posRandom = Vec3.create(Randoms.nextFloat(0, r)-r/2, Randoms.nextFloat(0, r)-r/2, Randoms.nextFloat(0, r)-r/2);
+      let velRand = Vec3.create(Randoms.nextFloat(0, this.hitImpact)-this.hitImpact/2, Randoms.nextFloat(0, this.hitImpact)-this.hitImpact/2, Randoms.nextFloat(0, this.hitImpact)-this.hitImpact/2);
+      let sphere = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().setPos(tc.getPos().add(posRandom))).addComponent(ModelComponent.create().setModelId(this.sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m).setVelocity(this.hitDir.scale(this.hitImpact).add(velRand))).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(this.childMaterialId)).addComponent(LifetimeComponent.create().setRemaining(10, 3));
       this.world().actors().add(ActorId.ROOT, sphere);
     }
   }
