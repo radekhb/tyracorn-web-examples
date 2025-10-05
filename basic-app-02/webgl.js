@@ -12,6 +12,7 @@ let mouseDown = false;
 let mouseLastDragX = 0;
 let mouseLastDragY = 0;
 let canvas;
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
 // -------------------------------------
 // Guard
@@ -76,6 +77,10 @@ class Float {
 
     static isInfinite(a) {
         return !Number.isFinite(a);
+    }
+    
+    static valueOf(str) {
+        return Number.parseFloat(str);
     }
 }
 // -------------------------------------
@@ -1438,6 +1443,242 @@ class Functions {
 
 }
 /**
+ * Data block definition.
+ */
+class DataBlock {
+    data;
+    view;
+    constructor() {
+    }
+
+    getClass() {
+        return "DataBlock";
+    }
+
+    guardInvaritants() {
+        Guard.notNull(this.data, "data cannot be null");
+        Guard.notNull(this.view, "view cannot be null");
+    }
+
+    size() {
+        return this.data.byteLength;
+    }
+
+    checksum() {
+        let res = 0;
+        for (let i = 0; i < this.data.length; ++i) {
+            res = res + this.data[i];
+        }
+        return res;
+    }
+
+    getByte(pos) {
+        return this.view.getInt8(pos);
+    }
+
+    getFloat(pos) {
+        return this.view.getFloat32(pos, false); // false = big-endian (java)
+        
+    }
+
+    toByteArray() {
+        return Arrays.copyOf(this.data, this.data.length);
+    }
+
+    stream() {
+        return new ByteArrayInputStream(this.data);
+    }
+
+    hashCode() {
+        return Dut.reflectionHashCode(this);
+    }
+
+    equals(obj) {
+        return Dut.reflectionEquals(this, obj);
+    }
+
+    toString() {
+    }
+
+    static fromByteArray(bytes) {
+        let res = new DataBlock();
+        res.data = Arrays.copyOf(bytes, bytes.length);
+        res.view = new DataView(res.data);
+        res.guardInvaritants();
+        return res;
+    }
+
+    static fromByteList(bytes) {
+        let res = new DataBlock();
+        res.data = [];
+        for (let i = 0; i < bytes.size(); ++i) {
+            res.data[i] = bytes.get(i);
+        }
+        res.view = new DataView(res.data);
+        res.guardInvaritants();
+        return res;
+    }
+
+    static fromFloatValues(...floats) {
+        if (Array.isArray(floats) && floats.length === 1 && Array.isArray(floats[0])) {
+            floats = floats[0];
+        }
+        let res = new DataBlock();
+        let writer = DataBlockStreamWriter.create(floats.length * 4);
+        for (let f of floats) {
+            writer.writeFloat(f);
+        }
+        res.data = writer.closeAndGet();
+        res.view = new DataView(res.data);
+        res.guardInvaritants();
+        return res;
+    }
+
+    static fromFloatList(floats) {
+        let res = new DataBlock();
+        let writer = DataBlockStreamWriter.create(floats.size() * 4);
+        for (let f of floats) {
+            writer.writeFloat(f);
+        }
+        res.data = writer.closeAndGet();
+        res.view = new DataView(res.data);
+        res.guardInvaritants();
+        return res;
+    }
+
+    static fromStreamWriter(writer) {
+        let res = new DataBlock();
+        res.data = writer.closeAndGet();
+        res.view = new DataView(res.data);
+        res.guardInvaritants();
+        return res;
+    }
+
+    static fromRandomWriter(writer) {
+        let res = new DataBlock();
+        res.data = writer.closeAndGet();
+        res.view = new DataView(res.data);
+        res.guardInvaritants();
+        return res;
+    }
+
+}
+/**
+ * Data block stream writer.
+ */
+class DataBlockStreamWriter {
+    data;
+    view;
+    offset;
+    constructor() {
+    }
+
+    getClass() {
+        return "DataBlockStreamWriter";
+    }
+
+    guardInvaritants() {
+        Guard.notNull(this.data, "data cannot be null");
+        Guard.notNull(this.view, "view cannot be null");
+    }
+
+    size() {
+        return this.data.byteLength;
+    }
+
+    writeFloat(x) {
+        this.view.setFloat32(this.offset, x, false); // false = big-endian (java)
+        this.offset = this.offset + 4;
+        return this;
+    }
+
+    copyBytes(source, sourcePos, size) {
+        for (let i = 0; i < size; ++i) {
+            this.view.setInt8(this.offset++, source.getByte(sourcePos + i));
+        }
+        return this;
+    }
+
+    toDataBlock() {
+        return DataBlock.fromStreamWriter(this);
+    }
+
+    closeAndGet() {
+        let res = this.data;
+        this.data = null;
+        return res;
+    }
+
+    toString() {
+    }
+
+    static create(size) {
+        let res = new DataBlockStreamWriter();
+        res.data = new ArrayBuffer(size);
+        res.view = new DataView(res.data);
+        res.offset = 0;
+        res.guardInvaritants();
+        return res;
+    }
+
+}
+/**
+ * Data block definition.
+ */
+class DataBlockRandomWriter {
+    data;
+    view;
+    constructor() {
+    }
+
+    getClass() {
+        return "DataBlockRandomWriter";
+    }
+
+    guardInvaritants() {
+        Guard.notNull(this.data, "data cannot be null");
+        Guard.notNull(this.view, "view cannot be null");
+    }
+
+    size() {
+        return this.data.byteLength;
+    }
+
+    writeFloat(pos, x) {
+        this.view.setFloat32(pos, x, false); // false = big-endian (java)
+        return this;
+    }
+
+    copyBytes(targetPos, source, sourcePos, size) {
+        for (let i = 0; i < size; ++i) {
+            this.view.setInt8(targetPos + i, source.getByte(sourcePos + i));
+        }
+        return this;
+    }
+
+    toDataBlock() {
+        return DataBlock.fromRandomWriter(this);
+    }
+
+    closeAndGet() {
+        let res = this.data;
+        this.data = null;
+        return res;
+    }
+
+    toString() {
+    }
+
+    static create(size) {
+        let res = new DataBlockRandomWriter();
+        res.data = new ArrayBuffer(size);
+        res.view = new DataView(res.data);
+        res.guardInvaritants();
+        return res;
+    }
+
+}
+/**
  * Reference identifier.
  */
 class RefId {
@@ -1593,12 +1834,26 @@ class TapBufferReader {
         return res;
     }
 
+    /**
+     * Reads data block of the given size.
+     * The size number of bytes will be consumed.
+     *
+     * @param {Number} size size of the data block (integer)
+     * @return {DataBlock} data block
+     */
+    readDataBlock(size) {
+        const buf = this.dataView.buffer.slice(this.offset, this.offset + size);
+        this.offset += size;
+        return DataBlock.fromByteArray(buf);
+    }
+
     close() {
         // nothing to do here
     }
 
     /**
-     * Creates new instance
+     * Creates new instance.
+     * 
      * @param {TapEntry} entry tap entry
      * @returns {TapBufferReader} creates instance
      */
@@ -1708,6 +1963,9 @@ class Taps {
             } else if (entry.getType().equals(TapEntryType.FONT)) {
                 const ag = TapFonts.toAssetGroup(entry);
                 res = res.mergeStrict(ag);
+            } else if (entry.getType().equals(TapEntryType.SOUND)) {
+                const ag = TapSounds.toAssetGroup(entry);
+                res = res.mergeStrict(ag);
             } else {
                 throw new Error("unsupported entry type: " + entry.getType().toString());
             }
@@ -1718,10 +1976,6 @@ class Taps {
              }
              else if (entry.getType().equals(TapEntryType.SPRITE)) {
              AssetGroup ag = TapSprites.toAssetGroup(entry);
-             res = res.mergeStrict(ag);
-             }
-             else if (entry.getType().equals(TapEntryType.SOUND)) {
-             AssetGroup ag = TapSounds.toAssetGroup(entry);
              res = res.mergeStrict(ag);
              }
              else if (entry.getType().equals(TapEntryType.PREFAB)) {
@@ -1890,7 +2144,7 @@ class WebAssetLoader {
             xhr.timeout = 10000;
             xhr.send();
         });
-        
+
         return data;
     }
 
@@ -1937,29 +2191,32 @@ class WebAssetLoader {
                         }
                     }
 
-                    const format = hasAlpha ? 'RGBA' : 'RGB';
-                    const componentsPerPixel = hasAlpha ? 4 : 3;
-
                     // Convert to floating point array (0-1 range)
+                    const numChannels = hasAlpha ? 4 : 3;
                     const totalPixels = img.width * img.height;
-                    const buf = new Float32Array(totalPixels * componentsPerPixel);
+                    const buf = new ArrayBuffer(totalPixels * numChannels * 4);
+                    const view = new DataView(buf);
 
-                    let bufIndex = 0;
+                    let idx = 0;
                     for (let i = 0; i < pixelData.length; i += 4) {
+                        // for all channels - false = big-endian (java)
                         // Red
-                        buf[bufIndex++] = pixelData[i] / 255.0;
+                        view.setFloat32(idx, pixelData[i] / 255.0, false);
+                        idx = idx + 4;
                         // Green
-                        buf[bufIndex++] = pixelData[i + 1] / 255.0;
+                        view.setFloat32(idx, pixelData[i + 1] / 255.0, false);
+                        idx = idx + 4;
                         // Blue
-                        buf[bufIndex++] = pixelData[i + 2] / 255.0;
+                        view.setFloat32(idx, pixelData[i + 2] / 255.0, false);
+                        idx = idx + 4;
                         // Alpha (only if image has transparency)
                         if (hasAlpha) {
-                            buf[bufIndex++] = pixelData[i + 3] / 255.0;
+                            view.setFloat32(idx, pixelData[i + 3] / 255.0, false);
+                            idx = idx + 4;
                         }
                     }
-                    const bufArr = Array.from(buf);
-                    let texture = hasAlpha ? Texture.rgbaFloatBuffer(img.width, img.height, bufArr) :
-                            Texture.rgbFloatBuffer(img.width, img.height, bufArr);
+                    let texture = hasAlpha ? Texture.create(TextureFormat.FLOAT, Texture.RGBA, img.width, img.height, DataBlock.fromByteArray(buf)) :
+                            Texture.create(TextureFormat.FLOAT, Texture.RGB, img.width, img.height, DataBlock.fromByteArray(buf));
                     resolve(texture);
                 } catch (error) {
                     reject(new Error(`Failed to process image: ${error.message}`));
@@ -4139,7 +4396,7 @@ class WebglGraphicsDriver {
         this.primitivesMesh = this.pushMeshToGraphicCard(primitive);
 
         // Create default texture
-        const tex = Texture.rgbConstant(1, 1, Rgb.BLACK);
+        const tex = Texture.rgbFloatConstant(1, 1, Rgb.BLACK);
         this.defaultTexture = this.pushTextureToGraphicCard(tex, false);
 
         // Load shaders
@@ -4762,8 +5019,21 @@ class WebglGraphicsDriver {
      * 
      */
     pushTextureToGraphicCard(texture, mipmap) {
+        if (!texture.getFormat().equals(TextureFormat.FLOAT)) {
+            throw new Error("only FLOAT format is supported here, implemente me: " + texture.getFormat().toString());
+        }
         const ptr = gl.createTexture();
-        let arr = new Float32Array(texture.getBuf());
+        
+        // convert from big endian (java) to little endian (webgl)
+        const textData = texture.getData();
+        const numVals = texture.getWidth() * texture.getHeight() * texture.getChannels().size();
+        const buf = new ArrayBuffer(texture.getData().size());
+        const bufView = new DataView(buf);
+        for (let i = 0; i < numVals; ++i) {
+            const val = textData.getFloat(i * 4);
+            bufView.setFloat32(i * 4, val, true); // true = little-endian (webgl)
+        }
+        const arr = new Float32Array(buf);
 
         gl.bindTexture(gl.TEXTURE_2D, ptr);
 
@@ -5053,10 +5323,72 @@ class WebglGraphicsDriver {
     }
 }
 /**
- * Web GL Graphics Driver. This class manages shaders and renderes.
- * Assumes WebGL context 'gl' is available globally.
+ * Web playback control.
  */
-class WebAudioDriver {
+class WebPlaybackControl {
+    /**
+     * Playback id.
+     * 
+     * @type PlaybackId
+     */
+    playbackId;
+
+    /**
+     * Audio mixer.
+     * 
+     * @type AudioMixer
+     */
+    audioMixer;
+
+    /**
+     * audio buffer.
+     * 
+     * @type AudioBuffer
+     */
+    audioBuffer;
+
+    /**
+     * Volume as float [0..1].
+     * 
+     * @type Number
+     */
+    volume = 1.0;
+
+    /**
+     * Whether this sound plays in the loop or not.
+     * 
+     * @type Boolean
+     */
+    loop = false;
+
+    /**
+     * Whether this playback is playing.
+     * 
+     * @type Boolean
+     */
+    playing = false;
+
+    /**
+     * Whether this control is ended.
+     * 
+     * @type Boolean
+     */
+    ended = false;
+
+    /**
+     * Audio source.
+     * 
+     * @type AudioSource
+     */
+    source = null;
+
+    /**
+     * Gain node.
+     * 
+     * @type GainNode
+     */
+    gainNode = null;
+
     constructor() {
     }
 
@@ -5064,6 +5396,334 @@ class WebAudioDriver {
      * Guards this object to be consistent.
      */
     guardInvariants() {
+        Guard.notNull(this.id, "id cannot be null");
+        Guard.notNull(this.audioMixer, "audioMixer cannot be null");
+        Guard.notNull(this.audioBuffer, "audioBuffer cannot be null");
+    }
+
+    /**
+     * Returns the volume of this playback.
+     * This should be number in [0, 1] interval
+     *
+     * @return {Number} volume of this playback inside [0, 1] interval
+     */
+    getVolume() {
+        return this.volume;
+    }
+
+    /**
+     * Sets volume of this playback.
+     *
+     * @param {Number} volume volume in [0, 1] interval
+     * @return {WebPlaybackControl} this instance
+     */
+    setVolume(volume) {
+        this.volume = volume;
+        if (this.gainNode !== null) {
+            this.gainNode.gain.value = volume;
+        }
+        return this;
+    }
+
+    /**
+     * Whether this playback plays in a loop or not.
+     *
+     * @return {Boolean} whether this playback plays in a loop or not
+     */
+    isLoop() {
+        return this.loop;
+    }
+
+    /**
+     * Sets whether this playback should play in loop or not.
+     *
+     * @param {boolean} loop whether this playback should play in loop or not
+     * @return {WebPlaybackControl} this instance
+     */
+    setLoop(loop) {
+        this.loop = loop;
+        if (this.source !== null) {
+            this.source.loop = loop;
+        }
+        return this;
+    }
+
+    /**
+     * Starts playing this playback.
+     *
+     * @return {WebPlaybackControl} this instance
+     */
+    play() {
+        if (this.ended) {
+            throw new Error("Playback already ended");
+        }
+        if (this.playing) {
+            // already playing, no need to do anything
+            return;
+        }
+        // Create source node
+        const audioContext = this.audioMixer.getAudioContext();
+        const masterGain = this.audioMixer.getMasterGain();
+        const source = audioContext.createBufferSource();
+        source.buffer = this.audioBuffer;
+        source.loop = this.loop;
+
+        // Create gain node for individual volume control
+        const gainNode = audioContext.createGain();
+        gainNode.gain.value = this.volume;
+
+        // Connect nodes
+        source.connect(gainNode);
+        gainNode.connect(masterGain);
+
+        // start and set up cleaning
+        source.start(audioContext.currentTime, 0);
+        source.onended = () => {
+            // this is triggered on toal end, doesn't get triggered when there is a loop
+            this.cleanUp();
+        };
+
+        this.source = source;
+        this.gainNode = gainNode;
+        this.playing = true;
+
+        return this;
+    }
+
+    /**
+     * Stops this playback. Call of this method moves playback to the ended state.
+     * Ended state is final and playback can be removed from system at any time.
+     *
+     * @return {WebPlaybackControl} this instance
+     */
+    stop() {
+        try {
+            this.source.stop();
+        } catch (e) {
+            // do nothing here
+        }
+        this.cleanUp;
+    }
+
+    /**
+     * Returns whether this playback is ended.
+     * Ended playbacks are done and can be removed from system.
+     *
+     * @return {Boolean} whether this playback is ended or not
+     */
+    isEnded() {
+        return this.ended;
+    }
+
+    /**
+     * Returns whether this playback is playing.
+     * Playing means actually progressing.
+     *
+     * @return {Boolean} whether this playback is playing
+     */
+    isPlaying() {
+        return this.playing;
+    }
+
+    /**
+     * Performs the clean up.
+     */
+    cleanUp() {
+        this.playing = false;
+        this.ended = true;
+        if (this.gainNode !== null) {
+            this.gainNode.disconnect(this.audioMixer.getMasterGain());
+            this.source = null;
+            this.gainNode = null;
+        }
+        this.audioMixer.removePlayback(this.playbackId);
+    }
+
+    /**
+     * Creates new instance.
+     * 
+     * @param {PlaybackId} playbackId playback identifier
+     * @param {AudioMixer} audioMixer mixer
+     * @param {AudioBuffer} audioBuffer audio buffer
+     * @returns {WebPlayback} created playback
+     */
+    static create(playbackId, audioMixer, audioBuffer) {
+        const res = new WebPlaybackControl();
+        res.playbackId = playbackId;
+        res.audioMixer = audioMixer;
+        res.audioBuffer = audioBuffer;
+        res.guardInvariants();
+        return res;
+    }
+}
+/**
+ * Web audio mixer.
+ */
+class WebAudioMixer {
+    /**
+     * Audio driver.
+     * 
+     * @type WebAudioDriver
+     */
+    audioDriver;
+    /**
+     * Playback map.
+     * 
+     * @type HashMap of PlaybackId to WebPlaybackControl
+     */
+    playbacks = new HashMap();
+    constructor() {
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvariants() {
+        Guard.notNull(this.audioDriver, "audioDriver cannot be null");
+    }
+
+    /**
+     * Prepares playback to be played. Returns con
+     *
+     * @param {PlaybackId} id playback identifier for later reference
+     * @param {SoundId} soundId identifier of the sound which will be played
+     * @return {PlaybackControl} control for further actions
+     */
+    prepare(id, soundId) {
+        if (this.playbacks.containsKey(id)) {
+            throw new Error("playback id is already taken: " + id.toString());
+        }
+        const res = WebPlaybackControl.create(id, this, this.audioDriver.getAudioBuffer(soundId));
+        this.playbacks.put(id, res);
+        return res;
+    }
+
+    /**
+     * Returns control of the specified playback.
+     * Returns null if given playback is not found. For example, playback might be removed after it's done.
+     *
+     * @param {PlaybackId} playbackId playback id
+     * @return {WebPlaybackControl} control of the specified playback, or null if playback doesn't exists
+     */
+    getControlNonStrict(playbackId) {
+        return this.playbacks.get(playbackId);
+    }
+
+    /**
+     * Stops all playbacks. This can put all the existing playbacks into an unusable state and possibly remove them.
+     * Use case for this method is for example when user is leaving one screen so all the sounds should be stopped and existing playbacks
+     * references are not going to be used anymore.
+     */
+    stop() {
+        const oldPlaybacks = this.playbacks;
+        this.playbacks = new HashMap();
+        for (const playbackId of oldPlaybacks.keySet()) {
+            const pb = oldPlaybacks.get(playbackId);
+            pb.stop();
+        }
+    }
+
+    /**
+     * Removes playback 
+     * @param {PlaybackId} id playback identifier
+     */
+    removePlayback(id) {
+        this.playbacks.remove(id);
+    }
+
+    /**
+     * Returns audio context.
+     * 
+     * @returns {AudioContext} audio context
+     */
+    getAudioContext() {
+        return this.audioDriver.getAudioContext();
+    }
+
+    /**
+     * Returns master gain.
+     * 
+     * @returns {MasterGain} masrter gain
+     */
+    getMasterGain() {
+        return this.audioDriver.getMasterGain();
+    }
+
+    /**
+     * Creates new instance.
+     * 
+     * @param {AudioDriver} audioDriver audio driver
+     * @returns {WebAudioMixer} created mixer
+     */
+    static create(audioDriver) {
+        const res = new WebAudioMixer();
+        res.audioDriver = audioDriver;
+        res.guardInvariants();
+        return res;
+    }
+}
+/**
+ * Web audio driver.
+ */
+class WebAudioDriver {
+    audioContext;
+    masterGain;
+    soundIds;
+    /**
+     * Map with audio buffer for each sound.
+     * 
+     * @type HashMap audio buffers (SoundId -> AudioBuffer)
+     */
+    audioBuffers = new HashMap();
+    constructor() {
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvariants() {
+        Guard.notNull(this.audioContext, "audioContext cannot be null");
+        Guard.notNull(this.masterGain, "masterGain cannot be null");
+        Guard.notNull(this.soundIds, "soundIds cannot be null");
+    }
+
+    /**
+     * Loads sound into an audio memory.
+     *
+     * @param {SoundId} id sound identifier
+     * @param {Sound} sound sound
+     */
+    loadSound(id, sound) {
+        const track = sound.getTrack();
+        if (track.getFormat().equals(SoundTrackFormat.FLOAT)) {
+            // create a native float buffer
+            const floatBuf = new Float32Array(track.getNumSamples());
+            if (track.getRange().min() === -1 || track.getRange().max() === 1) {
+                for (let i = 0; i < track.getNumSamples(); ++i) {
+                    floatBuf[i] = track.getFloatSample(i);
+                }
+            } else {
+                //
+                //const range = maxValue - minValue;
+                //for (let i = 0; i < floatSamples.length; i++) {
+                //    floatSamples[i] = ((floatSamples[i] - minValue) / range) * 2 - 1;
+                //}
+                throw Error("only normalized track is supported at the moment, implement me");
+            }
+
+            const audioBuffer = this.audioContext.createBuffer(1, track.getNumSamples(), track.getFrameRate());
+            const channelData = audioBuffer.getChannelData(0);
+            for (let i = 0; i < track.getNumSamples(); i++) {
+                channelData[i] = floatBuf[i];
+            }
+
+            this.audioBuffers.put(id, audioBuffer);
+            this.soundIds.add(id);
+        } else {
+            throw new Error("unsupported sound track format: " + track.getFormat().toString());
+        }
+
+
     }
 
     /**
@@ -5072,23 +5732,63 @@ class WebAudioDriver {
      * @returns {Set of SoundId} sound ids
      */
     getSounds() {
-        return new HashSet();
+        return Dut.copyImmutableSet(this.soundIds);
     }
 
     /**
-     * Returns the mixer provided by system.
+     * Returns the audio mixer.
      *
      * @return {AudioMixer} mixer provided by system
      */
-    getSystemMixer() {
-        return null;
+    getMixer() {
+        return WebAudioMixer.create(this);
+    }
+
+    /**
+     * Returns audio context.
+     * 
+     * @returns {AudioContext} audio context
+     */
+    getAudioContext() {
+        return this.audioContext;
+    }
+
+    /**
+     * Returns audio buffer for a given sound.
+     * 
+     * @param {SoundId} soundId sound identifier
+     * @returns {AudioBuffer} audio buffer
+     */
+    getAudioBuffer(soundId) {
+        const res = this.audioBuffers.get(soundId);
+        if (res === null || res === undefined) {
+            throw new Error("no sound for: " + soundId.toString());
+        }
+        return res;
+    }
+
+    /**
+     * Returns master gain.
+     * 
+     * @returns {MasterGain} masrter gain
+     */
+    getMasterGain() {
+        return this.masterGain;
     }
 
     /**
      * Creates new instance.
+     * 
+     * @param {AudioContext} audioContext audio context
+     * @returns {WebAudioDriver} created driver
      */
-    static create() {
+    static create(audioContext) {
         const res = new WebAudioDriver();
+        res.audioContext = audioContext;
+        res.masterGain = res.audioContext.createGain();
+        res.masterGain.connect(res.audioContext.destination);
+        res.masterGain.gain.value = 1.0;
+        res.soundIds = new HashSet();
         res.guardInvariants();
         return res;
     }
@@ -5223,7 +5923,7 @@ class DriverProvider {
     assetManager = WebAssetManager.create(this, this.executor, this.assetLoader, this.assetBank);
     displayDriver = ProxyDisplayDriver.create();
     graphicsDriver = WebglGraphicsDriver.create(this.assetManager);
-    audioDriver = WebAudioDriver.create();
+    audioDriver = WebAudioDriver.create(audioContext);
     touchDriver = WebTouchDriver.create();
 
     constructor() {
@@ -7473,6 +8173,51 @@ class Rgba {
   }
 
 }
+const createTextureFormat = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const TextureFormat = Object.freeze({
+  FLOAT: createTextureFormat("FLOAT"),
+  UNSIGNED_BYTE: createTextureFormat("UNSIGNED_BYTE"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
 const createTextureChannel = (description) => {
   const symbol = Symbol(description);
   return {
@@ -7523,10 +8268,11 @@ const TextureChannel = Object.freeze({
 class Texture {
   static RGB = Dut.immutableList(TextureChannel.RED, TextureChannel.GREEN, TextureChannel.BLUE);
   static RGBA = Dut.immutableList(TextureChannel.RED, TextureChannel.GREEN, TextureChannel.BLUE, TextureChannel.ALPHA);
+  format;
   channels;
   width;
   height;
-  buf;
+  data;
   constructor() {
   }
 
@@ -7535,11 +8281,21 @@ class Texture {
   }
 
   guardInvaritants() {
+    Guard.notNull(this.format, "format cannot be null");
     Guard.notNullCollection(this.channels, "channels cannot have a null element");
     Guard.positive(this.width, "width must be positive");
     Guard.positive(this.height, "height must be positive");
-    Guard.notNull(this.buf, "buf cannot be null");
-    Guard.beTrue(this.buf.length==this.channels.size()*this.width*this.height, "buf.lenght must be equal to numChannels * width * height");
+    Guard.notNull(this.data, "buf cannot be null");
+    if (this.format.equals(TextureFormat.FLOAT)) {
+      Guard.beTrue(this.data.size()==this.channels.size()*this.width*this.height*4, "buf.lenght must be equal to numChannels * width * height * 4");
+    }
+    else {
+      throw "unsupported texture format: "+this.format.toString();
+    }
+  }
+
+  getFormat() {
+    return this.format;
   }
 
   getChannels() {
@@ -7554,61 +8310,65 @@ class Texture {
     return this.height;
   }
 
-  getBuf() {
-    return Arrays.copyOf(this.buf, this.buf.length);
-  }
-
-  getBufValue(idx) {
-    return this.buf[idx];
+  getData() {
+    return this.data;
   }
 
   flipVert() {
-    let rbuf = [];
-    let pxsize = this.channels.size();
+    let bpp = this.getBytesPerPixel();
+    let writer = DataBlockRandomWriter.create(this.data.size());
     for (let y = 0; y<this.height; ++y) {
       for (let x = 0; x<this.width; ++x) {
-        let srcStart = (y*this.width+x)*pxsize;
-        let dstStart = ((this.height-1-y)*this.width+x)*pxsize;
-        for (let i = 0; i<pxsize; ++i) {
-          rbuf[dstStart+i] = this.buf[srcStart+i];
-        }
+        let srcPos = (y*this.width+x)*bpp;
+        let dstPos = ((this.height-1-y)*this.width+x)*bpp;
+        writer.copyBytes(dstPos, this.data, srcPos, bpp);
       }
     }
-    return Texture.create(this.channels, this.width, this.height, rbuf);
+    return Texture.create(this.format, this.channels, this.width, this.height, writer.toDataBlock());
   }
 
   crop(x, y, w, h) {
-    let rbuf = [];
-    for (let iy = 0,idx=0; iy<h; ++iy) {
-      for (let ix = 0; ix<w; ++ix) {
-        for (let i = 0; i<this.channels.size(); ++i,++idx) {
-          rbuf[idx] = this.buf[((y+iy)*this.width+x+ix)*this.channels.size()+i];
-        }
+    let bpp = this.getBytesPerPixel();
+    let writer = DataBlockStreamWriter.create(w*h*bpp);
+    for (let wy = 0; wy<h; ++wy) {
+      for (let wx = 0; wx<w; ++wx) {
+        let srcPos = (((wy+y)*this.width)+x+wx)*bpp;
+        writer.copyBytes(this.data, srcPos, bpp);
       }
     }
-    return Texture.create(this.channels, w, h, rbuf);
+    return Texture.create(this.format, this.channels, w, h, writer.toDataBlock());
   }
 
   powRgb(p) {
-    let rbuf = [];
-    let pxsize = this.channels.size();
-    let idx = 0;
-    for (let y = 0; y<this.height; ++y) {
-      for (let x = 0; x<this.width; ++x) {
-        for (let i = 0; i<pxsize; ++i,++idx) {
-          if (this.channels.get(i).equals(TextureChannel.RED)||this.channels.get(i).equals(TextureChannel.GREEN)||this.channels.get(i).equals(TextureChannel.BLUE)) {
-            rbuf[idx] = FMath.pow(this.buf[idx], p);
-          }
-          else {
-            rbuf[idx] = this.buf[idx];
+    let rgbChannels = Dut.set(TextureChannel.RED, TextureChannel.GREEN, TextureChannel.BLUE);
+    if (this.format.equals(TextureFormat.FLOAT)) {
+      let writer = DataBlockStreamWriter.create(this.data.size());
+      let nch = this.channels.size();
+      let pos = 0;
+      for (let y = 0; y<this.height; ++y) {
+        for (let x = 0; x<this.width; ++x) {
+          for (let i = 0; i<nch; ++i,pos=pos+4) {
+            if (rgbChannels.contains(this.channels.get(i))) {
+              let val = this.data.getFloat(pos);
+              writer.writeFloat(FMath.pow(val, p));
+            }
+            else {
+              writer.copyBytes(this.data, pos, 4);
+            }
           }
         }
       }
+      return Texture.create(this.format, this.channels, this.width, this.height, writer.toDataBlock());
     }
-    return Texture.create(this.channels, this.width, this.height, rbuf);
+    else {
+      throw "only FLOAT format is supported for this operation, implement me";
+    }
   }
 
   isCompatible(other) {
+    if (!this.format.equals(other.format)) {
+      return false;
+    }
     if (!this.channels.equals(other.channels)) {
       return false;
     }
@@ -7619,6 +8379,20 @@ class Texture {
       return false;
     }
     return true;
+  }
+
+  getBytesPerPixel() {
+    let fact = 1;
+    if (this.format.equals(TextureFormat.FLOAT)) {
+      fact = 4;
+    }
+    else if (this.format.equals(TextureFormat.UNSIGNED_BYTE)) {
+      fact = 1;
+    }
+    else {
+      throw "unsupported format: "+this.format.toString();
+    }
+    return fact*this.channels.size();
   }
 
   hashCode() {
@@ -7632,111 +8406,133 @@ class Texture {
   toString() {
   }
 
-  static create(channels, width, height, ...buf) {
-    if (Array.isArray(buf)&&buf.length===1&&Array.isArray(buf[0])) {
-      buf = buf[0];
-    }
+  static create(format, channels, width, height, data) {
     let res = new Texture();
+    res.format = format;
     res.channels = Dut.copyImmutableList(channels);
     res.width = width;
     res.height = height;
-    res.buf = Arrays.copyOf(buf, buf.length);
+    res.data = data;
     res.guardInvaritants();
     return res;
   }
 
-  static rgbFloatBuffer(width, height, ...buf) {
+  static floatValues(channels, width, height, ...buf) {
     if (Array.isArray(buf)&&buf.length===1&&Array.isArray(buf[0])) {
       buf = buf[0];
     }
     let res = new Texture();
-    res.channels = Texture.RGB;
+    res.format = TextureFormat.FLOAT;
+    res.channels = Dut.copyImmutableList(channels);
     res.width = width;
     res.height = height;
-    res.buf = Arrays.copyOf(buf, buf.length);
+    res.data = DataBlock.fromFloatValues(buf);
     res.guardInvaritants();
     return res;
   }
 
-  static rgbPixels(width, height, ...pixels) {
-    if (Array.isArray(pixels)&&pixels.length===1&&Array.isArray(pixels[0])) {
-      pixels = pixels[0];
-    }
-    let res = new Texture();
-    res.channels = Texture.RGB;
-    res.width = width;
-    res.height = height;
-    res.buf = [];
-    for (let i = 0,idx=0; i<pixels.length; ++i) {
-      let p = pixels[i];
-      res.buf[idx++] = p.r();
-      res.buf[idx++] = p.g();
-      res.buf[idx++] = p.b();
-    }
-    res.guardInvaritants();
-    return res;
-  }
-
-  static rgbaFloatBuffer(width, height, ...buf) {
+  static rgbFloatValues(width, height, ...buf) {
     if (Array.isArray(buf)&&buf.length===1&&Array.isArray(buf[0])) {
       buf = buf[0];
     }
     let res = new Texture();
-    res.channels = Texture.RGBA;
+    res.format = TextureFormat.FLOAT;
+    res.channels = Texture.RGB;
     res.width = width;
     res.height = height;
-    res.buf = Arrays.copyOf(buf, buf.length);
+    res.data = DataBlock.fromFloatValues(buf);
     res.guardInvaritants();
     return res;
   }
 
-  static rgbaPixels(width, height, ...pixels) {
+  static rgbFloatPixels(width, height, ...pixels) {
     if (Array.isArray(pixels)&&pixels.length===1&&Array.isArray(pixels[0])) {
       pixels = pixels[0];
     }
     let res = new Texture();
-    res.channels = Texture.RGBA;
-    res.width = width;
-    res.height = height;
-    res.buf = [];
-    for (let i = 0,idx=0; i<pixels.length; ++i) {
-      let p = pixels[i];
-      res.buf[idx++] = p.r();
-      res.buf[idx++] = p.g();
-      res.buf[idx++] = p.b();
-      res.buf[idx++] = p.a();
-    }
-    res.guardInvaritants();
-    return res;
-  }
-
-  static rgbConstant(width, height, color) {
-    let res = new Texture();
+    res.format = TextureFormat.FLOAT;
     res.channels = Texture.RGB;
     res.width = width;
     res.height = height;
-    res.buf = [];
-    for (let i = 0,idx=0; i<width*height; ++i) {
-      res.buf[idx++] = color.r();
-      res.buf[idx++] = color.g();
-      res.buf[idx++] = color.b();
+    let writer = DataBlockStreamWriter.create(width*height*3*4);
+    for (let i = 0; i<pixels.length; ++i) {
+      let p = pixels[i];
+      writer.writeFloat(p.r());
+      writer.writeFloat(p.g());
+      writer.writeFloat(p.b());
     }
+    res.data = writer.toDataBlock();
     res.guardInvaritants();
     return res;
   }
 
-  static rgbaConstant(width, height, color) {
+  static rgbaFloatValues(width, height, ...buf) {
+    if (Array.isArray(buf)&&buf.length===1&&Array.isArray(buf[0])) {
+      buf = buf[0];
+    }
     let res = new Texture();
+    res.format = TextureFormat.FLOAT;
     res.channels = Texture.RGBA;
     res.width = width;
     res.height = height;
-    res.buf = [];
-    for (let i = 0,idx=0; i<width*height; ++i) {
-      res.buf[idx++] = color.r();
-      res.buf[idx++] = color.g();
-      res.buf[idx++] = color.b();
-      res.buf[idx++] = color.a();
+    res.data = DataBlock.fromFloatValues(buf);
+    res.guardInvaritants();
+    return res;
+  }
+
+  static rgbaFloatPixels(width, height, ...pixels) {
+    if (Array.isArray(pixels)&&pixels.length===1&&Array.isArray(pixels[0])) {
+      pixels = pixels[0];
     }
+    let res = new Texture();
+    res.format = TextureFormat.FLOAT;
+    res.channels = Texture.RGBA;
+    res.width = width;
+    res.height = height;
+    let writer = DataBlockStreamWriter.create(width*height*4*4);
+    for (let i = 0; i<pixels.length; ++i) {
+      let p = pixels[i];
+      writer.writeFloat(p.r());
+      writer.writeFloat(p.g());
+      writer.writeFloat(p.b());
+      writer.writeFloat(p.a());
+    }
+    res.data = writer.toDataBlock();
+    res.guardInvaritants();
+    return res;
+  }
+
+  static rgbFloatConstant(width, height, color) {
+    let res = new Texture();
+    res.format = TextureFormat.FLOAT;
+    res.channels = Texture.RGB;
+    res.width = width;
+    res.height = height;
+    let writer = DataBlockStreamWriter.create(width*height*3*4);
+    for (let i = 0; i<width*height; ++i) {
+      writer.writeFloat(color.r());
+      writer.writeFloat(color.g());
+      writer.writeFloat(color.b());
+    }
+    res.data = writer.toDataBlock();
+    res.guardInvaritants();
+    return res;
+  }
+
+  static rgbaFloatConstant(width, height, color) {
+    let res = new Texture();
+    res.format = TextureFormat.FLOAT;
+    res.channels = Texture.RGBA;
+    res.width = width;
+    res.height = height;
+    let writer = DataBlockStreamWriter.create(width*height*4*4);
+    for (let i = 0; i<width*height; ++i) {
+      writer.writeFloat(color.r());
+      writer.writeFloat(color.g());
+      writer.writeFloat(color.b());
+      writer.writeFloat(color.a());
+    }
+    res.data = writer.toDataBlock();
     res.guardInvaritants();
     return res;
   }
@@ -10879,7 +11675,7 @@ class ImageToggleButton extends UiComponent {
       this.toggledDown = !this.toggledDown;
       this.down = this.toggledDown;
       for (let action of this.onToggleActions) {
-        action.run(this);
+        Functions.runUiEventAction(action, this);
       }
     }
     this.down = this.toggledDown;
@@ -10899,7 +11695,7 @@ class ImageToggleButton extends UiComponent {
     this.down = true;
     this.trackedTouch = null;
     for (let action of this.onToggleActions) {
-      action.run(this);
+      Functions.runUiEventAction(action, this);
     }
   }
 
@@ -10920,7 +11716,7 @@ class ImageToggleButton extends UiComponent {
     this.down = false;
     this.trackedTouch = null;
     for (let action of this.onToggleActions) {
-      action.run(this);
+      Functions.runUiEventAction(action, this);
     }
     return this;
   }
@@ -12981,6 +13777,54 @@ class UiEnvironment {
   }
 
 }
+class PlaybackId extends RefId {
+  static TYPE = RefIdType.of("PLAYBACK_ID");
+  mId;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "PlaybackId";
+  }
+
+  guardInvariants() {
+  }
+
+  type() {
+    return PlaybackId.TYPE;
+  }
+
+  id() {
+    return this.mId;
+  }
+
+  hashCode() {
+    return this.mId.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof PlaybackId)) {
+      return false;
+    }
+    let other = obj;
+    return other.mId.equals(this.mId);
+  }
+
+  toString() {
+  }
+
+  static of(id) {
+    let res = new PlaybackId();
+    res.mId = id;
+    res.guardInvariants();
+    return res;
+  }
+
+}
 class SoundId extends RefId {
   static TYPE = RefIdType.of("SOUND_ID");
   mId;
@@ -13014,7 +13858,8 @@ class SoundId extends RefId {
     if (!(obj instanceof SoundId)) {
       return false;
     }
-    return (obj).this.mId.equals(this.mId);
+    let other = obj;
+    return other.mId.equals(this.mId);
   }
 
   toString() {
@@ -13023,6 +13868,253 @@ class SoundId extends RefId {
   static of(id) {
     let res = new SoundId();
     res.mId = id;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+const createSoundTrackFormat = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const SoundTrackFormat = Object.freeze({
+  FLOAT: createSoundTrackFormat("FLOAT"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class SoundTrack {
+  format;
+  frameRate;
+  range;
+  data;
+  constructor() {
+  }
+
+  getClass() {
+    return "SoundTrack";
+  }
+
+  guardInvariants() {
+  }
+
+  getFormat() {
+    return this.format;
+  }
+
+  getFrameRate() {
+    return this.frameRate;
+  }
+
+  getRange() {
+    return this.range;
+  }
+
+  getNumSamples() {
+    if (this.format.equals(SoundTrackFormat.FLOAT)) {
+      return this.data.size()/4;
+    }
+    else {
+      throw "unsupported format, implement me: "+this.format;
+    }
+  }
+
+  getFloatSample(idx) {
+    if (this.format.equals(SoundTrackFormat.FLOAT)) {
+      return this.data.getFloat(idx*4);
+    }
+    else {
+      throw "unsupported format, implement me: "+this.format;
+    }
+  }
+
+  getDuration() {
+    if (this.format.equals(SoundTrackFormat.FLOAT)) {
+      let numSamples = this.data.size()/4;
+      return numSamples/this.frameRate;
+    }
+    else {
+      throw "unsupported format, implement me: "+this.format;
+    }
+  }
+
+  hashCode() {
+    return HashCodeBuilder.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return EqualsBuilder.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static rangedFloatValues(frameRate, range, ...samples) {
+    if (Array.isArray(samples)&&samples.length===1&&Array.isArray(samples[0])) {
+      samples = samples[0];
+    }
+    let res = new SoundTrack();
+    res.format = SoundTrackFormat.FLOAT;
+    res.frameRate = frameRate;
+    res.range = range;
+    res.data = DataBlock.fromFloatValues(samples);
+    res.guardInvariants();
+    return res;
+  }
+
+  static rangedFloatList(frameRate, range, samples) {
+    let res = new SoundTrack();
+    res.format = SoundTrackFormat.FLOAT;
+    res.frameRate = frameRate;
+    res.range = range;
+    res.data = DataBlock.fromFloatList(samples);
+    res.guardInvariants();
+    return res;
+  }
+
+  static normalizedFloatValues(frameRate, ...samples) {
+    if (Array.isArray(samples)&&samples.length===1&&Array.isArray(samples[0])) {
+      samples = samples[0];
+    }
+    let res = new SoundTrack();
+    res.format = SoundTrackFormat.FLOAT;
+    res.frameRate = frameRate;
+    res.range = Interval2.create(-1, 1);
+    res.data = DataBlock.fromFloatValues(samples);
+    res.guardInvariants();
+    return res;
+  }
+
+  static normalizedFloatList(frameRate, samples) {
+    let res = new SoundTrack();
+    res.format = SoundTrackFormat.FLOAT;
+    res.frameRate = frameRate;
+    res.range = Interval2.create(-1, 1);
+    res.data = DataBlock.fromFloatList(samples);
+    res.guardInvariants();
+    return res;
+  }
+
+  static avg(tracks) {
+    Guard.beFalse(tracks.isEmpty(), "at least single track is required");
+    if (tracks.size()==1) {
+      return tracks.get(0);
+    }
+    for (let track of tracks) {
+      Guard.equals(SoundTrackFormat.FLOAT, track.getFormat(), "only FLOAT tracks are supported");
+      Guard.equals(tracks.get(0).getFrameRate(), track.getFrameRate(), "all tracks must have same frameRate");
+      Guard.equals(tracks.get(0).getNumSamples(), track.getNumSamples(), "all tracks must have same number of samples");
+      Guard.equals(tracks.get(0).getRange(), track.getRange(), "all tracks must have same range");
+    }
+    let res = new SoundTrack();
+    res.format = SoundTrackFormat.FLOAT;
+    res.frameRate = tracks.get(0).frameRate;
+    res.range = tracks.get(0).range;
+    let writer = DataBlockStreamWriter.create(tracks.get(0).getNumSamples()*4);
+    for (let i = 0; i<tracks.get(0).getNumSamples(); ++i) {
+      let d = 0;
+      for (let track of tracks) {
+        d = d+track.getFloatSample(i);
+      }
+      d = d/tracks.size();
+      writer.writeFloat(FMath.clamp(d, res.range.min(), res.range.max()));
+    }
+    res.data = writer.toDataBlock();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class Sound {
+  priority;
+  track;
+  constructor() {
+  }
+
+  getClass() {
+    return "Sound";
+  }
+
+  guardInvariants() {
+  }
+
+  getPriority() {
+    return this.priority;
+  }
+
+  getTrack() {
+    return this.track;
+  }
+
+  hashCode() {
+    return HashCodeBuilder.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return EqualsBuilder.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    if (arguments.length===1&&arguments[0] instanceof SoundTrack) {
+      return Sound.create_1_SoundTrack(arguments[0]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="number"&&arguments[1] instanceof SoundTrack) {
+      return Sound.create_2_number_SoundTrack(arguments[0], arguments[1]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static create_1_SoundTrack(track) {
+    let res = new Sound();
+    res.track = track;
+    res.priority = 0;
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_2_number_SoundTrack(priority, track) {
+    let res = new Sound();
+    res.priority = priority;
+    res.track = track;
     res.guardInvariants();
     return res;
   }
@@ -13805,11 +14897,11 @@ class TapEntry {
   }
 
   getData() {
-    return Arrays.copyOf(this.data, this.data.length);
+    return this.data;
   }
 
   createDataStream() {
-    return new ByteArrayInputStream(this.data);
+    return this.data.stream();
   }
 
   hashCode() {
@@ -13828,7 +14920,7 @@ class TapEntry {
     res.type = type;
     res.id = id;
     res.version = version;
-    res.data = Arrays.copyOf(data, data.length);
+    res.data = data;
     res.guardInvariants();
     return res;
   }
@@ -13896,9 +14988,9 @@ class TapTextures {
       }
       bos.write(TapBytes.intToBytes(texture.getWidth()));
       bos.write(TapBytes.intToBytes(texture.getHeight()));
-      let pbuf = texture.getBuf();
-      for (let i = 0; i<pbuf.length; ++i) {
-        bos.write(TapBytes.floatToBytes(pbuf[i]));
+      let data = texture.getData();
+      for (let i = 0; i<data.size(); i=i+4) {
+        bos.write(TapBytes.floatToBytes(data.getFloat(i)));
       }
       buf = bos.toByteArray();
       bos.close();
@@ -13916,7 +15008,7 @@ class TapTextures {
         }
       }
     }
-    return TapEntry.create(TapEntryType.TEXTURE, id.id(), 1, buf);
+    return TapEntry.create(TapEntryType.TEXTURE, id.id(), 1, DataBlock.fromByteArray(buf));
   }
 
   static toAssetGroup(entry) {
@@ -13932,12 +15024,8 @@ class TapTextures {
         }
         let w = reader.readInt();
         let h = reader.readInt();
-        let pbufLength = numChannels*w*h;
-        let pbuf = [];
-        for (let i = 0; i<pbufLength; ++i) {
-          pbuf[i] = reader.readFloat();
-        }
-        texture = Texture.create(channels, w, h, pbuf);
+        let data = reader.readDataBlock(numChannels*w*h*4);
+        texture = Texture.create(TextureFormat.FLOAT, channels, w, h, data);
       }
       finally {
         reader.close();
@@ -13999,7 +15087,7 @@ class TapMaterials {
         }
       }
     }
-    return TapEntry.create(TapEntryType.MATERIAL, id.id(), 1, buf);
+    return TapEntry.create(TapEntryType.MATERIAL, id.id(), 1, DataBlock.fromByteArray(buf));
   }
 
   static toAssetGroup(entry) {
@@ -14073,7 +15161,7 @@ class TapMeshes {
         }
       }
     }
-    return TapEntry.create(TapEntryType.MESH, id.id(), 1, buf);
+    return TapEntry.create(TapEntryType.MESH, id.id(), 1, DataBlock.fromByteArray(buf));
   }
 
   static toAssetGroup(entry) {
@@ -14159,7 +15247,7 @@ class TapModels {
         }
       }
     }
-    return TapEntry.create(TapEntryType.MODEL, id.id(), 1, buf);
+    return TapEntry.create(TapEntryType.MODEL, id.id(), 1, DataBlock.fromByteArray(buf));
   }
 
   static toAssetGroup(entry) {
@@ -14217,7 +15305,7 @@ class TapPhysicalMaterials {
         }
       }
     }
-    return TapEntry.create(TapEntryType.PHYSICAL_MATERIAL, id.id(), 1, buf);
+    return TapEntry.create(TapEntryType.PHYSICAL_MATERIAL, id.id(), 1, DataBlock.fromByteArray(buf));
   }
 
   static toAssetGroup(entry) {
@@ -14299,7 +15387,7 @@ class TapFonts {
         }
       }
     }
-    return TapEntry.create(TapEntryType.FONT, id.id(), 1, buf);
+    return TapEntry.create(TapEntryType.FONT, id.id(), 1, DataBlock.fromByteArray(buf));
   }
 
   static toAssetGroup(entry) {
@@ -14346,6 +15434,72 @@ class TapFonts {
         reader.close();
       }
       return AssetGroup.of(FontId.of(entry.getId()), font);
+    }
+    else {
+      throw "unsupported version, implement me: "+entry.getVersion();
+    }
+  }
+
+}
+class TapSounds {
+  constructor() {
+  }
+
+  getClass() {
+    return "TapSounds";
+  }
+
+  static toEntry(id, sound) {
+    let track = sound.getTrack();
+    let buf = null;
+    let bos = new ByteArrayOutputStream();
+    try {
+      bos.write(TapBytes.intToBytes(sound.getPriority()));
+      bos.write(TapBytes.intToBytes(track.getFrameRate()));
+      bos.write(TapBytes.floatToBytes(track.getRange().min()));
+      bos.write(TapBytes.floatToBytes(track.getRange().max()));
+      bos.write(TapBytes.intToBytes(track.getNumSamples()));
+      for (let i = 0; i<track.getNumSamples(); ++i) {
+        bos.write(TapBytes.floatToBytes(track.getFloatSample(i)));
+      }
+      buf = bos.toByteArray();
+    }
+    catch (e) {
+      throw e;
+    }
+    finally {
+      if (bos!=null) {
+        try {
+          bos.close();
+        }
+        catch (ex) {
+        }
+      }
+    }
+    return TapEntry.create(TapEntryType.SOUND, id.id(), 1, DataBlock.fromByteArray(buf));
+  }
+
+  static toAssetGroup(entry) {
+    Guard.equals(entry.getType(), TapEntryType.SOUND, "entry must be a SOUND type");
+    if (entry.getVersion()==1) {
+      let sound = null;
+      let reader = TapBufferReader.create(entry);
+      try {
+        let priority = reader.readInt();
+        let frameRate = reader.readInt();
+        let min = reader.readFloat();
+        let max = reader.readFloat();
+        let numSamples = reader.readInt();
+        let samples = [];
+        for (let i = 0; i<numSamples; ++i) {
+          samples[i] = reader.readFloat();
+        }
+        sound = Sound.create(priority, SoundTrack.rangedFloatValues(frameRate, Interval2.create(min, max), samples));
+      }
+      finally {
+        reader.close();
+      }
+      return AssetGroup.of(SoundId.of(entry.getId()), sound);
     }
     else {
       throw "unsupported version, implement me: "+entry.getVersion();
@@ -21404,7 +22558,7 @@ class RigidBodyWorld {
     res.timeStep = 0.02;
     res.solver = SequentialSolver.create(res.timeStep);
     res.gDriver = drivers.getDriver("GraphicsDriver");
-    res.audioMixer = drivers.getDriver("AudioDriver").getSystemMixer();
+    res.audioMixer = drivers.getDriver("AudioDriver").getMixer();
     let shadow1 = ShadowBufferId.of("physicsWorld.shadow1");
     let shadow2 = ShadowBufferId.of("physicsWorld.shadow2");
     let shadow3 = ShadowBufferId.of("physicsWorld.shadow3");
@@ -21695,8 +22849,8 @@ class BasicApp02 {
     assets.put(this.planes.get(8), this.plane(8, 8));
     assets.put(this.planes.get(9), this.plane(9, 9));
     assets.put(this.planes.get(10), this.plane(10, 10));
-    let mtex1 = Texture.rgbFloatBuffer(4, 4, 1, 1, 1, 0.3, 0.3, 0.3, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 1, 1, 1, 1, 0, 0.3, 0.3, 0.3, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 1, 1, 0, 1).powRgb(2.2);
-    let mtex2 = Texture.rgbaFloatBuffer(4, 4, 1, 1, 1, 1, 0.3, 0.3, 0.3, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1).powRgb(2.2);
+    let mtex1 = Texture.rgbFloatValues(4, 4, 1, 1, 1, 0.3, 0.3, 0.3, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 1, 1, 1, 1, 0, 0.3, 0.3, 0.3, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 1, 1, 0, 1).powRgb(2.2);
+    let mtex2 = Texture.rgbaFloatValues(4, 4, 1, 1, 1, 1, 0.3, 0.3, 0.3, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1).powRgb(2.2);
     assets.put(this.tex1, mtex1);
     assets.put(this.tex2, mtex2);
     let res = new ArrayList();
