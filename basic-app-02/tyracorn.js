@@ -5711,7 +5711,7 @@ class WebAudioDriver {
                 throw Error("only normalized track is supported at the moment, implement me");
             }
 
-            const audioBuffer = this.audioContext.createBuffer(1, track.getNumSamples(), track.getFrameRate());
+            const audioBuffer = this.audioContext.createBuffer(1, track.getNumSamples(), track.getSampleRate());
             const channelData = audioBuffer.getChannelData(0);
             for (let i = 0; i < track.getNumSamples(); i++) {
                 channelData[i] = floatBuf[i];
@@ -13919,7 +13919,7 @@ const SoundTrackFormat = Object.freeze({
 });
 class SoundTrack {
   format;
-  frameRate;
+  sampleRate;
   range;
   data;
   constructor() {
@@ -13936,8 +13936,8 @@ class SoundTrack {
     return this.format;
   }
 
-  getFrameRate() {
-    return this.frameRate;
+  getSampleRate() {
+    return this.sampleRate;
   }
 
   getRange() {
@@ -13965,7 +13965,7 @@ class SoundTrack {
   getDuration() {
     if (this.format.equals(SoundTrackFormat.FLOAT)) {
       let numSamples = this.data.size()/4;
-      return numSamples/this.frameRate;
+      return numSamples/this.sampleRate;
     }
     else {
       throw "unsupported format, implement me: "+this.format;
@@ -13983,46 +13983,46 @@ class SoundTrack {
   toString() {
   }
 
-  static rangedFloatValues(frameRate, range, ...samples) {
+  static rangedFloatValues(sampleRate, range, ...samples) {
     if (Array.isArray(samples)&&samples.length===1&&Array.isArray(samples[0])) {
       samples = samples[0];
     }
     let res = new SoundTrack();
     res.format = SoundTrackFormat.FLOAT;
-    res.frameRate = frameRate;
+    res.sampleRate = sampleRate;
     res.range = range;
     res.data = DataBlock.fromFloatValues(samples);
     res.guardInvariants();
     return res;
   }
 
-  static rangedFloatList(frameRate, range, samples) {
+  static rangedFloatList(sampleRate, range, samples) {
     let res = new SoundTrack();
     res.format = SoundTrackFormat.FLOAT;
-    res.frameRate = frameRate;
+    res.sampleRate = sampleRate;
     res.range = range;
     res.data = DataBlock.fromFloatList(samples);
     res.guardInvariants();
     return res;
   }
 
-  static normalizedFloatValues(frameRate, ...samples) {
+  static normalizedFloatValues(sampleRate, ...samples) {
     if (Array.isArray(samples)&&samples.length===1&&Array.isArray(samples[0])) {
       samples = samples[0];
     }
     let res = new SoundTrack();
     res.format = SoundTrackFormat.FLOAT;
-    res.frameRate = frameRate;
+    res.sampleRate = sampleRate;
     res.range = Interval2.create(-1, 1);
     res.data = DataBlock.fromFloatValues(samples);
     res.guardInvariants();
     return res;
   }
 
-  static normalizedFloatList(frameRate, samples) {
+  static normalizedFloatList(sampleRate, samples) {
     let res = new SoundTrack();
     res.format = SoundTrackFormat.FLOAT;
-    res.frameRate = frameRate;
+    res.sampleRate = sampleRate;
     res.range = Interval2.create(-1, 1);
     res.data = DataBlock.fromFloatList(samples);
     res.guardInvariants();
@@ -14036,13 +14036,13 @@ class SoundTrack {
     }
     for (let track of tracks) {
       Guard.equals(SoundTrackFormat.FLOAT, track.getFormat(), "only FLOAT tracks are supported");
-      Guard.equals(tracks.get(0).getFrameRate(), track.getFrameRate(), "all tracks must have same frameRate");
+      Guard.equals(tracks.get(0).getSampleRate(), track.getSampleRate(), "all tracks must have same sampleRate");
       Guard.equals(tracks.get(0).getNumSamples(), track.getNumSamples(), "all tracks must have same number of samples");
       Guard.equals(tracks.get(0).getRange(), track.getRange(), "all tracks must have same range");
     }
     let res = new SoundTrack();
     res.format = SoundTrackFormat.FLOAT;
-    res.frameRate = tracks.get(0).frameRate;
+    res.sampleRate = tracks.get(0).sampleRate;
     res.range = tracks.get(0).range;
     let writer = DataBlockStreamWriter.create(tracks.get(0).getNumSamples()*4);
     for (let i = 0; i<tracks.get(0).getNumSamples(); ++i) {
@@ -15455,7 +15455,7 @@ class TapSounds {
     let bos = new ByteArrayOutputStream();
     try {
       bos.write(TapBytes.intToBytes(sound.getPriority()));
-      bos.write(TapBytes.intToBytes(track.getFrameRate()));
+      bos.write(TapBytes.intToBytes(track.getSampleRate()));
       bos.write(TapBytes.floatToBytes(track.getRange().min()));
       bos.write(TapBytes.floatToBytes(track.getRange().max()));
       bos.write(TapBytes.intToBytes(track.getNumSamples()));
@@ -15486,7 +15486,7 @@ class TapSounds {
       let reader = TapBufferReader.create(entry);
       try {
         let priority = reader.readInt();
-        let frameRate = reader.readInt();
+        let sampleRate = reader.readInt();
         let min = reader.readFloat();
         let max = reader.readFloat();
         let numSamples = reader.readInt();
@@ -15494,7 +15494,7 @@ class TapSounds {
         for (let i = 0; i<numSamples; ++i) {
           samples[i] = reader.readFloat();
         }
-        sound = Sound.create(priority, SoundTrack.rangedFloatValues(frameRate, Interval2.create(min, max), samples));
+        sound = Sound.create(priority, SoundTrack.rangedFloatValues(sampleRate, Interval2.create(min, max), samples));
       }
       finally {
         reader.close();
@@ -22798,130 +22798,74 @@ class BoxMeshFactory {
   }
 
 }
-class BasicApp05 {
-  box = MeshId.of("box");
-  whiteBox = MeshId.of("white-box");
-  shadow1 = ShadowBufferId.of("shadow1");
-  shadow2 = ShadowBufferId.of("shadow2");
-  shadow3 = ShadowBufferId.of("shadow3");
+class BasicApp02 {
+  planes = Dut.immutableList(MeshId.of("plane-0"), MeshId.of("plane-1"), MeshId.of("plane-2"), MeshId.of("plane-3"), MeshId.of("plane-4"), MeshId.of("plane-5"), MeshId.of("plane-6"), MeshId.of("plane-7"), MeshId.of("plane-8"), MeshId.of("plane-9"), MeshId.of("plane-10"));
+  tex1 = TextureId.of("tex1");
+  tex2 = TextureId.of("tex2");
+  stone = TextureId.of("stone-floor-1");
+  tyracorn = TextureId.of("tyracorn");
+  rug = TextureId.of("rug-1");
   time = 0;
   constructor() {
   }
 
   getClass() {
-    return "BasicApp05";
+    return "BasicApp02";
   }
 
   move(drivers, dt) {
-    let dirLightEnabled = true;
-    let spotLight1Enabled = true;
-    let spotLight2Enabled = true;
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
     let aspect = gDriver.getScreenViewport().getAspect();
     let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
     let m = 2*FMath.sin(this.time/3);
-    let cam = Camera.persp(fovy, aspect, 0.1, 1000.0).lookAt(Vec3.create(m, 2, 7), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0));
-    let dirLightColor = LightColor.create(Rgb.gray(0.4), Rgb.gray(0.6), Rgb.gray(0.6));
-    let dirLightDir = Vec3.create(0.2*FMath.cos(this.time/4), -1, 0.4).normalize();
-    let dirLightPos = Vec3.create(0, 5, 0);
-    let dirLightShadowMap = ShadowMap.createDir(this.shadow1, dirLightPos, dirLightDir, 10, 10);
-    let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
-    let spotLight1Pos = Vec3.create(0, 2, 0);
-    let spotLight1Dir = Vec3.create(0.4+m, -1, -0.2).normalize();
-    let spotLight1Color = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
-    let spotLight1Cone = LightCone.create(FMath.PI/9, FMath.PI/6);
-    let spotLight1ShadowMap = ShadowMap.createSpot(this.shadow2, spotLight1Pos, spotLight1Dir, spotLight1Cone.getOutTheta(), 1, 8);
-    let spotLight1 = Light.spotQuadratic(spotLight1Color, spotLight1Pos, spotLight1Dir, 8, spotLight1Cone, spotLight1ShadowMap);
-    let spotLight2Pos = Vec3.create(0, 2, 0);
-    let spotLight2Dir = Vec3.create(0.4, -1, -0.2+m/2).normalize();
-    let spotLight2Color = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
-    let spotLight2Cone = LightCone.create(FMath.PI/9, FMath.PI/6);
-    let spotLight2ShadowMap = ShadowMap.createSpot(this.shadow3, spotLight2Pos, spotLight2Dir, spotLight2Cone.getOutTheta(), 1, 8);
-    let spotLight2 = Light.spotQuadratic(spotLight2Color, spotLight2Pos, spotLight2Dir, 8, spotLight2Cone, spotLight2ShadowMap);
-    let smapRndr = null;
-    if (dirLightEnabled) {
-      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
-      smapRndr.render(this.box, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-      smapRndr.render(this.box, Mat44.trans(-3, 0, 3));
-      smapRndr.render(this.box, Mat44.trans(0, 0, 3));
-      smapRndr.render(this.box, Mat44.trans(3, 0, 3));
-      smapRndr.render(this.box, Mat44.trans(-3, 0, 0));
-      smapRndr.render(this.box, Mat44.trans(0, 0, 0));
-      smapRndr.render(this.box, Mat44.trans(3, 0, 0));
-      smapRndr.render(this.box, Mat44.trans(-3, 0, -3));
-      smapRndr.render(this.box, Mat44.trans(0, 0, -3));
-      smapRndr.render(this.box, Mat44.trans(3, 0, -3));
-      smapRndr.end();
-    }
-    if (spotLight1Enabled) {
-      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight1));
-      smapRndr.render(this.box, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-      smapRndr.render(this.box, Mat44.trans(-3, 0, 3));
-      smapRndr.render(this.box, Mat44.trans(0, 0, 3));
-      smapRndr.render(this.box, Mat44.trans(3, 0, 3));
-      smapRndr.render(this.box, Mat44.trans(-3, 0, 0));
-      smapRndr.render(this.box, Mat44.trans(0, 0, 0));
-      smapRndr.render(this.box, Mat44.trans(3, 0, 0));
-      smapRndr.render(this.box, Mat44.trans(-3, 0, -3));
-      smapRndr.render(this.box, Mat44.trans(0, 0, -3));
-      smapRndr.render(this.box, Mat44.trans(3, 0, -3));
-      smapRndr.end();
-    }
-    if (spotLight2Enabled) {
-      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight2));
-      smapRndr.render(this.box, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-      smapRndr.render(this.box, Mat44.trans(-3, 0, 3));
-      smapRndr.render(this.box, Mat44.trans(0, 0, 3));
-      smapRndr.render(this.box, Mat44.trans(3, 0, 3));
-      smapRndr.render(this.box, Mat44.trans(-3, 0, 0));
-      smapRndr.render(this.box, Mat44.trans(0, 0, 0));
-      smapRndr.render(this.box, Mat44.trans(3, 0, 0));
-      smapRndr.render(this.box, Mat44.trans(-3, 0, -3));
-      smapRndr.render(this.box, Mat44.trans(0, 0, -3));
-      smapRndr.render(this.box, Mat44.trans(3, 0, -3));
-      smapRndr.end();
-    }
+    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 5), Vec3.ZERO, Vec3.create(0, 1, 0));
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let lights = new ArrayList();
-    if (dirLightEnabled) {
-      lights.add(dirLight);
-    }
-    if (spotLight1Enabled) {
-      lights.add(spotLight1);
-    }
-    if (spotLight2Enabled) {
-      lights.add(spotLight2);
-    }
-    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, lights));
-    objRnderer.render(this.box, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.WHITE_PLASTIC.withAmbient(Rgb.gray(0.3)));
-    objRnderer.render(this.box, Mat44.trans(-3, 0, 3), Material.GOLD);
-    objRnderer.render(this.box, Mat44.trans(0, 0, 3), Material.SILVER);
-    objRnderer.render(this.box, Mat44.trans(3, 0, 3), Material.COPPER);
-    objRnderer.render(this.box, Mat44.trans(-3, 0, 0), Material.GOLD);
-    objRnderer.render(this.box, Mat44.trans(0, 0, 0), Material.SILVER);
-    objRnderer.render(this.box, Mat44.trans(3, 0, 0), Material.COPPER);
-    objRnderer.render(this.box, Mat44.trans(-3, 0, -3), Material.GOLD);
-    objRnderer.render(this.box, Mat44.trans(0, 0, -3), Material.SILVER);
-    objRnderer.render(this.box, Mat44.trans(3, 0, -3), Material.WHITE_PLASTIC);
-    objRnderer.end();
-    let crndr = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
-    crndr.render(this.whiteBox, Mat44.trans(spotLight1.getPos()).mul(Mat44.scale(0.05)));
-    crndr.render(this.whiteBox, Mat44.trans(spotLight2.getPos()).mul(Mat44.scale(0.05)));
-    crndr.end();
+    let renderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, Light.directional(LightColor.AMBIENT_WHITE, Vec3.DOWN)));
+    renderer.render(this.planes.get(10), Mat44.trans(0, -0.5, 0).mul(Mat44.rotX(-Math.PI/2).mul(Mat44.scale(20, 20, 1))), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.rug, TextureStyle.SMOOTH_REPEAT)));
+    renderer.render(this.planes.get(1), Mat44.trans(-4, 1, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.LINEAR, TextureFilterType.LINEAR))));
+    renderer.render(this.planes.get(1), Mat44.trans(-4, 0, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(1), Mat44.trans(-2.4, 0, 0).mul(Mat44.scale(2, 1, 1)), Material.create(Rgb.BLACK, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.ALPHA, this.tyracorn, TextureStyle.SMOOTH_REPEAT), TextureAttachment.create(TextureType.DIFFUSE, this.tyracorn, TextureStyle.SMOOTH_REPEAT)));
+    renderer.render(this.planes.get(2), Mat44.trans(-0.6, 0, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(2), Mat44.trans(-0.6, 1, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.LINEAR, TextureFilterType.LINEAR))));
+    renderer.render(this.planes.get(2), Mat44.trans(-0.6, 2, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.SMOOTH_REPEAT)));
+    renderer.render(this.planes.get(4), Mat44.trans(0.8, 0, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.EDGE, TextureWrapType.EDGE, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(4), Mat44.trans(0.8, 1, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.MIRRORED_REPEAT, TextureWrapType.MIRRORED_REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(4), Mat44.trans(0.8, 2, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(4), Mat44.trans(2.0, 0, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.BORDER, TextureWrapType.BORDER, Rgba.RED, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(4), Mat44.trans(2.0, 1, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.BORDER, TextureWrapType.BORDER, Rgba.WHITE, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.end();
   }
 
   init(drivers, properties) {
     let assets = drivers.getDriver("AssetManager");
-    assets.put(this.box, BoxMeshFactory.fabricBox());
-    assets.put(this.whiteBox, BoxMeshFactory.rgbBox(1, 1, 1));
-    assets.put(this.shadow1, ShadowBuffer.create(1024, 1024));
-    assets.put(this.shadow2, ShadowBuffer.create(1024, 1024));
-    assets.put(this.shadow3, ShadowBuffer.create(1024, 1024));
-    return Collections.emptyList();
+    assets.put(this.planes.get(1), this.plane(1, 1));
+    assets.put(this.planes.get(2), this.plane(2, 2));
+    assets.put(this.planes.get(3), this.plane(3, 3));
+    assets.put(this.planes.get(4), this.plane(4, 4));
+    assets.put(this.planes.get(5), this.plane(5, 5));
+    assets.put(this.planes.get(6), this.plane(6, 6));
+    assets.put(this.planes.get(7), this.plane(7, 7));
+    assets.put(this.planes.get(8), this.plane(8, 8));
+    assets.put(this.planes.get(9), this.plane(9, 9));
+    assets.put(this.planes.get(10), this.plane(10, 10));
+    let mtex1 = Texture.rgbFloatValues(4, 4, 1, 1, 1, 0.3, 0.3, 0.3, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 1, 1, 1, 1, 0, 0.3, 0.3, 0.3, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 1, 1, 0, 1).powRgb(2.2);
+    let mtex2 = Texture.rgbaFloatValues(4, 4, 1, 1, 1, 1, 0.3, 0.3, 0.3, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1).powRgb(2.2);
+    assets.put(this.tex1, mtex1);
+    assets.put(this.tex2, mtex2);
+    let res = new ArrayList();
+    res.add(assets.resolveAsync(Path.of("asset:stone-floor-1.png"), "Texture", TextureFncs.flipVertGamma(2.2)));
+    res.add(assets.resolveAsync(Path.of("asset:tyracorn.png"), "Texture", TextureFncs.flipVertGamma(2.2)));
+    res.add(assets.resolveAsync(Path.of("asset:rug-1.png"), "Texture", TextureFncs.flipVertGamma(2.2)));
+    return res;
   }
 
   close(drivers) {
+  }
+
+  plane(repU, repV) {
+    let res = Mesh.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3, VertexAttr.TEX2), Dut.list(Vertex.create(-0.5, -0.5, 0, 0, 0, 1, 0, 0), Vertex.create(0.5, -0.5, 0, 0, 0, 1, repU, 0), Vertex.create(0.5, 0.5, 0, 0, 0, 1, repU, repV), Vertex.create(-0.5, 0.5, 0, 0, 0, 1, 0, repV)), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3)));
+    return res;
   }
 
 }
@@ -23203,7 +23147,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = new BasicApp05();
+    tyracornApp = new BasicApp02();
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

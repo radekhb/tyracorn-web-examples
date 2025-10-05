@@ -5711,7 +5711,7 @@ class WebAudioDriver {
                 throw Error("only normalized track is supported at the moment, implement me");
             }
 
-            const audioBuffer = this.audioContext.createBuffer(1, track.getNumSamples(), track.getFrameRate());
+            const audioBuffer = this.audioContext.createBuffer(1, track.getNumSamples(), track.getSampleRate());
             const channelData = audioBuffer.getChannelData(0);
             for (let i = 0; i < track.getNumSamples(); i++) {
                 channelData[i] = floatBuf[i];
@@ -13919,7 +13919,7 @@ const SoundTrackFormat = Object.freeze({
 });
 class SoundTrack {
   format;
-  frameRate;
+  sampleRate;
   range;
   data;
   constructor() {
@@ -13936,8 +13936,8 @@ class SoundTrack {
     return this.format;
   }
 
-  getFrameRate() {
-    return this.frameRate;
+  getSampleRate() {
+    return this.sampleRate;
   }
 
   getRange() {
@@ -13965,7 +13965,7 @@ class SoundTrack {
   getDuration() {
     if (this.format.equals(SoundTrackFormat.FLOAT)) {
       let numSamples = this.data.size()/4;
-      return numSamples/this.frameRate;
+      return numSamples/this.sampleRate;
     }
     else {
       throw "unsupported format, implement me: "+this.format;
@@ -13983,46 +13983,46 @@ class SoundTrack {
   toString() {
   }
 
-  static rangedFloatValues(frameRate, range, ...samples) {
+  static rangedFloatValues(sampleRate, range, ...samples) {
     if (Array.isArray(samples)&&samples.length===1&&Array.isArray(samples[0])) {
       samples = samples[0];
     }
     let res = new SoundTrack();
     res.format = SoundTrackFormat.FLOAT;
-    res.frameRate = frameRate;
+    res.sampleRate = sampleRate;
     res.range = range;
     res.data = DataBlock.fromFloatValues(samples);
     res.guardInvariants();
     return res;
   }
 
-  static rangedFloatList(frameRate, range, samples) {
+  static rangedFloatList(sampleRate, range, samples) {
     let res = new SoundTrack();
     res.format = SoundTrackFormat.FLOAT;
-    res.frameRate = frameRate;
+    res.sampleRate = sampleRate;
     res.range = range;
     res.data = DataBlock.fromFloatList(samples);
     res.guardInvariants();
     return res;
   }
 
-  static normalizedFloatValues(frameRate, ...samples) {
+  static normalizedFloatValues(sampleRate, ...samples) {
     if (Array.isArray(samples)&&samples.length===1&&Array.isArray(samples[0])) {
       samples = samples[0];
     }
     let res = new SoundTrack();
     res.format = SoundTrackFormat.FLOAT;
-    res.frameRate = frameRate;
+    res.sampleRate = sampleRate;
     res.range = Interval2.create(-1, 1);
     res.data = DataBlock.fromFloatValues(samples);
     res.guardInvariants();
     return res;
   }
 
-  static normalizedFloatList(frameRate, samples) {
+  static normalizedFloatList(sampleRate, samples) {
     let res = new SoundTrack();
     res.format = SoundTrackFormat.FLOAT;
-    res.frameRate = frameRate;
+    res.sampleRate = sampleRate;
     res.range = Interval2.create(-1, 1);
     res.data = DataBlock.fromFloatList(samples);
     res.guardInvariants();
@@ -14036,13 +14036,13 @@ class SoundTrack {
     }
     for (let track of tracks) {
       Guard.equals(SoundTrackFormat.FLOAT, track.getFormat(), "only FLOAT tracks are supported");
-      Guard.equals(tracks.get(0).getFrameRate(), track.getFrameRate(), "all tracks must have same frameRate");
+      Guard.equals(tracks.get(0).getSampleRate(), track.getSampleRate(), "all tracks must have same sampleRate");
       Guard.equals(tracks.get(0).getNumSamples(), track.getNumSamples(), "all tracks must have same number of samples");
       Guard.equals(tracks.get(0).getRange(), track.getRange(), "all tracks must have same range");
     }
     let res = new SoundTrack();
     res.format = SoundTrackFormat.FLOAT;
-    res.frameRate = tracks.get(0).frameRate;
+    res.sampleRate = tracks.get(0).sampleRate;
     res.range = tracks.get(0).range;
     let writer = DataBlockStreamWriter.create(tracks.get(0).getNumSamples()*4);
     for (let i = 0; i<tracks.get(0).getNumSamples(); ++i) {
@@ -15455,7 +15455,7 @@ class TapSounds {
     let bos = new ByteArrayOutputStream();
     try {
       bos.write(TapBytes.intToBytes(sound.getPriority()));
-      bos.write(TapBytes.intToBytes(track.getFrameRate()));
+      bos.write(TapBytes.intToBytes(track.getSampleRate()));
       bos.write(TapBytes.floatToBytes(track.getRange().min()));
       bos.write(TapBytes.floatToBytes(track.getRange().max()));
       bos.write(TapBytes.intToBytes(track.getNumSamples()));
@@ -15486,7 +15486,7 @@ class TapSounds {
       let reader = TapBufferReader.create(entry);
       try {
         let priority = reader.readInt();
-        let frameRate = reader.readInt();
+        let sampleRate = reader.readInt();
         let min = reader.readFloat();
         let max = reader.readFloat();
         let numSamples = reader.readInt();
@@ -15494,7 +15494,7 @@ class TapSounds {
         for (let i = 0; i<numSamples; ++i) {
           samples[i] = reader.readFloat();
         }
-        sound = Sound.create(priority, SoundTrack.rangedFloatValues(frameRate, Interval2.create(min, max), samples));
+        sound = Sound.create(priority, SoundTrack.rangedFloatValues(sampleRate, Interval2.create(min, max), samples));
       }
       finally {
         reader.close();
@@ -22735,6 +22735,164 @@ class RenderRequest {
 // Transslates app specific code
 // -------------------------------------
 
+class GamePad extends UiComponent {
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "GamePad";
+  }
+
+  getLeftDir() {
+  }
+
+  getRightDir() {
+  }
+
+  static create(drivers) {
+    if (drivers.isDriverAvailable("KeyboardDriver")) {
+      return KeyboardGamePad.create(drivers);
+    }
+    else if (drivers.isDriverAvailable("TouchDriver")) {
+      return TouchGamePad.create(drivers);
+    }
+    else {
+      throw "unable to create game pad, unable to find possible drivers";
+    }
+  }
+
+}
+class KeyboardGamePad extends GamePad {
+  leftJoystick;
+  rightJoystick;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "KeyboardGamePad";
+  }
+
+  guardInvariants() {
+  }
+
+  getLeftDir() {
+    return this.leftJoystick.getDir();
+  }
+
+  getRightDir() {
+    return this.rightJoystick.getDir();
+  }
+
+  onKeyPressed(key) {
+    this.leftJoystick.onKeyPressed(key);
+    this.rightJoystick.onKeyPressed(key);
+    return false;
+  }
+
+  onKeyReleased(key) {
+    this.leftJoystick.onKeyReleased(key);
+    this.rightJoystick.onKeyReleased(key);
+    return false;
+  }
+
+  move(dt) {
+    this.leftJoystick.move(dt);
+    this.rightJoystick.move(dt);
+  }
+
+  draw(painter) {
+    this.leftJoystick.draw(painter);
+    this.rightJoystick.draw(painter);
+  }
+
+  onContainerResize(size) {
+    this.leftJoystick.onContainerResize(size);
+    this.rightJoystick.onContainerResize(size);
+  }
+
+  toString() {
+  }
+
+  static create(drivers) {
+    Guard.beTrue(drivers.isDriverAvailable("KeyboardDriver"), "keybboard driver is not available");
+    let res = new KeyboardGamePad();
+    res.leftJoystick = KeyboardJoystick.create().setKeys("WSAD");
+    res.rightJoystick = KeyboardJoystick.create().setKeys("IKJL");
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class TouchGamePad extends GamePad {
+  leftJoystick;
+  rightJoystick;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "TouchGamePad";
+  }
+
+  guardInvariants() {
+  }
+
+  getLeftDir() {
+    return this.leftJoystick.getDir();
+  }
+
+  getRightDir() {
+    return this.rightJoystick.getDir();
+  }
+
+  move(dt) {
+    this.leftJoystick.move(dt);
+    this.rightJoystick.move(dt);
+  }
+
+  draw(painter) {
+    this.leftJoystick.draw(painter);
+    this.rightJoystick.draw(painter);
+  }
+
+  onContainerResize(size) {
+    this.leftJoystick.onContainerResize(size);
+    this.rightJoystick.onContainerResize(size);
+  }
+
+  onTouchStart(id, pos, size) {
+    this.leftJoystick.onTouchStart(id, pos, size);
+    this.rightJoystick.onTouchStart(id, pos, size);
+    return false;
+  }
+
+  onTouchMove(id, pos, size) {
+    this.leftJoystick.onTouchMove(id, pos, size);
+    this.rightJoystick.onTouchMove(id, pos, size);
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    this.leftJoystick.onTouchEnd(id, pos, size, cancel);
+    this.rightJoystick.onTouchEnd(id, pos, size, cancel);
+    return false;
+  }
+
+  toString() {
+  }
+
+  static create(drivers) {
+    Guard.beTrue(drivers.isDriverAvailable("TouchDriver"), "keybboard driver is not available");
+    let res = new TouchGamePad();
+    res.leftJoystick = TouchJoystick.create().setBaseTexture("shadedDark11").setTopTexture("shadedDark01").setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.leftBottom(25, 125, 100, 100), UiRegionFncs.leftBottom(10, 125, 80, 80)));
+    res.rightJoystick = TouchJoystick.create().setBaseTexture("shadedDark11").setTopTexture("shadedDark01").setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.rightBottom(125, 125, 100, 100), UiRegionFncs.rightBottom(90, 125, 80, 80)));
+    res.guardInvariants();
+    return res;
+  }
+
+}
 class BoxMeshFactory {
   constructor() {
   }
@@ -22798,58 +22956,213 @@ class BoxMeshFactory {
   }
 
 }
-class BasicApp03 {
-  box = MeshId.of("box");
-  whiteBox = MeshId.of("white-box");
+class FreeCameraBehavior extends Behavior {
+  moveDirInput = "moveDir";
+  rotDirInput = "rotDir";
+  moveSpeed = 3;
+  rotSpeed = 1;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "FreeCameraBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt, inputs) {
+    let moveDir = inputs.getVec2(this.moveDirInput, Vec2.ZERO);
+    let rotDir = inputs.getVec2(this.rotDirInput, Vec2.ZERO);
+    let tc = this.actor().getComponent("TransformComponent");
+    let rot = tc.getRot();
+    if (!moveDir.equals(Vec2.ZERO)) {
+      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize().scale(moveDir.y()*this.moveSpeed*dt);
+      let right = rot.rotate(Vec3.create(1, 0, 0)).normalize().scale(moveDir.x()*this.moveSpeed*dt);
+      tc.move(fwd.add(right));
+    }
+    if (!rotDir.equals(Vec2.ZERO)) {
+      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize();
+      let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
+      let rotX = FMath.asin(fwd.y())+rotDir.y()*this.rotSpeed*dt;
+      let rotY = (fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y()))-rotDir.x()*this.rotSpeed*dt;
+      let rx = Quaternion.rot(1, 0, 0, rotX);
+      let ry = Quaternion.rot(0, 1, 0, rotY);
+      tc.setRot(ry.mul(rx));
+    }
+  }
+
+  static create() {
+    if (arguments.length===0) {
+      return FreeCameraBehavior.create_0();
+    }
+    else if (arguments.length===4&& typeof arguments[0]==="string"&& typeof arguments[1]==="string"&& typeof arguments[2]==="number"&& typeof arguments[3]==="number") {
+      return FreeCameraBehavior.create_4_string_string_number_number(arguments[0], arguments[1], arguments[2], arguments[3]);
+    }
+    else {
+      throw "error";
+    }
+  }
+
+  static create_0() {
+    let res = new FreeCameraBehavior();
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_4_string_string_number_number(moveDirInput, rotDirInput, moveSpeed, rotSpeed) {
+    let res = new FreeCameraBehavior();
+    res.moveDirInput = moveDirInput;
+    res.rotDirInput = rotDirInput;
+    res.moveSpeed = moveSpeed;
+    res.rotSpeed = rotSpeed;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+class RotationBehavior extends Behavior {
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "RotationBehavior";
+  }
+
+  move(dt, inputs) {
+    let tx = this.actor().getComponent("TransformComponent");
+    let x = inputs.getFloat("x", 0);
+    let y = inputs.getFloat("y", 0);
+    let z = inputs.getFloat("z", 0);
+    tx.rotate(dt, Vec3.create(x, y, z));
+  }
+
+  static create() {
+    return new RotationBehavior();
+  }
+
+}
+class RigidBodyApp01 {
   time = 0;
+  world;
+  inputs = InputCache.create();
+  ui;
+  gamePad;
   constructor() {
   }
 
   getClass() {
-    return "BasicApp03";
+    return "RigidBodyApp01";
   }
 
-  move(drivers, dt) {
+  move(drivers, screenManager, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
-    let aspect = gDriver.getScreenViewport().getAspect();
-    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
-    let m = 2*FMath.sin(this.time/3);
-    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 7), Vec3.ZERO, Vec3.create(0, 1, 0));
-    let dirLight = Light.directional(LightColor.create(Rgb.gray(0.4), Rgb.gray(0.6), Rgb.gray(0.6)), Vec3.create(-0.3, -0.8, -0.4).normalize());
-    let pointLight = Light.pointQadratic(LightColor.create(Rgb.BLACK, Rgb.BLUE, Rgb.WHITE), Vec3.create(0, 0, 3.6), 4);
-    let spotLightColor = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
-    let spotLightCone = LightCone.create(FMath.PI/9, FMath.PI/6);
-    let spotLight1 = Light.spotQuadratic(spotLightColor, Vec3.create(0, 2, 0), Vec3.create(0.4+m, -1, 0.2).normalize(), 8, spotLightCone);
-    let spotLight2 = Light.spotQuadratic(spotLightColor, Vec3.create(0, 2, 0), Vec3.create(0.4, -1, 0.2+m/2).normalize(), 8, spotLightCone);
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let objRenderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, dirLight, pointLight, spotLight1, spotLight2));
-    objRenderer.render(this.box, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.WHITE_PLASTIC);
-    objRenderer.render(this.box, Mat44.trans(-3, 0, -3), Material.GOLD);
-    objRenderer.render(this.box, Mat44.trans(0, 0, -3), Material.SILVER);
-    objRenderer.render(this.box, Mat44.trans(3, 0, -3), Material.COPPER);
-    objRenderer.render(this.box, Mat44.trans(-3, 0, 0), Material.GOLD);
-    objRenderer.render(this.box, Mat44.trans(0, 0, 0), Material.SILVER);
-    objRenderer.render(this.box, Mat44.trans(3, 0, 0), Material.COPPER);
-    objRenderer.render(this.box, Mat44.trans(-3, 0, 3), Material.GOLD);
-    objRenderer.render(this.box, Mat44.trans(0, 0, 3), Material.SILVER);
-    objRenderer.render(this.box, Mat44.trans(3, 0, 3), Material.WHITE_PLASTIC);
-    objRenderer.end();
-    let crndr = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
-    crndr.render(this.whiteBox, Mat44.trans(pointLight.getPos()).mul(Mat44.scale(0.05)));
-    crndr.render(this.whiteBox, Mat44.trans(spotLight1.getPos()).mul(Mat44.scale(0.05)));
-    crndr.render(this.whiteBox, Mat44.trans(spotLight2.getPos()).mul(Mat44.scale(0.05)));
-    crndr.end();
+    this.inputs.put("moveDir", this.gamePad.getLeftDir());
+    this.inputs.put("rotDir", this.gamePad.getRightDir());
+    this.world.move(dt, this.inputs);
+    this.world.render(RenderRequest.NORMAL);
+    gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
   }
 
-  init(drivers, properties) {
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
-    assets.put(this.box, BoxMeshFactory.fabricBox());
-    assets.put(this.whiteBox, BoxMeshFactory.rgbBox(1, 1, 1));
-    return Collections.emptyList();
+    res.add(assets.resolveAsync(Path.of("asset:controls")));
+    res.add(assets.resolveAsync(Path.of("asset:buttons")));
+    res.add(assets.resolveAsync(Path.of("asset:fonts")));
+    res.add(assets.resolveAsync(Path.of("asset:box-01/tex_box_01_d.png"), "Texture", TextureFncs.flipVertGamma(2.2)));
+    res.add(assets.resolveAsync(Path.of("asset:box-01/tex_box_01_s.png"), "Texture", TextureFncs.flipVertGamma(2.2)));
+    return res;
   }
 
-  close(drivers) {
+  init(drivers, screenManager, properties) {
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(20));
+    let boxDiffuse = TextureId.of("tex_box_01_d");
+    let boxSpecular = TextureId.of("tex_box_01_s");
+    assets.put(MaterialId.of("brass"), Material.BRASS);
+    assets.put(MaterialId.of("box"), Material.SILVER.addTexture(TextureAttachment.diffuse(boxDiffuse)).addTexture(TextureAttachment.specular(boxSpecular)));
+    assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
+    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("brass"));
+    let groundModelId = ModelId.of("ground");
+    assets.put(groundModelId, groundModel);
+    let boxModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("box"));
+    let boxModelId = ModelId.of("box");
+    assets.put(boxModelId, boxModel);
+    this.world = RigidBodyWorld.create(drivers);
+    let box1 = Actor.create("box-1").setName("box-1").addComponent(TransformComponent.create()).addComponent(ModelComponent.create().setModelId(boxModelId)).addComponent(RotationBehavior.create());
+    this.world.actors().add(ActorId.ROOT, box1);
+    let box11 = Actor.create("box-1-1").setName("box-1-1").addComponent(TransformComponent.create().move(Vec3.create(0.5, 0.5, 0.5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
+    this.world.actors().add(box1.getId(), box11);
+    let box111 = Actor.create("box-1-1-1").setName("box-1-1-1").addComponent(TransformComponent.create().move(Vec3.create(0.25, 0.25, 0.25))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.25, 0.25, 0.25)));
+    this.world.actors().add(box11.getId(), box111);
+    let box12 = Actor.create("box-1-2").setName("box-1-2").addComponent(TransformComponent.create().move(Vec3.create(-0.5, 0.5, 0.5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
+    this.world.actors().add(box1.getId(), box12);
+    let box13 = Actor.create("box-1-3").setName("box-1-3").addComponent(TransformComponent.create().move(Vec3.create(0.5, 0.5, -0.5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
+    this.world.actors().add(box1.getId(), box13);
+    let box14 = Actor.create("box-1-4").setName("box-1-4").addComponent(TransformComponent.create().move(Vec3.create(-0.5, 0.5, -0.5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
+    this.world.actors().add(box1.getId(), box14);
+    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create().lookAt(Vec3.create(0, 1, 0), Vec3.create(0.7, 0, 0.4), Vec3.create(1, 0, 0))).addComponent(LightComponent.create().setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
+    this.world.actors().add(ActorId.ROOT, light);
+    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create().lookAt(Vec3.create(1, 2, 7), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create().setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create("moveDir", "rotDir", 3, 1)).addComponent(CameraFovyComponent.create());
+    this.world.actors().add(ActorId.ROOT, camera);
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
+    this.gamePad = GamePad.create(drivers);
+    this.ui.addComponent(this.gamePad);
+    let btnFontId = FontId.of("rubik-regular-20");
+    let labelFontId = FontId.of("rubik-regular-20");
+    let xLabel = Label.create().setFont(labelFontId).setPosFnc(UiPosFncs.leftTop(55, 25)).setText("X-axis").setAlignment(TextAlignment.RIGHT_CENTER);
+    this.ui.addComponent(xLabel);
+    let xVal = Label.create().setFont(labelFontId).setPosFnc(UiPosFncs.leftTop(125, 25)).setText("0.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(xVal);
+    let xMinusBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.leftTop(65, 10, 30, 30)).setText("-").setFont(btnFontId).addOnClickAction(this.inputChangeAction(this.inputs, "x", -0.1, xVal));
+    this.ui.addComponent(xMinusBtn);
+    let xPlusBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.leftTop(155, 10, 30, 30)).setText("+").setFont(btnFontId).addOnClickAction(this.inputChangeAction(this.inputs, "x", 0.1, xVal));
+    this.ui.addComponent(xPlusBtn);
+    let yLabel = Label.create().setFont(labelFontId).setPosFnc(UiPosFncs.leftTop(55, 65)).setText("Y-axis").setAlignment(TextAlignment.RIGHT_CENTER);
+    this.ui.addComponent(yLabel);
+    let yVal = Label.create().setFont(labelFontId).setPosFnc(UiPosFncs.leftTop(125, 65)).setText("0.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(yVal);
+    let yMinusBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.leftTop(65, 50, 30, 30)).setText("-").setFont(btnFontId).addOnClickAction(this.inputChangeAction(this.inputs, "y", -0.1, yVal));
+    this.ui.addComponent(yMinusBtn);
+    let yPlusBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.leftTop(155, 50, 30, 30)).setText("+").setFont(btnFontId).addOnClickAction(this.inputChangeAction(this.inputs, "y", 0.1, yVal));
+    this.ui.addComponent(yPlusBtn);
+    let zLabel = Label.create().setFont(labelFontId).setPosFnc(UiPosFncs.leftTop(55, 105)).setText("Z-axis").setAlignment(TextAlignment.RIGHT_CENTER);
+    this.ui.addComponent(zLabel);
+    let zVal = Label.create().setFont(labelFontId).setPosFnc(UiPosFncs.leftTop(125, 105)).setText("0.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(zVal);
+    let zMinusBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.leftTop(65, 90, 30, 30)).setText("-").setFont(btnFontId).addOnClickAction(this.inputChangeAction(this.inputs, "z", -0.1, zVal));
+    this.ui.addComponent(zMinusBtn);
+    let zPlusBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.leftTop(155, 90, 30, 30)).setText("+").setFont(btnFontId).addOnClickAction(this.inputChangeAction(this.inputs, "z", 0.1, zVal));
+    this.ui.addComponent(zPlusBtn);
+    let exitBtn = ImageButton.create().setUpTexture("shadedDark35").setDownTexture("shadedLight35").setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager));
+    this.ui.addComponent(exitBtn);
+    this.ui.subscribe(drivers);
+    let dlist = InputCacheDisplayListener.create(this.inputs);
+    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
+    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+    this.world.destroy(drivers);
+  }
+
+  inputChangeAction(inputs, key, d, label) {
+    return (evtSource) => {
+      let x = inputs.getFloat(key, 0);
+      x = x+d;
+      inputs.put(key, x);
+      label.setText(Formats.floatToFixedDecimals(x, 1));
+    };
   }
 
 }
@@ -23131,7 +23444,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = new BasicApp03();
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simple("asset:loading.png"), new RigidBodyApp01());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
