@@ -23753,8 +23753,10 @@ class AudioApp01 {
     this.ui.addComponent(sound3VolUpBtn);
     let sound3Btn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.center(-120, uiTop+170, 120, 30)).setText("Swing").setFont(btnFont).addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("swing1"), sound3Vol));
     this.ui.addComponent(sound3Btn);
-    let exitBtn = ImageButton.create().setUpTexture("shadedDark35").setDownTexture("shadedLight35").setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager));
-    this.ui.addComponent(exitBtn);
+    if (drivers.getPlatform().isExitable()) {
+      let exitBtn = ImageButton.create().setUpTexture("shadedDark35").setDownTexture("shadedLight35").setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager));
+      this.ui.addComponent(exitBtn);
+    }
     this.ui.subscribe(drivers);
   }
 
