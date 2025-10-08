@@ -1491,12 +1491,12 @@ class WebPlatformDriver {
     }
 
     /**
-     * Returns whether this platform is webapp.
-     * 
-     * @return {Boolean} whether this platform is webapp
+     * Returns whether application can exit or not.
+     *
+     * @return {Boolean} whether the is can exit not
      */
-    isWebapp() {
-        return true;
+    isExitable() {
+        return false;
     }
 
     /**

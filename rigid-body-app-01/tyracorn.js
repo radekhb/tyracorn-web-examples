@@ -1491,12 +1491,12 @@ class WebPlatformDriver {
     }
 
     /**
-     * Returns whether this platform is webapp.
-     * 
-     * @return {Boolean} whether this platform is webapp
+     * Returns whether application can exit or not.
+     *
+     * @return {Boolean} whether the is can exit not
      */
-    isWebapp() {
-        return true;
+    isExitable() {
+        return false;
     }
 
     /**
@@ -24008,8 +24008,10 @@ class RigidBodyApp01 {
     this.ui.addComponent(zMinusBtn);
     let zPlusBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.leftTop(155, 90, 30, 30)).setText("+").setFont(btnFontId).addOnClickAction(this.inputChangeAction(this.inputs, "z", 0.1, zVal));
     this.ui.addComponent(zPlusBtn);
-    let exitBtn = ImageButton.create().setUpTexture("shadedDark35").setDownTexture("shadedLight35").setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager));
-    this.ui.addComponent(exitBtn);
+    if (drivers.getPlatform().isExitable()) {
+      let exitBtn = ImageButton.create().setUpTexture("shadedDark35").setDownTexture("shadedLight35").setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager));
+      this.ui.addComponent(exitBtn);
+    }
     this.ui.subscribe(drivers);
     let dlist = InputCacheDisplayListener.create(this.inputs);
     screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));

@@ -1491,12 +1491,12 @@ class WebPlatformDriver {
     }
 
     /**
-     * Returns whether this platform is webapp.
-     * 
-     * @return {Boolean} whether this platform is webapp
+     * Returns whether application can exit or not.
+     *
+     * @return {Boolean} whether the is can exit not
      */
-    isWebapp() {
-        return true;
+    isExitable() {
+        return false;
     }
 
     /**
@@ -23764,8 +23764,10 @@ class BasicApp13 {
     this.ui.addComponent(ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.center(10, 120, 120, 30)).setText("Size").setFont(kennyMini20Id).addOnClickAction(sizeAct));
     this.ui.addComponent(label);
     this.ui.addComponent(fontLabel);
-    let exitBtn = ImageButton.create().setUpTexture("shadedDark35").setDownTexture("shadedLight35").setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager));
-    this.ui.addComponent(exitBtn);
+    if (drivers.getPlatform().isExitable()) {
+      let exitBtn = ImageButton.create().setUpTexture("shadedDark35").setDownTexture("shadedLight35").setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager));
+      this.ui.addComponent(exitBtn);
+    }
   }
 
   leave(drivers) {
