@@ -7,11 +7,13 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-let baseUrl = ".";
+const baseUrl = ".";
+const localStoragePrefix = "rigid-body-app-08.";
 let mouseDown = false;
 let mouseLastDragX = 0;
 let mouseLastDragY = 0;
 let canvas;
+const classRegistry = {};
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
 // -------------------------------------
@@ -376,25 +378,6 @@ class HashSet {
         return hash % this.capacity;
     }
 
-    // Check if two elements are equal using object's equals method
-    elementsEqual(element1, element2) {
-        if (element1 === element2) {
-            return true;
-        }
-        
-        if (element1 === null || element1 === undefined || element2 === null || element2 === undefined) {
-            return false;
-        }
-        
-        // Use the object's equals method if available
-        if (typeof element1.equals === 'function') {
-            return element1.equals(element2);
-        }
-        
-        // Fallback to strict equality for primitives
-        return element1 === element2;
-    }
-
     // Add element to the set
     add(element) {
         const index = this.hash(element);
@@ -657,6 +640,33 @@ class HashSet {
         newSet.addAll(this);
         return newSet;
     }
+    
+    /**
+     * Checks if two elements are equal. If "equals" method exists,
+     * then it is used to determine equality. If not, then falls back to the equality for primitives.
+     * 
+     * @param {Any} element1 element 1
+     * @param {Any} element2 element 2
+     * @returns {Boolean} true if both elements are equal, false otherwise
+     */
+    elementsEqual(element1, element2) {
+        if (element1 === element2) {
+            return true;
+        }
+        
+        if (element1 === null || element1 === undefined || element2 === null || element2 === undefined) {
+            return false;
+        }
+        
+        // Use the object's equals method if available
+        if (typeof element1.equals === 'function') {
+            return element1.equals(element2);
+        }
+        
+        // Fallback to strict equality for primitives
+        return element1 === element2;
+    }
+
 }
 // -------------------------------------
 // HashMap
@@ -689,32 +699,14 @@ class HashMap {
         }
         return hash % this.capacity;
     }
-
-    // Check if two keys are equal using object's equals method
-    keysEqual(key1, key2) {
-        if (key1 === key2) {
-            return true;
-        }
-
-        if (key1 === null || key1 === undefined || key2 === null || key2 === undefined) {
-            return false;
-        }
-
-        // Use the object's equals method if available
-        if (typeof key1.equals === 'function') {
-            return key1.equals(key2);
-        }
-
-        // Fallback to strict equality for primitives
-        return key1 === key2;
-    }
+    
     put(key, value) {
         const index = this.hash(key);
         const bucket = this.buckets[index];
 
         // Check if key already exists
         for (let i = 0; i < bucket.length; i++) {
-            if (bucket[i][0] === key) {
+            if (this.elementsEqual(bucket[i][0], key)) {
                 const oldValue = bucket[i][1];
                 bucket[i][1] = value;
                 return oldValue;
@@ -751,7 +743,7 @@ class HashMap {
         const bucket = this.buckets[index];
 
         for (let i = 0; i < bucket.length; i++) {
-            if (this.keysEqual(bucket[i][0], key)) {
+            if (this.elementsEqual(bucket[i][0], key)) {
                 return bucket[i][1];
             }
         }
@@ -763,7 +755,7 @@ class HashMap {
         const bucket = this.buckets[index];
 
         for (let i = 0; i < bucket.length; i++) {
-            if (this.keysEqual(bucket[i][0], key)) {
+            if (this.elementsEqual(bucket[i][0], key)) {
                 return bucket[i][1];
             }
         }
@@ -776,7 +768,7 @@ class HashMap {
         const bucket = this.buckets[index];
 
         for (let i = 0; i < bucket.length; i++) {
-            if (this.keysEqual(bucket[i][0], key)) {
+            if (this.elementsEqual(bucket[i][0], key)) {
                 const removedValue = bucket[i][1];
                 bucket.splice(i, 1);
                 this.size--;
@@ -791,30 +783,11 @@ class HashMap {
         return this.get(key) !== null;
     }
 
-    // Check if two values are equal using object's equals method
-    valuesEqual(value1, value2) {
-        if (value1 === value2) {
-            return true;
-        }
-
-        if (value1 === null || value1 === undefined || value2 === null || value2 === undefined) {
-            return false;
-        }
-
-        // Use the object's equals method if available
-        if (typeof value1.equals === 'function') {
-            return value1.equals(value2);
-        }
-
-        // Fallback to strict equality for primitives
-        return value1 === value2;
-    }
-
     // Check if value exists
     containsValue(value) {
         for (const bucket of this.buckets) {
             for (const [k, v] of bucket) {
-                if (this.valuesEqual(v, value)) {
+                if (this.elementsEqual(v, value)) {
                     return true;
                 }
             }
@@ -947,7 +920,7 @@ class HashMap {
         for (const bucket of this.buckets) {
             for (const [key, value] of bucket) {
                 const otherValue = other.get(key);
-                if (otherValue === null || !this.valuesEqual(value, otherValue)) {
+                if (otherValue === null || !this.elementsEqual(value, otherValue)) {
                     return false;
                 }
             }
@@ -955,6 +928,33 @@ class HashMap {
 
         return true;
     }
+
+    /**
+     * Checks if two elements are equal. If "equals" method exists,
+     * then it is used to determine equality. If not, then falls back to the equality for primitives.
+     * 
+     * @param {Any} element1 element 1
+     * @param {Any} element2 element 2
+     * @returns {Boolean} true if both elements are equal, false otherwise
+     */
+    elementsEqual(element1, element2) {
+        if (element1 === element2) {
+            return true;
+        }
+
+        if (element1 === null || element1 === undefined || element2 === null || element2 === undefined) {
+            return false;
+        }
+
+        // Use the object's equals method if available
+        if (typeof element1.equals === 'function') {
+            return element1.equals(element2);
+        }
+
+        // Fallback to strict equality for primitives
+        return element1 === element2;
+    }
+
 }
 /**
  * Floating point math utilities.
@@ -981,6 +981,10 @@ class FMath {
 
     static clamp(x, min, max) {
         return Math.max(min, Math.min(max, x));
+    }
+
+    static signum(x) {
+        return Math.sign(x);
     }
 
     static abs(a) {
@@ -1037,10 +1041,23 @@ class StringUtils {
      * @returns {string} The trimmed string, or empty string if input is null/undefined
      */
     static trimToEmpty(str) {
-        if (str == null) {
+        if (str === null || str === undefined) {
             return '';
         }
         return str.toString().trim();
+    }
+
+    /**
+     * Returns whether string is empty.
+     * 
+     * @param {String} str tested string
+     * @returns {boolean} whether string is empty
+     */
+    static isEmpty(str) {
+        if (str === null || str === undefined) {
+            return true;
+        }
+        return str.length === 0;
     }
 
     /**
@@ -1179,16 +1196,30 @@ class Collections {
 class Dut {
     static list() {
         let res = new ArrayList();
-        for (let arg = 0; arg < arguments.length; ++arg) {
-            res.add(arguments[arg]);
+        if (arguments.length === 1 && Array.isArray(arguments[0])) {
+            const arr = arguments[0];
+            for (let arg = 0; arg < arr.length; ++arg) {
+                res.add(arr[arg]);
+            }
+        } else {
+            for (let arg = 0; arg < arguments.length; ++arg) {
+                res.add(arguments[arg]);
+            }
         }
         return res;
     }
 
     static immutableList() {
         let res = new ArrayList();
-        for (let arg = 0; arg < arguments.length; ++arg) {
-            res.add(arguments[arg]);
+        if (arguments.length === 1 && Array.isArray(arguments[0])) {
+            const arr = arguments[0];
+            for (let arg = 0; arg < arr.length; ++arg) {
+                res.add(arr[arg]);
+            }
+        } else {
+            for (let arg = 0; arg < arguments.length; ++arg) {
+                res.add(arguments[arg]);
+            }
         }
         return res;
     }
@@ -1209,16 +1240,30 @@ class Dut {
 
     static set() {
         let res = new HashSet();
-        for (let arg = 0; arg < arguments.length; ++arg) {
-            res.add(arguments[arg]);
+        if (arguments.length === 1 && Array.isArray(arguments[0])) {
+            const arr = arguments[0];
+            for (let arg = 0; arg < arr.length; ++arg) {
+                res.add(arr[arg]);
+            }
+        } else {
+            for (let arg = 0; arg < arguments.length; ++arg) {
+                res.add(arguments[arg]);
+            }
         }
         return res;
     }
 
     static immutableSet() {
         let res = new HashSet();
-        for (let arg = 0; arg < arguments.length; ++arg) {
-            res.add(arguments[arg]);
+        if (arguments.length === 1 && Array.isArray(arguments[0])) {
+            const arr = arguments[0];
+            for (let arg = 0; arg < arr.length; ++arg) {
+                res.add(arr[arg]);
+            }
+        } else {
+            for (let arg = 0; arg < arguments.length; ++arg) {
+                res.add(arguments[arg]);
+            }
         }
         return res;
     }
@@ -1282,6 +1327,154 @@ class Dut {
 
 }
 /**
+ * Utility class for working with json.
+ *
+ * @author radek.hecl
+ */
+class Jsons {
+
+    /**
+     * Decodes string map from the JSON string.
+     *
+     * @param {String} str input data in the {"hello" : "world", "hey" : "baby"} format
+     * @return {HashMap} decoded map of String to String
+     */
+    static toStringMap(str) {
+        const obj = JSON.parse(str);
+        const res = new HashMap();
+        for (const key in obj) {
+            res.put(key, obj[key]);
+        }
+        return res;
+    }
+
+    /**
+     * Decodes string list from the JSON string.
+     *
+     * @param {String} str data in the ["hello", "baby"] format
+     * @return {ArrayList} decoded list of strings
+     */
+    static toStringList(str) {
+        const items = JSON.parse(str);
+        const res = new ArrayList();
+        for (let i = 0; i < items.length; ++i) {
+            res.add(items[i]);
+        }
+        return res;
+    }
+
+    /**
+     * Decodes float list from the JSON string.
+     *
+     * @param {String} str data in the [1, 2, 3] format
+     * @return {ArrayList} decoded list of floats
+     */
+    static toFloatList(str) {
+        const items = JSON.parse(str);
+        const res = new ArrayList();
+        for (let i = 0; i < items.length; ++i) {
+            res.add(items[i]);
+        }
+        return res;
+    }
+
+    /**
+     * Converts JSON string to vector.
+     *
+     * @param {String} input input string
+     * @return {Vec3} vector
+     */
+    static toVec3(input) {
+        const fs = Jsons.toFloatList(input);
+        return Vec3.create(fs.get(0), fs.get(1), fs.get(2));
+    }
+
+    /**
+     * Converts JSON string to vector.
+     *
+     * @param {String} input input string
+     * @return {Vec4} vector
+     */
+    static toVec4(input) {
+        const fs = Jsons.toFloatList(input);
+        return Vec4.create(fs.get(0), fs.get(1), fs.get(2), fs.get(3));
+    }
+
+    /**
+     * Converts JSON string to quaternion.
+     *
+     * @param {String} input input string
+     * @return {Quaternion} quaternion
+     */
+    static toQuaternion(input) {
+        const fs = Jsons.toFloatList(input);
+        return Quaternion.create(fs.get(0), fs.get(1), fs.get(2), fs.get(3));
+    }
+
+    /**
+     * Converts JSON string to boundary.
+     *
+     * @param {String} input input string
+     * @return {Aabb3} boundary
+     */
+    static toAabb3(input) {
+        const fs = Jsons.toFloatList(input);
+        return Aabb3.create(fs.get(0), fs.get(1), fs.get(2), fs.get(3), fs.get(4), fs.get(5));
+    }
+
+    /**
+     * Converts JSON string to matrix.
+     *
+     * @param {String} input input string
+     * @return {Mat33} matrix
+     */
+    static toMat33(input) {
+        const fs = Jsons.toFloatList(input);
+        return Mat33.create(
+                fs.get(0), fs.get(1), fs.get(2),
+                fs.get(3), fs.get(4), fs.get(5),
+                fs.get(6), fs.get(7), fs.get(8));
+    }
+
+    /**
+     * Converts JSON string to matrix.
+     *
+     * @param {String} input input string
+     * @return {Mat44} matrix
+     */
+    static toMat44(input) {
+        const fs = Jsons.toFloatList(input);
+        return Mat44.create(
+                fs.get(0), fs.get(1), fs.get(2), fs.get(3),
+                fs.get(4), fs.get(5), fs.get(6), fs.get(7),
+                fs.get(8), fs.get(9), fs.get(10), fs.get(11),
+                fs.get(12), fs.get(13), fs.get(14), fs.get(15));
+    }
+
+    /**
+     * Converts JSON string to RGB.
+     *
+     * @param {String} input input string
+     * @return {Rgb} RGB color
+     */
+    static toRgb(input) {
+        const fs = Jsons.toFloatList(input);
+        return Rgb.create(fs.get(0), fs.get(1), fs.get(2));
+    }
+
+    /**
+     * Converts JSON string to frame interpolatino.
+     *
+     * @param {String} input input string
+     * @return {FrameInterpolation} frame interpolation color
+     */
+    static toFrameInterpolation(input) {
+        const items = JSON.parse(str);
+        return FrameInterpolation.create(items[0], items[1], items[2]);
+    }
+
+}
+/**
  * Utility class for formatting various things to string.
  *
  * @author radek.hecl
@@ -1297,6 +1490,42 @@ class Formats {
      */
     static floatToFixedDecimals(x, numDecimals) {
         return "" + x.toFixed(numDecimals);
+    }
+
+    /**
+     * Parses boolean.
+     *
+     * @param {String} str string
+     * @return {Boolean} boolean value
+     */
+    static parseBoolean(str) {
+        if (str === "true") {
+            return true;
+        } else if (str === "false") {
+            return false;
+        } else {
+            throw new Error("unknown value for boolean: " + str);
+        }
+    }
+
+    /**
+     * Parses integer.
+     *
+     * @param {String} str string
+     * @return {Number} integer value
+     */
+    static parseInt(str) {
+        return parseInt(str, 10);
+    }
+
+    /**
+     * Parses float.
+     *
+     * @param {String} str string
+     * @return {umber} float value
+     */
+    static parseFloat(str) {
+        return parseFloat(str);
     }
 
 }
@@ -1315,7 +1544,7 @@ class Randoms {
      * @return {Number} random number
      */
     static nextInt(start, end) {
-        return Math.floor(Math.random() * (end - start + 1)) + start;
+        return Math.floor(Math.random() * (end - start)) + start;
     }
 
     /**
@@ -1337,8 +1566,54 @@ class Randoms {
      * @return {String} created string
      */
     static nextAlphabetic(count) {
-        // TODO - fix me here
-        return "" + Randoms.nextFloat(0, 100000);
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+        let res = '';
+        for (let i = 0; i < count; i++) {
+            res += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return res;
+    }
+
+}
+/**
+ * Utility class for working with reflections.
+ *
+ * @author radek.hecl
+ */
+class Reflections {
+
+    /**
+     * Creates class from the class.
+     * This method looks for no arguments constructor or no arguments static method called create.
+     *
+     * @param {String} className class name
+     * @return {Object} created instance
+     */
+    static createClass(className) {
+        const parts = className.split('.');
+        const pureClassName = parts[parts.length - 1];
+        const clazz = classRegistry[pureClassName];
+        if (!clazz) {
+            throw new Error("class not found: " + className + " (i.e. " + pureClassName + ")");
+        }
+        if (typeof clazz.create === 'function') {
+            return clazz.create();
+        }
+        return new clazz();
+    }
+
+    /**
+     * Call the specified method if exits.
+     * If object doesn't have the method, then does nothing.
+     *
+     * @param {Object} obj object to call method on
+     * @param {String} methodName method name
+     * @param {Object} param parameter passed to the method
+     */
+    static callInstanceMethodIfExists(obj, methodName, param) {
+        if (typeof obj[methodName] === 'function') {
+            obj[methodName](param);
+        }
     }
 
 }
@@ -1422,6 +1697,15 @@ class Functions {
     }
 
     /**
+     * Runs runnable.
+     *
+     * @param {Runnable} action runnable action to run
+     */
+    static runRunnable(action) {
+        action();
+    }
+
+    /**
      * Returns whether the key matchers the matcher.
      *
      * @param {KeyCodeMatcher} matcher matcher to use
@@ -1450,6 +1734,43 @@ class Functions {
      */
     static runActorAction(action, actor) {
         action(actor);
+    }
+
+}
+/**
+ * String builder.
+ * 
+ * @type StringBuilder
+ */
+class StringBuilder {
+    res = "";
+
+    /**
+     * Creates nre instance.
+     * 
+     * @returns {StringBuilder} created instance
+     */
+    constructor() {
+    }
+
+    /**
+     * Appends to the end.
+     * 
+     * @param {String} str string to append
+     * @returns {StringBuilder} this instance
+     */
+    append(str) {
+        this.res = this.res + str;
+        return this;
+    }
+
+    /**
+     * Return the string result.
+     * 
+     * @returns {String} result string
+     */
+    toString() {
+        return this.res;
     }
 
 }
@@ -1547,11 +1868,19 @@ class DataBlock {
 
     getFloat(pos) {
         return this.view.getFloat32(pos, false); // false = big-endian (java)
-        
     }
 
     toByteArray() {
         return Arrays.copyOf(this.data, this.data.length);
+    }
+
+    toBase64String() {
+        const bytes = new Uint8Array(this.data);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
     }
 
     stream() {
@@ -1631,6 +1960,18 @@ class DataBlock {
         return res;
     }
 
+    static fromBase64String(base64Str) {
+        const binaryString = atob(base64Str);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        let res = new DataBlock();
+        res.data = bytes.buffer;
+        res.view = new DataView(res.data);
+        res.guardInvaritants();
+        return res;
+    }
 }
 /**
  * Data block stream writer.
@@ -1742,6 +2083,140 @@ class DataBlockRandomWriter {
         let res = new DataBlockRandomWriter();
         res.data = new ArrayBuffer(size);
         res.view = new DataView(res.data);
+        res.guardInvaritants();
+        return res;
+    }
+
+}
+/**
+ * Data block definition.
+ */
+class WebLocalDataStorage {
+
+    prefix
+    /**
+     * Creates new instance.
+     * 
+     * @returns {WebLocalDataStorage}
+     */
+    constructor() {
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvaritants() {
+        Guard.notNull(this.prefix, "prefix cannot be null");
+    }
+
+    /**
+     * Returns whether there is an entry under the given key or not.
+     *
+     * @param {LocalDataKey} key entry key
+     * @return {Boolean} whether there is an entry under the given key or not
+     */
+    exists(key) {
+        const skey = this.prefix + key.key();
+        return localStorage.getItem(skey) === null ? false : true;
+    }
+
+    /**
+     * Loads data block.
+     *
+     * @param {LocalDataKey} key entry key
+     * @return {DataBlock} data block
+     */
+    loadData(key) {
+        const skey = this.prefix + key.key();
+        const base64Str = localStorage.getItem(skey);
+        if (base64Str === null) {
+            throw new Error("key doesn't exists: " + key.key());
+        }
+        return DataBlock.fromBase64String(base64Str);
+    }
+
+    /**
+     * Loads data block in a non strict manner.
+     *
+     * @param {LocalDataKey} key entry key
+     * @return {DataBlock} data block or null
+     */
+    loadDataNonStrict(key) {
+        const skey = this.prefix + key.key();
+        const base64Str = localStorage.getItem(skey);
+        if (base64Str === null) {
+            return null;
+        }
+        return DataBlock.fromBase64String(base64Str);
+    }
+
+    /**
+     * Saves data.
+     *
+     * @param {LocalDataKey} key entry key
+     * @param {DataBlock} data data block
+     */
+    saveData(key, data) {
+        const skey = this.prefix + key.key();
+        localStorage.setItem(skey, data.toBase64String());
+    }
+
+    /**
+     * Loads string value.
+     *
+     * @param {LocalDataKey} key entry key
+     * @return {String} string value
+     */
+    loadString(key) {
+        const skey = this.prefix + key.key();
+        const res = localStorage.getItem(skey);
+        if (res === null) {
+            throw new Error("key doesn't exists: " + key.key());
+        }
+        return res;
+    }
+
+    /**
+     * Loads string value in a non strict manner.
+     *
+     * @param {LocalDataKey} key entry key
+     * @return {String} string value or null
+     */
+    loadStringNonStrict(key) {
+        const skey = this.prefix + key.key();
+        return localStorage.getItem(skey);
+    }
+
+    /**
+     * Saves string value.
+     *
+     * @param {LocalDataKey} key entry key
+     * @param {String} str string value
+     */
+    saveString(key, str) {
+        const skey = this.prefix + key.key();
+        localStorage.setItem(skey, str);
+    }
+
+    /**
+     * Deletes entry from the storage.
+     *
+     * @param {LocalDataKey} key entry key
+     */
+    delete(key) {
+        const skey = this.prefix + key.key();
+        localStorage.removeItem(skey);
+    }
+
+    /**
+     * Creates new instance.
+     * 
+     * @param {String} prefix prefix used for local storage
+     * @returns {WebLocalDataStorage.create.res}
+     */
+    static create(prefix) {
+        const res = new WebLocalDataStorage();
+        res.prefix = prefix;
         res.guardInvaritants();
         return res;
     }
@@ -2035,6 +2510,12 @@ class Taps {
             } else if (entry.getType().equals(TapEntryType.SOUND)) {
                 const ag = TapSounds.toAssetGroup(entry);
                 res = res.mergeStrict(ag);
+            } else if (entry.getType().equals(TapEntryType.PREFAB)) {
+                const ag = TapPrefabs.toAssetGroup(entry);
+                res = res.mergeStrict(ag);
+            } else if (entry.getType().equals(TapEntryType.SCENE)) {
+                const ag = TapScenes.toAssetGroup(entry);
+                res = res.mergeStrict(ag);
             } else {
                 throw new Error("unsupported entry type: " + entry.getType().toString());
             }
@@ -2045,14 +2526,6 @@ class Taps {
              }
              else if (entry.getType().equals(TapEntryType.SPRITE)) {
              AssetGroup ag = TapSprites.toAssetGroup(entry);
-             res = res.mergeStrict(ag);
-             }
-             else if (entry.getType().equals(TapEntryType.PREFAB)) {
-             AssetGroup ag = TapPrefabs.toAssetGroup(entry);
-             res = res.mergeStrict(ag);
-             }
-             else if (entry.getType().equals(TapEntryType.SCENE)) {
-             AssetGroup ag = TapScenes.toAssetGroup(entry);
              res = res.mergeStrict(ag);
              }
              else {
@@ -2414,16 +2887,14 @@ class WebAssetManager {
             let buf = await this.loader.loadFile(path);
             let tap = Taps.fromBytes(buf);
             ag = Taps.toAssetGroup(tap);
-        }
-        else if (path.getExtension().equals("png")) {
+        } else if (path.getExtension().equals("png")) {
             let tid = TextureId.of(path.getPlainName());
             let texture = await this.loader.loadTexture(path);
             ag = ag.put(tid, texture);
-        }
-        else {
+        } else {
             throw "unsupported type to load, implement me: " + path.path;
         }
-        
+
         for (let clazz of transformFncs.keySet()) {
             if (clazz.equals("Texture")) {
                 ag = ag.transform("Texture", (transformFncs.get(clazz)));
@@ -2461,6 +2932,10 @@ class WebAssetManager {
         this.attachCompanions(key, asset);
     }
 
+    putCompanion(key, type, companion) {
+        this.bank.putCompanion(key, type, companion);
+    }
+
     containsKey(key) {
         return this.bank.containsKey(key);
     }
@@ -2475,6 +2950,10 @@ class WebAssetManager {
 
     get(clazz, key) {
         return this.bank.get(clazz, key);
+    }
+
+    hasCompanion(key, type) {
+        return this.bank.hasCompanion(key, type);
     }
 
     getCompanion(clazz, key, type) {
@@ -5170,6 +5649,20 @@ class WebglGraphicsDriver {
     }
 
     /**
+     * Disposes shadow buffer from the graphics card memory.
+     *
+     * @param {ShadowBufferId} id identifier
+     */
+    disposeShadowBuffer(id) {
+        const ptr = this.shadowBuffers.remove(id);
+        if (ptr === null) {
+            return;
+        }
+        gl.deleteFramebuffer(ptr.getFbo());
+        gl.deleteTexture(ptr.getTextureId());
+    }
+
+    /**
      * Pushes mesh to graphics card.
      * 
      * @param {Mesh} mesh mesh
@@ -5423,17 +5916,6 @@ class WebglGraphicsDriver {
             return;
         }
         gl.deleteTexture(textureRef.textureId);
-    }
-
-    /**
-     * Disposes shadow buffer from graphics card.
-     */
-    disposeShadowBufferFromGraphicCard(shadowBufferRef) {
-        if (shadowBufferRef === null || shadowBufferRef === undefined) {
-            return;
-        }
-        gl.deleteTexture(shadowBufferRef.depthTexture);
-        gl.deleteFramebuffer(shadowBufferRef.framebuffer);
     }
 
     /**
@@ -6221,6 +6703,7 @@ class DriverProvider {
     audioDriver = WebAudioDriver.create(audioContext);
     touchDriver = WebTouchDriver.create();
     keyboardDriver = WebKeyboardDriver.create();
+    localDataStorage = WebLocalDataStorage.create(localStoragePrefix);
 
     constructor() {
     }
@@ -6248,6 +6731,8 @@ class DriverProvider {
             return true;
         } else if (driver === "PlatformDriver") {
             return true;
+        } else if (driver === "LocalDataStorage") {
+            return true;
         }
         return false;
     }
@@ -6273,6 +6758,8 @@ class DriverProvider {
             return this.assetManager;
         } else if (driver === "PlatformDriver") {
             return this.plaformDriver;
+        } else if (driver === "LocalDataStorage") {
+            return this.localDataStorage;
         }
         throw "driver doesn't exists:" + driver;
         return null;
@@ -6334,7 +6821,7 @@ class Vec2 {
       return this.add_2_number_number(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -6406,6 +6893,7 @@ class Vec2 {
   }
 
 }
+classRegistry.Vec2 = Vec2;
 class Vec3 {
   static ZERO = Vec3.create(0, 0, 0);
   static RIGHT = Vec3.create(1, 0, 0);
@@ -6461,7 +6949,7 @@ class Vec3 {
       return this.add_3_number_number_number(arguments[0], arguments[1], arguments[2]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -6573,6 +7061,7 @@ class Vec3 {
   }
 
 }
+classRegistry.Vec3 = Vec3;
 class Vec4 {
   mX;
   mY;
@@ -6669,6 +7158,7 @@ class Vec4 {
   }
 
 }
+classRegistry.Vec4 = Vec4;
 class Interval2 {
   mMin;
   mMax;
@@ -6724,6 +7214,7 @@ class Interval2 {
   }
 
 }
+classRegistry.Interval2 = Interval2;
 class Mat33 {
   static ZERO = Mat33.create(0, 0, 0, 0, 0, 0, 0, 0, 0);
   static IDENTITY = Mat33.create(1, 0, 0, 0, 1, 0, 0, 0, 1);
@@ -6790,7 +7281,7 @@ class Mat33 {
       return Vec3.create(this.mm02, this.mm12, this.mm22);
     }
     else {
-      throw "idx can be only 0, 1 or 2: "+idx;
+      throw new Error("idx can be only 0, 1 or 2: "+idx);
     }
   }
 
@@ -6808,7 +7299,7 @@ class Mat33 {
   inv() {
     let determinant = this.det();
     if (FMath.abs(determinant)<1e-9) {
-      throw "matrix inversion doesn't exists: "+this;
+      throw new Error("matrix inversion doesn't exists: "+this);
     }
     let res = new Mat33();
     res.mm00 = (this.mm11*this.mm22-this.mm21*this.mm12)/determinant;
@@ -6852,7 +7343,7 @@ class Mat33 {
       return this.mul_1_Mat34(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -7007,7 +7498,7 @@ class Mat33 {
       return Mat33.scale_1_number(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -7040,6 +7531,7 @@ class Mat33 {
   }
 
 }
+classRegistry.Mat33 = Mat33;
 class Mat44 {
   static IDENTITY = Mat44.create(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
   mm00;
@@ -7143,7 +7635,7 @@ class Mat44 {
       return this.mul_1_Mat44(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -7203,7 +7695,7 @@ class Mat44 {
   inv() {
     let determinant = this.det();
     if (FMath.abs(determinant)<1e-9) {
-      throw "matrix inversion doesn't exists: "+determinant+", "+this.toString();
+      throw new Error("matrix inversion doesn't exists: "+determinant+", "+this.toString());
     }
     let res = new Mat44();
     res.mm00 = (this.mm11*this.mm22*this.mm33+this.mm12*this.mm23*this.mm31+this.mm13*this.mm21*this.mm32-this.mm13*this.mm22*this.mm31-this.mm12*this.mm21*this.mm33-this.mm11*this.mm23*this.mm32)/determinant;
@@ -7295,7 +7787,7 @@ class Mat44 {
       return Mat44.trans_1_Vec3(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -7436,7 +7928,7 @@ class Mat44 {
       return Mat44.scale_1_number(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -7507,6 +7999,7 @@ class Mat44 {
   }
 
 }
+classRegistry.Mat44 = Mat44;
 class Pos2 {
   static ZERO = Pos2.create(0, 0);
   mX;
@@ -7537,7 +8030,7 @@ class Pos2 {
       return this.move_2_number_number(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -7589,6 +8082,7 @@ class Pos2 {
   }
 
 }
+classRegistry.Pos2 = Pos2;
 class Size2 {
   mWidth;
   mHeight;
@@ -7645,6 +8139,7 @@ class Size2 {
   }
 
 }
+classRegistry.Size2 = Size2;
 class Size3 {
   mWidth;
   mHeight;
@@ -7703,6 +8198,7 @@ class Size3 {
   }
 
 }
+classRegistry.Size3 = Size3;
 class Rect2 {
   mPos;
   mSize;
@@ -7764,7 +8260,7 @@ class Rect2 {
       return this.isInside_1_Pos2(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -7813,7 +8309,7 @@ class Rect2 {
       return Rect2.create_2_Pos2_Size2(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -7834,6 +8330,7 @@ class Rect2 {
   }
 
 }
+classRegistry.Rect2 = Rect2;
 class Aabb3 {
   mMin;
   mMax;
@@ -7875,7 +8372,7 @@ class Aabb3 {
       return this.expand_1_number(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -7948,7 +8445,7 @@ class Aabb3 {
       return Aabb3.create_6_number_number_number_number_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -7991,6 +8488,7 @@ class Aabb3 {
   }
 
 }
+classRegistry.Aabb3 = Aabb3;
 class Quaternion {
   static ZERO_ROT = Quaternion.create(1, 0, 0, 0);
   mA;
@@ -8027,6 +8525,10 @@ class Quaternion {
   normalize() {
     let m = this.mag();
     return Quaternion.create(this.mA/m, this.mB/m, this.mC/m, this.mD/m);
+  }
+
+  negate() {
+    return Quaternion.create(-this.mA, -this.mB, -this.mC, -this.mD);
   }
 
   conj() {
@@ -8103,7 +8605,7 @@ class Quaternion {
       return Quaternion.rot_2_Vec3_number(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -8134,6 +8636,7 @@ class Quaternion {
   }
 
 }
+classRegistry.Quaternion = Quaternion;
 class Geometry3 {
   constructor() {
   }
@@ -8151,6 +8654,7 @@ class Geometry3 {
   }
 
 }
+classRegistry.Geometry3 = Geometry3;
 class RefIdType {
   mType;
   constructor() {
@@ -8193,6 +8697,48 @@ class RefIdType {
   }
 
 }
+classRegistry.RefIdType = RefIdType;
+class TyracornApp {
+  getClass() {
+    return "TyracornApp";
+  }
+
+  init(drivers, properties) {
+  }
+
+  move(drivers, dt) {
+  }
+
+  pause(drivers) {
+  }
+
+  close(drivers) {
+  }
+
+}
+classRegistry.TyracornApp = TyracornApp;
+class TyracornScreen {
+  getClass() {
+    return "TyracornScreen";
+  }
+
+  load(drivers, screenManager, properties) {
+  }
+
+  init(drivers, screenManager, properties) {
+  }
+
+  move(drivers, screenManager, dt) {
+  }
+
+  pause(drivers) {
+  }
+
+  leave(drivers) {
+  }
+
+}
+classRegistry.TyracornScreen = TyracornScreen;
 class Path {
   path;
   constructor() {
@@ -8331,6 +8877,308 @@ class Path {
   }
 
 }
+classRegistry.Path = Path;
+class LocalDataKey {
+  mKey;
+  constructor() {
+  }
+
+  getClass() {
+    return "LocalDataKey";
+  }
+
+  guardInvariants() {
+  }
+
+  key() {
+    return this.mKey;
+  }
+
+  hashCode() {
+    return this.mKey.hashCode();
+  }
+
+  equals(obj) {
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof LocalDataKey)) {
+      return false;
+    }
+    let other = obj;
+    return other.mKey.equals(this.mKey);
+  }
+
+  toString() {
+  }
+
+  static of(key) {
+    let res = new LocalDataKey();
+    res.mKey = key;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.LocalDataKey = LocalDataKey;
+class PropertyKey {
+  mKey;
+  constructor() {
+  }
+
+  getClass() {
+    return "PropertyKey";
+  }
+
+  guardInvariants() {
+  }
+
+  key() {
+    return this.mKey;
+  }
+
+  hashCode() {
+    return this.mKey.hashCode();
+  }
+
+  equals(obj) {
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof PropertyKey)) {
+      return false;
+    }
+    let other = obj;
+    return other.mKey.equals(this.mKey);
+  }
+
+  toString() {
+  }
+
+  static of(key) {
+    let res = new PropertyKey();
+    res.mKey = key;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.PropertyKey = PropertyKey;
+class PropertyKeyNaturalComparator {
+  constructor() {
+  }
+
+  getClass() {
+    return "PropertyKeyNaturalComparator";
+  }
+
+  compare(o1, o2) {
+    Guard.notNull(o1, "o1 is null which is not supported");
+    Guard.notNull(o2, "o2 is null which is not supported");
+    if (o1.equals(o2)) {
+      return 0;
+    }
+    return o1.key().compareTo(o2.key());
+  }
+
+  toString() {
+  }
+
+  static create() {
+    return new PropertyKeyNaturalComparator();
+  }
+
+}
+classRegistry.PropertyKeyNaturalComparator = PropertyKeyNaturalComparator;
+class LocalDataConfigProperties {
+  storage;
+  dataKey;
+  properties;
+  defaults;
+  constructor() {
+  }
+
+  getClass() {
+    return "LocalDataConfigProperties";
+  }
+
+  guardInvariants() {
+  }
+
+  getString() {
+    if (arguments.length===1&&arguments[0] instanceof PropertyKey) {
+      return this.getString_1_PropertyKey(arguments[0]);
+    }
+    else if (arguments.length===2&&arguments[0] instanceof PropertyKey&& typeof arguments[1]==="string") {
+      return this.getString_2_PropertyKey_string(arguments[0], arguments[1]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  getString_1_PropertyKey(key) {
+    if (this.properties.containsKey(key)) {
+      return this.properties.get(key);
+    }
+    if (this.defaults.containsKey(key)) {
+      return this.defaults.get(key);
+    }
+    throw new Error("property not found: "+key);
+  }
+
+  getString_2_PropertyKey_string(key, def) {
+    if (this.properties.containsKey(key)) {
+      return this.properties.get(key);
+    }
+    if (this.defaults.containsKey(key)) {
+      return this.defaults.get(key);
+    }
+    return def;
+  }
+
+  getBoolean() {
+    if (arguments.length===1&&arguments[0] instanceof PropertyKey) {
+      return this.getBoolean_1_PropertyKey(arguments[0]);
+    }
+    else if (arguments.length===2&&arguments[0] instanceof PropertyKey&& typeof arguments[1]==="boolean") {
+      return this.getBoolean_2_PropertyKey_boolean(arguments[0], arguments[1]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  getBoolean_1_PropertyKey(key) {
+    return Formats.parseBoolean(this.getString(key));
+  }
+
+  getBoolean_2_PropertyKey_boolean(key, def) {
+    if (this.properties.containsKey(key)||this.defaults.containsKey(key)) {
+      return Formats.parseBoolean(this.getString(key));
+    }
+    return def;
+  }
+
+  getInt() {
+    if (arguments.length===1&&arguments[0] instanceof PropertyKey) {
+      return this.getInt_1_PropertyKey(arguments[0]);
+    }
+    else if (arguments.length===2&&arguments[0] instanceof PropertyKey&& typeof arguments[1]==="number") {
+      return this.getInt_2_PropertyKey_number(arguments[0], arguments[1]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  getInt_1_PropertyKey(key) {
+    return Formats.parseInt(this.getString(key));
+  }
+
+  getInt_2_PropertyKey_number(key, def) {
+    if (this.properties.containsKey(key)||this.defaults.containsKey(key)) {
+      return Formats.parseInt(this.getString(key));
+    }
+    return def;
+  }
+
+  getFloat() {
+    if (arguments.length===1&&arguments[0] instanceof PropertyKey) {
+      return this.getFloat_1_PropertyKey(arguments[0]);
+    }
+    else if (arguments.length===2&&arguments[0] instanceof PropertyKey&& typeof arguments[1]==="number") {
+      return this.getFloat_2_PropertyKey_number(arguments[0], arguments[1]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  getFloat_1_PropertyKey(key) {
+    return Formats.parseFloat(this.getString(key));
+  }
+
+  getFloat_2_PropertyKey_number(key, def) {
+    if (this.properties.containsKey(key)||this.defaults.containsKey(key)) {
+      return Formats.parseFloat(this.getString(key));
+    }
+    return def;
+  }
+
+  put(key, value) {
+    Guard.notNull(key, "key cannot be null");
+    Guard.notNull(value, "value cannot be null");
+    this.properties.put(key, ""+value);
+    this.save();
+  }
+
+  remove(key) {
+    this.properties.remove(key);
+    this.save();
+  }
+
+  removeAll() {
+    this.properties.clear();
+    this.save();
+  }
+
+  withDefaults(defaults) {
+    let res = new LocalDataConfigProperties();
+    res.storage = this.storage;
+    res.dataKey = this.dataKey;
+    res.properties = this.properties;
+    res.defaults = Dut.copyImmutableMap(defaults);
+    res.guardInvariants();
+    return res;
+  }
+
+  load() {
+    if (!this.storage.exists(this.dataKey)) {
+      return ;
+    }
+    let str = this.storage.loadString(this.dataKey);
+    let lines = Dut.list(str.split("\n"));
+    for (let line of lines) {
+      if (StringUtils.isEmpty(line)) {
+        continue;
+      }
+      let parts = line.split("=", 2);
+      this.properties.put(PropertyKey.of(parts[0]), parts[1]);
+    }
+  }
+
+  save() {
+    let str = new StringBuilder();
+    for (let key of this.properties.keySet()) {
+      let val = this.properties.get(key);
+      str.append(key.key()).append("=").append(val).append("\n");
+    }
+    this.storage.saveString(this.dataKey, str.toString());
+  }
+
+  toString() {
+  }
+
+  static create(storage, dataKey) {
+    let res = new LocalDataConfigProperties();
+    res.storage = storage;
+    res.dataKey = dataKey;
+    res.properties = new HashMap();
+    res.defaults = Collections.emptyMap();
+    res.guardInvariants();
+    res.load();
+    return res;
+  }
+
+}
+classRegistry.LocalDataConfigProperties = LocalDataConfigProperties;
 class Rgb {
   static RED = Rgb.create(1, 0, 0);
   static GREEN = Rgb.create(0, 1, 0);
@@ -8403,6 +9251,7 @@ class Rgb {
   }
 
 }
+classRegistry.Rgb = Rgb;
 class Rgba {
   static TRANSPARENT = Rgba.create(0, 0, 0, 0);
   static RED = Rgba.create(1, 0, 0, 1);
@@ -8487,6 +9336,7 @@ class Rgba {
   }
 
 }
+classRegistry.Rgba = Rgba;
 const createTextureFormat = (description) => {
   const symbol = Symbol(description);
   return {
@@ -8604,7 +9454,7 @@ class Texture {
       Guard.beTrue(this.data.size()==this.channels.size()*this.width*this.height*4, "buf.lenght must be equal to numChannels * width * height * 4");
     }
     else {
-      throw "unsupported texture format: "+this.format.toString();
+      throw new Error("unsupported texture format: "+this.format.toString());
     }
   }
 
@@ -8675,7 +9525,7 @@ class Texture {
       return Texture.create(this.format, this.channels, this.width, this.height, writer.toDataBlock());
     }
     else {
-      throw "only FLOAT format is supported for this operation, implement me";
+      throw new Error("only FLOAT format is supported for this operation, implement me");
     }
   }
 
@@ -8704,7 +9554,7 @@ class Texture {
       fact = 1;
     }
     else {
-      throw "unsupported format: "+this.format.toString();
+      throw new Error("unsupported format: "+this.format.toString());
     }
     return fact*this.channels.size();
   }
@@ -8852,6 +9702,7 @@ class Texture {
   }
 
 }
+classRegistry.Texture = Texture;
 class TextureId extends RefId {
   static TYPE = RefIdType.of("TEXTURE_ID");
   mId;
@@ -8900,6 +9751,7 @@ class TextureId extends RefId {
   }
 
 }
+classRegistry.TextureId = TextureId;
 const createTextureType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -9000,7 +9852,7 @@ class TextureAttachment {
       return TextureAttachment.diffuse_1_string(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -9030,7 +9882,7 @@ class TextureAttachment {
       return TextureAttachment.specular_1_string(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -9053,6 +9905,7 @@ class TextureAttachment {
   }
 
 }
+classRegistry.TextureAttachment = TextureAttachment;
 class TextureFncs {
   constructor() {
   }
@@ -9080,6 +9933,7 @@ class TextureFncs {
   }
 
 }
+classRegistry.TextureFncs = TextureFncs;
 const createVertexAttrType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -9187,6 +10041,7 @@ class VertexAttr {
   }
 
 }
+classRegistry.VertexAttr = VertexAttr;
 class Vertex {
   buf;
   constructor() {
@@ -9248,6 +10103,7 @@ class Vertex {
   }
 
 }
+classRegistry.Vertex = Vertex;
 class Face {
   indices;
   constructor() {
@@ -9301,6 +10157,7 @@ class Face {
   }
 
 }
+classRegistry.Face = Face;
 class MaterialId extends RefId {
   static TYPE = RefIdType.of("MATERIAL_ID");
   mId;
@@ -9349,6 +10206,7 @@ class MaterialId extends RefId {
   }
 
 }
+classRegistry.MaterialId = MaterialId;
 class MaterialBase {
   ambient;
   diffuse;
@@ -9421,6 +10279,7 @@ class MaterialBase {
   }
 
 }
+classRegistry.MaterialBase = MaterialBase;
 class Material {
   static BLACK = Material.create(Rgb.BLACK, Rgb.BLACK, Rgb.BLACK, 1);
   static BRASS = Material.create(Rgb.create(0.329412, 0.223529, 0.027451), Rgb.create(0.780392, 0.568627, 0.113725), Rgb.create(0.992157, 0.941176, 0.807843), 27.8974);
@@ -9519,7 +10378,7 @@ class Material {
       return Material.create_7_Rgb_Rgb_Rgb_number_TextureAttachment_TextureAttachment_TextureAttachment(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5], arguments[6]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -9568,6 +10427,7 @@ class Material {
   }
 
 }
+classRegistry.Material = Material;
 class Mesh {
   static MODEL_ATTRS = Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3, VertexAttr.TEX2);
   vertexAttrs;
@@ -9705,7 +10565,7 @@ class Mesh {
 
   static modelAnimated(frames) {
     if (frames.isEmpty()) {
-      throw "at least 1 frame must be defined";
+      throw new Error("at least 1 frame must be defined");
     }
     let numFrames = frames.size();
     let frame0 = frames.get(0);
@@ -9746,6 +10606,7 @@ class Mesh {
   }
 
 }
+classRegistry.Mesh = Mesh;
 class MeshId extends RefId {
   static TYPE = RefIdType.of("MESH_ID");
   mId;
@@ -9794,6 +10655,7 @@ class MeshId extends RefId {
   }
 
 }
+classRegistry.MeshId = MeshId;
 class ModelPart {
   mesh;
   material;
@@ -9843,6 +10705,7 @@ class ModelPart {
   }
 
 }
+classRegistry.ModelPart = ModelPart;
 class Model {
   parts;
   constructor() {
@@ -9914,6 +10777,7 @@ class Model {
   }
 
 }
+classRegistry.Model = Model;
 class ModelId extends RefId {
   static TYPE = RefIdType.of("MODEL_ID");
   mId;
@@ -9962,6 +10826,7 @@ class ModelId extends RefId {
   }
 
 }
+classRegistry.ModelId = ModelId;
 class Attenuation {
   static QUADRATIC_1 = Attenuation.pureQuadratic(1);
   constant;
@@ -9998,7 +10863,7 @@ class Attenuation {
       return FMath.sqrt((1-intensity*this.constant)/(intensity*this.quadratic));
     }
     else {
-      throw "not supported for this case, implement me if you want: "+this;
+      throw new Error("not supported for this case, implement me if you want: "+this);
     }
   }
 
@@ -10036,7 +10901,7 @@ class Attenuation {
       return Attenuation.pureLinear_1_number(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -10057,7 +10922,7 @@ class Attenuation {
       return Attenuation.pureQuadratic_1_number(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -10071,6 +10936,7 @@ class Attenuation {
   }
 
 }
+classRegistry.Attenuation = Attenuation;
 const createLightType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -10180,6 +11046,7 @@ class LightColor {
   }
 
 }
+classRegistry.LightColor = LightColor;
 class LightCone {
   static DEFAULT = LightCone.create(FMath.PI/9, FMath.PI/6);
   inTheta;
@@ -10224,6 +11091,7 @@ class LightCone {
   }
 
 }
+classRegistry.LightCone = LightCone;
 class Light {
   type;
   color;
@@ -10367,7 +11235,7 @@ class Light {
       return Light.spotQuadratic_6_LightColor_Vec3_Vec3_number_LightCone_ShadowMap(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -10407,7 +11275,7 @@ class Light {
       return Light.directional_3_LightColor_Vec3_ShadowMap(arguments[0], arguments[1], arguments[2]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -10440,6 +11308,7 @@ class Light {
   }
 
 }
+classRegistry.Light = Light;
 const createShadowMapPcfType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -10576,6 +11445,7 @@ class ShadowMap {
   }
 
 }
+classRegistry.ShadowMap = ShadowMap;
 class BufferId extends RefId {
   static TYPE = RefIdType.of("BUFFER_ID");
   static COLOR = BufferId.of("color");
@@ -10626,6 +11496,7 @@ class BufferId extends RefId {
   }
 
 }
+classRegistry.BufferId = BufferId;
 class ShadowBufferId extends RefId {
   static TYPE = RefIdType.of("SHADOW_BUFFER_ID");
   mId;
@@ -10673,6 +11544,7 @@ class ShadowBufferId extends RefId {
   }
 
 }
+classRegistry.ShadowBufferId = ShadowBufferId;
 class ShadowBuffer {
   width;
   height;
@@ -10716,6 +11588,7 @@ class ShadowBuffer {
   }
 
 }
+classRegistry.ShadowBuffer = ShadowBuffer;
 const createCameraType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -10872,6 +11745,7 @@ class Camera {
   }
 
 }
+classRegistry.Camera = Camera;
 class ProxyDisplayDriver {
   size = Size2.create(1, 1);
   listeners = new HashSet();
@@ -10913,6 +11787,7 @@ class ProxyDisplayDriver {
   }
 
 }
+classRegistry.ProxyDisplayDriver = ProxyDisplayDriver;
 class UiPosFncs {
   constructor() {
   }
@@ -10929,7 +11804,7 @@ class UiPosFncs {
       return UiPosFncs.center_2_number_number(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -10965,7 +11840,7 @@ class UiPosFncs {
       return UiPosFncs.leftCenter_2_number_number(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -10982,6 +11857,7 @@ class UiPosFncs {
   }
 
 }
+classRegistry.UiPosFncs = UiPosFncs;
 class UiSizeFncs {
   constructor() {
   }
@@ -11034,6 +11910,7 @@ class UiSizeFncs {
   }
 
 }
+classRegistry.UiSizeFncs = UiSizeFncs;
 class UiRegionFncs {
   constructor() {
   }
@@ -11056,7 +11933,7 @@ class UiRegionFncs {
       return UiRegionFncs.center_4_number_number_number_number(arguments[0], arguments[1], arguments[2], arguments[3]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -11116,7 +11993,7 @@ class UiRegionFncs {
       return UiRegionFncs.fullBottom_2_number_number(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -11175,6 +12052,7 @@ class UiRegionFncs {
   }
 
 }
+classRegistry.UiRegionFncs = UiRegionFncs;
 class UiEventActions {
   constructor() {
   }
@@ -11189,15 +12067,15 @@ class UiEventActions {
     };
   }
 
-  static previousPage(container) {
+  static previousPage(pageList) {
     return (evtSource) => {
-      container.previousPage();
+      pageList.previousPage();
     };
   }
 
-  static nextPage(container) {
+  static nextPage(pageList) {
     return (evtSource) => {
-      container.nextPage();
+      pageList.nextPage();
     };
   }
 
@@ -11208,6 +12086,7 @@ class UiEventActions {
   }
 
 }
+classRegistry.UiEventActions = UiEventActions;
 class UiActions {
   constructor() {
   }
@@ -11223,6 +12102,7 @@ class UiActions {
   }
 
 }
+classRegistry.UiActions = UiActions;
 class UiPainters {
   constructor() {
   }
@@ -11249,7 +12129,7 @@ class UiPainters {
       cursorX = cursorX-fontData.getTextWidth(text);
     }
     else {
-      throw "unsupprted horizontal alignment: "+alignment.getHorizontal();
+      throw new Error("unsupprted horizontal alignment: "+alignment.getHorizontal());
     }
     if (alignment.getVertical().equals(TextAlignmentVertical.TOP)) {
     }
@@ -11263,7 +12143,7 @@ class UiPainters {
       cursorY = cursorY-fontData.getSize();
     }
     else {
-      throw "unsupprted vertical alignment: "+alignment.getVertical();
+      throw new Error("unsupprted vertical alignment: "+alignment.getVertical());
     }
     while (parser.hasNext()) {
       let ch = parser.readCharacter();
@@ -11280,6 +12160,7 @@ class UiPainters {
   }
 
 }
+classRegistry.UiPainters = UiPainters;
 class StretchUiPainter {
   target;
   size;
@@ -11301,7 +12182,7 @@ class StretchUiPainter {
       this.drawImage_3_TextureId_Rect2_TextureStyle(arguments[0], arguments[1], arguments[2]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -11357,6 +12238,7 @@ class StretchUiPainter {
   }
 
 }
+classRegistry.StretchUiPainter = StretchUiPainter;
 class StretchUi {
   sizeFnc;
   size;
@@ -11429,7 +12311,7 @@ class StretchUi {
 
   requestFocus(target) {
     if (!target.isFocusable()) {
-      throw "trying to focus on a component that is not focusable";
+      throw new Error("trying to focus on a component that is not focusable");
     }
     if (this.focused!=null) {
       this.focused.onFocusLost();
@@ -11554,6 +12436,7 @@ class StretchUi {
   }
 
 }
+classRegistry.StretchUi = StretchUi;
 class UiComponent {
   hash = Randoms.nextInt(0, 10000000);
   getClass() {
@@ -11623,6 +12506,7 @@ class UiComponent {
   }
 
 }
+classRegistry.UiComponent = UiComponent;
 class ImageView extends UiComponent {
   texture;
   regionFnc;
@@ -11663,7 +12547,7 @@ class ImageView extends UiComponent {
       return this.setTexture_1_string(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -11698,6 +12582,7 @@ class ImageView extends UiComponent {
   }
 
 }
+classRegistry.ImageView = ImageView;
 class ImageButton extends UiComponent {
   upTexture;
   downTexture;
@@ -11871,7 +12756,7 @@ class ImageButton extends UiComponent {
       return this.setUpTexture_1_string(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -11893,7 +12778,7 @@ class ImageButton extends UiComponent {
       return this.setDownTexture_1_string(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -11915,7 +12800,7 @@ class ImageButton extends UiComponent {
       return this.setDisabledTexture_1_string(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -11985,6 +12870,7 @@ class ImageButton extends UiComponent {
   }
 
 }
+classRegistry.ImageButton = ImageButton;
 class ImageToggleButton extends UiComponent {
   upTexture;
   downTexture;
@@ -12186,7 +13072,7 @@ class ImageToggleButton extends UiComponent {
       return this.setUpTexture_1_string(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -12208,7 +13094,7 @@ class ImageToggleButton extends UiComponent {
       return this.setDownTexture_1_string(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -12275,6 +13161,7 @@ class ImageToggleButton extends UiComponent {
   }
 
 }
+classRegistry.ImageToggleButton = ImageToggleButton;
 class Joystick extends UiComponent {
   baseTexture;
   topTexture;
@@ -12373,7 +13260,7 @@ class Joystick extends UiComponent {
       return this.setBaseTexture_1_string(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -12394,7 +13281,7 @@ class Joystick extends UiComponent {
       return this.setTopTexture_1_string(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -12445,7 +13332,7 @@ class Joystick extends UiComponent {
   }
 
   calculateDirectionKeys(keys) {
-    if (keys.isEmpty()) {
+    if (keys.isEmpty()||this.upKeyCodeMatcher==null) {
       return Vec2.ZERO;
     }
     let res = Vec2.ZERO;
@@ -12495,6 +13382,7 @@ class Joystick extends UiComponent {
   }
 
 }
+classRegistry.Joystick = Joystick;
 class Label extends UiComponent {
   text;
   font;
@@ -12582,6 +13470,7 @@ class Label extends UiComponent {
   }
 
 }
+classRegistry.Label = Label;
 class PanelPainter {
   target;
   region;
@@ -12606,7 +13495,7 @@ class PanelPainter {
       this.drawImage_3_TextureId_Rect2_TextureStyle(arguments[0], arguments[1], arguments[2]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -12691,6 +13580,7 @@ class PanelPainter {
   }
 
 }
+classRegistry.PanelPainter = PanelPainter;
 class Panel extends UiComponent {
   controller;
   borderColor;
@@ -12704,9 +13594,10 @@ class Panel extends UiComponent {
   innerSize;
   components = new ArrayList();
   trackedTouches = new HashSet();
-  lastClickTs = 0;
+  lastClickTime = 0;
   onClickActions = new HashSet();
   onDoubleClickActions = new HashSet();
+  time = 0;
   constructor() {
     super();
   }
@@ -12723,6 +13614,7 @@ class Panel extends UiComponent {
   }
 
   move(dt) {
+    this.time = this.time+dt;
     for (let cmp of this.components) {
       cmp.move(dt);
     }
@@ -12846,15 +13738,14 @@ class Panel extends UiComponent {
       }
     }
     if (this.region.isInside(pos)&&!cancel) {
-      let ts = System.currentTimeMillis();
       for (let action of this.onClickActions) {
-        action.run(this);
+        Functions.runUiEventAction(action, this);
       }
-      let diff = (ts-this.lastClickTs)/1000;
-      this.lastClickTs = ts;
+      let diff = this.time-this.lastClickTime;
+      this.lastClickTime = this.time;
       if (diff<this.doubleClickInterval) {
         for (let action of this.onDoubleClickActions) {
-          action.run(this);
+          Functions.runUiEventAction(action, this);
         }
       }
       return true;
@@ -12952,6 +13843,285 @@ class Panel extends UiComponent {
   }
 
 }
+classRegistry.Panel = Panel;
+class Page extends UiComponent {
+  controller;
+  containerSize;
+  components = new ArrayList();
+  lock = new Object();
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "Page";
+  }
+
+  guardInvariants() {
+  }
+
+  addComponent(component) {
+    Guard.notNull(component, "component cannot be null");
+    this.components.add(component);
+    component.init(this);
+    component.onContainerResize(this.containerSize);
+    return this;
+  }
+
+  removeComponent(component) {
+    this.components.remove(component);
+    return this;
+  }
+
+  init(controller) {
+    this.controller = controller;
+  }
+
+  move(dt) {
+    for (let cmp of this.components) {
+      cmp.move(dt);
+    }
+  }
+
+  draw(painter) {
+    for (let cmp of this.components) {
+      cmp.draw(painter);
+    }
+  }
+
+  requestFocus(target) {
+    return this.controller.requestFocus(target);
+  }
+
+  getFocused() {
+    return this.controller.getFocused();
+  }
+
+  onKeyPressed(key) {
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp.onKeyPressed(key)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  onKeyReleased(key) {
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp.onKeyReleased(key)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  onTouchStart(id, pos, size) {
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp.onTouchStart(id, pos, size)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  onTouchMove(id, pos, size) {
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp.onTouchMove(id, pos, size)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp.onTouchEnd(id, pos, size, cancel)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  onContainerResize(size) {
+    this.containerSize = size;
+    for (let cmp of this.components) {
+      cmp.onContainerResize(this.containerSize);
+    }
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new Page();
+    res.containerSize = Size2.create(1, 1);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.Page = Page;
+class PageList extends UiComponent {
+  controller;
+  pages = new ArrayList();
+  active = 0;
+  containerSize = Size2.create(1, 1);
+  trackedTouches = new HashSet();
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "PageList";
+  }
+
+  guardInvariants() {
+  }
+
+  init(controller) {
+    this.controller = controller;
+  }
+
+  move(dt) {
+    if (this.pages.isEmpty()) {
+      return ;
+    }
+    this.pages.get(this.active).move(dt);
+  }
+
+  draw(painter) {
+    if (this.pages.isEmpty()) {
+      return ;
+    }
+    this.pages.get(this.active).draw(painter);
+  }
+
+  requestFocus(target) {
+    return this.controller.requestFocus(target);
+  }
+
+  getFocused() {
+    return this.controller.getFocused();
+  }
+
+  onTouchStart(id, pos, size) {
+    if (this.pages.isEmpty()) {
+      return false;
+    }
+    this.trackedTouches.add(id);
+    return this.pages.get(this.active).onTouchStart(id, pos, size);
+  }
+
+  onTouchMove(id, pos, size) {
+    if (this.pages.isEmpty()) {
+      return false;
+    }
+    return this.pages.get(this.active).onTouchMove(id, pos, size);
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    if (this.pages.isEmpty()) {
+      return false;
+    }
+    this.trackedTouches.remove(id);
+    return this.pages.get(this.active).onTouchEnd(id, pos, size, cancel);
+  }
+
+  onKeyPressed(key) {
+    if (this.pages.isEmpty()) {
+      return false;
+    }
+    return this.pages.get(this.active).onKeyPressed(key);
+  }
+
+  onKeyReleased(key) {
+    if (this.pages.isEmpty()) {
+      return false;
+    }
+    return this.pages.get(this.active).onKeyReleased(key);
+  }
+
+  onContainerResize(size) {
+    this.containerSize = size;
+    if (this.pages.isEmpty()) {
+      return ;
+    }
+    this.pages.get(this.active).onContainerResize(size);
+  }
+
+  addPage(page) {
+    this.pages.add(page);
+    page.init(this);
+    return this;
+  }
+
+  getPage(idx) {
+    return this.pages.get(idx);
+  }
+
+  getActivePage() {
+    if (this.pages.isEmpty()) {
+      return null;
+    }
+    return this.pages.get(this.active);
+  }
+
+  setActivePage(idx) {
+    this.cancelTrackedTouches();
+    this.active = idx;
+    this.pages.get(this.active).onContainerResize(this.containerSize);
+  }
+
+  previousPage() {
+    if (this.pages.isEmpty()) {
+      return ;
+    }
+    this.cancelTrackedTouches();
+    this.active = this.active-1;
+    if (this.active<0) {
+      this.active = this.pages.size()-1;
+    }
+    this.pages.get(this.active).onContainerResize(this.containerSize);
+  }
+
+  nextPage() {
+    if (this.pages.isEmpty()) {
+      return ;
+    }
+    this.cancelTrackedTouches();
+    this.active = this.active+1;
+    if (this.active>=this.pages.size()) {
+      this.active = 0;
+    }
+    this.pages.get(this.active).onContainerResize(this.containerSize);
+  }
+
+  cancelTrackedTouches() {
+    if (this.getActivePage()==null) {
+      return ;
+    }
+    for (let id of this.trackedTouches) {
+      this.getActivePage().onTouchEnd(id, Pos2.ZERO, this.containerSize, true);
+    }
+    this.trackedTouches.clear();
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new PageList();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.PageList = PageList;
 const createTextAlignmentHorizontal = (description) => {
   const symbol = Symbol(description);
   return {
@@ -13114,6 +14284,7 @@ class TextAlignment {
   }
 
 }
+classRegistry.TextAlignment = TextAlignment;
 class Character {
   character;
   sprite;
@@ -13183,7 +14354,7 @@ class Character {
       return Character.create_7_string_string_number_Vec2_Size2_number_Map(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5], arguments[6]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -13205,6 +14376,7 @@ class Character {
   }
 
 }
+classRegistry.Character = Character;
 class FontId extends RefId {
   static TYPE = RefIdType.of("FONT_ID");
   static DEFAULT = FontId.of("arial-20");
@@ -13254,6 +14426,7 @@ class FontId extends RefId {
   }
 
 }
+classRegistry.FontId = FontId;
 class Font {
   name;
   textureStyle;
@@ -13306,7 +14479,7 @@ class Font {
   getCharacterOffset(ch) {
     let chr = this.characters.get(ch);
     if (chr==null) {
-      throw "character is registered in the font: "+ch;
+      throw new Error("character is registered in the font: "+ch);
     }
     return chr.getOffset().scale(this.size/chr.getFontSize());
   }
@@ -13396,6 +14569,7 @@ class Font {
   }
 
 }
+classRegistry.Font = Font;
 class Fonts {
   constructor() {
   }
@@ -13411,9 +14585,9 @@ class Fonts {
     let chars = new HashMap();
     let pages = new HashMap();
     let kernings = new HashMap();
-    let buf = loader.loadFile(file);
+    let dataBlock = loader.loadFile(file);
     let doc = null;
-    let is = new ByteArrayInputStream(buf);
+    let is = dataBlock.createStream();
     try {
       let fact = DocumentBuilderFactory.newInstance();
       let bld = fact.newDocumentBuilder();
@@ -13422,7 +14596,7 @@ class Fonts {
       is = null;
     }
     catch (e) {
-      throw e;
+      throw new Error(e);
     }
     finally {
       try {
@@ -13528,6 +14702,7 @@ class Fonts {
   }
 
 }
+classRegistry.Fonts = Fonts;
 class Clip {
   frames;
   constructor() {
@@ -13594,6 +14769,7 @@ class Clip {
   }
 
 }
+classRegistry.Clip = Clip;
 class ClipAnimationTrigger {
   time;
   triggers;
@@ -13658,7 +14834,7 @@ class ClipAnimationTrigger {
       return ClipAnimationTrigger.create_2_number_Set(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -13679,6 +14855,7 @@ class ClipAnimationTrigger {
   }
 
 }
+classRegistry.ClipAnimationTrigger = ClipAnimationTrigger;
 class ClipAnimation {
   clip;
   duration;
@@ -13714,7 +14891,7 @@ class ClipAnimation {
       return this.getTriggers_2_number_number(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -13727,7 +14904,7 @@ class ClipAnimation {
       return Collections.emptySet();
     }
     if (tStart<0||tEnd<0||tEnd<tStart) {
-      throw "tStart or tEnd cannot be negative, and tStart must be <= tEnd: "+tStart+", "+tEnd;
+      throw new Error("tStart or tEnd cannot be negative, and tStart must be <= tEnd: "+tStart+", "+tEnd);
     }
     if (this.loop) {
       if (tEnd-tStart>=this.duration) {
@@ -13789,7 +14966,7 @@ class ClipAnimation {
       return this.withAddedTrigger_1_ClipAnimationTrigger(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -13866,6 +15043,7 @@ class ClipAnimation {
   }
 
 }
+classRegistry.ClipAnimation = ClipAnimation;
 class ClipAnimationCollectionId extends RefId {
   static TYPE = RefIdType.of("CLIP_ANIMATION_COLLECTION_ID");
   mId;
@@ -13914,6 +15092,7 @@ class ClipAnimationCollectionId extends RefId {
   }
 
 }
+classRegistry.ClipAnimationCollectionId = ClipAnimationCollectionId;
 class ClipAnimationCollection {
   animations;
   constructor() {
@@ -13955,6 +15134,7 @@ class ClipAnimationCollection {
   }
 
 }
+classRegistry.ClipAnimationCollection = ClipAnimationCollection;
 class ClipAnimationPlayer {
   collection;
   animationKey = null;
@@ -14028,6 +15208,7 @@ class ClipAnimationPlayer {
   }
 
 }
+classRegistry.ClipAnimationPlayer = ClipAnimationPlayer;
 class FrameInterpolation {
   start;
   end;
@@ -14076,6 +15257,7 @@ class FrameInterpolation {
   }
 
 }
+classRegistry.FrameInterpolation = FrameInterpolation;
 const createTextureWrapType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -14233,6 +15415,7 @@ class TextureStyle {
   }
 
 }
+classRegistry.TextureStyle = TextureStyle;
 const createBlendType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -14336,6 +15519,7 @@ class Viewport {
   }
 
 }
+classRegistry.Viewport = Viewport;
 class BasicEnvironment {
   camera;
   constructor() {
@@ -14371,6 +15555,7 @@ class BasicEnvironment {
   }
 
 }
+classRegistry.BasicEnvironment = BasicEnvironment;
 class SceneEnvironment {
   camera;
   lights;
@@ -14425,7 +15610,7 @@ class SceneEnvironment {
       return SceneEnvironment.create_5_Camera_Light_Light_Light_Light(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -14475,6 +15660,7 @@ class SceneEnvironment {
   }
 
 }
+classRegistry.SceneEnvironment = SceneEnvironment;
 class ShadowMapEnvironment {
   light;
   constructor() {
@@ -14510,6 +15696,7 @@ class ShadowMapEnvironment {
   }
 
 }
+classRegistry.ShadowMapEnvironment = ShadowMapEnvironment;
 class UiEnvironment {
   static DEFAULT = UiEnvironment.create();
   gamma;
@@ -14546,6 +15733,7 @@ class UiEnvironment {
   }
 
 }
+classRegistry.UiEnvironment = UiEnvironment;
 class PlaybackId extends RefId {
   static TYPE = RefIdType.of("PLAYBACK_ID");
   mId;
@@ -14594,6 +15782,7 @@ class PlaybackId extends RefId {
   }
 
 }
+classRegistry.PlaybackId = PlaybackId;
 class SoundId extends RefId {
   static TYPE = RefIdType.of("SOUND_ID");
   mId;
@@ -14642,6 +15831,7 @@ class SoundId extends RefId {
   }
 
 }
+classRegistry.SoundId = SoundId;
 const createSoundTrackFormat = (description) => {
   const symbol = Symbol(description);
   return {
@@ -14718,7 +15908,7 @@ class SoundTrack {
       return this.data.size()/4;
     }
     else {
-      throw "unsupported format, implement me: "+this.format;
+      throw new Error("unsupported format, implement me: "+this.format);
     }
   }
 
@@ -14727,7 +15917,7 @@ class SoundTrack {
       return this.data.getFloat(idx*4);
     }
     else {
-      throw "unsupported format, implement me: "+this.format;
+      throw new Error("unsupported format, implement me: "+this.format);
     }
   }
 
@@ -14737,7 +15927,7 @@ class SoundTrack {
       return numSamples/this.sampleRate;
     }
     else {
-      throw "unsupported format, implement me: "+this.format;
+      throw new Error("unsupported format, implement me: "+this.format);
     }
   }
 
@@ -14828,6 +16018,7 @@ class SoundTrack {
   }
 
 }
+classRegistry.SoundTrack = SoundTrack;
 class Sound {
   priority;
   track;
@@ -14868,7 +16059,7 @@ class Sound {
       return Sound.create_2_number_SoundTrack(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -14889,6 +16080,7 @@ class Sound {
   }
 
 }
+classRegistry.Sound = Sound;
 class AssetPlaceholder {
   static INSTANCE = new AssetPlaceholder();
   constructor() {
@@ -14910,6 +16102,7 @@ class AssetPlaceholder {
   }
 
 }
+classRegistry.AssetPlaceholder = AssetPlaceholder;
 class AssetGroup {
   cache;
   constructor() {
@@ -14961,7 +16154,7 @@ class AssetGroup {
       return this.getKeys_1_RefIdType(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -14987,27 +16180,27 @@ class AssetGroup {
       return this.get_2_string_RefId(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
   get_1_RefId(key) {
     if (!this.cache.containsKey(key)) {
-      throw "no asset under "+key;
+      throw new Error("no asset under "+key);
     }
     return this.cache.get(key);
   }
 
   get_2_string_RefId(clazz, key) {
     if (!this.cache.containsKey(key)) {
-      throw "no asset under "+key;
+      throw new Error("no asset under "+key);
     }
     return this.cache.get(key);
   }
 
   getAsAssetGroup(key) {
     if (!this.cache.containsKey(key)) {
-      throw "no asset under "+key;
+      throw new Error("no asset under "+key);
     }
     return AssetGroup.empty().put(key, this.cache.get(key));
   }
@@ -15020,7 +16213,7 @@ class AssetGroup {
         if (c.get(key).equals(other.cache.get(key))) {
           continue;
         }
-        throw "key is presented in both groups: "+key;
+        throw new Error("key is presented in both groups: "+key);
       }
       c.put(key, other.cache.get(key));
     }
@@ -15071,7 +16264,7 @@ class AssetGroup {
       return this.transform_2_string_Function(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -15109,7 +16302,7 @@ class AssetGroup {
   toManagerStrict(am) {
     for (let key of this.cache.keySet()) {
       if (am.containsKey(key)) {
-        throw "bank already contains "+key;
+        throw new Error("bank already contains "+key);
       }
     }
     for (let key of this.cache.keySet()) {
@@ -15155,6 +16348,7 @@ class AssetGroup {
   }
 
 }
+classRegistry.AssetGroup = AssetGroup;
 class Assets {
   constructor() {
   }
@@ -15171,7 +16365,7 @@ class Assets {
       return Assets.loadDir_3_AssetLoader_Path_boolean(arguments[0], arguments[1], arguments[2]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -15194,7 +16388,7 @@ class Assets {
       res = res.mergeStrict(Assets.loadFiles(loader, files));
     }
     else {
-      let tapJson = new JsonObject(new String(loader.loadFile(descriptor), Charset.forName("utf-8")));
+      let tapJson = new JsonObject(new String(loader.loadFile(descriptor).toByteArray(), Charset.forName("utf-8")));
       let docType = tapJson.getString("docType");
       let schemaVersion = tapJson.getInt("schemaVersion");
       Guard.equals("Tyracorn Asset Package Descriptor", docType, "docType is not \"Tyracorn Asset Package Descriptor\"");
@@ -15261,12 +16455,12 @@ class Assets {
             res = Assets.createSprites(taskJson, res);
           }
           else {
-            throw "unsupported task type, fix the file or implement: "+type;
+            throw new Error("unsupported task type, fix the file or implement: "+type);
           }
         }
       }
       else {
-        throw "unknown version: "+schemaVersion;
+        throw new Error("unknown version: "+schemaVersion);
       }
     }
     if (recursive) {
@@ -15308,8 +16502,8 @@ class Assets {
     }
     for (let file of files) {
       if (file.getExtension().equals("tap")) {
-        let buf = loader.loadFile(file);
-        let tap = Taps.fromBytes(buf);
+        let dataBlock = loader.loadFile(file);
+        let tap = Taps.fromDataBlock(dataBlock);
         let ag = Taps.toAssetGroup(tap);
         res = res.mergeStrict(ag);
       }
@@ -15452,6 +16646,7 @@ class Assets {
   }
 
 }
+classRegistry.Assets = Assets;
 const createAssetCompanionType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -15539,22 +16734,29 @@ class DefaultAssetBank {
 
   get(assetClass, key) {
     if (!this.assets.containsKey(key)) {
-      throw "no asset under "+key.id();
+      throw new Error("no asset under "+key.id());
     }
     let res = this.assets.get(key);
     if (AssetPlaceholder.INSTANCE.equals(res)) {
-      throw "asset is dematerialized (e.g. pushed to the hardware) "+key;
+      throw new Error("asset is dematerialized (e.g. pushed to the hardware) "+key);
     }
     return res;
   }
 
+  hasCompanion(key, type) {
+    if (!this.companions.containsKey(key)) {
+      return false;
+    }
+    return this.companions.get(key).containsKey(type);
+  }
+
   getCompanion(clazz, key, type) {
     if (!this.companions.containsKey(key)) {
-      throw "no asset under "+key.id();
+      throw new Error("no asset under "+key.id());
     }
     let res = this.companions.get(key).get(type);
     if (res==null) {
-      throw "asset "+key+" does not have companion "+type.toString();
+      throw new Error("asset "+key+" does not have companion "+type.toString());
     }
     return res;
   }
@@ -15565,7 +16767,7 @@ class DefaultAssetBank {
 
   isSynced(key) {
     if (!this.assets.containsKey(key)) {
-      throw "no asset under "+key.id();
+      throw new Error("no asset under "+key.id());
     }
     return AssetPlaceholder.INSTANCE.equals(this.assets.get(key));
   }
@@ -15584,6 +16786,7 @@ class DefaultAssetBank {
   }
 
 }
+classRegistry.DefaultAssetBank = DefaultAssetBank;
 const createTapEntryType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -15670,7 +16873,7 @@ class TapEntry {
   }
 
   createDataStream() {
-    return this.data.stream();
+    return this.data.createStream();
   }
 
   hashCode() {
@@ -15695,6 +16898,7 @@ class TapEntry {
   }
 
 }
+classRegistry.TapEntry = TapEntry;
 class Tap {
   entries;
   constructor() {
@@ -15739,6 +16943,7 @@ class Tap {
   }
 
 }
+classRegistry.Tap = Tap;
 class TapTextures {
   constructor() {
   }
@@ -15766,7 +16971,7 @@ class TapTextures {
       bos = null;
     }
     catch (e) {
-      throw e;
+      throw new Error(e);
     }
     finally {
       if (bos!=null) {
@@ -15802,11 +17007,12 @@ class TapTextures {
       return AssetGroup.of(TextureId.of(entry.getId()), texture);
     }
     else {
-      throw "unsupported version, implement me: "+entry.getVersion();
+      throw new Error("unsupported version, implement me: "+entry.getVersion());
     }
   }
 
 }
+classRegistry.TapTextures = TapTextures;
 class TapMaterials {
   constructor() {
   }
@@ -15845,7 +17051,7 @@ class TapMaterials {
       buf = bos.toByteArray();
     }
     catch (e) {
-      throw e;
+      throw new Error(e);
     }
     finally {
       if (bos!=null) {
@@ -15881,11 +17087,12 @@ class TapMaterials {
       }
     }
     else {
-      throw "unsupported version, implement me: "+entry.getVersion();
+      throw new Error("unsupported version, implement me: "+entry.getVersion());
     }
   }
 
 }
+classRegistry.TapMaterials = TapMaterials;
 class TapMeshes {
   constructor() {
   }
@@ -15919,7 +17126,7 @@ class TapMeshes {
       buf = bos.toByteArray();
     }
     catch (e) {
-      throw e;
+      throw new Error(e);
     }
     finally {
       if (bos!=null) {
@@ -15972,7 +17179,7 @@ class TapMeshes {
       }
     }
     else {
-      throw "unsupported version, implement me: "+entry.getVersion();
+      throw new Error("unsupported version, implement me: "+entry.getVersion());
     }
   }
 
@@ -15985,6 +17192,7 @@ class TapMeshes {
   }
 
 }
+classRegistry.TapMeshes = TapMeshes;
 class TapModels {
   constructor() {
   }
@@ -16005,7 +17213,7 @@ class TapModels {
       buf = bos.toByteArray();
     }
     catch (e) {
-      throw e;
+      throw new Error(e);
     }
     finally {
       if (bos!=null) {
@@ -16038,11 +17246,12 @@ class TapModels {
       return AssetGroup.of(ModelId.of(entry.getId()), model);
     }
     else {
-      throw "unsupported version, implement me: "+entry.getVersion();
+      throw new Error("unsupported version, implement me: "+entry.getVersion());
     }
   }
 
 }
+classRegistry.TapModels = TapModels;
 class TapPhysicalMaterials {
   constructor() {
   }
@@ -16063,7 +17272,7 @@ class TapPhysicalMaterials {
       buf = bos.toByteArray();
     }
     catch (e) {
-      throw e;
+      throw new Error(e);
     }
     finally {
       if (bos!=null) {
@@ -16095,11 +17304,12 @@ class TapPhysicalMaterials {
       }
     }
     else {
-      throw "unsupported version, implement me: "+entry.getVersion();
+      throw new Error("unsupported version, implement me: "+entry.getVersion());
     }
   }
 
 }
+classRegistry.TapPhysicalMaterials = TapPhysicalMaterials;
 class TapFonts {
   constructor() {
   }
@@ -16145,7 +17355,7 @@ class TapFonts {
       bos = null;
     }
     catch (e) {
-      throw e;
+      throw new Error(e);
     }
     finally {
       if (bos!=null) {
@@ -16205,11 +17415,12 @@ class TapFonts {
       return AssetGroup.of(FontId.of(entry.getId()), font);
     }
     else {
-      throw "unsupported version, implement me: "+entry.getVersion();
+      throw new Error("unsupported version, implement me: "+entry.getVersion());
     }
   }
 
 }
+classRegistry.TapFonts = TapFonts;
 class TapSounds {
   constructor() {
   }
@@ -16234,7 +17445,7 @@ class TapSounds {
       buf = bos.toByteArray();
     }
     catch (e) {
-      throw e;
+      throw new Error(e);
     }
     finally {
       if (bos!=null) {
@@ -16271,11 +17482,212 @@ class TapSounds {
       return AssetGroup.of(SoundId.of(entry.getId()), sound);
     }
     else {
-      throw "unsupported version, implement me: "+entry.getVersion();
+      throw new Error("unsupported version, implement me: "+entry.getVersion());
     }
   }
 
 }
+classRegistry.TapSounds = TapSounds;
+class TapPrefabs {
+  constructor() {
+  }
+
+  getClass() {
+    return "TapPrefabs";
+  }
+
+  static toEntry(id, prefab) {
+    let buf = null;
+    let bos = new ByteArrayOutputStream();
+    try {
+      TapPrefabs.writePrefab(prefab, bos);
+      buf = bos.toByteArray();
+    }
+    finally {
+      if (bos!=null) {
+        try {
+          bos.close();
+        }
+        catch (ex) {
+        }
+      }
+    }
+    return TapEntry.create(TapEntryType.PREFAB, id.id(), 2, DataBlock.fromByteArray(buf));
+  }
+
+  static toAssetGroup(entry) {
+    Guard.equals(entry.getType(), TapEntryType.PREFAB, "entry must be a PREFAB type");
+    if (entry.getVersion()==1) {
+      let reader = TapBufferReader.create(entry);
+      try {
+        let prefab = TapPrefabs.readPrefabV1(reader);
+        return AssetGroup.of(ActorPrefabId.of(entry.getId()), prefab);
+      }
+      finally {
+        reader.close();
+      }
+    }
+    else if (entry.getVersion()==2) {
+      let reader = TapBufferReader.create(entry);
+      try {
+        let prefab = TapPrefabs.readPrefab(reader);
+        return AssetGroup.of(ActorPrefabId.of(entry.getId()), prefab);
+      }
+      finally {
+        reader.close();
+      }
+    }
+    else {
+      throw new Error("unsupported version, implement me: "+entry.getVersion());
+    }
+  }
+
+  static writePrefab(prefab, os) {
+    try {
+      os.write(TapBytes.stringToBytes(prefab.getId()));
+      os.write(TapBytes.stringToBytes(prefab.getName()));
+      os.write(TapBytes.stringToBytes(Jsons.toJsonStringList(Dut.copyList(Dut.copySortedSet(prefab.getTags())))));
+      os.write(TapBytes.intToBytes(prefab.getComponents().size()));
+      for (let cp of prefab.getComponents()) {
+        os.write(TapBytes.stringToBytes(cp.getType().name()));
+        os.write(TapBytes.stringToBytes(cp.getKey()));
+        os.write(TapBytes.intToBytes(cp.getVersion()));
+        os.write(TapBytes.stringToBytes(Jsons.toJsonStringMap(cp.getProperties())));
+      }
+      os.write(TapBytes.intToBytes(prefab.getChildren().size()));
+      for (let child of prefab.getChildren()) {
+        TapPrefabs.writePrefab(child, os);
+      }
+    }
+    catch (e) {
+      throw new Error(e);
+    }
+  }
+
+  static readPrefab(reader) {
+    let id = reader.readString();
+    let name = reader.readString();
+    let tags = Jsons.toStringList(reader.readString());
+    let numCmps = reader.readInt();
+    let cmps = new ArrayList();
+    for (let i = 0; i<numCmps; ++i) {
+      let cmpType = ComponentPrefabType.valueOf(reader.readString());
+      let key = reader.readString();
+      let cmpVersion = reader.readInt();
+      let cmpProps = Jsons.toStringMap(reader.readString());
+      cmps.add(ComponentPrefab.create(cmpType, key, cmpVersion, cmpProps));
+    }
+    let numChildren = reader.readInt();
+    let children = new ArrayList();
+    for (let i = 0; i<numChildren; ++i) {
+      let child = TapPrefabs.readPrefab(reader);
+      children.add(child);
+    }
+    return ActorPrefab.create(id, name).withTags(tags).withComponents(cmps).withChildren(children);
+  }
+
+  static readPrefabV1(reader) {
+    let id = reader.readString();
+    let name = reader.readString();
+    let tags = Jsons.toStringList(reader.readString());
+    let numCmps = reader.readInt();
+    let cmps = new ArrayList();
+    for (let i = 0; i<numCmps; ++i) {
+      let cmpType = ComponentPrefabType.valueOf(reader.readString());
+      let cmpVersion = reader.readInt();
+      let cmpProps = Jsons.toStringMap(reader.readString());
+      cmps.add(ComponentPrefab.create(cmpType, "", cmpVersion, cmpProps));
+    }
+    let numChildren = reader.readInt();
+    let children = new ArrayList();
+    for (let i = 0; i<numChildren; ++i) {
+      let child = TapPrefabs.readPrefabV1(reader);
+      children.add(child);
+    }
+    return ActorPrefab.create(id, name).withTags(tags).withComponents(cmps).withChildren(children);
+  }
+
+}
+classRegistry.TapPrefabs = TapPrefabs;
+class TapScenes {
+  constructor() {
+  }
+
+  getClass() {
+    return "TapScenes";
+  }
+
+  static toEntry(id, scene) {
+    let buf = null;
+    let bos = new ByteArrayOutputStream();
+    try {
+      bos.write(TapBytes.stringToBytes(scene.getName()));
+      bos.write(TapBytes.intToBytes(scene.getObjects().size()));
+      for (let obj of scene.getObjects()) {
+        bos.write(TapBytes.stringToBytes(obj.getName()));
+        bos.write(TapBytes.stringToBytes(obj.getPrefabId().id()));
+        bos.write(TapBytes.stringToBytes(obj.getActorId()==null?"":obj.getActorId().id()));
+        bos.write(TapBytes.floatToBytes(obj.getPos().x()));
+        bos.write(TapBytes.floatToBytes(obj.getPos().y()));
+        bos.write(TapBytes.floatToBytes(obj.getPos().z()));
+        bos.write(TapBytes.floatToBytes(obj.getRot().a()));
+        bos.write(TapBytes.floatToBytes(obj.getRot().b()));
+        bos.write(TapBytes.floatToBytes(obj.getRot().c()));
+        bos.write(TapBytes.floatToBytes(obj.getRot().d()));
+      }
+      buf = bos.toByteArray();
+    }
+    catch (e) {
+      throw new Error(e);
+    }
+    finally {
+      if (bos!=null) {
+        try {
+          bos.close();
+        }
+        catch (ex) {
+        }
+      }
+    }
+    return TapEntry.create(TapEntryType.SCENE, id.id(), 1, DataBlock.fromByteArray(buf));
+  }
+
+  static toAssetGroup(entry) {
+    Guard.equals(entry.getType(), TapEntryType.SCENE, "entry must be a SCENEs type");
+    if (entry.getVersion()==1) {
+      let reader = TapBufferReader.create(entry);
+      try {
+        let scname = reader.readString();
+        let scene = Scene.create(scname);
+        let numObjs = reader.readInt();
+        for (let i = 0; i<numObjs; ++i) {
+          let name = reader.readString();
+          let pid = reader.readString();
+          let aidh = reader.readString();
+          let aid = StringUtils.isEmpty(aidh)?null:ActorId.of(aidh);
+          let x = reader.readFloat();
+          let y = reader.readFloat();
+          let z = reader.readFloat();
+          let a = reader.readFloat();
+          let b = reader.readFloat();
+          let c = reader.readFloat();
+          let d = reader.readFloat();
+          let sceneObject = SceneObject.create(name, ActorPrefabId.of(pid)).withActorId(aid).withPos(Vec3.create(x, y, z)).withRot(Quaternion.create(a, b, c, d));
+          scene = scene.withAddedObject(sceneObject);
+        }
+        return AssetGroup.of(SceneId.of(entry.getId()), scene);
+      }
+      finally {
+        reader.close();
+      }
+    }
+    else {
+      throw new Error("unsupported version, implement me: "+entry.getVersion());
+    }
+  }
+
+}
+classRegistry.TapScenes = TapScenes;
 class MouseTouches {
   static MOUSE_TOUCH_ID = "MOUSE";
   constructor() {
@@ -16286,6 +17698,7 @@ class MouseTouches {
   }
 
 }
+classRegistry.MouseTouches = MouseTouches;
 class MouseButton {
   static BUTTON_0 = MouseButton.create("BUTTON_0");
   code;
@@ -16325,6 +17738,7 @@ class MouseButton {
   }
 
 }
+classRegistry.MouseButton = MouseButton;
 class KeyCode {
   static ENTER = KeyCode.create("ENTER");
   static ESCAPE = KeyCode.create("ESCAPE");
@@ -16391,11 +17805,11 @@ class KeyCode {
   }
 
   isArrowRight() {
-    return KeyCode.ARROW_LEFT.equals(this);
+    return KeyCode.ARROW_RIGHT.equals(this);
   }
 
   isArrowDown() {
-    return KeyCode.ARROW_LEFT.equals(this);
+    return KeyCode.ARROW_DOWN.equals(this);
   }
 
   hashCode() {
@@ -16426,6 +17840,7 @@ class KeyCode {
   }
 
 }
+classRegistry.KeyCode = KeyCode;
 class KeyCodeMatchers {
   constructor() {
   }
@@ -16452,6 +17867,30 @@ class KeyCodeMatchers {
     };
   }
 
+  static arrowUpOrW() {
+    return (keyCode) => {
+      return keyCode.isArrowUp()||keyCode.getUpperKey().equals("W");
+    };
+  }
+
+  static arrowDownOrS() {
+    return (keyCode) => {
+      return keyCode.isArrowDown()||keyCode.getUpperKey().equals("S");
+    };
+  }
+
+  static arrowLeftOrA() {
+    return (keyCode) => {
+      return keyCode.isArrowLeft()||keyCode.getUpperKey().equals("A");
+    };
+  }
+
+  static arrowRightOrD() {
+    return (keyCode) => {
+      return keyCode.isArrowRight()||keyCode.getUpperKey().equals("D");
+    };
+  }
+
   static upperKey(upperKey) {
     Guard.notEmpty(upperKey, "upperKey cannot be empty");
     return (keyCode) => {
@@ -16460,6 +17899,7 @@ class KeyCodeMatchers {
   }
 
 }
+classRegistry.KeyCodeMatchers = KeyCodeMatchers;
 const createBasicLoadingScreenLoadStrategy = (description) => {
   const symbol = Symbol(description);
   return {
@@ -16505,13 +17945,14 @@ const BasicLoadingScreenLoadStrategy = Object.freeze({
     return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
   }
 });
-class BasicLoadingScreen {
+class BasicLoadingScreen extends TyracornScreen {
   strategy;
   path;
   texture;
   ui;
   image;
   constructor() {
+    super();
   }
 
   getClass() {
@@ -16552,7 +17993,7 @@ class BasicLoadingScreen {
         res.add(assets.resolveAsync(this.path));
       }
       else {
-        throw "unknown loadStrategy: "+this.strategy;
+        throw new Error("unknown loadStrategy: "+this.strategy);
       }
     }
     return res;
@@ -16581,6 +18022,7 @@ class BasicLoadingScreen {
   }
 
 }
+classRegistry.BasicLoadingScreen = BasicLoadingScreen;
 class TyracornScreenAppScreenManager {
   nextScreen = null;
   leaveActions = new ArrayList();
@@ -16623,7 +18065,8 @@ class TyracornScreenAppScreenManager {
   }
 
 }
-class TyracornScreenApp {
+classRegistry.TyracornScreenAppScreenManager = TyracornScreenAppScreenManager;
+class TyracornScreenApp extends TyracornApp {
   properties;
   screenManager;
   loadingScreen;
@@ -16632,6 +18075,7 @@ class TyracornScreenApp {
   resetNextDt = false;
   loadinScreenInitialized = false;
   constructor() {
+    super();
   }
 
   getClass() {
@@ -16664,8 +18108,9 @@ class TyracornScreenApp {
       this.activeScreen.move(drivers, this.screenManager, dt);
       if (this.screenManager.getNextScreen()!=null) {
         for (let action of this.screenManager.getLeaveActions()) {
-          action.run();
+          Functions.runRunnable(action);
         }
+        this.activeScreen.leave(drivers);
         this.activeScreen = this.screenManager.getNextScreen();
         this.screenManager = TyracornScreenAppScreenManager.create();
         this.loadingFutures = this.activeScreen.load(drivers, this.screenManager, this.properties);
@@ -16725,6 +18170,7 @@ class TyracornScreenApp {
   }
 
 }
+classRegistry.TyracornScreenApp = TyracornScreenApp;
 class InMemoryActorTreeNode {
   parent;
   actor;
@@ -16766,6 +18212,7 @@ class InMemoryActorTreeNode {
   }
 
 }
+classRegistry.InMemoryActorTreeNode = InMemoryActorTreeNode;
 class InMemoryActorTree {
   world;
   observer;
@@ -16790,7 +18237,7 @@ class InMemoryActorTree {
       this.add_2_ActorId_Actor(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -16838,7 +18285,7 @@ class InMemoryActorTree {
   get(id) {
     let node = this.actors.get(id);
     if (node==null) {
-      throw "id does not exists: "+id;
+      throw new Error("id does not exists: "+id);
     }
     return node.getActor();
   }
@@ -16878,6 +18325,7 @@ class InMemoryActorTree {
   }
 
 }
+classRegistry.InMemoryActorTree = InMemoryActorTree;
 class QueuedActorTreeItem {
   static TYPE_ADD = 1;
   static TYPE_REMOVE = 2;
@@ -16927,6 +18375,7 @@ class QueuedActorTreeItem {
   }
 
 }
+classRegistry.QueuedActorTreeItem = QueuedActorTreeItem;
 class QueuedActorTree {
   target;
   queue = new ArrayList();
@@ -16950,7 +18399,7 @@ class QueuedActorTree {
       this.add_2_ActorId_Actor(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -17013,7 +18462,7 @@ class QueuedActorTree {
         this.target.remove(item.getId());
       }
       else {
-        throw "unsupported item type";
+        throw new Error("unsupported item type");
       }
     }
     this.queue = new ArrayList();
@@ -17030,6 +18479,7 @@ class QueuedActorTree {
   }
 
 }
+classRegistry.QueuedActorTree = QueuedActorTree;
 class ActorId extends RefId {
   static TYPE = RefIdType.of("ACTOR_ID");
   static ROOT = ActorId.of("ROOT");
@@ -17079,6 +18529,7 @@ class ActorId extends RefId {
   }
 
 }
+classRegistry.ActorId = ActorId;
 class Actor {
   id;
   name;
@@ -17140,13 +18591,13 @@ class Actor {
       let comp = this.components.get(i);
       if (comp.getClass().equals(clazz)) {
         if (res!=null) {
-          throw "actor has more than a single component: "+this.name+" - "+clazz.getName();
+          throw new Error("actor has more than a single component: "+this.name+" - "+clazz.getName());
         }
         res = comp;
       }
     }
     if (res==null) {
-      throw "actor "+this.id.id()+"  doesn't have a requested compoent: "+this.name+" - "+clazz.getName();
+      throw new Error("actor "+this.id.id()+"  doesn't have a requested compoent: "+this.name+" - "+clazz.getName());
     }
     return res;
   }
@@ -17157,7 +18608,7 @@ class Actor {
       let comp = this.components.get(i);
       if (comp.getClass().equals(clazz)) {
         if (res!=null) {
-          throw "actor has more than a single component: "+this.name+" - "+clazz.getName();
+          throw new Error("actor has more than a single component: "+this.name+" - "+clazz.getName());
         }
         res = comp;
       }
@@ -17172,7 +18623,7 @@ class Actor {
         return comp;
       }
     }
-    throw "actor "+this.id.id()+"("+this.name+") doesn't have a requested compoent with a key: "+key;
+    throw new Error("actor "+this.id.id()+"("+this.name+") doesn't have a requested compoent with a key: "+key);
   }
 
   getComponentByKeyNonStrict(clazz, key) {
@@ -17332,7 +18783,7 @@ class Actor {
       return Actor.create_1_string(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -17349,6 +18800,7 @@ class Actor {
   }
 
 }
+classRegistry.Actor = Actor;
 class ActorEventType {
   static OUTSPACE = ActorEventType.create("OUTSPACE");
   type;
@@ -17392,6 +18844,7 @@ class ActorEventType {
   }
 
 }
+classRegistry.ActorEventType = ActorEventType;
 class ActorActions {
   constructor() {
   }
@@ -17423,6 +18876,7 @@ class ActorActions {
   }
 
 }
+classRegistry.ActorActions = ActorActions;
 class ActorDomain {
   static TRANSFORM = ActorDomain.create("TRANSFORM");
   static VISUAL = ActorDomain.create("VISUAL");
@@ -17469,6 +18923,7 @@ class ActorDomain {
   }
 
 }
+classRegistry.ActorDomain = ActorDomain;
 const createPropagationType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -17515,6 +18970,326 @@ const PropagationType = Object.freeze({
     return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
   }
 });
+class ActorPrefabId extends RefId {
+  static TYPE = RefIdType.of("ACTOR_PREFAB_ID");
+  mId;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "ActorPrefabId";
+  }
+
+  guardInvariants() {
+  }
+
+  type() {
+    return ActorPrefabId.TYPE;
+  }
+
+  id() {
+    return this.mId;
+  }
+
+  hashCode() {
+    return this.mId.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ActorPrefabId)) {
+      return false;
+    }
+    let other = obj;
+    return other.mId.equals(this.mId);
+  }
+
+  toString() {
+  }
+
+  static of(id) {
+    let res = new ActorPrefabId();
+    res.mId = id;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ActorPrefabId = ActorPrefabId;
+class ActorPrefab {
+  id;
+  name;
+  tags;
+  components;
+  children;
+  constructor() {
+  }
+
+  getClass() {
+    return "ActorPrefab";
+  }
+
+  guardInvariants() {
+  }
+
+  getId() {
+    return this.id;
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  getTags() {
+    return this.tags;
+  }
+
+  hasTag(tag) {
+    return this.tags.contains(tag);
+  }
+
+  getComponents() {
+    return this.components;
+  }
+
+  getChildren() {
+    return this.children;
+  }
+
+  withName(name) {
+    let res = new ActorPrefab();
+    res.id = this.id;
+    res.name = name;
+    res.tags = this.tags;
+    res.components = this.components;
+    res.children = this.children;
+    res.guardInvariants();
+    return res;
+  }
+
+  withTags(tags) {
+    let res = new ActorPrefab();
+    res.id = this.id;
+    res.name = this.name;
+    res.tags = Dut.copyImmutableSet(tags);
+    res.components = this.components;
+    res.children = this.children;
+    res.guardInvariants();
+    return res;
+  }
+
+  withId(id) {
+    let res = new ActorPrefab();
+    res.id = id;
+    res.name = this.name;
+    res.tags = this.tags;
+    res.components = this.components;
+    res.children = this.children;
+    res.guardInvariants();
+    return res;
+  }
+
+  withComponents(components) {
+    let res = new ActorPrefab();
+    res.id = this.id;
+    res.name = this.name;
+    res.tags = this.tags;
+    res.components = Dut.copyImmutableList(components);
+    res.children = this.children;
+    res.guardInvariants();
+    return res;
+  }
+
+  withAddedComponent(component) {
+    let res = new ActorPrefab();
+    res.id = this.id;
+    res.name = this.name;
+    res.tags = this.tags;
+    res.components = new ArrayList();
+    res.components.addAll(this.components);
+    res.components.add(component);
+    res.components = Collections.unmodifiableList(res.components);
+    res.children = this.children;
+    res.guardInvariants();
+    return res;
+  }
+
+  withUpdatedComponent(idx, component) {
+    let res = new ActorPrefab();
+    res.id = this.id;
+    res.name = this.name;
+    res.tags = this.tags;
+    res.components = new ArrayList();
+    for (let i = 0; i<this.components.size(); ++i) {
+      res.components.add(i==idx?component:this.components.get(i));
+    }
+    res.components = Collections.unmodifiableList(res.components);
+    res.children = this.children;
+    res.guardInvariants();
+    return res;
+  }
+
+  withRemovedComponent(idx) {
+    let res = new ActorPrefab();
+    res.id = this.id;
+    res.name = this.name;
+    res.tags = this.tags;
+    res.components = new ArrayList();
+    for (let i = 0; i<this.components.size(); ++i) {
+      if (i!=idx) {
+        res.components.add(this.components.get(i));
+      }
+    }
+    res.components = Collections.unmodifiableList(res.components);
+    res.children = this.children;
+    res.guardInvariants();
+    return res;
+  }
+
+  withChildren(children) {
+    let res = new ActorPrefab();
+    res.id = this.id;
+    res.name = this.name;
+    res.tags = this.tags;
+    res.components = this.components;
+    res.children = Dut.copyImmutableList(children);
+    res.guardInvariants();
+    return res;
+  }
+
+  isIdUsed(testedId) {
+    if (this.id.equals(testedId)) {
+      return true;
+    }
+    for (let child of this.children) {
+      if (child.isIdUsed(testedId)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  toLatestVersion() {
+    let res = new ActorPrefab();
+    res.id = this.id;
+    res.name = this.name;
+    res.tags = this.tags;
+    res.components = new ArrayList();
+    for (let comp of this.components) {
+      res.components.add(comp.toLatestVersion());
+    }
+    res.components = Collections.unmodifiableList(res.components);
+    res.children = new ArrayList();
+    for (let child of this.children) {
+      res.children.add(child.toLatestVersion());
+    }
+    res.children = Collections.unmodifiableList(res.children);
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(id, name) {
+    let res = new ActorPrefab();
+    res.id = id;
+    res.name = name;
+    res.tags = Collections.emptySet();
+    res.components = Collections.emptyList();
+    res.children = Collections.emptyList();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ActorPrefab = ActorPrefab;
+class ActorPrefabs {
+  constructor() {
+  }
+
+  getClass() {
+    return "ActorPrefabs";
+  }
+
+  static findAllByTag(assets, tag) {
+    let res = new ArrayList();
+    for (let id of assets.getKeys(ActorPrefabId.TYPE)) {
+      let prefab = assets.get("ActorPrefab", id);
+      if (prefab.hasTag(tag)) {
+        res.add(prefab);
+      }
+    }
+    return res;
+  }
+
+}
+classRegistry.ActorPrefabs = ActorPrefabs;
+class CreateActorRequest {
+  prefab;
+  actorId;
+  pos;
+  rot;
+  constructor() {
+  }
+
+  getClass() {
+    return "CreateActorRequest";
+  }
+
+  guardInvariants() {
+  }
+
+  getPrefab() {
+    return this.prefab;
+  }
+
+  getActorId() {
+    return this.actorId;
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getRot() {
+    return this.rot;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(prefab, actorId, pos, rot) {
+    let res = new CreateActorRequest();
+    res.actorId = actorId;
+    res.prefab = prefab;
+    res.pos = pos;
+    res.rot = rot;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CreateActorRequest = CreateActorRequest;
 class ComponentEffect {
   static ABSOLUTE_COORDINATES = ComponentEffect.create("ABSOLUTE_COORDINATES");
   mEffect;
@@ -17558,6 +19333,7 @@ class ComponentEffect {
   }
 
 }
+classRegistry.ComponentEffect = ComponentEffect;
 class ComponentFeature {
   static AABB_PRODUCER = ComponentFeature.create("AABB_PRODUCER");
   static COLLIDER = ComponentFeature.create("COLLIDER");
@@ -17604,6 +19380,7 @@ class ComponentFeature {
   }
 
 }
+classRegistry.ComponentFeature = ComponentFeature;
 class Component {
   mActor = null;
   mKey = "";
@@ -17621,7 +19398,7 @@ class Component {
     if (StringUtils.isNotEmpty(this.mKey)) {
       let compByKey = actor.getComponentByKeyNonStrict("Component", this.mKey);
       if (compByKey!=null&&!compByKey.equals(this)) {
-        throw "component key is duplicated: "+this.mKey;
+        throw new Error("component key is duplicated: "+this.mKey);
       }
     }
     this.init();
@@ -17668,7 +19445,7 @@ class Component {
     Guard.notNull(key, "key cannot be null");
     if (this.mActor!=null&&StringUtils.isNotEmpty(key)) {
       if (this.mActor.getComponentByKeyNonStrict("Component", key)!=null) {
-        throw "component key is duplicated: "+key;
+        throw new Error("component key is duplicated: "+key);
       }
     }
     this.mKey = key;
@@ -17696,6 +19473,7 @@ class Component {
   }
 
 }
+classRegistry.Component = Component;
 class Behavior extends Component {
   constructor() {
     super();
@@ -17712,6 +19490,7 @@ class Behavior extends Component {
   }
 
 }
+classRegistry.Behavior = Behavior;
 class TransformComponent extends Component {
   pos = Vec3.ZERO;
   rot = Quaternion.ZERO_ROT;
@@ -17760,7 +19539,7 @@ class TransformComponent extends Component {
       return this.setPos_3_number_number_number(arguments[0], arguments[1], arguments[2]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -17800,7 +19579,7 @@ class TransformComponent extends Component {
       return this.move_3_number_number_number(arguments[0], arguments[1], arguments[2]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -17852,7 +19631,7 @@ class TransformComponent extends Component {
       return this.lookAt_2_Vec3_Vec3(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -17960,6 +19739,7 @@ class TransformComponent extends Component {
   }
 
 }
+classRegistry.TransformComponent = TransformComponent;
 class AutoRotateComponent extends Behavior {
   angularVelocity = Vec3.ZERO;
   transform;
@@ -18002,6 +19782,7 @@ class AutoRotateComponent extends Behavior {
   }
 
 }
+classRegistry.AutoRotateComponent = AutoRotateComponent;
 class ModelComponent extends Component {
   static FEATURES = Dut.immutableSet(ComponentFeature.AABB_PRODUCER);
   modelId;
@@ -18112,7 +19893,7 @@ class ModelComponent extends Component {
 
   getLocalAabb() {
     if (this.localAabb==null) {
-      let modelAabb = this.world().aabb(this.modelId);
+      let modelAabb = this.world().assets().getCompanion("Aabb3", this.modelId, AssetCompanionType.BOUNDING_AABB);
       this.localAabb = modelAabb.transform(this.transform);
     }
     return this.localAabb;
@@ -18153,6 +19934,7 @@ class ModelComponent extends Component {
   }
 
 }
+classRegistry.ModelComponent = ModelComponent;
 class LightComponent extends Component {
   enabled;
   type;
@@ -18247,6 +20029,7 @@ class LightComponent extends Component {
   }
 
 }
+classRegistry.LightComponent = LightComponent;
 class CameraComponent extends Component {
   static FWD = Vec3.create(0, 0, -1);
   static UP = Vec3.create(0, 1, 0);
@@ -18354,7 +20137,7 @@ class CameraComponent extends Component {
       return this.setPersp_4_number_number_number_number(arguments[0], arguments[1], arguments[2], arguments[3]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -18390,7 +20173,7 @@ class CameraComponent extends Component {
       return this.customCamera;
     }
     else {
-      throw "unsupported camera type: "+this.type;
+      throw new Error("unsupported camera type: "+this.type);
     }
   }
 
@@ -18403,7 +20186,7 @@ class CameraComponent extends Component {
       return this.customCamera;
     }
     else {
-      throw "unsupported camera type: "+this.type;
+      throw new Error("unsupported camera type: "+this.type);
     }
   }
 
@@ -18437,6 +20220,7 @@ class CameraComponent extends Component {
   }
 
 }
+classRegistry.CameraComponent = CameraComponent;
 class CameraFovyComponent extends Behavior {
   displaySizeInputKey = "display.size";
   fovyLandscape = FMath.toRadians(60);
@@ -18506,6 +20290,7 @@ class CameraFovyComponent extends Behavior {
   }
 
 }
+classRegistry.CameraFovyComponent = CameraFovyComponent;
 class SkyboxComponent extends Component {
   modelId;
   transform;
@@ -18606,6 +20391,7 @@ class SkyboxComponent extends Component {
   }
 
 }
+classRegistry.SkyboxComponent = SkyboxComponent;
 class WorldComponent extends Behavior {
   gravity;
   drag = 0.5;
@@ -18707,6 +20493,7 @@ class WorldComponent extends Behavior {
   }
 
 }
+classRegistry.WorldComponent = WorldComponent;
 class ColliderComponent extends Component {
   static FEATURES = Dut.immutableSet(ComponentFeature.AABB_PRODUCER, ComponentFeature.COLLIDER);
   active = true;
@@ -18816,7 +20603,7 @@ class ColliderComponent extends Component {
       return this.setPos_3_number_number_number(arguments[0], arguments[1], arguments[2]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -18884,7 +20671,7 @@ class ColliderComponent extends Component {
       return this.setSize_3_number_number_number(arguments[0], arguments[1], arguments[2]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -18949,10 +20736,10 @@ class ColliderComponent extends Component {
       return this.globalMat.mul(x, y, z);
     }
     else if (this.shape.equals(ColliderShape.CAPSULE)) {
-      throw "TODO";
+      throw new Error("TODO");
     }
     else {
-      throw "unsupported shape: "+this.shape;
+      throw new Error("unsupported shape: "+this.shape);
     }
   }
 
@@ -18988,7 +20775,7 @@ class ColliderComponent extends Component {
         this.volume = CollisionCapsule.create(p1, p2, this.radius);
       }
       else {
-        throw "unsupported shape: "+this.shape;
+        throw new Error("unsupported shape: "+this.shape);
       }
     }
     if (this.localAabb==null) {
@@ -19003,7 +20790,7 @@ class ColliderComponent extends Component {
         baseAabb = Aabb3.create(-this.radius, -this.height/2, -this.radius, this.radius, this.height/2, this.radius);
       }
       else {
-        throw "unsupported shape: "+this.shape;
+        throw new Error("unsupported shape: "+this.shape);
       }
       this.localAabb = this.localMat.equals(Mat44.IDENTITY)?baseAabb:baseAabb.transform(this.localMat);
     }
@@ -19025,6 +20812,7 @@ class ColliderComponent extends Component {
   }
 
 }
+classRegistry.ColliderComponent = ColliderComponent;
 class RigidBodyComponent extends Component {
   static RB_EFFECTS = Dut.immutableSet(ComponentEffect.ABSOLUTE_COORDINATES);
   kinematic = false;
@@ -19300,7 +21088,7 @@ class RigidBodyComponent extends Component {
           numColliders = numColliders+1;
         }
         else {
-          throw "unsupported collider shape, implement me: "+collider.getShape();
+          throw new Error("unsupported collider shape, implement me: "+collider.getShape());
         }
       }
     }
@@ -19318,6 +21106,7 @@ class RigidBodyComponent extends Component {
   }
 
 }
+classRegistry.RigidBodyComponent = RigidBodyComponent;
 class BallSocketJointConfig {
   actorA;
   actorB;
@@ -19365,6 +21154,7 @@ class BallSocketJointConfig {
   }
 
 }
+classRegistry.BallSocketJointConfig = BallSocketJointConfig;
 class BallSocketJointComponent extends Behavior {
   static FEATURES = Dut.immutableSet(ComponentFeature.COLLISION_EXCLUSION_PRODUCER, ComponentFeature.RIGID_BODY_JOINT);
   localPosA;
@@ -19453,7 +21243,7 @@ class BallSocketJointComponent extends Behavior {
       return this.setJoint_3_string_string_Vec3(arguments[0], arguments[1], arguments[2]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -19488,6 +21278,7 @@ class BallSocketJointComponent extends Behavior {
   }
 
 }
+classRegistry.BallSocketJointComponent = BallSocketJointComponent;
 class HingeJointConfig {
   actorA;
   actorB;
@@ -19541,6 +21332,7 @@ class HingeJointConfig {
   }
 
 }
+classRegistry.HingeJointConfig = HingeJointConfig;
 class HingeJointComponent extends Behavior {
   static FEATURES = Dut.immutableSet(ComponentFeature.COLLISION_EXCLUSION_PRODUCER, ComponentFeature.RIGID_BODY_JOINT);
   rigidBodyA;
@@ -19661,7 +21453,7 @@ class HingeJointComponent extends Behavior {
       return this.setJoint_4_string_string_Vec3_Vec3(arguments[0], arguments[1], arguments[2], arguments[3]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -19693,6 +21485,7 @@ class HingeJointComponent extends Behavior {
   }
 
 }
+classRegistry.HingeJointComponent = HingeJointComponent;
 class PrismaticJointConfig {
   actorA;
   actorB;
@@ -19746,6 +21539,7 @@ class PrismaticJointConfig {
   }
 
 }
+classRegistry.PrismaticJointConfig = PrismaticJointConfig;
 class PrismaticJointComponent extends Behavior {
   static FEATURES = Dut.immutableSet(ComponentFeature.COLLISION_EXCLUSION_PRODUCER, ComponentFeature.RIGID_BODY_JOINT);
   rigidBodyA;
@@ -19851,7 +21645,7 @@ class PrismaticJointComponent extends Behavior {
       return this.setJoint_4_string_string_Vec3_Vec3(arguments[0], arguments[1], arguments[2], arguments[3]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -19883,6 +21677,7 @@ class PrismaticJointComponent extends Behavior {
   }
 
 }
+classRegistry.PrismaticJointComponent = PrismaticJointComponent;
 class FixedJointConfig {
   actorA;
   actorB;
@@ -19928,7 +21723,7 @@ class FixedJointConfig {
       return FixedJointConfig.create_2_ActorId_ActorId(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -19950,6 +21745,7 @@ class FixedJointConfig {
   }
 
 }
+classRegistry.FixedJointConfig = FixedJointConfig;
 class FixedJointComponent extends Behavior {
   static FEATURES = Dut.immutableSet(ComponentFeature.COLLISION_EXCLUSION_PRODUCER, ComponentFeature.RIGID_BODY_JOINT);
   actorA;
@@ -20065,7 +21861,7 @@ class FixedJointComponent extends Behavior {
       return this.setJoint_2_string_string(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -20109,6 +21905,7 @@ class FixedJointComponent extends Behavior {
   }
 
 }
+classRegistry.FixedJointComponent = FixedJointComponent;
 class RemoveOnOutspaceComponent extends Component {
   constructor() {
     super();
@@ -20134,6 +21931,7 @@ class RemoveOnOutspaceComponent extends Component {
   }
 
 }
+classRegistry.RemoveOnOutspaceComponent = RemoveOnOutspaceComponent;
 class LifetimeComponent extends Behavior {
   active;
   remaining;
@@ -20179,7 +21977,7 @@ class LifetimeComponent extends Behavior {
       return this.setRemaining_2_number_number(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -20205,6 +22003,678 @@ class LifetimeComponent extends Behavior {
   }
 
 }
+classRegistry.LifetimeComponent = LifetimeComponent;
+const createComponentPrefabType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const ComponentPrefabType = Object.freeze({
+  TRANSFORM: createComponentPrefabType("TRANSFORM"),
+  RIGID_BODY: createComponentPrefabType("RIGID_BODY"),
+  MODEL: createComponentPrefabType("MODEL"),
+  SPHERE_COLLIDER: createComponentPrefabType("SPHERE_COLLIDER"),
+  BOX_COLLIDER: createComponentPrefabType("BOX_COLLIDER"),
+  CAPSULE_COLLIDER: createComponentPrefabType("CAPSULE_COLLIDER"),
+  DIR_LIGHT: createComponentPrefabType("DIR_LIGHT"),
+  PERSPECTIVE_CAMERA: createComponentPrefabType("PERSPECTIVE_CAMERA"),
+  PERSPECTIVE_CAMERA_FOVY: createComponentPrefabType("PERSPECTIVE_CAMERA_FOVY"),
+  WORLD: createComponentPrefabType("WORLD"),
+  AUTO_ROTATE: createComponentPrefabType("AUTO_ROTATE"),
+  LIFETIME: createComponentPrefabType("LIFETIME"),
+  REMOVE_ON_OUTSPACE: createComponentPrefabType("REMOVE_ON_OUTSPACE"),
+  POI: createComponentPrefabType("POI"),
+  RP_GENERATOR: createComponentPrefabType("RP_GENERATOR"),
+  SKYBOX: createComponentPrefabType("SKYBOX"),
+  SCRIPT: createComponentPrefabType("SCRIPT"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class ComponentPrefab {
+  type;
+  key;
+  version;
+  properties;
+  constructor() {
+  }
+
+  getClass() {
+    return "ComponentPrefab";
+  }
+
+  guardInvariants() {
+  }
+
+  getType() {
+    return this.type;
+  }
+
+  getKey() {
+    return this.key;
+  }
+
+  getVersion() {
+    return this.version;
+  }
+
+  getProperties() {
+    return this.properties;
+  }
+
+  getBoolean(key) {
+    return Formats.parseBoolean(this.properties.get(key));
+  }
+
+  getInteger(key) {
+    return Formats.parseInt(this.properties.get(key));
+  }
+
+  getFloat() {
+    if (arguments.length===1&& typeof arguments[0]==="string") {
+      return this.getFloat_1_string(arguments[0]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="string"&& typeof arguments[1]==="number") {
+      return this.getFloat_2_string_number(arguments[0], arguments[1]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  getFloat_1_string(key) {
+    return Formats.parseFloat(this.properties.get(key));
+  }
+
+  getFloat_2_string_number(key, def) {
+    return this.properties.containsKey(key)?Formats.parseFloat(this.properties.get(key)):def;
+  }
+
+  getString(key) {
+    return this.properties.get(key);
+  }
+
+  getVec3() {
+    if (arguments.length===1&& typeof arguments[0]==="string") {
+      return this.getVec3_1_string(arguments[0]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="string"&&arguments[1] instanceof Vec3) {
+      return this.getVec3_2_string_Vec3(arguments[0], arguments[1]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  getVec3_1_string(key) {
+    return Jsons.toVec3(this.properties.get(key));
+  }
+
+  getVec3_2_string_Vec3(key, def) {
+    if (this.properties.containsKey(key)) {
+      return Jsons.toVec3(this.properties.get(key));
+    }
+    else {
+      return def;
+    }
+  }
+
+  getQuaternion() {
+    if (arguments.length===1&& typeof arguments[0]==="string") {
+      return this.getQuaternion_1_string(arguments[0]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="string"&&arguments[1] instanceof Quaternion) {
+      return this.getQuaternion_2_string_Quaternion(arguments[0], arguments[1]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  getQuaternion_1_string(key) {
+    return Jsons.toQuaternion(this.properties.get(key));
+  }
+
+  getQuaternion_2_string_Quaternion(key, def) {
+    if (this.properties.containsKey(key)) {
+      return Jsons.toQuaternion(this.properties.get(key));
+    }
+    else {
+      return def;
+    }
+  }
+
+  getAabb3(key) {
+    return Jsons.toAabb3(this.properties.get(key));
+  }
+
+  getMat33(key) {
+    return Jsons.toMat33(this.properties.get(key));
+  }
+
+  getMat44(key) {
+    return Jsons.toMat44(this.properties.get(key));
+  }
+
+  getRgb(key) {
+    return Jsons.toRgb(this.properties.get(key));
+  }
+
+  getFrameInterpolation() {
+    if (arguments.length===1&& typeof arguments[0]==="string") {
+      return this.getFrameInterpolation_1_string(arguments[0]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="string"&&arguments[1] instanceof FrameInterpolation) {
+      return this.getFrameInterpolation_2_string_FrameInterpolation(arguments[0], arguments[1]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  getFrameInterpolation_1_string(key) {
+    return Jsons.toFrameInterpolation(this.properties.get(key));
+  }
+
+  getFrameInterpolation_2_string_FrameInterpolation(key, def) {
+    if (this.properties.containsKey(key)) {
+      return Jsons.toFrameInterpolation(this.properties.get(key));
+    }
+    else {
+      return def;
+    }
+  }
+
+  getCollisionLayer(key) {
+    return CollisionLayer.of(this.properties.get(key));
+  }
+
+  getPhysicalMaterialId(key) {
+    return PhysicalMaterialId.of(this.properties.get(key));
+  }
+
+  withKey(key) {
+    let res = new ComponentPrefab();
+    res.type = this.type;
+    res.version = this.version;
+    res.key = key;
+    res.properties = this.properties;
+    res.guardInvariants();
+    return res;
+  }
+
+  withProperty(key, val) {
+    let strVal = null;
+    if (val instanceof Boolean) {
+      strVal = (val).this.toString();
+    }
+    else if (val instanceof Integer) {
+      strVal = (val).this.toString();
+    }
+    else if (val instanceof Float) {
+      strVal = (val).this.toString();
+    }
+    else if (val instanceof String) {
+      strVal = (val);
+    }
+    else if (val instanceof Vec3) {
+      strVal = Jsons.toJson(val);
+    }
+    else if (val instanceof Quaternion) {
+      strVal = Jsons.toJson(val);
+    }
+    else if (val instanceof Aabb3) {
+      strVal = Jsons.toJson(val);
+    }
+    else if (val instanceof Mat33) {
+      strVal = Jsons.toJson(val);
+    }
+    else if (val instanceof Mat44) {
+      strVal = Jsons.toJson(val);
+    }
+    else if (val instanceof Rgb) {
+      strVal = Jsons.toJson(val);
+    }
+    else if (val instanceof FrameInterpolation) {
+      strVal = Jsons.toJson(val);
+    }
+    else {
+      throw new Error("unsupported value type, implement me: "+val);
+    }
+    let res = new ComponentPrefab();
+    res.type = this.type;
+    res.version = this.version;
+    res.key = this.key;
+    res.properties = new HashMap();
+    res.properties.putAll(this.properties);
+    res.properties.put(key, strVal);
+    res.properties = Collections.unmodifiableMap(res.properties);
+    res.guardInvariants();
+    return res;
+  }
+
+  toLatestVersion() {
+    if (this.type.equals(ComponentPrefabType.SPHERE_COLLIDER)&&this.version==1) {
+      return ComponentPrefab.sphereCollider(true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getQuaternion("rot", Quaternion.ZERO_ROT), this.getFloat("radius")).withKey(this.key);
+    }
+    if (this.type.equals(ComponentPrefabType.BOX_COLLIDER)&&this.version==1) {
+      return ComponentPrefab.boxCollider(true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getQuaternion("rot", Quaternion.ZERO_ROT), this.getVec3("size")).withKey(this.key);
+    }
+    if (this.type.equals(ComponentPrefabType.CAPSULE_COLLIDER)&&this.version==1) {
+      return ComponentPrefab.capsuleCollider(true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getQuaternion("rot", Quaternion.ZERO_ROT), this.getFloat("height"), this.getFloat("radius")).withKey(this.key);
+    }
+    return this;
+  }
+
+  toComponent() {
+    if (this.type.equals(ComponentPrefabType.TRANSFORM)) {
+      if (this.version==1) {
+        return TransformComponent.create().setPos(Jsons.toVec3(this.properties.get("pos"))).setRot(Jsons.toQuaternion(this.properties.get("rot"))).setKey(this.key);
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
+    else if (this.type.equals(ComponentPrefabType.RIGID_BODY)) {
+      if (this.version==1) {
+        return RigidBodyComponent.create().setKinematic(Formats.parseBoolean(this.properties.get("kinematic"))).setRotationLock(Formats.parseBoolean(this.properties.get("rotationLock"))).setMass(Formats.parseFloat(this.properties.get("mass"))).setDamp(Formats.parseFloat(this.properties.get("damp"))).setAngularDamp(Formats.parseFloat(this.properties.get("angularDamp"))).setVelocity(this.properties.containsKey("velocity")?Jsons.toVec3(this.properties.get("velocity")):Vec3.ZERO).setAngularVelocity(this.properties.containsKey("angularVelocity")?Jsons.toVec3(this.properties.get("angularVelocity")):Vec3.ZERO).setKey(this.key);
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
+    else if (this.type.equals(ComponentPrefabType.MODEL)) {
+      if (this.version==1) {
+        let trans = Mat44.IDENTITY;
+        let scale = this.getVec3("scale");
+        trans = Mat44.scale(scale.x(), scale.y(), scale.z()).mul(trans);
+        let rot = this.getQuaternion("rot");
+        trans = Mat44.rot(rot).mul(trans);
+        let pos = this.getVec3("pos");
+        trans = Mat44.trans(pos).mul(trans);
+        return ModelComponent.create().setModelId(ModelId.of(this.properties.get("modelId"))).setTransform(trans).setInterpolation(this.getFrameInterpolation("interpolation", FrameInterpolation.create(0, 0, 0))).setVisible(Formats.parseBoolean(this.properties.get("visible"))).setCastShadows(Formats.parseBoolean(this.properties.get("castShadows"))).setReceiveShadows(Formats.parseBoolean(this.properties.get("receiveShadows"))).setKey(this.key);
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
+    else if (this.type.equals(ComponentPrefabType.SPHERE_COLLIDER)) {
+      if (this.version==1) {
+        let pos = this.getVec3("pos", Vec3.ZERO);
+        let rot = this.getQuaternion("rot", Quaternion.ZERO_ROT);
+        return ColliderComponent.create().setShape(ColliderShape.SPHERE).setActive(true).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setRadius(Formats.parseFloat(this.properties.get("radius"))).setKey(this.key);
+      }
+      else if (this.version==2) {
+        let pos = this.getVec3("pos", Vec3.ZERO);
+        let rot = this.getQuaternion("rot", Quaternion.ZERO_ROT);
+        return ColliderComponent.create().setShape(ColliderShape.SPHERE).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setRadius(Formats.parseFloat(this.properties.get("radius"))).setKey(this.key);
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
+    else if (this.type.equals(ComponentPrefabType.BOX_COLLIDER)) {
+      if (this.version==1) {
+        let pos = this.getVec3("pos", Vec3.ZERO);
+        let rot = this.getQuaternion("rot", Quaternion.ZERO_ROT);
+        return ColliderComponent.create().setShape(ColliderShape.BOX).setActive(true).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setSize(Jsons.toVec3(this.properties.get("size"))).setKey(this.key);
+      }
+      else if (this.version==2) {
+        let pos = this.getVec3("pos", Vec3.ZERO);
+        let rot = this.getQuaternion("rot", Quaternion.ZERO_ROT);
+        return ColliderComponent.create().setShape(ColliderShape.BOX).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setSize(Jsons.toVec3(this.properties.get("size"))).setKey(this.key);
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
+    else if (this.type.equals(ComponentPrefabType.CAPSULE_COLLIDER)) {
+      if (this.version==1) {
+        let pos = this.getVec3("pos", Vec3.ZERO);
+        let rot = this.getQuaternion("rot", Quaternion.ZERO_ROT);
+        return ColliderComponent.create().setShape(ColliderShape.CAPSULE).setActive(true).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setHeight(Formats.parseFloat(this.properties.get("height"))).setRadius(Formats.parseFloat(this.properties.get("radius"))).setKey(this.key);
+      }
+      else if (this.version==2) {
+        let pos = this.getVec3("pos", Vec3.ZERO);
+        let rot = this.getQuaternion("rot", Quaternion.ZERO_ROT);
+        return ColliderComponent.create().setShape(ColliderShape.CAPSULE).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setHeight(Formats.parseFloat(this.properties.get("height"))).setRadius(Formats.parseFloat(this.properties.get("radius"))).setKey(this.key);
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
+    else if (this.type.equals(ComponentPrefabType.DIR_LIGHT)) {
+      if (this.version==1) {
+        return LightComponent.create().setType(LightType.DIRECTIONAL).setEnabled(Formats.parseBoolean(this.properties.get("enabled"))).setShadow(Formats.parseBoolean(this.properties.get("shadow"))).setAmbient(Jsons.toRgb(this.properties.get("ambient"))).setDiffuse(Jsons.toRgb(this.properties.get("diffuse"))).setSpecular(Jsons.toRgb(this.properties.get("specular"))).setKey(this.key);
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
+    else if (this.type.equals(ComponentPrefabType.PERSPECTIVE_CAMERA)) {
+      if (this.version==1) {
+        return CameraComponent.create().setType(CameraType.PERSPECTIVE).setFovy(Formats.parseFloat(this.properties.get("fovy"))).setAspect(Formats.parseFloat(this.properties.get("aspect"))).setNear(Formats.parseFloat(this.properties.get("near"))).setFar(Formats.parseFloat(this.properties.get("far"))).setKey(this.key);
+      }
+      else if (this.version==2) {
+        return CameraComponent.create().setType(CameraType.PERSPECTIVE).setFovy(Formats.parseFloat(this.properties.get("fovy"))).setAspect(Formats.parseFloat(this.properties.get("aspect"))).setNear(Formats.parseFloat(this.properties.get("near"))).setFar(Formats.parseFloat(this.properties.get("far"))).setSkyboxNear(Formats.parseFloat(this.properties.get("skyboxNear"))).setSkyboxFar(Formats.parseFloat(this.properties.get("skyboxFar"))).setKey(this.key);
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
+    else if (this.type.equals(ComponentPrefabType.PERSPECTIVE_CAMERA_FOVY)) {
+      if (this.version==1) {
+        return CameraFovyComponent.create().setDisplaySizeInputKey(this.properties.get("displaySizeInputKey")).setFovyLandscape(this.getFloat("fovyLandscape")).setFovyPortrait(this.getFloat("fovyPortrait")).setKey(this.key);
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
+    else if (this.type.equals(ComponentPrefabType.SKYBOX)) {
+      if (this.version==1) {
+        let trans = Mat44.IDENTITY;
+        let scale = this.getVec3("scale");
+        trans = Mat44.scale(scale.x(), scale.y(), scale.z()).mul(trans);
+        let rot = this.getQuaternion("rot");
+        trans = Mat44.rot(rot).mul(trans);
+        let pos = this.getVec3("pos");
+        trans = Mat44.trans(pos).mul(trans);
+        return SkyboxComponent.create().setModelId(ModelId.of(this.properties.get("modelId"))).setTransform(trans).setVisible(Formats.parseBoolean(this.properties.get("visible"))).setKey(this.key);
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
+    else if (this.type.equals(ComponentPrefabType.WORLD)) {
+      if (this.version==1) {
+        return WorldComponent.create().setGravity(Jsons.toVec3(this.properties.get("gravity"))).setDrag(Formats.parseFloat(this.properties.get("drag"))).setAngularDrag(Formats.parseFloat(this.properties.get("angularDrag"))).setBoundary(Jsons.toAabb3(this.properties.get("boundary"))).setKey(this.key);
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
+    else if (this.type.equals(ComponentPrefabType.AUTO_ROTATE)) {
+      if (this.version==1) {
+        return AutoRotateComponent.create().setAngularVelocity(Jsons.toVec3(this.properties.get("angularVelocity"))).setKey(this.key);
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
+    else if (this.type.equals(ComponentPrefabType.LIFETIME)) {
+      if (this.version==1) {
+        return LifetimeComponent.create().setActive(this.getBoolean("active")).setRemaining(this.getFloat("remaining"), this.getFloat("random")).setKey(this.key);
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
+    else if (this.type.equals(ComponentPrefabType.REMOVE_ON_OUTSPACE)) {
+      if (this.version==1) {
+        return RemoveOnOutspaceComponent.create().setKey(this.key);
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
+    else if (this.type.equals(ComponentPrefabType.POI)) {
+      if (this.version==1) {
+        return PoiComponent.create().setPos(this.getVec3("pos")).setKey(this.key);
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
+    else if (this.type.equals(ComponentPrefabType.RP_GENERATOR)) {
+      if (this.version==1) {
+        return RpGeneratorComponent.create().setActive(this.getBoolean("active")).setWeight(this.getFloat("weight")).setGroups(Dut.copySet(Json.decodeStringList(this.getString("groups")))).setShape(RpGeneratorShape.valueOf(this.getString("shape"))).setPos(this.getVec3("pos")).setRot(this.getQuaternion("rot")).setRadius(this.getFloat("radius")).setSize(this.getVec3("size")).setKey(this.key);
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
+    else if (this.type.equals(ComponentPrefabType.SCRIPT)) {
+      if (this.version==1) {
+        let res = Reflections.createClass(this.properties.get("className"));
+        res.setKey(this.key);
+        Reflections.callInstanceMethodIfExists(res, "setProperties", Jsons.toStringMap(this.properties.get("properties")));
+        return res;
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
+    else {
+      throw new Error("unsupported type: "+this.type);
+    }
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(type, key, version, properties) {
+    let res = new ComponentPrefab();
+    res.type = type;
+    res.key = key;
+    res.version = version;
+    res.properties = Dut.copyImmutableMap(properties);
+    res.guardInvariants();
+    return res;
+  }
+
+  static transform(pos, rot) {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.TRANSFORM;
+    res.key = "";
+    res.version = 1;
+    res.properties = Dut.immutableMap("pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot));
+    res.guardInvariants();
+    return res;
+  }
+
+  static rigidBody(kinematic, rotationLock, mass, damp, angularDamp) {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.RIGID_BODY;
+    res.key = "";
+    res.version = 1;
+    res.properties = Dut.immutableMap("kinematic", String.valueOf(kinematic), "rotationLock", String.valueOf(rotationLock), "mass", String.valueOf(mass), "damp", String.valueOf(damp), "angularDamp", String.valueOf(angularDamp));
+    res.guardInvariants();
+    return res;
+  }
+
+  static model(modelId, pos, rot, scale, visible, castShadows, receiveShadows) {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.MODEL;
+    res.key = "";
+    res.version = 1;
+    res.properties = Dut.immutableMap("modelId", modelId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "scale", Jsons.toJson(scale), "visible", String.valueOf(visible), "castShadows", String.valueOf(castShadows), "receiveShadows", String.valueOf(receiveShadows), "interpolation", Jsons.toJson(FrameInterpolation.create(0, 0, 0)));
+    res.guardInvariants();
+    return res;
+  }
+
+  static sphereCollider(active, trigger, layer, materialId, pos, rot, radius) {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.SPHERE_COLLIDER;
+    res.key = "";
+    res.version = 2;
+    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "radius", String.valueOf(radius));
+    res.guardInvariants();
+    return res;
+  }
+
+  static boxCollider(active, trigger, layer, materialId, pos, rot, size) {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.BOX_COLLIDER;
+    res.key = "";
+    res.version = 2;
+    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "size", Jsons.toJson(size));
+    res.guardInvariants();
+    return res;
+  }
+
+  static capsuleCollider(active, trigger, layer, materialId, pos, rot, height, radius) {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.CAPSULE_COLLIDER;
+    res.key = "";
+    res.version = 2;
+    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "height", String.valueOf(height), "radius", String.valueOf(radius));
+    res.guardInvariants();
+    return res;
+  }
+
+  static dirLight(enabled, shadow, ambient, diffuse, specular) {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.DIR_LIGHT;
+    res.key = "";
+    res.version = 1;
+    res.properties = Dut.immutableMap("enabled", String.valueOf(enabled), "shadow", String.valueOf(shadow), "ambient", Jsons.toJson(ambient), "diffuse", Jsons.toJson(diffuse), "specular", Jsons.toJson(specular));
+    res.guardInvariants();
+    return res;
+  }
+
+  static perspectiveCamera(fovy, aspect, near, far, skyboxNear, skyboxFar) {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.PERSPECTIVE_CAMERA;
+    res.key = "";
+    res.version = 2;
+    res.properties = Dut.immutableMap("fovy", String.valueOf(fovy), "aspect", String.valueOf(aspect), "near", String.valueOf(near), "far", String.valueOf(far), "skyboxNear", String.valueOf(skyboxNear), "skyboxFar", String.valueOf(skyboxFar));
+    res.guardInvariants();
+    return res;
+  }
+
+  static perspectiveCameraFovy(displaySizeInputKey, fovyLandscape, fovyPortrait) {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.PERSPECTIVE_CAMERA_FOVY;
+    res.key = "";
+    res.version = 1;
+    res.properties = Dut.immutableMap("displaySizeInputKey", displaySizeInputKey, "fovyLandscape", String.valueOf(fovyLandscape), "fovyPortrait", String.valueOf(fovyPortrait));
+    res.guardInvariants();
+    return res;
+  }
+
+  static skybox(modelId, pos, rot, scale, visible) {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.SKYBOX;
+    res.key = "";
+    res.version = 1;
+    res.properties = Dut.immutableMap("modelId", modelId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "scale", Jsons.toJson(scale), "visible", String.valueOf(visible));
+    res.guardInvariants();
+    return res;
+  }
+
+  static world(gravity, drag, angularDrag, boundary) {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.WORLD;
+    res.key = "";
+    res.version = 1;
+    res.properties = Dut.immutableMap("gravity", Jsons.toJson(gravity), "drag", String.valueOf(drag), "angularDrag", String.valueOf(angularDrag), "boundary", Jsons.toJson(boundary));
+    res.guardInvariants();
+    return res;
+  }
+
+  static autoRotate(angularVelocity) {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.AUTO_ROTATE;
+    res.key = "";
+    res.version = 1;
+    res.properties = Dut.immutableMap("angularVelocity", Jsons.toJson(angularVelocity));
+    res.guardInvariants();
+    return res;
+  }
+
+  static lifetime(active, remaining, random) {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.LIFETIME;
+    res.key = "";
+    res.version = 1;
+    res.properties = Dut.immutableMap("active", String.valueOf(active), "remaining", String.valueOf(remaining), "random", String.valueOf(random));
+    res.guardInvariants();
+    return res;
+  }
+
+  static removeOnOutspace() {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.REMOVE_ON_OUTSPACE;
+    res.key = "";
+    res.version = 1;
+    res.properties = Collections.emptyMap();
+    res.guardInvariants();
+    return res;
+  }
+
+  static poi(pos) {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.POI;
+    res.key = "";
+    res.version = 1;
+    res.properties = Dut.immutableMap("pos", Jsons.toJson(pos));
+    res.guardInvariants();
+    return res;
+  }
+
+  static rpGenerator(active, weight, groups, shape, pos, rot, radius, size) {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.RP_GENERATOR;
+    res.key = "";
+    res.version = 1;
+    res.properties = Dut.immutableMap("active", String.valueOf(active), "weight", String.valueOf(weight), "groups", Json.encodeStringList(Dut.copyImmutableList(Dut.copySortedSet(groups))), "shape", shape.name(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "radius", String.valueOf(radius), "size", Jsons.toJson(size));
+    res.guardInvariants();
+    return res;
+  }
+
+  static script(className, properties) {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.SCRIPT;
+    res.key = "";
+    res.version = 1;
+    res.properties = Dut.immutableMap("className", className, "properties", Json.encodeStringMap(properties));
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ComponentPrefab = ComponentPrefab;
 class CollisionGeometry {
   constructor() {
   }
@@ -20270,6 +22740,7 @@ class CollisionGeometry {
   }
 
 }
+classRegistry.CollisionGeometry = CollisionGeometry;
 const createColliderShape = (description) => {
   const symbol = Symbol(description);
   return {
@@ -20357,6 +22828,7 @@ class CollisionSphere {
   }
 
 }
+classRegistry.CollisionSphere = CollisionSphere;
 class CollisionCapsule {
   pivot1;
   pivot2;
@@ -20421,6 +22893,7 @@ class CollisionCapsule {
   }
 
 }
+classRegistry.CollisionCapsule = CollisionCapsule;
 class CollisionBox {
   pos;
   ux;
@@ -20605,7 +23078,7 @@ class CollisionBox {
       return CollisionBox.create_5_Vec3_Mat33_number_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -20638,6 +23111,7 @@ class CollisionBox {
   }
 
 }
+classRegistry.CollisionBox = CollisionBox;
 class CollisionLayer {
   static WALL = CollisionLayer.of("WALL");
   static OBJECT = CollisionLayer.of("OBJECT");
@@ -20682,6 +23156,7 @@ class CollisionLayer {
   }
 
 }
+classRegistry.CollisionLayer = CollisionLayer;
 class CollisionLayerMatrix {
   def;
   matrix;
@@ -20799,6 +23274,7 @@ class CollisionLayerMatrix {
   }
 
 }
+classRegistry.CollisionLayerMatrix = CollisionLayerMatrix;
 class CollisionGridPlacement {
   minX;
   minY;
@@ -20871,6 +23347,7 @@ class CollisionGridPlacement {
   }
 
 }
+classRegistry.CollisionGridPlacement = CollisionGridPlacement;
 class CollisionCandidatePair {
   actorA;
   actorB;
@@ -20918,7 +23395,7 @@ class CollisionCandidatePair {
       return CollisionCandidatePair.create_2_string_string(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -20939,6 +23416,7 @@ class CollisionCandidatePair {
   }
 
 }
+classRegistry.CollisionCandidatePair = CollisionCandidatePair;
 class CollisionExclusion {
   actorA;
   actorB;
@@ -20987,6 +23465,7 @@ class CollisionExclusion {
   }
 
 }
+classRegistry.CollisionExclusion = CollisionExclusion;
 class CollisionGrid {
   static GRID_COLOR = Rgb.create(0.2, 0.8, 0.5);
   cellSize;
@@ -21148,11 +23627,11 @@ class CollisionGrid {
     let maxY = aabb.max().y()-spaceMin.y();
     let maxZ = aabb.max().z()-spaceMin.z();
     if (minX<0||minY<0||minZ<0) {
-      throw "box is out of the grid in minimum";
+      throw new Error("box is out of the grid in minimum");
     }
     let res = CollisionGridPlacement.create(FMath.trunc(minX/this.cellSize), FMath.trunc(minY/this.cellSize), FMath.trunc(minZ/this.cellSize), FMath.trunc(maxX/this.cellSize), FMath.trunc(maxY/this.cellSize), FMath.trunc(maxZ/this.cellSize));
     if (res.getMaxX()>=this.numCellsX||res.getMaxY()>=this.numCellsY||res.getMaxZ()>=this.numCellsZ) {
-      throw "box is out of the grid in maximum";
+      throw new Error("box is out of the grid in maximum");
     }
     return res;
   }
@@ -21184,6 +23663,7 @@ class CollisionGrid {
   }
 
 }
+classRegistry.CollisionGrid = CollisionGrid;
 class CollisionGridBroadphaseManager {
   cellSize;
   cellSizeIncrement;
@@ -21258,6 +23738,7 @@ class CollisionGridBroadphaseManager {
   }
 
 }
+classRegistry.CollisionGridBroadphaseManager = CollisionGridBroadphaseManager;
 class BroadphaseCollisionManager {
   static RECALCULATE_TRIGGER_DOMAINS = Dut.immutableSet(ActorDomain.TRANSFORM, ActorDomain.COLLISION, ActorDomain.VISUAL);
   layerMatrix;
@@ -21321,7 +23802,7 @@ class BroadphaseCollisionManager {
       this.recalculateActorFully(actor);
     }
     else {
-      throw "unsupported domain: "+domain;
+      throw new Error("unsupported domain: "+domain);
     }
   }
 
@@ -21478,6 +23959,7 @@ class BroadphaseCollisionManager {
   }
 
 }
+classRegistry.BroadphaseCollisionManager = BroadphaseCollisionManager;
 class ContactPoint {
   posA;
   posB;
@@ -21559,6 +24041,7 @@ class ContactPoint {
   }
 
 }
+classRegistry.ContactPoint = ContactPoint;
 class Contact {
   colliderA;
   colliderB;
@@ -21626,6 +24109,7 @@ class Contact {
   }
 
 }
+classRegistry.Contact = Contact;
 class SphereSphereCollisions {
   constructor() {
   }
@@ -21656,6 +24140,7 @@ class SphereSphereCollisions {
   }
 
 }
+classRegistry.SphereSphereCollisions = SphereSphereCollisions;
 class CapsuleSphereCollisions {
   constructor() {
   }
@@ -21688,6 +24173,7 @@ class CapsuleSphereCollisions {
   }
 
 }
+classRegistry.CapsuleSphereCollisions = CapsuleSphereCollisions;
 class CapsuleCapsuleCollisions {
   constructor() {
   }
@@ -21835,6 +24321,7 @@ class CapsuleCapsuleCollisions {
   }
 
 }
+classRegistry.CapsuleCapsuleCollisions = CapsuleCapsuleCollisions;
 class BoxSphereCollisions {
   constructor() {
   }
@@ -21903,6 +24390,7 @@ class BoxSphereCollisions {
   }
 
 }
+classRegistry.BoxSphereCollisions = BoxSphereCollisions;
 class BoxCapsuleCollisions {
   constructor() {
   }
@@ -21957,6 +24445,7 @@ class BoxCapsuleCollisions {
   }
 
 }
+classRegistry.BoxCapsuleCollisions = BoxCapsuleCollisions;
 class BoxBoxSat {
   depth = Float.POSITIVE_INFINITY;
   normal = null;
@@ -22135,6 +24624,7 @@ class BoxBoxSat {
   }
 
 }
+classRegistry.BoxBoxSat = BoxBoxSat;
 class BoxBoxCollisions {
   constructor() {
   }
@@ -22237,6 +24727,7 @@ class BoxBoxCollisions {
   }
 
 }
+classRegistry.BoxBoxCollisions = BoxBoxCollisions;
 class PrimitiveCollisionDetector {
   error;
   parallelError;
@@ -22280,7 +24771,7 @@ class PrimitiveCollisionDetector {
       return BoxBoxCollisions.isCollision(volumeA, volumeB, this.error, this.crossError);
     }
     else {
-      throw "unsupported volume classes, implement me";
+      throw new Error("unsupported volume classes, implement me");
     }
   }
 
@@ -22313,7 +24804,7 @@ class PrimitiveCollisionDetector {
       return BoxBoxCollisions.getContactPoints(volumeA, volumeB, this.error, this.crossError);
     }
     else {
-      throw "unsupported volume classes, implement me";
+      throw new Error("unsupported volume classes, implement me");
     }
   }
 
@@ -22338,6 +24829,7 @@ class PrimitiveCollisionDetector {
   }
 
 }
+classRegistry.PrimitiveCollisionDetector = PrimitiveCollisionDetector;
 class Inertias {
   constructor() {
   }
@@ -22365,6 +24857,7 @@ class Inertias {
   }
 
 }
+classRegistry.Inertias = Inertias;
 const createPhysicalMaterialCombineType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -22460,6 +24953,7 @@ class PhysicalMaterialId extends RefId {
   }
 
 }
+classRegistry.PhysicalMaterialId = PhysicalMaterialId;
 class PhysicalMaterial {
   static COMBINE_PRIORITY = Dut.immutableMap(PhysicalMaterialCombineType.AVG, 0, PhysicalMaterialCombineType.MIN, 1, PhysicalMaterialCombineType.MUL, 2, PhysicalMaterialCombineType.MAX, 3);
   bounciness;
@@ -22493,7 +24987,7 @@ class PhysicalMaterial {
       return this.getStaticFriction_1_PhysicalMaterial(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -22513,7 +25007,7 @@ class PhysicalMaterial {
       return this.getDynamicFriction_1_PhysicalMaterial(arguments[0]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -22552,7 +25046,7 @@ class PhysicalMaterial {
       return FMath.max(v1, v2);
     }
     else {
-      throw "unsupported combine type: "+c;
+      throw new Error("unsupported combine type: "+c);
     }
   }
 
@@ -22586,7 +25080,7 @@ class PhysicalMaterial {
       return PhysicalMaterial.simple_2_number_number(arguments[0], arguments[1]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -22613,6 +25107,7 @@ class PhysicalMaterial {
   }
 
 }
+classRegistry.PhysicalMaterial = PhysicalMaterial;
 class RigidBodies {
   constructor() {
   }
@@ -22647,6 +25142,7 @@ class RigidBodies {
   }
 
 }
+classRegistry.RigidBodies = RigidBodies;
 class Island {
   contacts;
   joints;
@@ -22696,6 +25192,7 @@ class Island {
   }
 
 }
+classRegistry.Island = Island;
 class Islands {
   getClass() {
     return "Islands";
@@ -22826,6 +25323,7 @@ class Islands {
   }
 
 }
+classRegistry.Islands = Islands;
 class SolverConfiguration {
   timeStep;
   maxIterations = 100;
@@ -22890,6 +25388,7 @@ class SolverConfiguration {
   }
 
 }
+classRegistry.SolverConfiguration = SolverConfiguration;
 class SequentialSolverWorkBuffer {
   bounceVelocities = [];
   frictionCoefficients = [];
@@ -22965,6 +25464,7 @@ class SequentialSolverWorkBuffer {
   }
 
 }
+classRegistry.SequentialSolverWorkBuffer = SequentialSolverWorkBuffer;
 class SequentialSolver {
   configuration;
   buffer = SequentialSolverWorkBuffer.create();
@@ -23127,6 +25627,7 @@ class SequentialSolver {
   }
 
 }
+classRegistry.SequentialSolver = SequentialSolver;
 class ModelAabbs {
   constructor() {
   }
@@ -23135,17 +25636,17 @@ class ModelAabbs {
     return "ModelAabbs";
   }
 
-  static calculateAllModelAabbs(assets) {
+  static ensureModelAabbs(assets) {
     let modelsIds = assets.getKeys(ModelId.TYPE);
-    let res = new HashMap();
     for (let refId of modelsIds) {
       let modelId = refId;
-      let modelAabb = ModelAabbs.calculateModelAabb(modelId, assets);
-      if (modelAabb!=null) {
-        res.put(modelId, modelAabb);
+      if (!assets.hasCompanion(modelId, AssetCompanionType.BOUNDING_AABB)) {
+        let modelAabb = ModelAabbs.calculateModelAabb(modelId, assets);
+        if (modelAabb!=null) {
+          assets.putCompanion(modelId, AssetCompanionType.BOUNDING_AABB, modelAabb);
+        }
       }
     }
-    return res;
   }
 
   static calculateModelAabb(modelId, assets) {
@@ -23168,6 +25669,7 @@ class ModelAabbs {
   }
 
 }
+classRegistry.ModelAabbs = ModelAabbs;
 class InputCache {
   buffer = new HashMap();
   lock = new Object();
@@ -23231,6 +25733,7 @@ class InputCache {
   }
 
 }
+classRegistry.InputCache = InputCache;
 class InputCacheDisplayListener {
   static DEFAULT_KEY = "display.size";
   inputs;
@@ -23258,7 +25761,30 @@ class InputCacheDisplayListener {
   }
 
 }
-class RigidBodyWorld {
+classRegistry.InputCacheDisplayListener = InputCacheDisplayListener;
+class World {
+  getClass() {
+    return "World";
+  }
+
+  actors() {
+  }
+
+  constructActor(request) {
+  }
+
+  collisions() {
+  }
+
+  audio() {
+  }
+
+  assets() {
+  }
+
+}
+classRegistry.World = World;
+class RigidBodyWorld extends World {
   static FWD = Vec3.create(0, 0, -1);
   static UP = Vec3.create(0, 1, 0);
   static AMBIENT_LIGHTS = Dut.immutableList(Light.directional(LightColor.AMBIENT_WHITE, Vec3.DOWN));
@@ -23273,9 +25799,9 @@ class RigidBodyWorld {
   solver;
   timeStep;
   shadowBuffersIds;
-  modelAabbs;
   cumDt = 0;
   constructor() {
+    super();
   }
 
   getClass() {
@@ -23388,12 +25914,6 @@ class RigidBodyWorld {
     return this.assetManager;
   }
 
-  aabb(modelId) {
-    let res = this.modelAabbs.get(modelId);
-    Guard.notNull(res, "there is no AABB box defined for: "+modelId);
-    return res;
-  }
-
   setCollisionLayerMatrix(matrix) {
     this.collisionManager.setLayerMatrix(matrix);
     return this;
@@ -23442,7 +25962,7 @@ class RigidBodyWorld {
         }
       }
       else {
-        throw "unsupported light type: "+lcmp.getType();
+        throw new Error("unsupported light type: "+lcmp.getType());
       }
     }
   }
@@ -23509,12 +26029,13 @@ class RigidBodyWorld {
     res.assetManager.put(shadow2, ShadowBuffer.create(2048, 2048));
     res.assetManager.put(shadow3, ShadowBuffer.create(2048, 2048));
     res.shadowBuffersIds = Dut.immutableList(shadow1, shadow2, shadow3);
-    res.modelAabbs = ModelAabbs.calculateAllModelAabbs(res.assetManager);
+    ModelAabbs.ensureModelAabbs(res.assetManager);
     res.guardInvariants();
     return res;
   }
 
 }
+classRegistry.RigidBodyWorld = RigidBodyWorld;
 class RigidBodyWorldActorFactory {
   actors;
   idGenerator;
@@ -23581,6 +26102,7 @@ class RigidBodyWorldActorFactory {
   }
 
 }
+classRegistry.RigidBodyWorldActorFactory = RigidBodyWorldActorFactory;
 const createDebugRenderRealm = (description) => {
   const symbol = Symbol(description);
   return {
@@ -23672,6 +26194,302 @@ class RenderRequest {
   }
 
 }
+classRegistry.RenderRequest = RenderRequest;
+class SceneId extends RefId {
+  static TYPE = RefIdType.of("SCENE_ID");
+  mId;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "SceneId";
+  }
+
+  guardInvariants() {
+  }
+
+  type() {
+    return SceneId.TYPE;
+  }
+
+  id() {
+    return this.mId;
+  }
+
+  hashCode() {
+    return this.mId.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof SceneId)) {
+      return false;
+    }
+    let other = obj;
+    return other.mId.equals(this.mId);
+  }
+
+  toString() {
+  }
+
+  static of(id) {
+    let res = new SceneId();
+    res.mId = id;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.SceneId = SceneId;
+class SceneObject {
+  name;
+  prefabId;
+  actorId;
+  pos;
+  rot;
+  constructor() {
+  }
+
+  getClass() {
+    return "SceneObject";
+  }
+
+  guardInvariants() {
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  getPrefabId() {
+    return this.prefabId;
+  }
+
+  getActorId() {
+    return this.actorId;
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getRot() {
+    return this.rot;
+  }
+
+  withName(name) {
+    let res = new SceneObject();
+    res.name = name;
+    res.prefabId = this.prefabId;
+    res.actorId = this.actorId;
+    res.pos = this.pos;
+    res.rot = this.rot;
+    res.guardInvariants();
+    return res;
+  }
+
+  withPrefabId(prefabId) {
+    let res = new SceneObject();
+    res.name = this.name;
+    res.prefabId = prefabId;
+    res.actorId = this.actorId;
+    res.pos = this.pos;
+    res.rot = this.rot;
+    res.guardInvariants();
+    return res;
+  }
+
+  withActorId(actorId) {
+    let res = new SceneObject();
+    res.name = this.name;
+    res.prefabId = this.prefabId;
+    res.actorId = actorId;
+    res.pos = this.pos;
+    res.rot = this.rot;
+    res.guardInvariants();
+    return res;
+  }
+
+  withPos(pos) {
+    let res = new SceneObject();
+    res.name = this.name;
+    res.prefabId = this.prefabId;
+    res.actorId = this.actorId;
+    res.pos = pos;
+    res.rot = this.rot;
+    res.guardInvariants();
+    return res;
+  }
+
+  withRot(rot) {
+    let res = new SceneObject();
+    res.name = this.name;
+    res.prefabId = this.prefabId;
+    res.actorId = this.actorId;
+    res.pos = this.pos;
+    res.rot = rot;
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(name, prefabId) {
+    let res = new SceneObject();
+    res.name = name;
+    res.prefabId = prefabId;
+    res.actorId = null;
+    res.pos = Vec3.ZERO;
+    res.rot = Quaternion.ZERO_ROT;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.SceneObject = SceneObject;
+class Scene {
+  name;
+  objects;
+  constructor() {
+  }
+
+  getClass() {
+    return "Scene";
+  }
+
+  guardInvariants() {
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  getObjects() {
+    return this.objects;
+  }
+
+  withName(name) {
+    let res = new Scene();
+    res.name = name;
+    res.objects = this.objects;
+    res.guardInvariants();
+    return res;
+  }
+
+  withObjects(objs) {
+    let res = new Scene();
+    res.name = this.name;
+    res.objects = Dut.copyImmutableList(objs);
+    res.guardInvariants();
+    return res;
+  }
+
+  withAddedObject(obj) {
+    let res = new Scene();
+    res.name = this.name;
+    res.objects = new ArrayList();
+    res.objects.addAll(this.objects);
+    res.objects.add(obj);
+    res.objects = Collections.unmodifiableList(res.objects);
+    res.guardInvariants();
+    return res;
+  }
+
+  withUpdatedObject(idx, obj) {
+    let res = new Scene();
+    res.name = this.name;
+    res.objects = new ArrayList();
+    for (let i = 0; i<this.objects.size(); ++i) {
+      res.objects.add(i==idx?obj:this.objects.get(i));
+    }
+    res.objects = Collections.unmodifiableList(res.objects);
+    res.guardInvariants();
+    return res;
+  }
+
+  withRemovedObject(idx) {
+    let res = new Scene();
+    res.name = this.name;
+    res.objects = new ArrayList();
+    for (let i = 0; i<this.objects.size(); ++i) {
+      if (i!=idx) {
+        res.objects.add(this.objects.get(i));
+      }
+    }
+    res.objects = Collections.unmodifiableList(res.objects);
+    res.guardInvariants();
+    return res;
+  }
+
+  emptyWorld(world) {
+    let actors = world.actors();
+    let root = actors.root();
+    for (let actor of actors.children(root.getId())) {
+      world.actors().remove(actor.getId());
+    }
+    for (let component of actors.root().getComponents()) {
+      root.removeComponent(component);
+    }
+    return this;
+  }
+
+  loadToWorld(world, assets) {
+    for (let so of this.objects) {
+      let prefab = assets.get("ActorPrefab", so.getPrefabId());
+      world.constructActor(CreateActorRequest.create(prefab, so.getActorId(), so.getPos(), so.getRot()));
+    }
+    return this;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    if (arguments.length===2&& typeof arguments[0]==="string"&&arguments[1] instanceof ArrayList) {
+      return Scene.create_2_string_List(arguments[0], arguments[1]);
+    }
+    else if (arguments.length===1&& typeof arguments[0]==="string") {
+      return Scene.create_1_string(arguments[0]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  static create_2_string_List(name, objects) {
+    let res = new Scene();
+    res.name = name;
+    res.objects = Dut.copyImmutableList(objects);
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_1_string(name) {
+    return Scene.create(name, Collections.emptyList());
+  }
+
+}
+classRegistry.Scene = Scene;
 
 
 // -------------------------------------
@@ -23694,7 +26512,7 @@ class BoxMeshFactory {
       return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -23741,6 +26559,7 @@ class BoxMeshFactory {
   }
 
 }
+classRegistry.BoxMeshFactory = BoxMeshFactory;
 class CarController extends UiComponent {
   forwardButton;
   reverseButton;
@@ -23858,16 +26677,17 @@ class CarController extends UiComponent {
 
   static create(drivers) {
     let res = new CarController();
-    res.forwardButton = ImageButton.create().setUpTexture("shadedDark26").setDownTexture("shadedLight26").setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.leftBottom(25, 135, 50, 50), UiRegionFncs.leftBottom(10, 135, 50, 50))).setKeyCodeMatcher(KeyCodeMatchers.upperKey("W"));
-    res.reverseButton = ImageButton.create().setUpTexture("shadedDark27").setDownTexture("shadedLight27").setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.leftBottom(25, 70, 50, 50), UiRegionFncs.leftBottom(10, 70, 50, 50))).setKeyCodeMatcher(KeyCodeMatchers.upperKey("S"));
+    res.forwardButton = ImageButton.create().setUpTexture("shadedDark26").setDownTexture("shadedLight26").setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.leftBottom(25, 135, 50, 50), UiRegionFncs.leftBottom(10, 135, 50, 50))).setKeyCodeMatcher(KeyCodeMatchers.arrowUpOrW());
+    res.reverseButton = ImageButton.create().setUpTexture("shadedDark27").setDownTexture("shadedLight27").setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.leftBottom(25, 70, 50, 50), UiRegionFncs.leftBottom(10, 70, 50, 50))).setKeyCodeMatcher(KeyCodeMatchers.arrowDownOrS());
     res.brakeButton = ImageButton.create().setUpTexture("shadedDark12").setDownTexture("shadedLight12").setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.leftBottom(85, 105, 70, 50), UiRegionFncs.leftBottom(70, 105, 70, 50))).setKeyCodeMatcher(KeyCodeMatchers.space());
-    res.leftButton = ImageButton.create().setUpTexture("shadedDark24").setDownTexture("shadedLight24").setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.rightBottom(140, 85, 50, 50), UiRegionFncs.rightBottom(125, 85, 50, 50))).setKeyCodeMatcher(KeyCodeMatchers.upperKey("A"));
-    res.rightButton = ImageButton.create().setUpTexture("shadedDark25").setDownTexture("shadedLight25").setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.rightBottom(75, 85, 50, 50), UiRegionFncs.rightBottom(60, 85, 50, 50))).setKeyCodeMatcher(KeyCodeMatchers.upperKey("D"));
+    res.leftButton = ImageButton.create().setUpTexture("shadedDark24").setDownTexture("shadedLight24").setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.rightBottom(140, 85, 50, 50), UiRegionFncs.rightBottom(125, 85, 50, 50))).setKeyCodeMatcher(KeyCodeMatchers.arrowLeftOrA());
+    res.rightButton = ImageButton.create().setUpTexture("shadedDark25").setDownTexture("shadedLight25").setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.rightBottom(75, 85, 50, 50), UiRegionFncs.rightBottom(60, 85, 50, 50))).setKeyCodeMatcher(KeyCodeMatchers.arrowRightOrD());
     res.guardInvariants();
     return res;
   }
 
 }
+classRegistry.CarController = CarController;
 class CameraTrackBehavior extends Behavior {
   targetId;
   offset;
@@ -23898,7 +26718,7 @@ class CameraTrackBehavior extends Behavior {
       return CameraTrackBehavior.create_3_ActorId_Vec3_Vec3(arguments[0], arguments[1], arguments[2]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -23918,6 +26738,7 @@ class CameraTrackBehavior extends Behavior {
   }
 
 }
+classRegistry.CameraTrackBehavior = CameraTrackBehavior;
 class BreakableSphereBehavior extends Behavior {
   static FEATURES = Dut.immutableSet(ComponentFeature.create("HITTABLE"));
   numPieces = 10;
@@ -23978,6 +26799,7 @@ class BreakableSphereBehavior extends Behavior {
   }
 
 }
+classRegistry.BreakableSphereBehavior = BreakableSphereBehavior;
 class CarWheelJointConfig {
   carActor;
   wheelActor;
@@ -24037,6 +26859,7 @@ class CarWheelJointConfig {
   }
 
 }
+classRegistry.CarWheelJointConfig = CarWheelJointConfig;
 class CarWheelJointComponent extends Behavior {
   static FEATURES = Dut.immutableSet(ComponentFeature.COLLISION_EXCLUSION_PRODUCER, ComponentFeature.RIGID_BODY_JOINT);
   localCarPos;
@@ -24287,7 +27110,7 @@ class CarWheelJointComponent extends Behavior {
       return this.setJoint_5_string_string_Vec3_Vec3_Vec3(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
     }
     else {
-      throw "error";
+      throw new Error("ambiguous overload");
     }
   }
 
@@ -24331,7 +27154,8 @@ class CarWheelJointComponent extends Behavior {
   }
 
 }
-class RigidBodyApp08 {
+classRegistry.CarWheelJointComponent = CarWheelJointComponent;
+class RigidBodyApp08 extends TyracornScreen {
   time = 0;
   world;
   inputs = InputCache.create();
@@ -24342,6 +27166,7 @@ class RigidBodyApp08 {
   wheelBL;
   wheelBR;
   constructor() {
+    super();
   }
 
   getClass() {
@@ -24492,6 +27317,7 @@ class RigidBodyApp08 {
   }
 
 }
+classRegistry.RigidBodyApp08 = RigidBodyApp08;
 
 
 // -------------------------------------
@@ -24775,6 +27601,25 @@ function handleKeyUp(evt) {
     drivers.keyboardDriver.onKeyReleased(key);
 }
 
+/**
+ * Handles document visibility change.
+ * 
+ * @returns {undefined}
+ */
+function handleVisibiliryChange() {
+    if (document.hidden) {
+        tyracornApp.pause(drivers);
+    }
+}
+
+/**
+ * Handles window blur event.
+ * 
+ * @returns {undefined}
+ */
+function handleBlur() {
+    tyracornApp.pause(drivers);
+}
 
 /**
  * Initializes the web gl.
@@ -24866,11 +27711,14 @@ async function main() {
     canvas.addEventListener("touchend", handleTouchEnd);
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('keyup', handleKeyUp);
+    document.addEventListener("visibilitychange", handleVisibiliryChange);
+    window.addEventListener("blur", handleBlur);
 
     appLoadingFutures = tyracornApp.init(drivers, new HashMap());
     if (appLoadingFutures.isEmpty()) {
         drivers.getDriver("AssetManager").syncToDrivers();
     }
+
     appLoop();
 }
 
