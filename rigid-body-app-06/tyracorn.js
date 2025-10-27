@@ -165,6 +165,9 @@ class ArrayList {
 
     // Add element to the end
     add(element) {
+        if (arguments.length > 1) {
+            throw new Error("only single argument is supported, namely 'add(index, element)' overload is not supported");
+        }
         this._data.push(element);
         this._updateLength();
         return this;
@@ -1327,154 +1330,6 @@ class Dut {
 
 }
 /**
- * Utility class for working with json.
- *
- * @author radek.hecl
- */
-class Jsons {
-
-    /**
-     * Decodes string map from the JSON string.
-     *
-     * @param {String} str input data in the {"hello" : "world", "hey" : "baby"} format
-     * @return {HashMap} decoded map of String to String
-     */
-    static toStringMap(str) {
-        const obj = JSON.parse(str);
-        const res = new HashMap();
-        for (const key in obj) {
-            res.put(key, obj[key]);
-        }
-        return res;
-    }
-
-    /**
-     * Decodes string list from the JSON string.
-     *
-     * @param {String} str data in the ["hello", "baby"] format
-     * @return {ArrayList} decoded list of strings
-     */
-    static toStringList(str) {
-        const items = JSON.parse(str);
-        const res = new ArrayList();
-        for (let i = 0; i < items.length; ++i) {
-            res.add(items[i]);
-        }
-        return res;
-    }
-
-    /**
-     * Decodes float list from the JSON string.
-     *
-     * @param {String} str data in the [1, 2, 3] format
-     * @return {ArrayList} decoded list of floats
-     */
-    static toFloatList(str) {
-        const items = JSON.parse(str);
-        const res = new ArrayList();
-        for (let i = 0; i < items.length; ++i) {
-            res.add(items[i]);
-        }
-        return res;
-    }
-
-    /**
-     * Converts JSON string to vector.
-     *
-     * @param {String} input input string
-     * @return {Vec3} vector
-     */
-    static toVec3(input) {
-        const fs = Jsons.toFloatList(input);
-        return Vec3.create(fs.get(0), fs.get(1), fs.get(2));
-    }
-
-    /**
-     * Converts JSON string to vector.
-     *
-     * @param {String} input input string
-     * @return {Vec4} vector
-     */
-    static toVec4(input) {
-        const fs = Jsons.toFloatList(input);
-        return Vec4.create(fs.get(0), fs.get(1), fs.get(2), fs.get(3));
-    }
-
-    /**
-     * Converts JSON string to quaternion.
-     *
-     * @param {String} input input string
-     * @return {Quaternion} quaternion
-     */
-    static toQuaternion(input) {
-        const fs = Jsons.toFloatList(input);
-        return Quaternion.create(fs.get(0), fs.get(1), fs.get(2), fs.get(3));
-    }
-
-    /**
-     * Converts JSON string to boundary.
-     *
-     * @param {String} input input string
-     * @return {Aabb3} boundary
-     */
-    static toAabb3(input) {
-        const fs = Jsons.toFloatList(input);
-        return Aabb3.create(fs.get(0), fs.get(1), fs.get(2), fs.get(3), fs.get(4), fs.get(5));
-    }
-
-    /**
-     * Converts JSON string to matrix.
-     *
-     * @param {String} input input string
-     * @return {Mat33} matrix
-     */
-    static toMat33(input) {
-        const fs = Jsons.toFloatList(input);
-        return Mat33.create(
-                fs.get(0), fs.get(1), fs.get(2),
-                fs.get(3), fs.get(4), fs.get(5),
-                fs.get(6), fs.get(7), fs.get(8));
-    }
-
-    /**
-     * Converts JSON string to matrix.
-     *
-     * @param {String} input input string
-     * @return {Mat44} matrix
-     */
-    static toMat44(input) {
-        const fs = Jsons.toFloatList(input);
-        return Mat44.create(
-                fs.get(0), fs.get(1), fs.get(2), fs.get(3),
-                fs.get(4), fs.get(5), fs.get(6), fs.get(7),
-                fs.get(8), fs.get(9), fs.get(10), fs.get(11),
-                fs.get(12), fs.get(13), fs.get(14), fs.get(15));
-    }
-
-    /**
-     * Converts JSON string to RGB.
-     *
-     * @param {String} input input string
-     * @return {Rgb} RGB color
-     */
-    static toRgb(input) {
-        const fs = Jsons.toFloatList(input);
-        return Rgb.create(fs.get(0), fs.get(1), fs.get(2));
-    }
-
-    /**
-     * Converts JSON string to frame interpolatino.
-     *
-     * @param {String} input input string
-     * @return {FrameInterpolation} frame interpolation color
-     */
-    static toFrameInterpolation(input) {
-        const items = JSON.parse(str);
-        return FrameInterpolation.create(items[0], items[1], items[2]);
-    }
-
-}
-/**
  * Utility class for formatting various things to string.
  *
  * @author radek.hecl
@@ -1775,6 +1630,280 @@ class StringBuilder {
 
 }
 /**
+ * Utility class for working with json.
+ *
+ * @author radek.hecl
+ */
+class Jsons {
+
+    /**
+     * Decodes string map from the JSON string.
+     *
+     * @param {String} str input data in the {"hello" : "world", "hey" : "baby"} format
+     * @return {HashMap} decoded map of String to String
+     */
+    static toStringMap(str) {
+        const obj = JSON.parse(str);
+        const res = new HashMap();
+        for (const key in obj) {
+            res.put(key, obj[key]);
+        }
+        return res;
+    }
+
+    /**
+     * Decodes string list from the JSON string.
+     *
+     * @param {String} str data in the ["hello", "baby"] format
+     * @return {ArrayList} decoded list of strings
+     */
+    static toStringList(str) {
+        const items = JSON.parse(str);
+        const res = new ArrayList();
+        for (let i = 0; i < items.length; ++i) {
+            res.add(items[i]);
+        }
+        return res;
+    }
+
+    /**
+     * Decodes float list from the JSON string.
+     *
+     * @param {String} str data in the [1, 2, 3] format
+     * @return {ArrayList} decoded list of floats
+     */
+    static toFloatList(str) {
+        const items = JSON.parse(str);
+        const res = new ArrayList();
+        for (let i = 0; i < items.length; ++i) {
+            res.add(items[i]);
+        }
+        return res;
+    }
+
+    /**
+     * Converts JSON string to vector.
+     *
+     * @param {String} input input string
+     * @return {Vec3} vector
+     */
+    static toVec3(input) {
+        const fs = Jsons.toFloatList(input);
+        return Vec3.create(fs.get(0), fs.get(1), fs.get(2));
+    }
+
+    /**
+     * Converts JSON string to vector.
+     *
+     * @param {String} input input string
+     * @return {Vec4} vector
+     */
+    static toVec4(input) {
+        const fs = Jsons.toFloatList(input);
+        return Vec4.create(fs.get(0), fs.get(1), fs.get(2), fs.get(3));
+    }
+
+    /**
+     * Converts JSON string to quaternion.
+     *
+     * @param {String} input input string
+     * @return {Quaternion} quaternion
+     */
+    static toQuaternion(input) {
+        const fs = Jsons.toFloatList(input);
+        return Quaternion.create(fs.get(0), fs.get(1), fs.get(2), fs.get(3));
+    }
+
+    /**
+     * Converts JSON string to boundary.
+     *
+     * @param {String} input input string
+     * @return {Aabb3} boundary
+     */
+    static toAabb3(input) {
+        const fs = Jsons.toFloatList(input);
+        return Aabb3.create(fs.get(0), fs.get(1), fs.get(2), fs.get(3), fs.get(4), fs.get(5));
+    }
+
+    /**
+     * Converts JSON string to matrix.
+     *
+     * @param {String} input input string
+     * @return {Mat33} matrix
+     */
+    static toMat33(input) {
+        const fs = Jsons.toFloatList(input);
+        return Mat33.create(
+                fs.get(0), fs.get(1), fs.get(2),
+                fs.get(3), fs.get(4), fs.get(5),
+                fs.get(6), fs.get(7), fs.get(8));
+    }
+
+    /**
+     * Converts JSON string to matrix.
+     *
+     * @param {String} input input string
+     * @return {Mat44} matrix
+     */
+    static toMat44(input) {
+        const fs = Jsons.toFloatList(input);
+        return Mat44.create(
+                fs.get(0), fs.get(1), fs.get(2), fs.get(3),
+                fs.get(4), fs.get(5), fs.get(6), fs.get(7),
+                fs.get(8), fs.get(9), fs.get(10), fs.get(11),
+                fs.get(12), fs.get(13), fs.get(14), fs.get(15));
+    }
+
+    /**
+     * Converts JSON string to RGB.
+     *
+     * @param {String} input input string
+     * @return {Rgb} RGB color
+     */
+    static toRgb(input) {
+        const fs = Jsons.toFloatList(input);
+        return Rgb.create(fs.get(0), fs.get(1), fs.get(2));
+    }
+
+    /**
+     * Converts JSON string to frame interpolatino.
+     *
+     * @param {String} input input string
+     * @return {FrameInterpolation} frame interpolation color
+     */
+    static toFrameInterpolation(input) {
+        const items = JSON.parse(input);
+        return FrameInterpolation.create(items[0], items[1], items[2]);
+    }
+
+}
+/**
+ * Utility class for working with json objects.
+ *
+ * @author radek.hecl
+ */
+class JsonObjects {
+
+    /**
+     * Converts JSON object to string.
+     *
+     * @param {JsonObject} obj json object
+     * @return {String} string value
+     */
+    static toJson(obj) {
+        const res = JsonObjects.toPlainJsonObject(obj);
+        return JSON.stringify(res);
+    }
+
+    /**
+     * Parses string to the json object.
+     *
+     * @param {String} str string that must be a representation of json object
+     * @return {JsonObject} parsed JSON object
+     */
+    static parse(str) {
+        const ojo = JSON.parse(str);
+        return JsonObjects.fromPlainJsonObject(ojo);
+    }
+
+    /**
+     * Converts org json object into a json object.
+     *
+     * @param {Object} ojo org json object
+     * @return {JsonObject} json object
+     */
+    static fromPlainJsonObject(ojo) {
+        let res = JsonObject.empty();
+        for (let key in ojo) {
+            const obj = ojo[key];
+            if (typeof obj === 'boolean') {
+                res = res.withBoolean(key, obj);
+            } else if (typeof obj === 'number') {
+                res = res.withFloat(key, obj);
+            } else if (typeof obj === 'string') {
+                res = res.withString(key, obj);
+            } else if (Array.isArray(obj)) {
+                res = res.withArray(key, JsonObjects.fromPlainJsonArray(obj));
+            } else if (typeof obj === 'object') {
+                res = res.withObject(key, JsonObjects.fromPlainJsonObject(obj));
+            } else {
+                throw new Error("unsuppoorted class");
+            }
+        }
+        return res;
+    }
+
+    /**
+     * Converts org json array into a json array.
+     *
+     * @param {Array} oja org json array
+     * @return {JsonArray} json array
+     */
+    static fromPlainJsonArray(oja) {
+        let res = JsonArray.empty();
+        for (let i = 0; i < oja.length; ++i) {
+            const obj = oja[i];
+            if (typeof obj === 'boolean') {
+                res = res.plusBoolean(obj);
+            } else if (typeof obj === 'number') {
+                res = res.plusFloat(obj);
+            } else if (typeof obj === 'string') {
+                res = res.plusString(obj);
+            } else if (Array.isArray(obj)) {
+                res = res.plusArray(JsonObjects.fromPlainJsonArray(obj));
+            } else if (typeof obj === 'object') {
+                res = res.plusObject(JsonObjects.fromPlainJsonObject(obj));
+            } else {
+                throw new Error("unsuppoorted class");
+            }
+        }
+        return res;
+    }
+
+    /**
+     * Converts object to org json object.
+     *
+     * @param {JsonObject} obj object
+     * @return {Object} org json object
+     */
+    static toPlainJsonObject(obj) {
+        const res = {};
+        for (let key of obj.keySet()) {
+            const val = obj.get(key);
+            if (val instanceof JsonObject) {
+                res[key] = JsonObjects.toPlainJsonObject(val);
+            } else if (val instanceof JsonArray) {
+                res[key] = JsonObjects.toPlainJsonArray(val);
+            } else {
+                res[key] = val;
+            }
+        }
+        return res;
+    }
+
+    /**
+     * Converts object to org json array.
+     *
+     * @param {JsonArray} arr array
+     * @return {Array} org json array
+     */
+    static toPlainJsonArray(arr) {
+        const res = [];
+        for (let i = 0; i < arr.size(); ++i) {
+            const val = arr.get(i);
+            if (val instanceof JsonObject) {
+                res.push(JsonObjects.toPlainJsonObject(val));
+            } else if (val instanceof JsonArray) {
+                res.push(JsonObjects.toPlainJsonArray(val));
+            } else {
+                res.push(val);
+            }
+        }
+        return res;
+    }
+
+}
+/**
  * Web platform driver.
  *
  * @author radek.hecl
@@ -1994,6 +2123,12 @@ class DataBlockStreamWriter {
 
     size() {
         return this.data.byteLength;
+    }
+
+    writeByte(x) {
+        this.view.setUint8(this.offset, x); // false = big-endian (java)
+        this.offset = this.offset + 1;
+        return this;
     }
 
     writeFloat(x) {
@@ -2357,6 +2492,12 @@ class TapBufferReader {
     guardInvariants() {
     }
 
+    readBoolean() {
+        const res = this.dataView.getInt8(this.offset, false);
+        this.offset += 1;
+        return res > 0;
+    }
+
     readInt() {
         const res = this.dataView.getInt32(this.offset, false);
         this.offset += 4;
@@ -2513,6 +2654,9 @@ class Taps {
             } else if (entry.getType().equals(TapEntryType.PREFAB)) {
                 const ag = TapPrefabs.toAssetGroup(entry);
                 res = res.mergeStrict(ag);
+            } else if (entry.getType().equals(TapEntryType.CLIP_ANIMATION_COLLECTION)) {
+                const ag = TapClipAnimationCollections.toAssetGroup(entry);
+                res = res.mergeStrict(ag);
             } else if (entry.getType().equals(TapEntryType.SCENE)) {
                 const ag = TapScenes.toAssetGroup(entry);
                 res = res.mergeStrict(ag);
@@ -2520,10 +2664,6 @@ class Taps {
                 throw new Error("unsupported entry type: " + entry.getType().toString());
             }
             /*
-             else if (entry.getType().equals(TapEntryType.CLIP_ANIMATION_COLLECTION)) {
-             AssetGroup ag = TapClipAnimationCollections.toAssetGroup(entry);
-             res = res.mergeStrict(ag);
-             }
              else if (entry.getType().equals(TapEntryType.SPRITE)) {
              AssetGroup ag = TapSprites.toAssetGroup(entry);
              res = res.mergeStrict(ag);
@@ -2915,7 +3055,7 @@ class WebAssetManager {
 
         for (let key of ag.getKeys()) {
             if (this.bank.containsKey(key)) {
-                throw "bank already contains " + key;
+                throw "bank already contains " + key.toString();
             }
         }
         for (let key of ag.getKeys()) {
@@ -5725,30 +5865,44 @@ class WebglGraphicsDriver {
      * 
      */
     pushTextureToGraphicCard(texture, mipmap) {
-        if (!texture.getFormat().equals(TextureFormat.FLOAT)) {
-            throw new Error("only FLOAT format is supported here, implemente me: " + texture.getFormat().toString());
-        }
         const ptr = gl.createTexture();
+        if (texture.getFormat().equals(TextureFormat.FLOAT)) {
+            // convert from big endian (java) to little endian (webgl)
+            const textData = texture.getData();
+            const numVals = texture.getWidth() * texture.getHeight() * texture.getChannels().size();
+            const buf = new ArrayBuffer(texture.getData().size());
+            const bufView = new DataView(buf);
+            for (let i = 0; i < numVals; ++i) {
+                const val = textData.getFloat(i * 4);
+                bufView.setFloat32(i * 4, val, true); // true = little-endian (webgl)
+            }
+            const arr = new Float32Array(buf);
 
-        // convert from big endian (java) to little endian (webgl)
-        const textData = texture.getData();
-        const numVals = texture.getWidth() * texture.getHeight() * texture.getChannels().size();
-        const buf = new ArrayBuffer(texture.getData().size());
-        const bufView = new DataView(buf);
-        for (let i = 0; i < numVals; ++i) {
-            const val = textData.getFloat(i * 4);
-            bufView.setFloat32(i * 4, val, true); // true = little-endian (webgl)
-        }
-        const arr = new Float32Array(buf);
+            gl.bindTexture(gl.TEXTURE_2D, ptr);
 
-        gl.bindTexture(gl.TEXTURE_2D, ptr);
+            if (texture.getChannels().equals(Texture.RGB)) {
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB32F, texture.getWidth(), texture.getHeight(), 0, gl.RGB, gl.FLOAT, arr);
+            } else if (texture.getChannels().equals(Texture.RGBA)) {
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, texture.getWidth(), texture.getHeight(), 0, gl.RGBA, gl.FLOAT, arr);
+            } else {
+                throw "unsupported texture channels: " + texture;
+            }
+        } else if (texture.getFormat().equals(TextureFormat.UNSIGNED_BYTE)) {
+            // here just wrap data in the typed array as no conversion is necessary
+            const textData = texture.getData();
+            const arr = new Uint8Array(textData.data);
 
-        if (texture.getChannels().equals(Texture.RGB)) {
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB32F, texture.getWidth(), texture.getHeight(), 0, gl.RGB, gl.FLOAT, arr);
-        } else if (texture.getChannels().equals(Texture.RGBA)) {
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, texture.getWidth(), texture.getHeight(), 0, gl.RGBA, gl.FLOAT, arr);
+            gl.bindTexture(gl.TEXTURE_2D, ptr);
+
+            if (texture.getChannels().equals(Texture.RGB)) {
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB8, texture.getWidth(), texture.getHeight(), 0, gl.RGB, gl.UNSIGNED_BYTE, arr);
+            } else if (texture.getChannels().equals(Texture.RGBA)) {
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, texture.getWidth(), texture.getHeight(), 0, gl.RGBA, gl.UNSIGNED_BYTE, arr);
+            } else {
+                throw "unsupported texture channels: " + texture;
+            }
         } else {
-            throw "unsupported texture channels: " + texture;
+            throw new Error("unsupported texture format: " + texture.getFormat().toString());
         }
 
         if (mipmap) {
@@ -6729,6 +6883,8 @@ class DriverProvider {
             return true;
         } else if (driver === "AssetManager") {
             return true;
+        } else if (driver === "AssetProvider") {
+            return true;
         } else if (driver === "PlatformDriver") {
             return true;
         } else if (driver === "LocalDataStorage") {
@@ -6756,6 +6912,8 @@ class DriverProvider {
             return this.keyboardDriver;
         } else if (driver === "AssetManager") {
             return this.assetManager;
+        } else if (driver === "AssetProvider") {
+            return this.assetManager;
         } else if (driver === "PlatformDriver") {
             return this.plaformDriver;
         } else if (driver === "LocalDataStorage") {
@@ -6781,6 +6939,279 @@ class DriverProvider {
 // Translated framework code
 // -------------------------------------
 
+class JsonObject {
+  entries;
+  constructor() {
+  }
+
+  getClass() {
+    return "JsonObject";
+  }
+
+  guardInvariants() {
+  }
+
+  containsKey(key) {
+    return this.entries.containsKey(key);
+  }
+
+  keySet() {
+    return this.entries.keySet();
+  }
+
+  get(key) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    throw new Error("key doesn't exists: "+key);
+  }
+
+  getBoolean(key) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    throw new Error("key doesn't exists: "+key);
+  }
+
+  getString(key) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    throw new Error("key doesn't exists: "+key);
+  }
+
+  getInt(key) {
+    if (this.entries.containsKey(key)) {
+      return FMath.trunc(this.entries.get(key));
+    }
+    throw new Error("key doesn't exists: "+key);
+  }
+
+  getFloat(key) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    throw new Error("key doesn't exists: "+key);
+  }
+
+  getJsonObject(key) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    throw new Error("key doesn't exists: "+key);
+  }
+
+  getJsonArray(key) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    throw new Error("key doesn't exists: "+key);
+  }
+
+  withBoolean(key, val) {
+    let resEnts = new HashMap();
+    resEnts.putAll(this.entries);
+    resEnts.put(key, val);
+    let res = new JsonObject();
+    res.entries = Collections.unmodifiableMap(resEnts);
+    res.guardInvariants();
+    return res;
+  }
+
+  withInt(key, val) {
+    let resEnts = new HashMap();
+    resEnts.putAll(this.entries);
+    resEnts.put(key, val);
+    let res = new JsonObject();
+    res.entries = Collections.unmodifiableMap(resEnts);
+    res.guardInvariants();
+    return res;
+  }
+
+  withFloat(key, val) {
+    let resEnts = new HashMap();
+    resEnts.putAll(this.entries);
+    resEnts.put(key, val);
+    let res = new JsonObject();
+    res.entries = Collections.unmodifiableMap(resEnts);
+    res.guardInvariants();
+    return res;
+  }
+
+  withString(key, val) {
+    let resEnts = new HashMap();
+    resEnts.putAll(this.entries);
+    resEnts.put(key, val);
+    let res = new JsonObject();
+    res.entries = Collections.unmodifiableMap(resEnts);
+    res.guardInvariants();
+    return res;
+  }
+
+  withObject(key, val) {
+    let resEnts = new HashMap();
+    resEnts.putAll(this.entries);
+    resEnts.put(key, val);
+    let res = new JsonObject();
+    res.entries = Collections.unmodifiableMap(resEnts);
+    res.guardInvariants();
+    return res;
+  }
+
+  withArray(key, val) {
+    let resEnts = new HashMap();
+    resEnts.putAll(this.entries);
+    resEnts.put(key, val);
+    let res = new JsonObject();
+    res.entries = Collections.unmodifiableMap(resEnts);
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static empty() {
+    let res = new JsonObject();
+    res.entries = Collections.emptyMap();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.JsonObject = JsonObject;
+class JsonArray {
+  items;
+  constructor() {
+  }
+
+  getClass() {
+    return "JsonArray";
+  }
+
+  guardInvariants() {
+  }
+
+  size() {
+    return this.items.size();
+  }
+
+  get(idx) {
+    return this.items.get(idx);
+  }
+
+  getBoolean(idx) {
+    return this.items.get(idx);
+  }
+
+  getString(idx) {
+    return this.items.get(idx);
+  }
+
+  getInt(idx) {
+    return FMath.trunc(this.items.get(idx));
+  }
+
+  getFloat(idx) {
+    return this.items.get(idx);
+  }
+
+  getJsonObject(idx) {
+    return this.items.get(idx);
+  }
+
+  getJsonArray(idx) {
+    return this.items.get(idx);
+  }
+
+  plusBoolean(val) {
+    let resItems = new ArrayList();
+    resItems.addAll(this.items);
+    resItems.add(val);
+    let res = new JsonArray();
+    res.items = Collections.unmodifiableList(resItems);
+    res.guardInvariants();
+    return res;
+  }
+
+  plusInt(val) {
+    let resItems = new ArrayList();
+    resItems.addAll(this.items);
+    resItems.add(val);
+    let res = new JsonArray();
+    res.items = Collections.unmodifiableList(resItems);
+    res.guardInvariants();
+    return res;
+  }
+
+  plusFloat(val) {
+    let resItems = new ArrayList();
+    resItems.addAll(this.items);
+    resItems.add(val);
+    let res = new JsonArray();
+    res.items = Collections.unmodifiableList(resItems);
+    res.guardInvariants();
+    return res;
+  }
+
+  plusString(val) {
+    let resItems = new ArrayList();
+    resItems.addAll(this.items);
+    resItems.add(val);
+    let res = new JsonArray();
+    res.items = Collections.unmodifiableList(resItems);
+    res.guardInvariants();
+    return res;
+  }
+
+  plusObject(val) {
+    let resItems = new ArrayList();
+    resItems.addAll(this.items);
+    resItems.add(val);
+    let res = new JsonArray();
+    res.items = Collections.unmodifiableList(resItems);
+    res.guardInvariants();
+    return res;
+  }
+
+  plusArray(val) {
+    let resItems = new ArrayList();
+    resItems.addAll(this.items);
+    resItems.add(val);
+    let res = new JsonArray();
+    res.items = Collections.unmodifiableList(resItems);
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static empty() {
+    let res = new JsonArray();
+    res.items = Collections.emptyList();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.JsonArray = JsonArray;
 class Vec2 {
   static ZERO = Vec2.create(0, 0);
   mX;
@@ -9341,6 +9772,9 @@ const createTextureFormat = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -9386,6 +9820,9 @@ const createTextureChannel = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -9451,7 +9888,10 @@ class Texture {
     Guard.positive(this.height, "height must be positive");
     Guard.notNull(this.data, "buf cannot be null");
     if (this.format.equals(TextureFormat.FLOAT)) {
-      Guard.beTrue(this.data.size()==this.channels.size()*this.width*this.height*4, "buf.lenght must be equal to numChannels * width * height * 4");
+      Guard.beTrue(this.data.size()==this.channels.size()*this.width*this.height*4, "buf.lenght must be equal to numChannels * width * height * 4 for FLOAT format");
+    }
+    else if (this.format.equals(TextureFormat.UNSIGNED_BYTE)) {
+      Guard.beTrue(this.data.size()==this.channels.size()*this.width*this.height, "buf.lenght must be equal to numChannels * width * height for UNSIGNED_BYTE format");
     }
     else {
       throw new Error("unsupported texture format: "+this.format.toString());
@@ -9525,7 +9965,33 @@ class Texture {
       return Texture.create(this.format, this.channels, this.width, this.height, writer.toDataBlock());
     }
     else {
-      throw new Error("only FLOAT format is supported for this operation, implement me");
+      throw new Error("only FLOAT format is supported for powRgb operation, implement me");
+    }
+  }
+
+  toFormat(targetFormat) {
+    if (this.format.equals(targetFormat)) {
+      return this;
+    }
+    if (this.format.equals(TextureFormat.FLOAT)&&targetFormat.equals(TextureFormat.UNSIGNED_BYTE)) {
+      let writer = DataBlockStreamWriter.create(this.data.size()/4);
+      for (let idx = 0; idx<this.data.size(); idx=idx+4) {
+        let f = FMath.clamp(this.data.getFloat(idx), 0, 1);
+        let ubyte = FMath.trunc(f*255);
+        let b = ubyte;
+        writer.writeByte(b);
+      }
+      let res = new Texture();
+      res.format = TextureFormat.UNSIGNED_BYTE;
+      res.channels = this.channels;
+      res.width = this.width;
+      res.height = this.height;
+      res.data = writer.toDataBlock();
+      res.guardInvaritants();
+      return res;
+    }
+    else {
+      throw new Error("unsupported format conversion, implement me");
     }
   }
 
@@ -9756,6 +10222,9 @@ const createTextureType = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -9920,6 +10389,12 @@ class TextureFncs {
     };
   }
 
+  static flipVertGammaToUnsignedByte(gamma) {
+    return (tex) => {
+      return tex.flipVert().powRgb(gamma).toFormat(TextureFormat.UNSIGNED_BYTE);
+    };
+  }
+
   static flipVert() {
     return (tex) => {
       return tex.flipVert();
@@ -9932,12 +10407,21 @@ class TextureFncs {
     };
   }
 
+  static toFormat(format) {
+    return (tex) => {
+      return tex.toFormat(format);
+    };
+  }
+
 }
 classRegistry.TextureFncs = TextureFncs;
 const createVertexAttrType = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -10941,6 +11425,9 @@ const createLightType = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -11313,6 +11800,9 @@ const createShadowMapPcfType = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -11593,6 +12083,9 @@ const createCameraType = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -14126,6 +14619,9 @@ const createTextAlignmentHorizontal = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -14172,6 +14668,9 @@ const createTextAlignmentVertical = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -14826,19 +15325,7 @@ class ClipAnimationTrigger {
   toString() {
   }
 
-  static create() {
-    if (arguments.length===2&& typeof arguments[0]==="number"&& typeof arguments[1]==="string") {
-      return ClipAnimationTrigger.create_2_number_string(arguments[0], arguments[1]);
-    }
-    else if (arguments.length===2&& typeof arguments[0]==="number"&&arguments[1] instanceof Set) {
-      return ClipAnimationTrigger.create_2_number_Set(arguments[0], arguments[1]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  static create_2_number_string(time, trigger) {
+  static single(time, trigger) {
     let res = new ClipAnimationTrigger();
     res.time = time;
     res.triggers = Dut.immutableSet(trigger);
@@ -14846,7 +15333,7 @@ class ClipAnimationTrigger {
     return res;
   }
 
-  static create_2_number_Set(time, triggers) {
+  static multiple(time, triggers) {
     let res = new ClipAnimationTrigger();
     res.time = time;
     res.triggers = Dut.copyImmutableSet(triggers);
@@ -14971,7 +15458,7 @@ class ClipAnimation {
   }
 
   withAddedTrigger_2_number_string(time, trigger) {
-    return this.withAddedTrigger(ClipAnimationTrigger.create(time, trigger));
+    return this.withAddedTrigger(ClipAnimationTrigger.single(time, trigger));
   }
 
   withAddedTrigger_1_ClipAnimationTrigger(trigger) {
@@ -15262,6 +15749,9 @@ const createTextureWrapType = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -15309,6 +15799,9 @@ const createTextureFilterType = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -15420,6 +15913,9 @@ const createBlendType = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -15836,6 +16332,9 @@ const createSoundTrackFormat = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -16302,7 +16801,7 @@ class AssetGroup {
   toManagerStrict(am) {
     for (let key of this.cache.keySet()) {
       if (am.containsKey(key)) {
-        throw new Error("bank already contains "+key);
+        throw new Error("bank already contains "+key.toString());
       }
     }
     for (let key of this.cache.keySet()) {
@@ -16388,17 +16887,17 @@ class Assets {
       res = res.mergeStrict(Assets.loadFiles(loader, files));
     }
     else {
-      let tapJson = new JsonObject(new String(loader.loadFile(descriptor).toByteArray(), Charset.forName("utf-8")));
+      let tapJson = JsonObjects.parse(new String(loader.loadFile(descriptor).toByteArray(), Charset.forName("utf-8")));
       let docType = tapJson.getString("docType");
       let schemaVersion = tapJson.getInt("schemaVersion");
       Guard.equals("Tyracorn Asset Package Descriptor", docType, "docType is not \"Tyracorn Asset Package Descriptor\"");
       if (schemaVersion==1) {
-        let tasksJson = tapJson.has("tasks")?tapJson.getJSONArray("tasks"):new JsonArray();
-        for (let i = 0; i<tasksJson.length(); ++i) {
-          let taskJson = tasksJson.getJSONObject(i);
+        let tasksJson = tapJson.containsKey("tasks")?tapJson.getJsonArray("tasks"):JsonArray.empty();
+        for (let i = 0; i<tasksJson.size(); ++i) {
+          let taskJson = tasksJson.getJsonObject(i);
           let type = taskJson.getString("type");
           if (type.equals("LOAD_ALL")) {
-            let exclusionsJson = taskJson.has("exclusions")?taskJson.getJSONArray("exclusions"):new JsonArray();
+            let exclusionsJson = taskJson.containsKey("exclusions")?taskJson.getJsonArray("exclusions"):JsonArray.empty();
             let exclusions = Assets.jsonArrayToStringArray(exclusionsJson);
             let okFiles = new ArrayList();
             for (let file of files) {
@@ -16427,7 +16926,7 @@ class Assets {
           }
           else if (type.equals("LOAD_ANIMATED_OBJ_MODEL")) {
             let modelId = taskJson.getString("modelId");
-            let filesJson = taskJson.getJSONArray("files");
+            let filesJson = taskJson.getJsonArray("files");
             let filesStrs = Assets.jsonArrayToStringArray(filesJson);
             let animFiles = new ArrayList();
             for (let fileStr of filesStrs) {
@@ -16441,6 +16940,10 @@ class Assets {
           else if (type.equals("TEXTURE_GAMMA")) {
             let gamma = Float.valueOf(taskJson.getString("gamma"));
             res = res.transform("Texture", TextureFncs.gamma(gamma));
+          }
+          else if (type.equals("TEXTURE_FORMAT")) {
+            let format = TextureFormat.valueOf(taskJson.getString("format"));
+            res = res.transform("Texture", TextureFncs.toFormat(format));
           }
           else if (type.equals("MATERIAL_DIFFUSE_TO_AMBIENT")) {
             res = res.transform("Material", Assets.materialDiffuseToAmbientFnc());
@@ -16525,7 +17028,7 @@ class Assets {
 
   static jsonArrayToStringArray(jsonArray) {
     let res = new ArrayList();
-    for (let j = 0; j<jsonArray.length(); ++j) {
+    for (let j = 0; j<jsonArray.size(); ++j) {
       res.add(jsonArray.getString(j));
     }
     return res;
@@ -16544,13 +17047,13 @@ class Assets {
   static parseCreateClipAnimationCollectionTask(taskJson) {
     let id = ClipAnimationCollectionId.of(taskJson.getString("collectionId"));
     let animations = new HashMap();
-    let animsJson = taskJson.getJSONObject("animations");
+    let animsJson = taskJson.getJsonObject("animations");
     for (let key of animsJson.keySet()) {
-      let animJson = animsJson.getJSONObject(key);
-      let clip = Assets.parseClip(animJson.getJSONArray("clip"));
+      let animJson = animsJson.getJsonObject(key);
+      let clip = Assets.parseClip(animJson.getJsonArray("clip"));
       let dur = Float.valueOf(animJson.getString("duration"));
       let loop = animJson.getBoolean("loop");
-      let triggers = animJson.has("triggers")?Assets.parseClipAnimationTriggers(animJson.getJSONArray("triggers")):Collections.emptyList();
+      let triggers = animJson.containsKey("triggers")?Assets.parseClipAnimationTriggers(animJson.getJsonArray("triggers")):Collections.emptyList();
       animations.put(key, ClipAnimation.create(clip, dur, loop).withAddedTriggers(triggers));
     }
     let res = ClipAnimationCollection.create(animations);
@@ -16559,26 +17062,26 @@ class Assets {
 
   static parseCreatePhysicalMaterialTask(taskJson) {
     let id = PhysicalMaterialId.of(taskJson.getString("physicalMaterialId"));
-    let pmJson = taskJson.getJSONObject("physicalMaterial");
+    let pmJson = taskJson.getJsonObject("physicalMaterial");
     let bounciness = pmJson.getFloat("bounciness");
-    let bouninessCombineType = pmJson.getEnum("PhysicalMaterialCombineType", "bouninessCombineType");
+    let bouninessCombineType = PhysicalMaterialCombineType.valueOf(pmJson.getString("bouninessCombineType"));
     let staticFriction = pmJson.getFloat("staticFriction");
     let dynamicFriction = pmJson.getFloat("dynamicFriction");
-    let frictionCombineType = pmJson.getEnum("PhysicalMaterialCombineType", "frictionCombineType");
+    let frictionCombineType = PhysicalMaterialCombineType.valueOf(pmJson.getString("frictionCombineType"));
     let res = PhysicalMaterial.create(bounciness, bouninessCombineType, staticFriction, dynamicFriction, frictionCombineType);
     return AssetGroup.of(id, res);
   }
 
   static createSprites(taskJson, assets) {
     let res = assets;
-    let spritesJson = taskJson.getJSONObject("sprites");
+    let spritesJson = taskJson.getJsonObject("sprites");
     for (let key of spritesJson.keySet()) {
-      let spriteJson = spritesJson.getJSONObject(key);
+      let spriteJson = spritesJson.getJsonObject(key);
       let tid = Assets.findSpriteTexture(key, assets);
       let sheet = SpriteSheet.create(key, assets.get("Texture", tid), Assets.getNumStripFrames(tid), 1);
       let dur = Float.valueOf(spriteJson.getString("duration"));
       let loop = spriteJson.getBoolean("loop");
-      let triggers = spriteJson.has("triggers")?Assets.parseSpriteTriggers(spriteJson.getJSONArray("triggers")):Collections.emptyList();
+      let triggers = spriteJson.containsKey("triggers")?Assets.parseSpriteTriggers(spriteJson.getJsonArray("triggers")):Collections.emptyList();
       let sprite = sheet.createSprite(dur, loop).withAddedTriggers(triggers);
       let id = SpriteId.of(key);
       res = res.remove(tid).mergeStrict(sheet.getAssets()).put(id, sprite);
@@ -16609,7 +17112,7 @@ class Assets {
 
   static parseClip(array) {
     let frames = new ArrayList();
-    for (let i = 0; i<array.length(); ++i) {
+    for (let i = 0; i<array.size(); ++i) {
       frames.add(array.getInt(i));
     }
     return Clip.create(frames);
@@ -16617,27 +17120,27 @@ class Assets {
 
   static parseClipAnimationTriggers(array) {
     let res = new ArrayList();
-    for (let i = 0; i<array.length(); ++i) {
-      let tJson = array.getJSONObject(i);
+    for (let i = 0; i<array.size(); ++i) {
+      let tJson = array.getJsonObject(i);
       let t = Float.valueOf(tJson.getString("t"));
-      let trgsJson = tJson.getJSONArray("triggers");
+      let trgsJson = tJson.getJsonArray("triggers");
       let triggers = new HashSet();
-      for (let j = 0; j<trgsJson.length(); ++j) {
+      for (let j = 0; j<trgsJson.size(); ++j) {
         triggers.add(trgsJson.getString(j));
       }
-      res.add(ClipAnimationTrigger.create(t, triggers));
+      res.add(ClipAnimationTrigger.multiple(t, triggers));
     }
     return res;
   }
 
   static parseSpriteTriggers(array) {
     let res = new ArrayList();
-    for (let i = 0; i<array.length(); ++i) {
-      let tJson = array.getJSONObject(i);
+    for (let i = 0; i<array.size(); ++i) {
+      let tJson = array.getJsonObject(i);
       let t = Float.valueOf(tJson.getString("t"));
-      let trgsJson = tJson.getJSONArray("triggers");
+      let trgsJson = tJson.getJsonArray("triggers");
       let triggers = new HashSet();
-      for (let j = 0; j<trgsJson.length(); ++j) {
+      for (let j = 0; j<trgsJson.size(); ++j) {
         triggers.add(trgsJson.getString(j));
       }
       res.add(SpriteTrigger.create(t, triggers));
@@ -16651,6 +17154,9 @@ const createAssetCompanionType = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -16791,6 +17297,9 @@ const createTapEntryType = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -16956,16 +17465,15 @@ class TapTextures {
     let buf = null;
     let bos = new ByteArrayOutputStream();
     try {
+      bos.write(TapBytes.stringToBytes(texture.getFormat().name()));
       bos.write(TapBytes.intToBytes(texture.getChannels().size()));
       for (let ch of texture.getChannels()) {
         bos.write(TapBytes.stringToBytes(ch.name()));
       }
       bos.write(TapBytes.intToBytes(texture.getWidth()));
       bos.write(TapBytes.intToBytes(texture.getHeight()));
-      let data = texture.getData();
-      for (let i = 0; i<data.size(); i=i+4) {
-        bos.write(TapBytes.floatToBytes(data.getFloat(i)));
-      }
+      bos.write(TapBytes.intToBytes(texture.getData().size()));
+      bos.write(texture.getData().toByteArray());
       buf = bos.toByteArray();
       bos.close();
       bos = null;
@@ -16982,7 +17490,7 @@ class TapTextures {
         }
       }
     }
-    return TapEntry.create(TapEntryType.TEXTURE, id.id(), 1, DataBlock.fromByteArray(buf));
+    return TapEntry.create(TapEntryType.TEXTURE, id.id(), 2, DataBlock.fromByteArray(buf));
   }
 
   static toAssetGroup(entry) {
@@ -17000,6 +17508,27 @@ class TapTextures {
         let h = reader.readInt();
         let data = reader.readDataBlock(numChannels*w*h*4);
         texture = Texture.create(TextureFormat.FLOAT, channels, w, h, data);
+      }
+      finally {
+        reader.close();
+      }
+      return AssetGroup.of(TextureId.of(entry.getId()), texture);
+    }
+    else if (entry.getVersion()==2) {
+      let texture = null;
+      let reader = TapBufferReader.create(entry);
+      try {
+        let format = TextureFormat.valueOf(reader.readString());
+        let numChannels = reader.readInt();
+        let channels = new ArrayList(numChannels);
+        for (let i = 0; i<numChannels; ++i) {
+          channels.add(TextureChannel.valueOf(reader.readString()));
+        }
+        let w = reader.readInt();
+        let h = reader.readInt();
+        let dataSize = reader.readInt();
+        let data = reader.readDataBlock(dataSize);
+        texture = Texture.create(format, channels, w, h, data);
       }
       finally {
         reader.close();
@@ -17252,6 +17781,96 @@ class TapModels {
 
 }
 classRegistry.TapModels = TapModels;
+class TapClipAnimationCollections {
+  constructor() {
+  }
+
+  getClass() {
+    return "TapClipAnimationCollections";
+  }
+
+  static toEntry(id, collection) {
+    let buf = null;
+    let bos = new ByteArrayOutputStream();
+    try {
+      bos.write(TapBytes.intToBytes(collection.getAnimations().size()));
+      for (let aid of Dut.copySortedSet(collection.getAnimations().keySet())) {
+        let anim = collection.getAnimation(aid);
+        bos.write(TapBytes.stringToBytes(aid));
+        bos.write(TapBytes.intToBytes(anim.getClip().getNumFrames()));
+        for (let idx of anim.getClip().getFrames()) {
+          bos.write(TapBytes.intToBytes(idx));
+        }
+        bos.write(TapBytes.floatToBytes(anim.getDuration()));
+        bos.write(TapBytes.booleanToBytes(anim.isLoop()));
+        bos.write(TapBytes.intToBytes(anim.getTriggers().size()));
+        for (let t of anim.getTriggers()) {
+          bos.write(TapBytes.floatToBytes(t.getTime()));
+          bos.write(TapBytes.intToBytes(t.getTriggers().size()));
+          for (let trigger of Dut.copySortedSet(t.getTriggers())) {
+            bos.write(TapBytes.stringToBytes(trigger));
+          }
+        }
+      }
+      buf = bos.toByteArray();
+    }
+    catch (e) {
+      throw new Error(e);
+    }
+    finally {
+      if (bos!=null) {
+        try {
+          bos.close();
+        }
+        catch (ex) {
+        }
+      }
+    }
+    return TapEntry.create(TapEntryType.CLIP_ANIMATION_COLLECTION, id.id(), 1, DataBlock.fromByteArray(buf));
+  }
+
+  static toAssetGroup(entry) {
+    Guard.equals(entry.getType(), TapEntryType.CLIP_ANIMATION_COLLECTION, "entry must be a CLIP_ANIMATION_COLLECTION type");
+    if (entry.getVersion()==1) {
+      let reader = TapBufferReader.create(entry);
+      try {
+        let animations = new HashMap();
+        let numAnims = reader.readInt();
+        for (let i = 0; i<numAnims; ++i) {
+          let key = reader.readString();
+          let numFrames = reader.readInt();
+          let frames = new ArrayList();
+          for (let f = 0; f<numFrames; ++f) {
+            frames.add(reader.readInt());
+          }
+          let duration = reader.readFloat();
+          let loop = reader.readBoolean();
+          let anim = ClipAnimation.create(Clip.create(frames), duration, loop);
+          let numTriggerTimes = reader.readInt();
+          for (let tt = 0; tt<numTriggerTimes; ++tt) {
+            let t = reader.readFloat();
+            let numTriggers = reader.readInt();
+            let tTriggers = new HashSet();
+            for (let tr = 0; tr<numTriggers; ++tr) {
+              tTriggers.add(reader.readString());
+            }
+            anim = anim.withAddedTrigger(ClipAnimationTrigger.multiple(t, tTriggers));
+          }
+          animations.put(key, anim);
+        }
+        return AssetGroup.of(ClipAnimationCollectionId.of(entry.getId()), ClipAnimationCollection.create(animations));
+      }
+      finally {
+        reader.close();
+      }
+    }
+    else {
+      throw new Error("unsupported version, implement me: "+entry.getVersion());
+    }
+  }
+
+}
+classRegistry.TapClipAnimationCollections = TapClipAnimationCollections;
 class TapPhysicalMaterials {
   constructor() {
   }
@@ -17546,13 +18165,13 @@ class TapPrefabs {
     try {
       os.write(TapBytes.stringToBytes(prefab.getId()));
       os.write(TapBytes.stringToBytes(prefab.getName()));
-      os.write(TapBytes.stringToBytes(Jsons.toJsonStringList(Dut.copyList(Dut.copySortedSet(prefab.getTags())))));
+      os.write(TapBytes.stringToBytes(Jsons.stringListToJson(Dut.copyList(Dut.copySortedSet(prefab.getTags())))));
       os.write(TapBytes.intToBytes(prefab.getComponents().size()));
       for (let cp of prefab.getComponents()) {
         os.write(TapBytes.stringToBytes(cp.getType().name()));
         os.write(TapBytes.stringToBytes(cp.getKey()));
         os.write(TapBytes.intToBytes(cp.getVersion()));
-        os.write(TapBytes.stringToBytes(Jsons.toJsonStringMap(cp.getProperties())));
+        os.write(TapBytes.stringToBytes(Jsons.stringMapToJson(cp.getProperties())));
       }
       os.write(TapBytes.intToBytes(prefab.getChildren().size()));
       for (let child of prefab.getChildren()) {
@@ -17904,6 +18523,9 @@ const createBasicLoadingScreenLoadStrategy = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -18801,6 +19423,16 @@ class Actor {
 
 }
 classRegistry.Actor = Actor;
+class Actors {
+  constructor() {
+  }
+
+  getClass() {
+    return "Actors";
+  }
+
+}
+classRegistry.Actors = Actors;
 class ActorEventType {
   static OUTSPACE = ActorEventType.create("OUTSPACE");
   type;
@@ -18928,6 +19560,9 @@ const createPropagationType = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -22008,6 +22643,9 @@ const createComponentPrefabType = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -22745,6 +23383,9 @@ const createColliderShape = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -24862,6 +25503,9 @@ const createPhysicalMaterialCombineType = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -26107,6 +26751,9 @@ const createDebugRenderRealm = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
     equals(other) {
       return this.symbol === other?.symbol;
     },
@@ -26706,13 +27353,12 @@ class CameraTrackBehavior extends Behavior {
 
 }
 classRegistry.CameraTrackBehavior = CameraTrackBehavior;
-class PlayerCharacterInput extends Behavior {
+class PlayerCharacterInput {
   dt;
   dir;
   punch;
   run;
   constructor() {
-    super();
   }
 
   getClass() {
@@ -26736,6 +27382,17 @@ class PlayerCharacterInput extends Behavior {
 
   isRun() {
     return this.run;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
   }
 
   static create(dt, dir, punch, run) {
