@@ -1241,6 +1241,20 @@ class Dut {
         return res;
     }
 
+    static immutableListPlusItem(collection, item) {
+        let res = new ArrayList();
+        res.addAll(collection);
+        res.add(item);
+        return res;
+    }
+
+    static immutableListPlusItems(collection, plusItems) {
+        let res = new ArrayList();
+        res.addAll(collection);
+        res.addAll(plusItems);
+        return res;
+    }
+
     static set() {
         let res = new HashSet();
         if (arguments.length === 1 && Array.isArray(arguments[0])) {
@@ -1766,14 +1780,14 @@ class Jsons {
     }
 
     /**
-     * Converts JSON string to frame interpolatino.
+     * Converts JSON string to interpolatino.
      *
      * @param {String} input input string
-     * @return {FrameInterpolation} frame interpolation color
+     * @return {Interpolation} interpolation color
      */
-    static toFrameInterpolation(input) {
+    static toInterpolation(input) {
         const items = JSON.parse(input);
-        return FrameInterpolation.create(items[0], items[1], items[2]);
+        return Interpolation.create(items[0], items[1], items[2]);
     }
 
 }
@@ -1995,12 +2009,47 @@ class DataBlock {
         return this.view.getInt8(pos);
     }
 
+    getInt(pos) {
+        return this.view.getInt32(pos, false); // false = big-endian (java)
+    }
+
     getFloat(pos) {
         return this.view.getFloat32(pos, false); // false = big-endian (java)
     }
 
+    /**
+     * Converts this block to the byte array.
+     *
+     * @return {Array} byte array
+     */
     toByteArray() {
-        return Arrays.copyOf(this.data, this.data.length);
+        return Arrays.copyOf(this.data, this.data.byteLength);
+    }
+
+    /**
+     * Converts this block to the int array.
+     *
+     * @return {Array} int array
+     */
+    toIntArray() {
+        const res = [];
+        for (let idx = 0; idx < this.data.byteLength; idx = idx + 4) {
+            res.push(this.getInt(idx));
+        }
+        return res;
+    }
+
+    /**
+     * Converts this block to the int array.
+     *
+     * @return {Array} float array
+     */
+    toFloatArray() {
+        const res = [];
+        for (let idx = 0; idx < this.data.byteLength; idx = idx + 4) {
+            res.push(this.getFloat(idx));
+        }
+        return res;
     }
 
     toBase64String() {
@@ -2128,6 +2177,12 @@ class DataBlockStreamWriter {
     writeByte(x) {
         this.view.setUint8(this.offset, x); // false = big-endian (java)
         this.offset = this.offset + 1;
+        return this;
+    }
+
+    writeInt(x) {
+        this.view.setInt32(this.offset, x, false); // false = big-endian (java)
+        this.offset = this.offset + 4;
         return this;
     }
 
@@ -3194,7 +3249,7 @@ class WebAssetManager {
             this.bank.putCompanion(key, AssetCompanionType.SIZE, size);
         } else if (asset instanceof Mesh) {
             let mesh = asset;
-            let aabb = WebAssetManager.calculateMeshAabb(mesh);
+            let aabb = mesh.getAabb();
             this.bank.putCompanion(key, AssetCompanionType.BOUNDING_AABB, aabb);
         }
     }
@@ -3210,38 +3265,6 @@ class WebAssetManager {
         res.bank = bank;
         res.guardInvariants();
         return res;
-    }
-
-    static calculateMeshAabb(mesh) {
-        let minX = Float.POSITIVE_INFINITY;
-        let minY = Float.POSITIVE_INFINITY;
-        let minZ = Float.POSITIVE_INFINITY;
-        let maxX = Float.NEGATIVE_INFINITY;
-        let maxY = Float.NEGATIVE_INFINITY;
-        let maxZ = Float.NEGATIVE_INFINITY;
-        let attrs = mesh.getVertexAttrs();
-        for (let i = 0; i < mesh.getNumVertices(); ++i) {
-            let vertex = mesh.getVertex(i);
-            let offset = 0;
-            for (let attr of attrs) {
-                if (attr.equals(VertexAttr.POS3)) {
-                    let x = vertex.coord(offset);
-                    let y = vertex.coord(offset + 1);
-                    let z = vertex.coord(offset + 2);
-                    minX = FMath.min(minX, x);
-                    minY = FMath.min(minY, y);
-                    minZ = FMath.min(minZ, z);
-                    maxX = FMath.max(maxX, x);
-                    maxY = FMath.max(maxY, y);
-                    maxZ = FMath.max(maxZ, z);
-                }
-                offset = offset + attr.getSize();
-            }
-        }
-        if (Float.isInfinite(minX)) {
-            return null;
-        }
-        return Aabb3.create(Vec3.create(minX, minY, minZ), Vec3.create(maxX, maxY, maxZ));
     }
 
 }
@@ -3901,9 +3924,10 @@ class WebglColorRenderer {
      * Renders a mesh with the given transformation matrix.
      * 
      * @param {MeshId} mesh identifier
+     * @param {Interpolation} interpolation mesh interpolation
      * @param {Mat44} mat transformation matric
      */
-    render(mesh, mat) {
+    render(mesh, interpolation, mat) {
         const m = this.refProvider.getMeshRef(mesh);
 
         if (m.getFrames().get(0).getVertexAttrs().equals(Dut.list(VertexAttr.POS3, VertexAttr.RGB))) {
@@ -3936,10 +3960,11 @@ class WebglColorRenderer {
      * Renders a transparent mesh with the given transformation matrix.
      * 
      * @param {MeshId} mesh identifier
+     * @param {Interpolation} interpolation mesh interpolation
      * @param {Mat44} mat transformation matric
      * @param {BlendType} blendType blending type
      */
-    renderTransparent(mesh, mat, blendType) {
+    renderTransparent(mesh, interpolation, mat, blendType) {
         const m = this.refProvider.getMeshRef(mesh);
 
         if (m.getFrames().get(0).getVertexAttrs().equals(Dut.list(VertexAttr.POS3, VertexAttr.RGBA))) {
@@ -4264,18 +4289,17 @@ class WebglSceneRenderer {
      * Performs rendering. Arguments determines how the object is rendered.
      */
     render() {
-        if (arguments.length === 2 && arguments[0] instanceof Model && arguments[1] instanceof Mat44) {
+        if (arguments.length === 3 && arguments[0] instanceof Model && arguments[1] instanceof Interpolation &&
+                arguments[2] instanceof Mat44) {
             for (const part of arguments[0].getParts()) {
-                this.renderMesh(part.getMesh(), 0, 0, 0, arguments[1], part.getMaterial());
+                this.renderMesh(part.getMesh(), arguments[1], arguments[2], part.getMaterial());
             }
-        } else if (arguments.length === 3 && arguments[0] instanceof MeshId && arguments[1] instanceof Mat44 && arguments[2] instanceof Material) {
-            this.renderMesh(arguments[0], 0, 0, 0, arguments[1], arguments[2]);
-        } else if (arguments.length === 5 && arguments[0] instanceof Model &&
-                typeof arguments[1] === "number" && typeof arguments[2] === "number" && typeof arguments[3] === "number" &&
-                arguments[4] instanceof Mat44) {
-            for (const part of arguments[0].getParts()) {
-                this.renderMesh(part.getMesh(), arguments[1], arguments[2], arguments[3], arguments[4], part.getMaterial());
-            }
+        } else if (arguments.length === 4 && arguments[0] instanceof MeshId && arguments[1] instanceof Interpolation &&
+                arguments[2] instanceof Mat44 && arguments[3] instanceof MaterialId) {
+            this.renderMesh(arguments[0], arguments[1], arguments[2], arguments[3]);
+        } else if (arguments.length === 4 && arguments[0] instanceof MeshId && arguments[1] instanceof Interpolation &&
+                arguments[2] instanceof Mat44 && arguments[3] instanceof Material) {
+            this.renderMesh(arguments[0], arguments[1], arguments[2], arguments[3]);
         } else {
             throw "unsupported arguments for rendering, implement me";
         }
@@ -4285,13 +4309,11 @@ class WebglSceneRenderer {
      * Renders mesh.
      * 
      * @param {MeshId} mesh mesh to render
-     * @param {number} frame1 first frame (integer)
-     * @param {number} frame2 second frame (integer)
-     * @param {number} t interpolation number (float)
+     * @param {Interpolation} interpolation frame interpolation
      * @param {Mat44} mat matrix
      * @param {Material} material material
      */
-    renderMesh(mesh, frame1, frame2, t, mat, material) {
+    renderMesh(mesh, interpolation, mat, material) {
         if (material instanceof MaterialId) {
             material = this.assetBank.get("Material", material);
         }
@@ -4415,11 +4437,11 @@ class WebglSceneRenderer {
             gl.drawElements(gl.TRIANGLES, m.getNumIndices(), gl.UNSIGNED_INT, 0);
             gl.bindVertexArray(null);
         } else {
-            const frRef1 = m.getFrames().get(frame1);
-            const frRef2 = m.getFrames().get(frame2);
+            const frRef1 = m.getFrames().get(interpolation.startIdx());
+            const frRef2 = m.getFrames().get(interpolation.endIdx());
             Guard.equals(this.pos3Norm3Tex2VertexAttrs, frRef1.getVertexAttrs(), "frame must have POS3, NORM3, TEX2 vertex attributes: %s", frRef1.getVertexAttrs());
             Guard.equals(this.pos3Norm3Tex2VertexAttrs, frRef2.getVertexAttrs(), "frame must have POS3, NORM3, TEX2 vertex attributes: %s", frRef2.getVertexAttrs());
-            this.shader.setUniformFloat("t", t);
+            this.shader.setUniformFloat("t", interpolation.t());
             const vsize = frRef1.getVertexSize();
             gl.bindVertexArray(m.getVao());
             gl.bindBuffer(gl.ARRAY_BUFFER, frRef1.getVbo());
@@ -4561,17 +4583,13 @@ class WebglShadowMapRenderer {
      * Performs rendering. Arguments determines how the object is rendered.
      */
     render() {
-        if (arguments.length === 2 && arguments[0] instanceof MeshId && arguments[1] instanceof Mat44) {
-            this.renderMesh(arguments[0], 0, 0, 0, arguments[1]);
-        } else if (arguments.length === 2 && arguments[0] instanceof Model && arguments[1] instanceof Mat44) {
+        if (arguments.length === 3 && arguments[0] instanceof MeshId && arguments[1] instanceof Interpolation &&
+                arguments[2] instanceof Mat44) {
+            this.renderMesh(arguments[0], arguments[1], arguments[2]);
+        } else if (arguments.length === 3 && arguments[0] instanceof Model && arguments[1] instanceof Interpolation &&
+                arguments[2] instanceof Mat44) {
             for (const part of arguments[0].getParts()) {
-                this.renderMesh(part.getMesh(), 0, 0, 0, arguments[1]);
-            }
-        } else if (arguments.length === 5 && arguments[0] instanceof Model &&
-                typeof arguments[1] === "number" && typeof arguments[2] === "number" && typeof arguments[3] === "number" &&
-                arguments[4] instanceof Mat44) {
-            for (const part of arguments[0].getParts()) {
-                this.renderMesh(part.getMesh(), arguments[1], arguments[2], arguments[3], arguments[4]);
+                this.renderMesh(part.getMesh(), arguments[1], arguments[2]);
             }
         } else {
             throw "unsupported arguments for rendering, implement me";
@@ -4582,12 +4600,10 @@ class WebglShadowMapRenderer {
      * Renders mesh.
      * 
      * @param {MeshId} mesh mesh to render
-     * @param {number} frame1 first frame (integer)
-     * @param {number} frame2 second frame (integer)
-     * @param {number} t interpolation number (float)
+     * @param {Interpolation} interpolation frame interpolation
      * @param {Mat44} mat matrix
      */
-    renderMesh(mesh, frame1, frame2, t, mat) {
+    renderMesh(mesh, interpolation, mat) {
         const m = this.refProvider.getMeshRef(mesh);
         gl.disable(gl.BLEND);
         this.shader.setUniformMat44("modelMat", mat);
@@ -4603,11 +4619,11 @@ class WebglShadowMapRenderer {
             gl.drawElements(gl.TRIANGLES, m.getNumIndices(), gl.UNSIGNED_INT, 0);
             gl.bindVertexArray(null);
         } else {
-            const frRef1 = m.getFrames().get(frame1);
-            const frRef2 = m.getFrames().get(frame2);
+            const frRef1 = m.getFrames().get(interpolation.startIdx());
+            const frRef2 = m.getFrames().get(interpolation.endIdx());
             Guard.equals(this.pos3Norm3Tex2VertexAttrs, frRef1.getVertexAttrs(), "frame must have POS3, NORM3, TEX2 vertex attributes: %s", frRef1.getVertexAttrs());
             Guard.equals(this.pos3Norm3Tex2VertexAttrs, frRef2.getVertexAttrs(), "frame must have POS3, NORM3, TEX2 vertex attributes: %s", frRef2.getVertexAttrs());
-            this.shader.setUniformFloat("t", t);
+            this.shader.setUniformFloat("t", interpolation.t());
             const vsize = frRef1.getVertexSize();
             gl.bindVertexArray(m.getVao());
             gl.bindBuffer(gl.ARRAY_BUFFER, frRef1.getVbo());
@@ -5181,50 +5197,39 @@ class WebglGraphicsDriver {
      */
     init() {
         // Create debug plane mesh
-        const dbgPlane = Mesh.create(
-                [VertexAttr.POS3, VertexAttr.TEX2],
-                [
-                    Vertex.create(-1, -1, 0, 0, 0),
-                    Vertex.create(1, -1, 0, 1, 0),
-                    Vertex.create(1, 1, 0, 1, 1),
-                    Vertex.create(-1, 1, 0, 0, 1)
-                ],
-                [
-                    Face.triangle(0, 1, 2),
-                    Face.triangle(0, 2, 3)
-                ]
-                );
+        const dbgPlane = UnpackedMesh.singleFrame(
+                UnpackedMeshFrame.create(
+                        Dut.list(VertexAttr.POS3, VertexAttr.TEX2),
+                        Dut.list(
+                                Vertex.create(-1, -1, 0, 0, 0),
+                                Vertex.create(1, -1, 0, 1, 0),
+                                Vertex.create(1, 1, 0, 1, 1),
+                                Vertex.create(-1, 1, 0, 0, 1))),
+                Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3))).toMesh();
         this.debugRectMesh = this.pushMeshToGraphicCard(dbgPlane);
 
         // Create sprite plane mesh
-        const spritePlane = Mesh.create(
-                [VertexAttr.POS3, VertexAttr.TEX2],
-                [
-                    Vertex.create(-0.5, -0.5, 0, 0, 0),
-                    Vertex.create(0.5, -0.5, 0, 1, 0),
-                    Vertex.create(0.5, 0.5, 0, 1, 1),
-                    Vertex.create(-0.5, 0.5, 0, 0, 1)
-                ],
-                [
-                    Face.triangle(0, 1, 2),
-                    Face.triangle(0, 2, 3)
-                ]
-                );
+        const spritePlane = UnpackedMesh.singleFrame(
+                UnpackedMeshFrame.create(
+                        Dut.immutableList(VertexAttr.POS3, VertexAttr.TEX2),
+                        Dut.list(
+                                Vertex.create(-0.5, -0.5, 0, 0, 0),
+                                Vertex.create(0.5, -0.5, 0, 1, 0),
+                                Vertex.create(0.5, 0.5, 0, 1, 1),
+                                Vertex.create(-0.5, 0.5, 0, 0, 1))),
+                Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3))).toMesh();
         this.spriteRectMesh = this.pushMeshToGraphicCard(spritePlane);
 
         // Create primitive mesh
-        const primitive = Mesh.create(
-                [VertexAttr.POS3, VertexAttr.RGBA],
-                [
-                    Vertex.create(0, 0, 0, 0, 0, 0, 1),
-                    Vertex.create(0, 0, 0, 0, 0, 0, 1),
-                    Vertex.create(0, 0, 0, 0, 0, 0, 1),
-                    Vertex.create(0, 0, 0, 0, 0, 0, 1)
-                ],
-                [
-                    Face.create(0, 1, 2, 3)
-                ]
-                );
+        const primitive = UnpackedMesh.singleFrame(
+                UnpackedMeshFrame.create(
+                        Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA),
+                        Dut.list(
+                                Vertex.create(0, 0, 0, 0, 0, 0, 1),
+                                Vertex.create(0, 0, 0, 0, 0, 0, 1),
+                                Vertex.create(0, 0, 0, 0, 0, 0, 1))
+                        ),
+                Dut.list(Face.create(0, 1, 2))).toMesh();
         this.primitivesMesh = this.pushMeshToGraphicCard(primitive);
 
         // Create default texture
@@ -5809,8 +5814,8 @@ class WebglGraphicsDriver {
      * @returns {WebglMeshRef} mesh reference
      */
     pushMeshToGraphicCard(mesh) {
-        const numFrames = this.getNumFrames(mesh);
-        let iarr = new Uint32Array(this.getIndexArray(mesh));
+        const numFrames = mesh.getNumFrames();
+        let iarr = new Uint32Array(mesh.getFacesBlock().toIntArray());
         let ibuf = null;
         let vao = null;
         const frameRefs = new ArrayList();
@@ -5819,16 +5824,10 @@ class WebglGraphicsDriver {
             vao = gl.createVertexArray();
             gl.bindVertexArray(vao);
 
+            const frameVertexAttrs = mesh.getVertexAttrs();
             for (let i = 0; i < numFrames; ++i) {
-                let varr = null;
-                let frameVertexAttrs = null;
-                if (numFrames === 1) {
-                    varr = new Float32Array(this.getVertexArray(mesh));
-                    frameVertexAttrs = mesh.getVertexAttrs();
-                } else {
-                    varr = new Float32Array(this.getVertexFrameArray(mesh, i));
-                    frameVertexAttrs = Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3, VertexAttr.TEX2);
-                }
+                const frame = mesh.getFrame(i);
+                const varr = new Float32Array(frame.getVerticesBlock().toFloatArray());
                 const vbuf = gl.createBuffer();
                 gl.bindBuffer(gl.ARRAY_BUFFER, vbuf);
                 gl.bufferData(gl.ARRAY_BUFFER, varr, gl.STATIC_DRAW);
@@ -5843,7 +5842,7 @@ class WebglGraphicsDriver {
         } catch (e) {
             console.error(e);
             if (vao !== null) {
-                gl.deleteVertexArray(vao)
+                gl.deleteVertexArray(vao);
             }
             for (const fr of frameRefs) {
                 gl.deleteBuffer(fr.getVbo());
@@ -5851,9 +5850,9 @@ class WebglGraphicsDriver {
             if (ibuf !== null) {
                 gl.deleteBuffer(ibuf);
             }
-            throw "error during pushin mesh to the driver";
+            throw "error during pushing mesh to the driver";
         }
-        return WebglMeshRef.create(vao, ibuf, iarr.length, frameRefs);
+        return WebglMeshRef.create(vao, ibuf, mesh.getFacesBlock().size() / 4, frameRefs);
     }
 
     /**
@@ -5911,101 +5910,6 @@ class WebglGraphicsDriver {
         }
         gl.bindTexture(gl.TEXTURE_2D, null);
         return WebglTextureRef.create(ptr, texture);
-    }
-
-    /**
-     * Returns the number of frames of the mesh.
-     *
-     * @param {Mesh} mesh mesh
-     * @return {Number} number of frames of the mesh (integer)
-     */
-    getNumFrames(mesh) {
-        if (this.isAnimatedModel(mesh.getVertexAttrs())) {
-            return (mesh.getVertexAttrs().size() - 1) / 2;
-        } else {
-            return 1;
-        }
-    }
-
-    /**
-     * Returns vertex array. 
-     * 
-     * @param {Mesh} mesh
-     * @returns {Array} array with vertex dara (array of float)
-     */
-    getVertexArray(mesh) {
-        const num = mesh.getNumVertices();
-        const s = mesh.getVertexSize();
-        const res = [];
-        for (let i = 0; i < num; ++i) {
-            let v = mesh.getVertex(i);
-            for (let j = 0; j < s; ++j) {
-                res[i * s + j] = v.coord(j);
-            }
-        }
-        return res;
-    }
-
-    /**
-     * Returns an array containing all vertex data for the given frame.
-     *
-     * @param {Mesh} mesh mesh that need to be in animated style
-     * @param {Number} frame frame to target (integer)
-     * @return array containing all vertex data (array of float)
-     */
-    getVertexFrameArray(mesh, frame) {
-        Guard.beTrue(this.isAnimatedModel(mesh.getVertexAttrs()), "mesh must be animated");
-        const vertexSize = mesh.getVertexSize();
-        const numVertices = mesh.getNumVertices();
-        const numFrames = (vertexSize - 2) / 6;
-        const res = []; // POS3, NORM3, TEXT2
-        for (let i = 0; i < numVertices; ++i) {
-            const v = mesh.getVertex(i);
-            res[i * 8 + 0] = v.coord(frame * 6 + 0);
-            res[i * 8 + 1] = v.coord(frame * 6 + 1);
-            res[i * 8 + 2] = v.coord(frame * 6 + 2);
-            res[i * 8 + 3] = v.coord(frame * 6 + 3);
-            res[i * 8 + 4] = v.coord(frame * 6 + 4);
-            res[i * 8 + 5] = v.coord(frame * 6 + 5);
-            res[i * 8 + 6] = v.coord(numFrames * 6);
-            res[i * 8 + 7] = v.coord(numFrames * 6 + 1);
-        }
-        return res;
-    }
-
-    /**
-     * Returns index array.
-     *
-     * @param {Mesh} mesh mesh
-     * @return index array
-     */
-    getIndexArray(mesh) {
-        let res = [];
-        for (let i = 0; i < mesh.getNumFaces(); ++i) {
-            let f = mesh.getFace(i);
-            res[i * 3] = f.getIndices().get(0);
-            res[i * 3 + 1] = f.getIndices().get(1);
-            res[i * 3 + 2] = f.getIndices().get(2);
-        }
-        return res;
-    }
-
-    /**
-     * Returns if attribute set is animated model.
-     *
-     * @param {ArrayList of VertexAttr} attrs vertex attributes
-     * @returns {Boolean} whether thi is an animated model
-     */
-    isAnimatedModel(attrs) {
-        if (attrs.size() < 3 || !attrs.get(attrs.size() - 1).equals(VertexAttr.TEX2)) {
-            return false;
-        }
-        for (let i = 0; i < attrs.size() - 1; i = i + 2) {
-            if (!attrs.get(i).equals(VertexAttr.POS3) || !attrs.get(i + 1).equals(VertexAttr.NORM3)) {
-                return false;
-            }
-        }
-        return true;
     }
 
     /**
@@ -8763,6 +8667,7 @@ class Rect2 {
 }
 classRegistry.Rect2 = Rect2;
 class Aabb3 {
+  static ZERO = Aabb3.create(Vec3.ZERO, Vec3.ZERO);
   mMin;
   mMax;
   constructor() {
@@ -9086,6 +8991,56 @@ class Geometry3 {
 
 }
 classRegistry.Geometry3 = Geometry3;
+class Interpolation {
+  static ZERO = Interpolation.create(0, 0, 0);
+  mStartIdx;
+  mEndIdx;
+  mT;
+  constructor() {
+  }
+
+  getClass() {
+    return "Interpolation";
+  }
+
+  guardInvaritants() {
+    Guard.beTrue(this.mT>=0&&this.mT<=1, "t must be in [0, 1]: %f", this.mT);
+  }
+
+  startIdx() {
+    return this.mStartIdx;
+  }
+
+  endIdx() {
+    return this.mEndIdx;
+  }
+
+  t() {
+    return this.mT;
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(startIdx, endIdx, t) {
+    let res = new Interpolation();
+    res.mStartIdx = startIdx;
+    res.mEndIdx = endIdx;
+    res.mT = t;
+    res.guardInvaritants();
+    return res;
+  }
+
+}
+classRegistry.Interpolation = Interpolation;
 class RefIdType {
   mType;
   constructor() {
@@ -10604,6 +10559,10 @@ class Face {
     return this.indices.size();
   }
 
+  getIndex(idx) {
+    return this.indices.get(idx);
+  }
+
   getIndices() {
     return this.indices;
   }
@@ -10912,19 +10871,22 @@ class Material {
 
 }
 classRegistry.Material = Material;
-class Mesh {
-  static MODEL_ATTRS = Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3, VertexAttr.TEX2);
+class MeshFrame {
+  aabb;
   vertexAttrs;
-  vertices;
-  faces;
+  verticesBlock;
   constructor() {
   }
 
   getClass() {
-    return "Mesh";
+    return "MeshFrame";
   }
 
   guardInvariants() {
+  }
+
+  getAabb() {
+    return this.aabb;
   }
 
   getVertexAttrs() {
@@ -10940,39 +10902,33 @@ class Mesh {
   }
 
   getNumVertices() {
-    return this.vertices.size();
+    return this.verticesBlock.size()/4/this.getVertexSize();
   }
 
-  getVertices() {
-    return this.vertices;
+  getVerticesBlock() {
+    return this.verticesBlock;
   }
 
-  getVertex(idx) {
-    return this.vertices.get(idx);
-  }
-
-  getNumFaces() {
-    return this.faces.size();
-  }
-
-  getFaces() {
-    return this.faces;
-  }
-
-  getFace(idx) {
-    return this.faces.get(idx);
-  }
-
-  getUnpackedFaces() {
-    let res = new ArrayList();
-    for (let face of this.faces) {
-      let ufc = new ArrayList();
-      for (let idx of face.getIndices()) {
-        ufc.add(this.vertices.get(idx));
-      }
-      res.add(ufc);
+  isCompatible(other) {
+    if (!this.vertexAttrs.equals(other.vertexAttrs)) {
+      return false;
     }
-    return res;
+    return this.verticesBlock.size()==other.verticesBlock.size();
+  }
+
+  toUnpackedMeshFrame() {
+    let vertexSize = this.getVertexSize();
+    let vertexByteSize = vertexSize*4;
+    let numVertices = this.getNumVertices();
+    let vertices = new ArrayList();
+    for (let i = 0; i<numVertices; ++i) {
+      let varr = [];
+      for (let j = 0; j<vertexSize; ++j) {
+        varr[j] = this.verticesBlock.getFloat(i*vertexByteSize+j*4);
+      }
+      vertices.add(Vertex.create(varr));
+    }
+    return UnpackedMeshFrame.create(this.vertexAttrs, vertices);
   }
 
   hashCode() {
@@ -10986,107 +10942,134 @@ class Mesh {
   toString() {
   }
 
-  static create(vertexAttrs, vertices, faces) {
-    let res = new Mesh();
+  static create(aabb, vertexAttrs, verticesBlock) {
+    let res = new MeshFrame();
+    res.aabb = aabb;
     res.vertexAttrs = Dut.copyImmutableList(vertexAttrs);
-    res.vertices = Dut.copyImmutableList(vertices);
-    res.faces = Dut.copyImmutableList(faces);
+    res.verticesBlock = verticesBlock;
     res.guardInvariants();
     return res;
   }
 
-  static fabric(vertices, faces) {
+  static fabric(aabb, verticesBlock) {
+    let res = new MeshFrame();
+    res.aabb = aabb;
+    res.vertexAttrs = Meshes.FABRIC_VERTEX_ATTRS;
+    res.verticesBlock = verticesBlock;
+    res.guardInvariants();
+    return res;
+  }
+
+  static model(aabb, verticesBlock) {
+    let res = new MeshFrame();
+    res.aabb = aabb;
+    res.vertexAttrs = Meshes.MODEL_VERTEX_ATTRS;
+    res.verticesBlock = verticesBlock;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.MeshFrame = MeshFrame;
+class Mesh {
+  aabb;
+  frames;
+  facesBlock;
+  constructor() {
+  }
+
+  getClass() {
+    return "Mesh";
+  }
+
+  guardInvariants() {
+  }
+
+  getAabb() {
+    return this.aabb;
+  }
+
+  getVertexAttrs() {
+    return this.frames.get(0).getVertexAttrs();
+  }
+
+  getVertexSize() {
+    return this.frames.get(0).getVertexSize();
+  }
+
+  getNumVertices() {
+    return this.frames.get(0).getNumVertices();
+  }
+
+  getNumFrames() {
+    return this.frames.size();
+  }
+
+  getFrame(idx) {
+    return this.frames.get(idx);
+  }
+
+  getFrames() {
+    return this.frames;
+  }
+
+  getNumFaces() {
+    return this.facesBlock.size()/12;
+  }
+
+  getFacesBlock() {
+    return this.facesBlock;
+  }
+
+  plusMeshFrames(other) {
+    Guard.equals(this.facesBlock, other.facesBlock, "faces in both meshes must be same");
     let res = new Mesh();
-    res.vertexAttrs = Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3);
-    res.vertices = Dut.copyImmutableList(vertices);
-    res.faces = Dut.copyImmutableList(faces);
+    res.aabb = this.aabb.expand(other.aabb);
+    res.frames = Dut.immutableListPlusItems(this.frames, other.frames);
+    res.facesBlock = this.facesBlock;
     res.guardInvariants();
     return res;
   }
 
-  static model(vertices, faces) {
+  toUnpackedMesh() {
+    let resFrames = new ArrayList();
+    for (let mf of this.frames) {
+      resFrames.add(mf.toUnpackedMeshFrame());
+    }
+    let faces = new ArrayList();
+    for (let i = 0; i<this.facesBlock.size(); i=i+12) {
+      faces.add(Face.triangle(this.facesBlock.getInt(i), this.facesBlock.getInt(i+4), this.facesBlock.getInt(i+8)));
+    }
+    return UnpackedMesh.create(resFrames, faces);
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(aabb, frames, facesBlock) {
     let res = new Mesh();
-    res.vertexAttrs = Mesh.MODEL_ATTRS;
-    res.vertices = Dut.copyImmutableList(vertices);
-    res.faces = Dut.copyImmutableList(faces);
+    res.aabb = aabb;
+    res.frames = Dut.copyImmutableList(frames);
+    res.facesBlock = facesBlock;
     res.guardInvariants();
     return res;
   }
 
-  static modelTriangles(vertices, merge) {
-    Guard.beTrue(vertices.size()%3==0, "number of verftices must be multiplication of 3");
-    let keepAllVerts = !merge;
+  static singleFrame(aabb, frame, facesBlock) {
     let res = new Mesh();
-    res.vertexAttrs = Mesh.MODEL_ATTRS;
-    let vts = new ArrayList();
-    let fcs = new ArrayList();
-    for (let i = 0; i<vertices.size(); i=i+3) {
-      let v1 = vertices.get(i);
-      let f1 = vts.indexOf(v1);
-      if (f1==-1||keepAllVerts) {
-        vts.add(v1);
-        f1 = vts.size()-1;
-      }
-      let v2 = vertices.get(i+1);
-      let f2 = vts.indexOf(v2);
-      if (f2==-1||keepAllVerts) {
-        vts.add(v2);
-        f2 = vts.size()-1;
-      }
-      let v3 = vertices.get(i+2);
-      let f3 = vts.indexOf(v3);
-      if (f3==-1||keepAllVerts) {
-        vts.add(v3);
-        f3 = vts.size()-1;
-      }
-      fcs.add(Face.triangle(f1, f2, f3));
-    }
-    res.vertices = Dut.copyImmutableList(vts);
-    res.faces = Dut.copyImmutableList(fcs);
+    res.aabb = aabb;
+    res.frames = Dut.immutableList(frame);
+    res.facesBlock = facesBlock;
     res.guardInvariants();
     return res;
-  }
-
-  static modelAnimated(frames) {
-    if (frames.isEmpty()) {
-      throw new Error("at least 1 frame must be defined");
-    }
-    let numFrames = frames.size();
-    let frame0 = frames.get(0);
-    let faces0 = frame0.getFaces();
-    for (let frame of frames) {
-      Guard.equals(Mesh.MODEL_ATTRS, frame.getVertexAttrs(), "vertex attributes of all frames must be %s", Mesh.MODEL_ATTRS);
-      Guard.equals(frame0.getNumVertices(), frame.getNumVertices(), "all frames must have same number of vertices");
-      Guard.equals(faces0, frame.getFaces(), "all frames must have same faces");
-    }
-    let vertarrs = new ArrayList();
-    let attrs = new ArrayList();
-    for (let i = 0; i<frame0.getNumVertices(); ++i) {
-      let v = [];
-      v[numFrames*6] = frame0.getVertex(i).coord(6);
-      v[numFrames*6+1] = frame0.getVertex(i).coord(7);
-      vertarrs.add(v);
-    }
-    for (let f = 0; f<numFrames; ++f) {
-      let frame = frames.get(f);
-      attrs.add(VertexAttr.POS3);
-      attrs.add(VertexAttr.NORM3);
-      for (let i = 0; i<frame.getNumVertices(); ++i) {
-        let v = vertarrs.get(i);
-        v[f*6] = frame.getVertex(i).coord(0);
-        v[f*6+1] = frame.getVertex(i).coord(1);
-        v[f*6+2] = frame.getVertex(i).coord(2);
-        v[f*6+3] = frame.getVertex(i).coord(3);
-        v[f*6+4] = frame.getVertex(i).coord(4);
-        v[f*6+5] = frame.getVertex(i).coord(5);
-      }
-    }
-    attrs.add(VertexAttr.TEX2);
-    let verts = new ArrayList();
-    for (let v of vertarrs) {
-      verts.add(Vertex.create(v));
-    }
-    return Mesh.create(attrs, verts, faces0);
   }
 
 }
@@ -11140,6 +11123,296 @@ class MeshId extends RefId {
 
 }
 classRegistry.MeshId = MeshId;
+class UnpackedMeshFrame {
+  vertexAttrs;
+  vertices;
+  constructor() {
+  }
+
+  getClass() {
+    return "UnpackedMeshFrame";
+  }
+
+  guardInvariants() {
+  }
+
+  getVertexAttrs() {
+    return this.vertexAttrs;
+  }
+
+  getVertexSize() {
+    let res = 0;
+    for (let attr of this.vertexAttrs) {
+      res = res+attr.getSize();
+    }
+    return res;
+  }
+
+  getNumVertices() {
+    return this.vertices.size();
+  }
+
+  getVertices() {
+    return this.vertices;
+  }
+
+  getVertex(idx) {
+    return this.vertices.get(idx);
+  }
+
+  calculateAabb() {
+    if (this.vertices.isEmpty()||!this.vertexAttrs.contains(VertexAttr.POS3)) {
+      return Aabb3.ZERO;
+    }
+    let minX = Float.POSITIVE_INFINITY;
+    let minY = Float.POSITIVE_INFINITY;
+    let minZ = Float.POSITIVE_INFINITY;
+    let maxX = Float.NEGATIVE_INFINITY;
+    let maxY = Float.NEGATIVE_INFINITY;
+    let maxZ = Float.NEGATIVE_INFINITY;
+    for (let vertex of this.vertices) {
+      let offset = 0;
+      for (let attr of this.vertexAttrs) {
+        if (attr.equals(VertexAttr.POS3)) {
+          let x = vertex.coord(offset);
+          let y = vertex.coord(offset+1);
+          let z = vertex.coord(offset+2);
+          minX = FMath.min(minX, x);
+          minY = FMath.min(minY, y);
+          minZ = FMath.min(minZ, z);
+          maxX = FMath.max(maxX, x);
+          maxY = FMath.max(maxY, y);
+          maxZ = FMath.max(maxZ, z);
+        }
+        offset = offset+attr.getSize();
+      }
+    }
+    return Aabb3.create(Vec3.create(minX, minY, minZ), Vec3.create(maxX, maxY, maxZ));
+  }
+
+  isCompatible(other) {
+    if (!this.vertexAttrs.equals(other.vertexAttrs)) {
+      return false;
+    }
+    return this.vertices.size()==other.vertices.size();
+  }
+
+  toMeshFrame() {
+    let writer = DataBlockStreamWriter.create(this.getVertexSize()*this.getNumVertices()*4);
+    for (let ver of this.vertices) {
+      for (let i = 0; i<ver.dim(); ++i) {
+        writer.writeFloat(ver.coord(i));
+      }
+    }
+    let aabb = this.calculateAabb();
+    return MeshFrame.create(aabb, this.vertexAttrs, writer.toDataBlock());
+  }
+
+  hashCode() {
+    return Dut.reflectionHashCode(this);
+  }
+
+  equals(obj) {
+    return Dut.reflectionEquals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(vertexAttrs, vertices) {
+    let res = new UnpackedMeshFrame();
+    res.vertexAttrs = Dut.copyImmutableList(vertexAttrs);
+    res.vertices = Dut.copyImmutableList(vertices);
+    res.guardInvariants();
+    return res;
+  }
+
+  static fabric(vertices) {
+    let res = new UnpackedMeshFrame();
+    res.vertexAttrs = Meshes.FABRIC_VERTEX_ATTRS;
+    res.vertices = Dut.copyImmutableList(vertices);
+    res.guardInvariants();
+    return res;
+  }
+
+  static model(vertices) {
+    let res = new UnpackedMeshFrame();
+    res.vertexAttrs = Meshes.MODEL_VERTEX_ATTRS;
+    res.vertices = Dut.copyImmutableList(vertices);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.UnpackedMeshFrame = UnpackedMeshFrame;
+class UnpackedMesh {
+  frames;
+  faces;
+  constructor() {
+  }
+
+  getClass() {
+    return "UnpackedMesh";
+  }
+
+  guardInvariants() {
+  }
+
+  getVertexAttrs() {
+    return this.frames.get(0).getVertexAttrs();
+  }
+
+  getVertexSize() {
+    return this.frames.get(0).getVertexSize();
+  }
+
+  getNumVertices() {
+    return this.frames.get(0).getNumVertices();
+  }
+
+  getNumFrames() {
+    return this.frames.size();
+  }
+
+  getFrame(idx) {
+    return this.frames.get(idx);
+  }
+
+  getFrames() {
+    return this.frames;
+  }
+
+  getNumFaces() {
+    return this.faces.size();
+  }
+
+  getFaces() {
+    return this.faces;
+  }
+
+  getFace(idx) {
+    return this.faces.get(idx);
+  }
+
+  plusFrame(frame) {
+    let res = new UnpackedMesh();
+    res.frames = Dut.immutableListPlusItem(this.frames, frame);
+    res.faces = this.faces;
+    res.guardInvariants();
+    return res;
+  }
+
+  plusUnpackedMeshFrames(other) {
+    Guard.equals(this.faces, other.faces, "faces in both meshes must be same");
+    let res = new UnpackedMesh();
+    res.frames = Dut.immutableListPlusItems(this.frames, other.frames);
+    res.faces = this.faces;
+    res.guardInvariants();
+    return res;
+  }
+
+  calculateAabb() {
+    if (this.frames.isEmpty()) {
+      return Aabb3.ZERO;
+    }
+    let res = this.frames.get(0).calculateAabb();
+    for (let frame of this.frames) {
+      res = res.expand(frame.calculateAabb());
+    }
+    return res;
+  }
+
+  toMesh() {
+    let resFrames = new ArrayList();
+    for (let mf of this.frames) {
+      resFrames.add(mf.toMeshFrame());
+    }
+    let facesWriter = DataBlockStreamWriter.create(12*this.faces.size());
+    for (let face of this.faces) {
+      Guard.equals(3, face.getNumIndices(), "only triangle faces are supported");
+      facesWriter.writeInt(face.getIndex(0));
+      facesWriter.writeInt(face.getIndex(1));
+      facesWriter.writeInt(face.getIndex(2));
+    }
+    let aabb = this.calculateAabb();
+    return Mesh.create(aabb, resFrames, facesWriter.toDataBlock());
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(frames, faces) {
+    let res = new UnpackedMesh();
+    res.frames = Dut.copyImmutableList(frames);
+    res.faces = Dut.copyImmutableList(faces);
+    res.guardInvariants();
+    return res;
+  }
+
+  static singleFrame(frame, faces) {
+    let res = new UnpackedMesh();
+    res.frames = Dut.immutableList(frame);
+    res.faces = Dut.copyImmutableList(faces);
+    res.guardInvariants();
+    return res;
+  }
+
+  static singleFrameModelTriangles(vertices, merge) {
+    Guard.positive(vertices.size(), "at least one vertex must be defined");
+    Guard.beTrue(vertices.size()%3==0, "number of verftices must be multiplication of 3");
+    let keepAllVerts = !merge;
+    let vts = new ArrayList();
+    let fcs = new ArrayList();
+    for (let i = 0; i<vertices.size(); i=i+3) {
+      let v1 = vertices.get(i);
+      let f1 = vts.indexOf(v1);
+      if (f1==-1||keepAllVerts) {
+        vts.add(v1);
+        f1 = vts.size()-1;
+      }
+      let v2 = vertices.get(i+1);
+      let f2 = vts.indexOf(v2);
+      if (f2==-1||keepAllVerts) {
+        vts.add(v2);
+        f2 = vts.size()-1;
+      }
+      let v3 = vertices.get(i+2);
+      let f3 = vts.indexOf(v3);
+      if (f3==-1||keepAllVerts) {
+        vts.add(v3);
+        f3 = vts.size()-1;
+      }
+      fcs.add(Face.triangle(f1, f2, f3));
+    }
+    let res = new UnpackedMesh();
+    res.frames = Dut.immutableList(UnpackedMeshFrame.model(vts));
+    res.faces = Dut.copyImmutableList(fcs);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.UnpackedMesh = UnpackedMesh;
+class Meshes {
+  static FABRIC_VERTEX_ATTRS = Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3);
+  static MODEL_VERTEX_ATTRS = Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3, VertexAttr.TEX2);
+  constructor() {
+  }
+
+  getClass() {
+    return "Meshes";
+  }
+
+}
+classRegistry.Meshes = Meshes;
 class ModelPart {
   mesh;
   material;
@@ -15432,17 +15705,17 @@ class ClipAnimation {
     Guard.beTrue(t>=0&&t<=this.duration, "t must be in [0, duration] interval");
     if (t==0) {
       let frame = this.clip.getFrame(0);
-      return FrameInterpolation.create(frame, frame, 0);
+      return Interpolation.create(frame, frame, 0);
     }
     if (t==this.duration) {
       let frame = this.clip.getFrame(this.clip.getNumFrames()-1);
-      return FrameInterpolation.create(frame, frame, 0);
+      return Interpolation.create(frame, frame, 0);
     }
     let frameTime = this.duration/(this.clip.getNumFrames()-1);
     let sfidx = FMath.trunc(t/frameTime);
     let intt = (t-(frameTime*sfidx))/frameTime;
     intt = intt<0?0:(intt>1?1:intt);
-    return FrameInterpolation.create(this.clip.getFrame(sfidx), this.clip.getFrame(sfidx+1), intt);
+    return Interpolation.create(this.clip.getFrame(sfidx), this.clip.getFrame(sfidx+1), intt);
   }
 
   withAddedTrigger() {
@@ -15696,55 +15969,6 @@ class ClipAnimationPlayer {
 
 }
 classRegistry.ClipAnimationPlayer = ClipAnimationPlayer;
-class FrameInterpolation {
-  start;
-  end;
-  t;
-  constructor() {
-  }
-
-  getClass() {
-    return "FrameInterpolation";
-  }
-
-  guardInvaritants() {
-    Guard.beTrue(this.t>=0&&this.t<=1, "t must be in [0, 1]: %f", this.t);
-  }
-
-  getStart() {
-    return this.start;
-  }
-
-  getEnd() {
-    return this.end;
-  }
-
-  getT() {
-    return this.t;
-  }
-
-  hashCode() {
-    return Dut.reflectionHashCode(this);
-  }
-
-  equals(obj) {
-    return Dut.reflectionEquals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(start, end, t) {
-    let res = new FrameInterpolation();
-    res.start = start;
-    res.end = end;
-    res.t = t;
-    res.guardInvaritants();
-    return res;
-  }
-
-}
-classRegistry.FrameInterpolation = FrameInterpolation;
 const createTextureWrapType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -17634,24 +17858,30 @@ class TapMeshes {
     let buf = null;
     let bos = new ByteArrayOutputStream();
     try {
+      bos.write(TapBytes.floatToBytes(mesh.getAabb().min().x()));
+      bos.write(TapBytes.floatToBytes(mesh.getAabb().min().y()));
+      bos.write(TapBytes.floatToBytes(mesh.getAabb().min().z()));
+      bos.write(TapBytes.floatToBytes(mesh.getAabb().max().x()));
+      bos.write(TapBytes.floatToBytes(mesh.getAabb().max().y()));
+      bos.write(TapBytes.floatToBytes(mesh.getAabb().max().z()));
+      bos.write(TapBytes.intToBytes(mesh.getNumFrames()));
       bos.write(TapBytes.intToBytes(mesh.getVertexAttrs().size()));
       for (let attr of mesh.getVertexAttrs()) {
         bos.write(TapBytes.stringToBytes(attr.getType().name()));
         bos.write(TapBytes.intToBytes(attr.getSize()));
       }
-      bos.write(TapBytes.intToBytes(mesh.getNumVertices()));
-      for (let vert of mesh.getVertices()) {
-        for (let i = 0; i<vert.dim(); ++i) {
-          bos.write(TapBytes.floatToBytes(vert.coord(i)));
-        }
+      for (let frame of mesh.getFrames()) {
+        bos.write(TapBytes.floatToBytes(frame.getAabb().min().x()));
+        bos.write(TapBytes.floatToBytes(frame.getAabb().min().y()));
+        bos.write(TapBytes.floatToBytes(frame.getAabb().min().z()));
+        bos.write(TapBytes.floatToBytes(frame.getAabb().max().x()));
+        bos.write(TapBytes.floatToBytes(frame.getAabb().max().y()));
+        bos.write(TapBytes.floatToBytes(frame.getAabb().max().z()));
+        bos.write(TapBytes.intToBytes(frame.getVerticesBlock().size()));
+        bos.write(frame.getVerticesBlock().toByteArray());
       }
-      bos.write(TapBytes.intToBytes(mesh.getNumFaces()));
-      for (let face of mesh.getFaces()) {
-        bos.write(TapBytes.intToBytes(face.getNumIndices()));
-        for (let i = 0; i<face.getNumIndices(); ++i) {
-          bos.write(TapBytes.intToBytes(face.getIndices().get(i)));
-        }
-      }
+      bos.write(TapBytes.intToBytes(mesh.getFacesBlock().size()));
+      bos.write(mesh.getFacesBlock().toByteArray());
       buf = bos.toByteArray();
     }
     catch (e) {
@@ -17666,7 +17896,7 @@ class TapMeshes {
         }
       }
     }
-    return TapEntry.create(TapEntryType.MESH, id.id(), 1, DataBlock.fromByteArray(buf));
+    return TapEntry.create(TapEntryType.MESH, id.id(), 2, DataBlock.fromByteArray(buf));
   }
 
   static toAssetGroup(entry) {
@@ -17701,7 +17931,33 @@ class TapMeshes {
           }
           faces.add(Face.create(idxs));
         }
-        return AssetGroup.of(MeshId.of(entry.getId()), Mesh.create(attrs, verts, faces));
+        let unpackedMesh = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(attrs, verts), faces);
+        return AssetGroup.of(MeshId.of(entry.getId()), unpackedMesh.toMesh());
+      }
+      finally {
+        reader.close();
+      }
+    }
+    else if (entry.getVersion()==2) {
+      let reader = TapBufferReader.create(entry);
+      try {
+        let meshAabb = Aabb3.create(reader.readFloat(), reader.readFloat(), reader.readFloat(), reader.readFloat(), reader.readFloat(), reader.readFloat());
+        let numFrames = reader.readInt();
+        let numVertexAttrs = reader.readInt();
+        let vertexAttrs = new ArrayList();
+        for (let i = 0; i<numVertexAttrs; ++i) {
+          vertexAttrs.add(VertexAttr.create(VertexAttrType.valueOf(reader.readString()), reader.readInt()));
+        }
+        let frames = new ArrayList();
+        for (let i = 0; i<numFrames; ++i) {
+          let frameAabb = Aabb3.create(reader.readFloat(), reader.readFloat(), reader.readFloat(), reader.readFloat(), reader.readFloat(), reader.readFloat());
+          let vertDataSize = reader.readInt();
+          let vertData = reader.readDataBlock(vertDataSize);
+          frames.add(MeshFrame.create(frameAabb, vertexAttrs, vertData));
+        }
+        let facesDataSieze = reader.readInt();
+        let facesData = reader.readDataBlock(facesDataSieze);
+        return AssetGroup.of(MeshId.of(entry.getId()), Mesh.create(meshAabb, frames, facesData));
       }
       finally {
         reader.close();
@@ -20563,7 +20819,7 @@ class ModelComponent extends Component {
     let res = new ModelComponent();
     res.modelId = ModelId.of("empty");
     res.transform = Mat44.IDENTITY;
-    res.interpolation = FrameInterpolation.create(0, 0, 0);
+    res.interpolation = Interpolation.create(0, 0, 0);
     res.guardInvariants();
     return res;
   }
@@ -22831,25 +23087,25 @@ class ComponentPrefab {
     return Jsons.toRgb(this.properties.get(key));
   }
 
-  getFrameInterpolation() {
+  getInterpolation() {
     if (arguments.length===1&& typeof arguments[0]==="string") {
-      return this.getFrameInterpolation_1_string(arguments[0]);
+      return this.getInterpolation_1_string(arguments[0]);
     }
-    else if (arguments.length===2&& typeof arguments[0]==="string"&&arguments[1] instanceof FrameInterpolation) {
-      return this.getFrameInterpolation_2_string_FrameInterpolation(arguments[0], arguments[1]);
+    else if (arguments.length===2&& typeof arguments[0]==="string"&&arguments[1] instanceof Interpolation) {
+      return this.getInterpolation_2_string_Interpolation(arguments[0], arguments[1]);
     }
     else {
       throw new Error("ambiguous overload");
     }
   }
 
-  getFrameInterpolation_1_string(key) {
-    return Jsons.toFrameInterpolation(this.properties.get(key));
+  getInterpolation_1_string(key) {
+    return Jsons.toInterpolation(this.properties.get(key));
   }
 
-  getFrameInterpolation_2_string_FrameInterpolation(key, def) {
+  getInterpolation_2_string_Interpolation(key, def) {
     if (this.properties.containsKey(key)) {
-      return Jsons.toFrameInterpolation(this.properties.get(key));
+      return Jsons.toInterpolation(this.properties.get(key));
     }
     else {
       return def;
@@ -22906,7 +23162,7 @@ class ComponentPrefab {
     else if (val instanceof Rgb) {
       strVal = Jsons.toJson(val);
     }
-    else if (val instanceof FrameInterpolation) {
+    else if (val instanceof Interpolation) {
       strVal = Jsons.toJson(val);
     }
     else {
@@ -22963,7 +23219,7 @@ class ComponentPrefab {
         trans = Mat44.rot(rot).mul(trans);
         let pos = this.getVec3("pos");
         trans = Mat44.trans(pos).mul(trans);
-        return ModelComponent.create().setModelId(ModelId.of(this.properties.get("modelId"))).setTransform(trans).setInterpolation(this.getFrameInterpolation("interpolation", FrameInterpolation.create(0, 0, 0))).setVisible(Formats.parseBoolean(this.properties.get("visible"))).setCastShadows(Formats.parseBoolean(this.properties.get("castShadows"))).setReceiveShadows(Formats.parseBoolean(this.properties.get("receiveShadows"))).setKey(this.key);
+        return ModelComponent.create().setModelId(ModelId.of(this.properties.get("modelId"))).setTransform(trans).setInterpolation(this.getInterpolation("interpolation", Interpolation.create(0, 0, 0))).setVisible(Formats.parseBoolean(this.properties.get("visible"))).setCastShadows(Formats.parseBoolean(this.properties.get("castShadows"))).setReceiveShadows(Formats.parseBoolean(this.properties.get("receiveShadows"))).setKey(this.key);
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -23166,7 +23422,7 @@ class ComponentPrefab {
     res.type = ComponentPrefabType.MODEL;
     res.key = "";
     res.version = 1;
-    res.properties = Dut.immutableMap("modelId", modelId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "scale", Jsons.toJson(scale), "visible", String.valueOf(visible), "castShadows", String.valueOf(castShadows), "receiveShadows", String.valueOf(receiveShadows), "interpolation", Jsons.toJson(FrameInterpolation.create(0, 0, 0)));
+    res.properties = Dut.immutableMap("modelId", modelId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "scale", Jsons.toJson(scale), "visible", String.valueOf(visible), "castShadows", String.valueOf(castShadows), "receiveShadows", String.valueOf(receiveShadows), "interpolation", Jsons.toJson(Interpolation.create(0, 0, 0)));
     res.guardInvariants();
     return res;
   }
@@ -26499,7 +26755,7 @@ class RigidBodyWorld extends World {
           let rndr = this.gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(light));
           for (let r of models) {
             if (r.isCastShadows()) {
-              rndr.render(r.getModel(), r.getInterpolation().getStart(), r.getInterpolation().getEnd(), r.getInterpolation().getT(), r.getGlobalMat());
+              rndr.render(r.getModel(), r.getInterpolation(), r.getGlobalMat());
             }
           }
           rndr.end();
@@ -26511,7 +26767,7 @@ class RigidBodyWorld extends World {
         scn = this.gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(skyboxCamera, RigidBodyWorld.AMBIENT_LIGHTS));
         for (let sb of skyboxes) {
           if (sb.isVisible()) {
-            scn.render(sb.getModel(), sb.getGlobalMat());
+            scn.render(sb.getModel(), Interpolation.ZERO, sb.getGlobalMat());
           }
         }
         scn.end();
@@ -26521,14 +26777,14 @@ class RigidBodyWorld extends World {
       scn = this.gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(camera, lights));
       for (let r of models) {
         if (r.isVisible()&&r.isReceiveShadows()) {
-          scn.render(r.getModel(), r.getInterpolation().getStart(), r.getInterpolation().getEnd(), r.getInterpolation().getT(), r.getGlobalMat());
+          scn.render(r.getModel(), r.getInterpolation(), r.getGlobalMat());
         }
       }
       scn.end();
       scn = this.gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(camera, shadowlessLights));
       for (let r of models) {
         if (r.isVisible()&&!r.isReceiveShadows()) {
-          scn.render(r.getModel(), r.getInterpolation().getStart(), r.getInterpolation().getEnd(), r.getInterpolation().getT(), r.getGlobalMat());
+          scn.render(r.getModel(), r.getInterpolation(), r.getGlobalMat());
         }
       }
       scn.end();
@@ -27329,44 +27585,44 @@ class BoxMeshFactory {
   }
 
   static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
-    let res = Mesh.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b())), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23)));
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
     return res;
   }
 
   static rgbBox_3_number_number_number(r, g, b) {
-    let res = Mesh.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.create(-0.5, -0.5, 0.5, r, g, b), Vertex.create(-0.5, -0.5, -0.5, r, g, b), Vertex.create(0.5, -0.5, -0.5, r, g, b), Vertex.create(0.5, -0.5, 0.5, r, g, b), Vertex.create(-0.5, 0.5, 0.5, r, g, b), Vertex.create(0.5, 0.5, 0.5, r, g, b), Vertex.create(0.5, 0.5, -0.5, r, g, b), Vertex.create(-0.5, 0.5, -0.5, r, g, b), Vertex.create(-0.5, -0.5, -0.5, r, g, b), Vertex.create(-0.5, 0.5, -0.5, r, g, b), Vertex.create(0.5, 0.5, -0.5, r, g, b), Vertex.create(0.5, -0.5, -0.5, r, g, b), Vertex.create(-0.5, -0.5, 0.5, r, g, b), Vertex.create(0.5, -0.5, 0.5, r, g, b), Vertex.create(0.5, 0.5, 0.5, r, g, b), Vertex.create(-0.5, 0.5, 0.5, r, g, b), Vertex.create(-0.5, -0.5, 0.5, r, g, b), Vertex.create(-0.5, 0.5, 0.5, r, g, b), Vertex.create(-0.5, 0.5, -0.5, r, g, b), Vertex.create(-0.5, -0.5, -0.5, r, g, b), Vertex.create(0.5, -0.5, 0.5, r, g, b), Vertex.create(0.5, -0.5, -0.5, r, g, b), Vertex.create(0.5, 0.5, -0.5, r, g, b), Vertex.create(0.5, 0.5, 0.5, r, g, b)), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23)));
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.create(-0.5, -0.5, 0.5, r, g, b), Vertex.create(-0.5, -0.5, -0.5, r, g, b), Vertex.create(0.5, -0.5, -0.5, r, g, b), Vertex.create(0.5, -0.5, 0.5, r, g, b), Vertex.create(-0.5, 0.5, 0.5, r, g, b), Vertex.create(0.5, 0.5, 0.5, r, g, b), Vertex.create(0.5, 0.5, -0.5, r, g, b), Vertex.create(-0.5, 0.5, -0.5, r, g, b), Vertex.create(-0.5, -0.5, -0.5, r, g, b), Vertex.create(-0.5, 0.5, -0.5, r, g, b), Vertex.create(0.5, 0.5, -0.5, r, g, b), Vertex.create(0.5, -0.5, -0.5, r, g, b), Vertex.create(-0.5, -0.5, 0.5, r, g, b), Vertex.create(0.5, -0.5, 0.5, r, g, b), Vertex.create(0.5, 0.5, 0.5, r, g, b), Vertex.create(-0.5, 0.5, 0.5, r, g, b), Vertex.create(-0.5, -0.5, 0.5, r, g, b), Vertex.create(-0.5, 0.5, 0.5, r, g, b), Vertex.create(-0.5, 0.5, -0.5, r, g, b), Vertex.create(-0.5, -0.5, -0.5, r, g, b), Vertex.create(0.5, -0.5, 0.5, r, g, b), Vertex.create(0.5, -0.5, -0.5, r, g, b), Vertex.create(0.5, 0.5, -0.5, r, g, b), Vertex.create(0.5, 0.5, 0.5, r, g, b))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
     return res;
   }
 
   static rgbaBox(c1, c2, c3, c4, a) {
-    let res = Mesh.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a)), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23)));
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
     return res;
   }
 
   static fabricBox() {
-    let res = Mesh.fabric(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.create(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.create(0.5, -0.5, -0.5, 0, -1, 0), Vertex.create(0.5, -0.5, 0.5, 0, -1, 0), Vertex.create(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.create(0.5, 0.5, 0.5, 0, 1, 0), Vertex.create(0.5, 0.5, -0.5, 0, 1, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.create(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.create(0.5, 0.5, -0.5, 0, 0, -1), Vertex.create(0.5, -0.5, -0.5, 0, 0, -1), Vertex.create(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.create(0.5, -0.5, 0.5, 0, 0, 1), Vertex.create(0.5, 0.5, 0.5, 0, 0, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.create(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.create(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.create(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.create(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 1, 0, 0), Vertex.create(0.5, -0.5, -0.5, 1, 0, 0), Vertex.create(0.5, 0.5, -0.5, 1, 0, 0), Vertex.create(0.5, 0.5, 0.5, 1, 0, 0)), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23)));
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.fabric(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.create(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.create(0.5, -0.5, -0.5, 0, -1, 0), Vertex.create(0.5, -0.5, 0.5, 0, -1, 0), Vertex.create(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.create(0.5, 0.5, 0.5, 0, 1, 0), Vertex.create(0.5, 0.5, -0.5, 0, 1, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.create(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.create(0.5, 0.5, -0.5, 0, 0, -1), Vertex.create(0.5, -0.5, -0.5, 0, 0, -1), Vertex.create(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.create(0.5, -0.5, 0.5, 0, 0, 1), Vertex.create(0.5, 0.5, 0.5, 0, 0, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.create(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.create(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.create(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.create(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 1, 0, 0), Vertex.create(0.5, -0.5, -0.5, 1, 0, 0), Vertex.create(0.5, 0.5, -0.5, 1, 0, 0), Vertex.create(0.5, 0.5, 0.5, 1, 0, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
     return res;
   }
 
   static modelBox() {
-    let res = Mesh.model(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.create(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.create(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.create(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.create(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.create(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.create(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.create(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.create(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.create(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.create(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.create(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.create(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.create(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.create(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.create(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.create(0.5, 0.5, 0.5, 1, 0, 0, 1, 1)), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23)));
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.create(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.create(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.create(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.create(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.create(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.create(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.create(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.create(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.create(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.create(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.create(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.create(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.create(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.create(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.create(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.create(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
     return res;
   }
 
   static modelSkybox() {
-    let res = Mesh.model(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.create(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.create(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.create(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.create(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.create(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.create(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.create(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.create(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.create(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.create(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.create(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.create(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.create(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.create(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.create(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.create(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.create(0.5, 0.5, 0.5, -1, 0, 0, 1, 1)), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22)));
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.create(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.create(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.create(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.create(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.create(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.create(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.create(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.create(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.create(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.create(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.create(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.create(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.create(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.create(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.create(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.create(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.create(0.5, 0.5, 0.5, -1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22))).toMesh();
     return res;
   }
 
   static modelBoxDeformed1() {
     let en = Vec2.create(1, -1).normalize();
-    let res = Mesh.model(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.create(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.create(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.create(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.create(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.create(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.create(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.create(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.create(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.create(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.create(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.create(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.create(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.create(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.create(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.create(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.create(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1)), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23)));
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.create(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.create(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.create(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.create(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.create(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.create(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.create(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.create(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.create(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.create(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.create(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.create(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.create(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.create(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.create(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.create(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
     return res;
   }
 
   static modelBoxDeformed2() {
     let en = Vec2.create(-1, -1).normalize();
-    let res = Mesh.model(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.create(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.create(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.create(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.create(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.create(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.create(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.create(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.create(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.create(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.create(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.create(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.create(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.create(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.create(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.create(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.create(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.create(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.create(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.create(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.create(0.5, 0.5, 0.5, 1, 0, 0, 1, 1)), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23)));
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.create(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.create(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.create(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.create(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.create(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.create(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.create(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.create(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.create(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.create(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.create(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.create(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.create(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.create(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.create(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.create(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.create(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.create(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.create(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.create(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
     return res;
   }
 
@@ -27403,7 +27659,7 @@ class BasicApp10 extends TyracornScreen {
     let dirLightShadowMap = ShadowMap.createDir(this.shadow1, dirLightPos, dirLightDir, 13, 20);
     let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
     let smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
-    this.renderScene(smapRndr, t);
+    this.renderSceneShaow(smapRndr, t);
     smapRndr.end();
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
     let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(this.camera.getCamera(), dirLight));
@@ -27429,7 +27685,7 @@ class BasicApp10 extends TyracornScreen {
     let modelBox = MeshId.of("modelBox");
     let modelBoxAnimated = MeshId.of("modelBox-animated");
     assets.put(modelBox, BoxMeshFactory.modelBox());
-    assets.put(modelBoxAnimated, Mesh.modelAnimated(Dut.list(BoxMeshFactory.modelBox(), BoxMeshFactory.modelBoxDeformed1(), BoxMeshFactory.modelBoxDeformed2())));
+    assets.put(modelBoxAnimated, BoxMeshFactory.modelBox().plusMeshFrames(BoxMeshFactory.modelBoxDeformed1()).plusMeshFrames(BoxMeshFactory.modelBoxDeformed2()));
     let boxDiffuse = TextureId.of("tex_box_01_d");
     let boxSpecular = TextureId.of("tex_box_01_s");
     assets.put(MaterialId.of("brass"), Material.BRASS);
@@ -27453,8 +27709,13 @@ class BasicApp10 extends TyracornScreen {
   }
 
   renderScene(renderer, t) {
-    renderer.render(this.groundModel, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1Model, 0, 1, t, Mat44.trans(0, 0, 0));
+    renderer.render(this.groundModel, Interpolation.ZERO, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    renderer.render(this.box1Model, Interpolation.create(0, 1, t), Mat44.trans(0, 0, 0));
+  }
+
+  renderSceneShaow(renderer, t) {
+    renderer.render(this.groundModel, Interpolation.ZERO, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    renderer.render(this.box1Model, Interpolation.create(0, 1, t), Mat44.trans(0, 0, 0));
   }
 
 }

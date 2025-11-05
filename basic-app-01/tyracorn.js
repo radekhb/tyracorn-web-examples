@@ -1241,6 +1241,20 @@ class Dut {
         return res;
     }
 
+    static immutableListPlusItem(collection, item) {
+        let res = new ArrayList();
+        res.addAll(collection);
+        res.add(item);
+        return res;
+    }
+
+    static immutableListPlusItems(collection, plusItems) {
+        let res = new ArrayList();
+        res.addAll(collection);
+        res.addAll(plusItems);
+        return res;
+    }
+
     static set() {
         let res = new HashSet();
         if (arguments.length === 1 && Array.isArray(arguments[0])) {
@@ -11011,7 +11025,7 @@ class Mesh {
     Guard.equals(this.facesBlock, other.facesBlock, "faces in both meshes must be same");
     let res = new Mesh();
     res.aabb = this.aabb.expand(other.aabb);
-    res.frames = Dut2.immutableListPlusItems(this.frames, other.frames);
+    res.frames = Dut.immutableListPlusItems(this.frames, other.frames);
     res.facesBlock = this.facesBlock;
     res.guardInvariants();
     return res;
@@ -11030,11 +11044,11 @@ class Mesh {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -11282,7 +11296,7 @@ class UnpackedMesh {
 
   plusFrame(frame) {
     let res = new UnpackedMesh();
-    res.frames = Dut2.immutableListPlusItem(this.frames, frame);
+    res.frames = Dut.immutableListPlusItem(this.frames, frame);
     res.faces = this.faces;
     res.guardInvariants();
     return res;
@@ -11291,7 +11305,7 @@ class UnpackedMesh {
   plusUnpackedMeshFrames(other) {
     Guard.equals(this.faces, other.faces, "faces in both meshes must be same");
     let res = new UnpackedMesh();
-    res.frames = Dut2.immutableListPlusItems(this.frames, other.frames);
+    res.frames = Dut.immutableListPlusItems(this.frames, other.frames);
     res.faces = this.faces;
     res.guardInvariants();
     return res;
@@ -11325,11 +11339,11 @@ class UnpackedMesh {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
