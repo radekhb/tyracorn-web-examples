@@ -69,6 +69,26 @@ class Guard {
     }
 
 }
+/**
+ * Java equivalent of integer class.
+ * 
+ * @type {Integer}
+ */
+class Integer {
+    static MIN_VALUE = -2147483648;
+    static MAX_VALUE = 2147483647;
+
+    /**
+     * Parses string to intger.
+     * 
+     * @param {String} str input string
+     * @returns {Number} parsed integer
+     */
+    static parseInt(str) {
+        return parseInt(str);
+    }
+
+}
 // -------------------------------------
 // Float
 // -------------------------------------
@@ -960,6 +980,29 @@ class HashMap {
 
 }
 /**
+ * Integer point math utilities.
+ * This is wrapper to match the java implementatino.
+ */
+class IMath {
+
+    static min(a, b) {
+        return Math.min(a, b);
+    }
+
+    static max(a, b) {
+        return Math.max(a, b);
+    }
+
+    static clamp(x, min, max) {
+        return Math.max(min, Math.min(max, x));
+    }
+
+    static abs(a) {
+        return Math.abs(a);
+    }
+
+}
+/**
  * Floating point math utilities.
  * This is wrapper to match the java implementatino.
  */
@@ -972,6 +1015,10 @@ class FMath {
 
     static trunc(a) {
         return Math.trunc(a);
+    }
+
+    static floor(a) {
+        return Math.floor(a);
     }
 
     static min(a, b) {
@@ -1034,20 +1081,16 @@ class FMath {
 /**
  * String utility class.
  */
-class StringUtils {
+class Strings {
 
     /**
-     * Removes leading and trailing whitespace from a string.
-     * If the string is null or undefined, returns an empty string.
+     * Returns string length.
      * 
-     * @param {string|null|undefined} str - The string to trim
-     * @returns {string} The trimmed string, or empty string if input is null/undefined
+     * @param {String} str string
+     * @returns {Number} length
      */
-    static trimToEmpty(str) {
-        if (str === null || str === undefined) {
-            return '';
-        }
-        return str.toString().trim();
+    static length(str) {
+        return str.length;
     }
 
     /**
@@ -1075,6 +1118,36 @@ class StringUtils {
         }
         return str.length > 0;
     }
+
+    /**
+     * Removes leading and trailing whitespace from a string.
+     * If the string is null or undefined, returns an empty string.
+     * 
+     * @param {string|null|undefined} str - The string to trim
+     * @returns {string} The trimmed string, or empty string if input is null/undefined
+     */
+    static trimToEmpty(str) {
+        if (str === null || str === undefined) {
+            return '';
+        }
+        return str.toString().trim();
+    }
+
+    /**
+     * Returns whether the tested string is purely constructed from the digits and has at least one digit.
+     * Decimal point or minus character is not considered as digit.
+     * Empty string is not considered as numeric.
+     *
+     * @param {String} str tested string
+     * @return {Boolean} whether the string is numeric or not
+     */
+    static isNumeric(str) {
+        if (Strings.isEmpty(str)) {
+            return false;
+        }
+        return /^\d+$/.test(str);
+    }
+
 }
 /**
  * Reference identifier.
@@ -1088,7 +1161,7 @@ class StringParser {
      * @returns {StringParser} created parser
      */
     constructor(str) {
-        if (!str) {
+        if (str === null || str === undefined) {
             throw new Error("input string must be defined");
         }
         this.input = str;
@@ -1123,6 +1196,19 @@ class StringParser {
      */
     lookupCharacter() {
         return this.input.substring(this.cursor, this.cursor + 1);
+    }
+
+    /**
+     * Looks up characters without moving the cursor.
+     *
+     * @param {Number} num integer maximum number of characters to look up
+     * @return {String} looked up characters
+     */
+    lookupCharacters(num) {
+        if (num === 0 || this.cursor >= this.input.length) {
+            return "";
+        }
+        return this.input.substring(this.cursor, IMath.min(this.cursor + num, this.input.length));
     }
 
 }
@@ -1297,6 +1383,13 @@ class Dut {
         return res;
     }
 
+    static immutableSetPlusItem(items, item) {
+        let res = new HashSet();
+        res.addAll(items);
+        res.add(item);
+        return res;
+    }
+
     static map() {
         let res = new HashMap();
         for (let arg = 0; arg < arguments.length; arg = arg + 2) {
@@ -1332,14 +1425,32 @@ class Dut {
     }
 
     /**
-     * Returns string representation of this object, dumping all fields.
-     * This method uses reflection and makes the private fields accessible.
+     * Creates immutable map from the given elements with extra entry.
      *
-     * @param {Any} obj object
-     * @return {String} string representation
+     * @param {HashMap} map base map
+     * @param {Any} key key of the new entry
+     * @param {Any} value value of the new entry
+     * @return {HashMap} created map
      */
-    static reflectionToString(obj) {
-        return "<placeholder>";
+    static immutableMapPlusEntry(map, key, value) {
+        const res = new HashMap();
+        res.putAll(map);
+        res.put(key, value);
+        return res;
+    }
+
+    /**
+     * Creates immutable map from the given elements with extra entry.
+     *
+     * @param {HashMap} map base map
+     * @param {HashMap} entries additional entries
+     * @return {HashMap} created map
+     */
+    static immutableMapPlusEntries(map, entries) {
+        const res = new HashMap();
+        res.putAll(map);
+        res.putAll(entries);
+        return res;
     }
 
 }
@@ -3118,17 +3229,11 @@ class WebAssetManager {
             this.bank.put(key, ag.get(key));
         }
         this.dict.put(path, ag.getKeys());
-        this.attachCompasnions(ag);
         return res;
     }
 
     put(key, asset) {
         this.bank.put(key, asset);
-        this.attachCompanions(key, asset);
-    }
-
-    putCompanion(key, type, companion) {
-        this.bank.putCompanion(key, type, companion);
     }
 
     containsKey(key) {
@@ -3145,14 +3250,6 @@ class WebAssetManager {
 
     get(clazz, key) {
         return this.bank.get(clazz, key);
-    }
-
-    hasCompanion(key, type) {
-        return this.bank.hasCompanion(key, type);
-    }
-
-    getCompanion(clazz, key, type) {
-        return this.bank.getCompanion(clazz, key, type);
     }
 
     remove(key) {
@@ -3233,24 +3330,6 @@ class WebAssetManager {
             if (!bankSounds.contains(id)) {
                 ad.disposeSound(id);
             }
-        }
-    }
-
-    attachCompasnions(ag) {
-        for (let key of ag.getKeys()) {
-            this.attachCompanions(key, ag.get(key));
-        }
-    }
-
-    attachCompanions(key, asset) {
-        if (asset instanceof Texture) {
-            let tex = asset;
-            let size = Size2.create(tex.getWidth(), tex.getHeight());
-            this.bank.putCompanion(key, AssetCompanionType.SIZE, size);
-        } else if (asset instanceof Mesh) {
-            let mesh = asset;
-            let aabb = mesh.getAabb();
-            this.bank.putCompanion(key, AssetCompanionType.BOUNDING_AABB, aabb);
         }
     }
 
@@ -3582,6 +3661,9 @@ class WebglShader {
 
     /**
      * Sets uniform scalar (integer).
+     * 
+     * @param {String} name uniform name
+     * @param {Number} val integer value
      */
     setUniformInt(name, val) {
         const loc = gl.getUniformLocation(this.id, name);
@@ -3590,6 +3672,9 @@ class WebglShader {
 
     /**
      * Sets uniform scalar (float).
+     * 
+     * @param {String} name uniform name
+     * @param {Number} val float value
      */
     setUniformFloat(name, val) {
         const loc = gl.getUniformLocation(this.id, name);
@@ -3598,6 +3683,9 @@ class WebglShader {
 
     /**
      * Sets uniform vector (Vec3).
+     * 
+     * @param {String} name uniform name
+     * @param {Vec3} vec uniform value
      */
     setUniformVec3(name, vec) {
         const loc = gl.getUniformLocation(this.id, name);
@@ -3609,6 +3697,9 @@ class WebglShader {
 
     /**
      * Sets uniform vector (RGB).
+     * 
+     * @param {String} name uniform name
+     * @param {Rgb} rgb uniform value
      */
     setUniformRgb(name, rgb) {
         const loc = gl.getUniformLocation(this.id, name);
@@ -3620,6 +3711,9 @@ class WebglShader {
 
     /**
      * Sets uniform vector (RGBA).
+     * 
+     * @param {String} name uniform name
+     * @param {Rgba} rgba uniform value
      */
     setUniformRgba(name, rgba) {
         const loc = gl.getUniformLocation(this.id, name);
@@ -3632,10 +3726,13 @@ class WebglShader {
 
     /**
      * Sets uniform matrix (Mat33).
+     * 
+     * @param {String} name uniform name
+     * @param {Mat33} mat uniform matrix
      */
     setUniformMat33(name, mat) {
         const loc = gl.getUniformLocation(this.id, name);
-        
+
         // Convert to column-major order for WebGL
         this.buf[0] = mat.m00();
         this.buf[1] = mat.m10();
@@ -3646,16 +3743,19 @@ class WebglShader {
         this.buf[6] = mat.m02();
         this.buf[7] = mat.m12();
         this.buf[8] = mat.m22();
-        
+
         gl.uniformMatrix3fv(loc, false, this.buf.subarray(0, 9));
     }
 
     /**
      * Sets uniform matrix (Mat44).
+     * 
+     * @param {String} name uniform name
+     * @param {Mat44} mat uniform matrix
      */
     setUniformMat44(name, mat) {
         const loc = gl.getUniformLocation(this.id, name);
-        
+
         // Convert to column-major order for WebGL
         this.buf[0] = mat.m00();
         this.buf[1] = mat.m10();
@@ -3673,17 +3773,35 @@ class WebglShader {
         this.buf[13] = mat.m13();
         this.buf[14] = mat.m23();
         this.buf[15] = mat.m33();
-        
+
         gl.uniformMatrix4fv(loc, false, this.buf);
     }
 
     /**
      * Sets uniform matrix with individual components.
+     * 
+     * @param {String} name uniform name
+     * @param {Number} m00 matrix component (float)
+     * @param {Number} m01 matrix component (float)
+     * @param {Number} m02 matrix component (float)
+     * @param {Number} m03 matrix component (float)
+     * @param {Number} m10 matrix component (float)
+     * @param {Number} m11 matrix component (float)
+     * @param {Number} m12 matrix component (float)
+     * @param {Number} m13 matrix component (float)
+     * @param {Number} m20 matrix component (float)
+     * @param {Number} m21 matrix component (float)
+     * @param {Number} m22 matrix component (float)
+     * @param {Number} m23 matrix component (float)
+     * @param {Number} m30 matrix component (float)
+     * @param {Number} m31 matrix component (float)
+     * @param {Number} m32 matrix component (float)
+     * @param {Number} m33 matrix component (float)
      */
     setUniformMat44Components(name, m00, m01, m02, m03, m10, m11, m12, m13,
-                           m20, m21, m22, m23, m30, m31, m32, m33) {
+            m20, m21, m22, m23, m30, m31, m32, m33) {
         const loc = gl.getUniformLocation(this.id, name);
-        
+
         // Convert to column-major order for WebGL
         this.buf[0] = m00;
         this.buf[1] = m10;
@@ -3701,7 +3819,7 @@ class WebglShader {
         this.buf[13] = m13;
         this.buf[14] = m23;
         this.buf[15] = m33;
-        
+
         gl.uniformMatrix4fv(loc, false, this.buf);
     }
 
@@ -3714,6 +3832,8 @@ class WebglShader {
 
     /**
      * Creates shader instance.
+     * 
+     * @param {Any} id shader identifier
      */
     static create(id) {
         const res = new WebglShader();
@@ -4768,7 +4888,23 @@ class WebglUiPainter {
     }
 
     /**
-     * Draws the image image.
+     * Draws the silhouette. Arguments determines how the object is rendered.
+     */
+    drawSilhouette() {
+        if (arguments.length === 7 &&
+                arguments[0] instanceof TextureId && arguments[1] instanceof Rgba &&
+                typeof arguments[2] === "number" && typeof arguments[3] === "number" &&
+                typeof arguments[4] === "number" && typeof arguments[5] === "number" &&
+                arguments[6] instanceof TextureStyle) {
+            this.drawSilhouetteInternal(arguments[0], arguments[1],
+                    arguments[2], arguments[3], arguments[4], arguments[5], arguments[6]);
+        } else {
+            throw "unsupported arguments, implement me";
+        }
+    }
+
+    /**
+     * Draws the image.
      *
      * @param {TextureId} img image
      * @param {Number} x x
@@ -4779,7 +4915,8 @@ class WebglUiPainter {
      */
     drawImageInternal(img, x, y, width, height, style) {
         const tref = this.refProvider.getTextureRef(img).getTextureId();
-        gl.disable(gl.BLEND);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         const cx = x + width / 2;
         const cy = y + height / 2;
 
@@ -4789,6 +4926,115 @@ class WebglUiPainter {
                 0, 2 * height, 0, 1 - 2 * cy,
                 0, 0, 1, 0,
                 0, 0, 0, 1);
+        this.spriteShader.setUniformInt("silhouette", 0);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, tref);
+        switch (style.getHorizWrapType()) {
+            case TextureWrapType.REPEAT:
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+                break;
+            case TextureWrapType.MIRRORED_REPEAT:
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.MIRRORED_REPEAT);
+                break;
+            case TextureWrapType.EDGE:
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                break;
+            case TextureWrapType.BORDER:
+                // TextureWrapType.BORDER is not supported in webgl, sorry can't use it here, so replacing with clamp to edge for the moment
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_BORDER);
+                //gl.glTexParameterfv(gl.TEXTURE_2D, gl.TEXTURE_BORDER_COLOR, style.getBorderColor().toBuf(rgbaBuf), 0);
+                break;
+            default:
+                throw "unsupported horizontal wrap type: " + style.getHorizWrapType();
+        }
+        switch (style.getVertWrapType()) {
+            case TextureWrapType.REPEAT:
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+                break;
+            case TextureWrapType.MIRRORED_REPEAT:
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.MIRRORED_REPEAT);
+                break;
+            case TextureWrapType.EDGE:
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                break;
+            case TextureWrapType.BORDER:
+                // TextureWrapType.BORDER is not supported in webgl, sorry can't use it here, so replacing with clamp to edge for the moment
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_BORDER);
+                //gl.glTexParameterfv(gl.TEXTURE_2D, gl.TEXTURE_BORDER_COLOR, style.getBorderColor().toBuf(rgbaBuf), 0);
+                break;
+            default:
+                throw "unsupported vertical wrap type: " + style.getVertWrapType();
+        }
+        switch (style.getMinFilterType()) {
+            case TextureFilterType.NEAREST:
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                break;
+            case TextureFilterType.LINEAR:
+                // ref: WebglGraphicsDriver.js - currently this does not work (look to mipmaps), so replacing with NEAREST for the moment
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                break;
+            case TextureFilterType.LINEAR_MIPMAP_LINEAR:
+                // ref: WebglGraphicsDriver.js - currently this does not work (look to mipmaps), so replacing with NEAREST for the moment
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+                break;
+            default:
+                throw "unsupported min filter type: " + tex.getStyle().getMinFilterType();
+        }
+        switch (style.getMagFilterType()) {
+            case TextureFilterType.NEAREST:
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+                break;
+            case TextureFilterType.LINEAR:
+                // ref: WebglGraphicsDriver.js - currently this does not work (look to mipmaps), so replacing with NEAREST for the moment
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+                //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                break;
+            default:
+                throw "unsupported mag filter type: " + tex.getStyle().getMinFilterType();
+        }
+
+        gl.bindVertexArray(this.spriteMesh.getVao());
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.spriteMesh.getFrames().get(0).getVbo());
+        gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 5 * 4, 0);
+        gl.enableVertexAttribArray(0);
+        gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 5 * 4, 3 * 4);
+        gl.enableVertexAttribArray(1);
+        gl.drawElements(gl.TRIANGLES, this.spriteMesh.getNumIndices(), gl.UNSIGNED_INT, 0);
+        gl.bindVertexArray(null);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+    }
+
+    /**
+     * Draws the silhouette.
+     *
+     * @param {TextureId} img image
+     * @param {Rgba} rgba color to use for drawing
+     * @param {Number} x x
+     * @param {Number} y y
+     * @param {Number} width width
+     * @param {Number} height height
+     * @param {TextureStyle} style style used for texture
+     */
+    drawSilhouetteInternal(img, rgba, x, y, width, height, style) {
+        const tref = this.refProvider.getTextureRef(img).getTextureId();
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        const cx = x + width / 2;
+        const cy = y + height / 2;
+
+        this.spriteShader.use();
+        this.spriteShader.setUniformMat44Components("modelMat",
+                2 * width, 0, 0, 2 * cx - 1,
+                0, 2 * height, 0, 1 - 2 * cy,
+                0, 0, 1, 0,
+                0, 0, 0, 1);
+        this.spriteShader.setUniformInt("silhouette", 1);
+        this.spriteShader.setUniformRgba("silhouetteColor", rgba);
 
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, tref);
@@ -5690,6 +5936,10 @@ class WebglGraphicsDriver {
             uniform mat4 viewMat;
             uniform mat4 projMat;
             uniform float gamma;
+        
+            uniform int silhouette;
+            uniform vec4 silhouetteColor;
+        
             uniform sampler2D sampler;
 
             void main(void) {
@@ -5697,7 +5947,15 @@ class WebglGraphicsDriver {
                 if (fc.a < 0.01) {
                     discard;
                 }
-                fragColor = vec4(pow(fc.rgb, vec3(1.0/gamma)), 1.0);
+                if (silhouette == 0) {
+                    fragColor = vec4(pow(fc.rgb, vec3(1.0/gamma)), fc.a);
+                }
+                else if (silhouette == 1) {
+                    fragColor = vec4(pow(silhouetteColor.rgb, vec3(1.0/gamma)), fc.a * silhouetteColor.a);
+                }
+                else {
+                    fragColor = vec4(pow(fc.rgb, vec3(1.0/gamma)), fc.a);
+                }
             }
         `;
         const spriteShaderProgram = WebglUtils.loadShaderProgram(spriteShaderVertexSource, spriteShaderFragmentSource);
@@ -6973,11 +7231,11 @@ class JsonObject {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -7097,11 +7355,11 @@ class JsonArray {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -8398,11 +8656,21 @@ class Pos2 {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return this.mX+13*this.mY;
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof Pos2)) {
+      return false;
+    }
+    let ob = obj;
+    return ob.mX==this.mX&&ob.mY==this.mY;
   }
 
   toString() {
@@ -8622,15 +8890,25 @@ class Rect2 {
     let otherMaxY = other.mPos.y()+other.mSize.height();
     let nx = FMath.max(this.mPos.x(), other.mPos.x());
     let ny = FMath.max(this.mPos.y(), other.mPos.y());
-    return Rect2.create(nx, ny, FMath.min(maxX, otherMaxX)-nx, FMath.min(maxY, otherMaxY));
+    return Rect2.create(nx, ny, FMath.min(maxX, otherMaxX)-nx, FMath.min(maxY, otherMaxY)-ny);
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return this.mPos.hashCode()+13*this.mSize.hashCode();
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof Rect2)) {
+      return false;
+    }
+    let ob = obj;
+    return ob.pos().equals(this.pos())&&ob.size().equals(this.size());
   }
 
   toString() {
@@ -8971,6 +9249,11 @@ class Quaternion {
     return Quaternion.rot(0, 0, 1, theta);
   }
 
+  static interpolate(a, b, t) {
+    let ti = 1-t;
+    return Quaternion.create(ti*a.mA+t*b.mA, ti*a.mB+t*b.mB, ti*a.mC+t*b.mC, ti*a.mD+t*b.mD);
+  }
+
 }
 classRegistry.Quaternion = Quaternion;
 class Geometry3 {
@@ -9020,11 +9303,21 @@ class Interpolation {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return this.mStartIdx+13*this.mEndIdx+27*this.mT;
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof Interpolation)) {
+      return false;
+    }
+    let ob = obj;
+    return ob.mStartIdx==this.mStartIdx&&ob.mEndIdx==this.mEndIdx&&ob.mT==this.mT;
   }
 
   toString() {
@@ -9189,7 +9482,7 @@ class Path {
     let parts = pth.split("/");
     let bld = new StringBuilder();
     for (let i = 0; i<parts.length-1; ++i) {
-      if (StringUtils.isEmpty(parts[i])) {
+      if (Strings.isEmpty(parts[i])) {
         continue;
       }
       bld.append(parts[i]);
@@ -9255,7 +9548,7 @@ class Path {
       after = Path.normalize(after);
       return before+after;
     }
-    str = StringUtils.trimToEmpty(str);
+    str = Strings.trimToEmpty(str);
     while (str.endsWith("/")&&str.length()>1) {
       str = str.substring(0, str.length()-1);
     }
@@ -9532,7 +9825,7 @@ class LocalDataConfigProperties {
     let str = this.storage.loadString(this.dataKey);
     let lines = Dut.list(str.split("\n"));
     for (let line of lines) {
-      if (StringUtils.isEmpty(line)) {
+      if (Strings.isEmpty(line)) {
         continue;
       }
       let parts = line.split("=", 2);
@@ -9924,6 +10217,66 @@ class Texture {
     }
   }
 
+  mapRgb(from, to, error) {
+    if (this.format.equals(TextureFormat.FLOAT)) {
+      if (this.channels.equals(Texture.RGB)) {
+        let writer = DataBlockStreamWriter.create(this.data.size());
+        let pos = 0;
+        for (let y = 0; y<this.height; ++y) {
+          for (let x = 0; x<this.width; ++x) {
+            let red = this.data.getFloat(pos);
+            let green = this.data.getFloat(pos+4);
+            let blue = this.data.getFloat(pos+8);
+            if (FMath.abs(red-from.r())<error&&FMath.abs(green-from.g())<error&&FMath.abs(blue-from.b())<error) {
+              writer.writeFloat(to.r());
+              writer.writeFloat(to.g());
+              writer.writeFloat(to.b());
+            }
+            else {
+              writer.writeFloat(red);
+              writer.writeFloat(green);
+              writer.writeFloat(blue);
+            }
+            pos = pos+12;
+          }
+        }
+        return Texture.create(this.format, this.channels, this.width, this.height, writer.toDataBlock());
+      }
+      else if (this.channels.equals(Texture.RGBA)) {
+        let writer = DataBlockStreamWriter.create(this.data.size());
+        let pos = 0;
+        for (let y = 0; y<this.height; ++y) {
+          for (let x = 0; x<this.width; ++x) {
+            let red = this.data.getFloat(pos);
+            let green = this.data.getFloat(pos+4);
+            let blue = this.data.getFloat(pos+8);
+            let alpha = this.data.getFloat(pos+12);
+            if (FMath.abs(red-from.r())<error&&FMath.abs(green-from.g())<error&&FMath.abs(blue-from.b())<error) {
+              writer.writeFloat(to.r());
+              writer.writeFloat(to.g());
+              writer.writeFloat(to.b());
+              writer.writeFloat(alpha);
+            }
+            else {
+              writer.writeFloat(red);
+              writer.writeFloat(green);
+              writer.writeFloat(blue);
+              writer.writeFloat(alpha);
+            }
+            pos = pos+16;
+          }
+        }
+        return Texture.create(this.format, this.channels, this.width, this.height, writer.toDataBlock());
+      }
+      else {
+        throw new Error("only RGB and RGBA chanels are supported for this operation, implement me");
+      }
+    }
+    else {
+      throw new Error("only FLOAT format is supported for this operation, implement me");
+    }
+  }
+
   toFormat(targetFormat) {
     if (this.format.equals(targetFormat)) {
       return this;
@@ -9981,11 +10334,11 @@ class Texture {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -10249,11 +10602,11 @@ class TextureAttachment {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -10568,11 +10921,11 @@ class Face {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -10701,11 +11054,11 @@ class MaterialBase {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -10784,18 +11137,20 @@ class Material {
     return Material.create(this.base.withShininess(shininess), this.textures);
   }
 
-  addTexture(texture) {
-    let txts = Dut.copyList(this.textures);
-    txts.add(texture);
-    return Material.create(this.base, txts);
+  plusTexture(texture) {
+    let res = new Material();
+    res.base = this.base;
+    res.textures = Dut.immutableListPlusItem(this.textures, texture);
+    res.guardInvariants();
+    return res;
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -10932,11 +11287,11 @@ class MeshFrame {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -11197,6 +11552,33 @@ class UnpackedMeshFrame {
     return this.vertices.size()==other.vertices.size();
   }
 
+  scale(factor) {
+    let res = new UnpackedMeshFrame();
+    res.vertexAttrs = this.vertexAttrs;
+    res.vertices = new ArrayList();
+    for (let vert of this.vertices) {
+      let buf = [];
+      let idx = 0;
+      for (let attr of this.vertexAttrs) {
+        if (attr.getType().equals(VertexAttrType.POS)) {
+          for (let i = 0; i<attr.getSize(); ++i,++idx) {
+            buf[idx] = factor*vert.coord(idx);
+          }
+        }
+        else {
+          for (let i = 0; i<attr.getSize(); ++i,++idx) {
+            buf[idx] = vert.coord(idx);
+          }
+        }
+      }
+      let rvert = Vertex.create(buf);
+      res.vertices.add(rvert);
+    }
+    res.vertices = Collections.unmodifiableList(res.vertices);
+    res.guardInvariants();
+    return res;
+  }
+
   toMeshFrame() {
     let writer = DataBlockStreamWriter.create(this.getVertexSize()*this.getNumVertices()*4);
     for (let ver of this.vertices) {
@@ -11209,11 +11591,11 @@ class UnpackedMeshFrame {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -11319,6 +11701,18 @@ class UnpackedMesh {
     for (let frame of this.frames) {
       res = res.expand(frame.calculateAabb());
     }
+    return res;
+  }
+
+  scale(factor) {
+    let res = new UnpackedMesh();
+    res.frames = new ArrayList();
+    for (let frame of this.frames) {
+      res.frames.add(frame.scale(factor));
+    }
+    res.frames = Collections.unmodifiableList(res.frames);
+    res.faces = this.faces;
+    res.guardInvariants();
     return res;
   }
 
@@ -11443,11 +11837,11 @@ class ModelPart {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -11495,18 +11889,18 @@ class Model {
     return Model.of(prts);
   }
 
-  addPart(part) {
+  plusPart(part) {
     let prts = Dut.copyList(this.parts);
     prts.add(part);
     return Model.of(prts);
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -11786,11 +12180,11 @@ class LightColor {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -11832,11 +12226,11 @@ class LightCone {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -11963,11 +12357,11 @@ class Light {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -12161,11 +12555,11 @@ class ShadowMap {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -12332,11 +12726,11 @@ class ShadowBuffer {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -12463,11 +12857,11 @@ class Camera {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -12691,6 +13085,12 @@ class UiRegionFncs {
     };
   }
 
+  static fullMargin(left, top, right, bottom) {
+    return (size) => {
+      return Rect2.create(left, top, FMath.max(0, size.width()-left-right), FMath.max(0, size.height()-top-bottom));
+    };
+  }
+
   static center() {
     if (arguments.length===2&& typeof arguments[0]==="number"&& typeof arguments[1]==="number") {
       return UiRegionFncs.center_2_number_number(arguments[0], arguments[1]);
@@ -12742,6 +13142,18 @@ class UiRegionFncs {
   static rightCenter(x, width, height) {
     return (size) => {
       return Rect2.create(size.width()-x, size.height()/2-height/2, width, height);
+    };
+  }
+
+  static fullTop(height) {
+    return (size) => {
+      return Rect2.create(0, 0, size.width(), height);
+    };
+  }
+
+  static fullFromTop(y) {
+    return (size) => {
+      return Rect2.create(0, y, size.width(), FMath.max(0, size.height()-y));
     };
   }
 
@@ -12833,15 +13245,15 @@ class UiEventActions {
     };
   }
 
-  static previousPage(pageList) {
+  static previousTab(tabContainer) {
     return (evtSource) => {
-      pageList.previousPage();
+      tabContainer.previousTab();
     };
   }
 
-  static nextPage(pageList) {
+  static nextTab(tabContainer) {
     return (evtSource) => {
-      pageList.nextPage();
+      tabContainer.nextTab();
     };
   }
 
@@ -12869,6 +13281,620 @@ class UiActions {
 
 }
 classRegistry.UiActions = UiActions;
+class UiComponentType {
+  static PANEL = UiComponentType.of("PANEL");
+  static LABEL = UiComponentType.of("LABEL");
+  static TAB_CONTAINER = UiComponentType.of("TAB_CONTAINER");
+  static TAB_NAVBAR = UiComponentType.of("TAB_NAVBAR");
+  static LIST_SELECT = UiComponentType.of("LIST_SELECT");
+  static TEXT_FIELD = UiComponentType.of("TEXT_FIELD");
+  static DROPDOWN = UiComponentType.of("DROPDOWN");
+  static BUTTON = UiComponentType.of("BUTTON");
+  static TOGGLE_BUTTON = UiComponentType.of("TOGGLE_BUTTON");
+  static JOYSTICK = UiComponentType.of("JOYSTICK");
+  mType;
+  constructor() {
+  }
+
+  getClass() {
+    return "UiComponentType";
+  }
+
+  guardInvariants() {
+  }
+
+  type() {
+    return this.mType;
+  }
+
+  hashCode() {
+    return this.mType.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof UiComponentType)) {
+      return false;
+    }
+    let other = obj;
+    return other.mType.equals(this.mType);
+  }
+
+  toString() {
+  }
+
+  static of(type) {
+    let res = new UiComponentType();
+    res.mType = type;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.UiComponentType = UiComponentType;
+class UiComponentTrait {
+  static H1 = UiComponentTrait.of("H1");
+  static H2 = UiComponentTrait.of("H2");
+  static H3 = UiComponentTrait.of("H3");
+  static XS = UiComponentTrait.of("XS");
+  static S = UiComponentTrait.of("S");
+  static M = UiComponentTrait.of("M");
+  static L = UiComponentTrait.of("L");
+  static XL = UiComponentTrait.of("XL");
+  static HAMBURGER = UiComponentTrait.of("HAMBURGER");
+  static CROSS = UiComponentTrait.of("CROSS");
+  static TRANSPARENT = UiComponentTrait.of("TRANSPARENT");
+  mTrait;
+  constructor() {
+  }
+
+  getClass() {
+    return "UiComponentTrait";
+  }
+
+  guardInvariants() {
+  }
+
+  trait() {
+    return this.mTrait;
+  }
+
+  hashCode() {
+    return this.mTrait.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof UiComponentTrait)) {
+      return false;
+    }
+    let other = obj;
+    return other.mTrait.equals(this.mTrait);
+  }
+
+  toString() {
+  }
+
+  static of(trait) {
+    let res = new UiComponentTrait();
+    res.mTrait = trait;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.UiComponentTrait = UiComponentTrait;
+class UiComponentStylePropertyKey {
+  static UP_TEXTURE = UiComponentStylePropertyKey.of("upTexture");
+  static DOWN_TEXTURE = UiComponentStylePropertyKey.of("downTexture");
+  static ON_TEXTURE = UiComponentStylePropertyKey.of("onTexture");
+  static OFF_TEXTURE = UiComponentStylePropertyKey.of("offTexture");
+  static BASE_TEXTURE = UiComponentStylePropertyKey.of("baseTexture");
+  static TOP_TEXTURE = UiComponentStylePropertyKey.of("topTexture");
+  static DISABLED_TEXTURE = UiComponentStylePropertyKey.of("disabledTexture");
+  static TEXT_FONT = UiComponentStylePropertyKey.of("textFont");
+  static HIGHLIGHTED_TEXT_FONT = UiComponentStylePropertyKey.of("highlightedTextFont");
+  static SELECTED_TEXT_FONT = UiComponentStylePropertyKey.of("selectedTextFont");
+  static OVERLAY_TEXT_FONT = UiComponentStylePropertyKey.of("overlayTextFont");
+  static DISABLED_TEXT_FONT = UiComponentStylePropertyKey.of("disabledTextFont");
+  static LABEL_TEXT_FONT = UiComponentStylePropertyKey.of("labelTextFont");
+  static TEXT_COLOR = UiComponentStylePropertyKey.of("textColor");
+  static HIGHLIGHTED_TEXT_COLOR = UiComponentStylePropertyKey.of("highlightedTextColor");
+  static SELECTED_TEXT_COLOR = UiComponentStylePropertyKey.of("selectedTextColor");
+  static OVERLAY_TEXT_COLOR = UiComponentStylePropertyKey.of("overlayTextColor");
+  static DISABLED_TEXT_COLOR = UiComponentStylePropertyKey.of("disabledTextColor");
+  static LABEL_TEXT_COLOR = UiComponentStylePropertyKey.of("labelTextColor");
+  static BORDER_COLOR = UiComponentStylePropertyKey.of("borderColor");
+  static OVERLAY_BORDER_COLOR = UiComponentStylePropertyKey.of("overlayBorderColor");
+  static BACKGROUND_COLOR = UiComponentStylePropertyKey.of("backgroundColor");
+  static HIGHLIGHTED_BACKGROUND_COLOR = UiComponentStylePropertyKey.of("highlightedBackgroundColor");
+  static SELECTED_BACKGROUND_COLOR = UiComponentStylePropertyKey.of("selectedBackgroundColor");
+  static OVERLAY_BACKGROUND_COLOR = UiComponentStylePropertyKey.of("overlayBackgroundColor");
+  static ITEM_HEIGHT = UiComponentStylePropertyKey.of("itemHeight");
+  static OVERLAY_ITEM_HEIGHT = UiComponentStylePropertyKey.of("overlayItemHeight");
+  mKey;
+  constructor() {
+  }
+
+  getClass() {
+    return "UiComponentStylePropertyKey";
+  }
+
+  guardInvariants() {
+  }
+
+  key() {
+    return this.mKey;
+  }
+
+  hashCode() {
+    return this.mKey.hashCode();
+  }
+
+  equals(obj) {
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof UiComponentStylePropertyKey)) {
+      return false;
+    }
+    let other = obj;
+    return other.mKey.equals(this.mKey);
+  }
+
+  toString() {
+  }
+
+  static of(key) {
+    let res = new UiComponentStylePropertyKey();
+    res.mKey = key;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.UiComponentStylePropertyKey = UiComponentStylePropertyKey;
+class UiComponentStyleKey {
+  type;
+  traits;
+  constructor() {
+  }
+
+  getClass() {
+    return "UiComponentStyleKey";
+  }
+
+  guardInvariants() {
+  }
+
+  getType() {
+    return this.type;
+  }
+
+  getTraits() {
+    return this.traits;
+  }
+
+  plusTrait(trait) {
+    let res = new UiComponentStyleKey();
+    res.type = this.type;
+    res.traits = Dut.immutableSetPlusItem(this.traits, trait);
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return this.type.hashCode()+13*this.traits.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof UiComponentStyleKey)) {
+      return false;
+    }
+    let other = obj;
+    return other.type.equals(this.type)&&other.traits.equals(this.traits);
+  }
+
+  toString() {
+  }
+
+  static plain(type) {
+    let res = new UiComponentStyleKey();
+    res.type = type;
+    res.traits = Collections.emptySet();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.UiComponentStyleKey = UiComponentStyleKey;
+class UiComponentStyle {
+  properties;
+  constructor() {
+  }
+
+  getClass() {
+    return "UiComponentStyle";
+  }
+
+  guardInvariants() {
+  }
+
+  getFloat(key) {
+    let res = this.properties.get(key);
+    if (res==null) {
+      throw new Error("style doesn't contain the value: "+key);
+    }
+    return res;
+  }
+
+  getTextureId(key) {
+    let res = this.properties.get(key);
+    if (res==null) {
+      throw new Error("style doesn't contain the value: "+key);
+    }
+    return res;
+  }
+
+  getFontId(key) {
+    let res = this.properties.get(key);
+    if (res==null) {
+      throw new Error("style doesn't contain the value: "+key);
+    }
+    return res;
+  }
+
+  getRgb(key) {
+    let res = this.properties.get(key);
+    if (res==null) {
+      throw new Error("style doesn't contain the value: "+key);
+    }
+    return res;
+  }
+
+  getRgbNonStrict(key) {
+    let res = this.properties.get(key);
+    return res;
+  }
+
+  getRgba(key) {
+    let res = this.properties.get(key);
+    if (res==null) {
+      throw new Error("style doesn't contain the value: "+key);
+    }
+    return res;
+  }
+
+  getRgbaNonStrict(key) {
+    let res = this.properties.get(key);
+    return res;
+  }
+
+  getProperties() {
+    return this.properties;
+  }
+
+  withProperty(key, value) {
+    let res = new UiComponentStyle();
+    res.properties = Dut.immutableMapPlusEntry(this.properties, key, value);
+    res.guardInvariants();
+    return res;
+  }
+
+  withProperties(props) {
+    let res = new UiComponentStyle();
+    res.properties = Dut.immutableMapPlusEntries(this.properties, props);
+    res.guardInvariants();
+    return res;
+  }
+
+  extend(other) {
+    let res = new UiComponentStyle();
+    res.properties = Dut.immutableMapPlusEntries(this.properties, other.properties);
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new UiComponentStyle();
+    res.properties = Collections.emptyMap();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.UiComponentStyle = UiComponentStyle;
+class DefaultUiStylerCustomStyle {
+  baseKey;
+  key;
+  style;
+  constructor() {
+  }
+
+  getClass() {
+    return "DefaultUiStylerCustomStyle";
+  }
+
+  guardInvariants() {
+  }
+
+  getBaseKey() {
+    return this.baseKey;
+  }
+
+  getKey() {
+    return this.key;
+  }
+
+  getStyle() {
+    return this.style;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static extension(baseKey, key, style) {
+    let res = new DefaultUiStylerCustomStyle();
+    res.baseKey = baseKey;
+    res.key = key;
+    res.style = style;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.DefaultUiStylerCustomStyle = DefaultUiStylerCustomStyle;
+class DefaultUiStyler {
+  h1Font = FontId.of("kenny-thick-28");
+  h1Color = Rgba.create(0.863, 0.392, 0.078, 1);
+  h2Font = FontId.of("kenny-thick-24");
+  h2Color = Rgba.create(0.863, 0.392, 0.078, 1);
+  h3Font = FontId.of("kenny-thick-22");
+  h3Color = Rgba.create(0.863, 0.392, 0.078, 1);
+  navbarItemFont = FontId.of("kenny-mini-14");
+  navbarItemColor = Rgba.create(0.863, 0.392, 0.078, 1);
+  navbarBackgroundColor = Rgba.create(0.294, 0.275, 0.255, 1);
+  navbarHighlightedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.1);
+  navbarSelectedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.5);
+  extraLargeTextFont = FontId.of("kenny-mini-18");
+  largeTextFont = FontId.of("kenny-mini-16");
+  mediumTextFont = FontId.of("kenny-mini-14");
+  smallTextFont = FontId.of("kenny-mini-12");
+  extraSmallTextFont = FontId.of("kenny-mini-10");
+  textColor = Rgba.create(0.863, 0.392, 0.078, 1);
+  buttonLabelFont = FontId.of("kenny-mini-12");
+  buttonLabelColor = Rgba.create(0.863, 0.392, 0.078, 1);
+  disabledButtonLabelColor = Rgba.create(0.863*0.5, 0.392*0.5, 0.078*0.5, 1);
+  selectItemTextFont = FontId.of("kenny-mini-14");
+  selectItemTextColor = Rgba.create(0.863, 0.392, 0.078, 1);
+  fieldValueFont = FontId.of("kenny-mini-14");
+  fieldValueColor = Rgba.create(0.863, 0.392, 0.078, 1);
+  fieldLabelFont = FontId.of("kenny-mini-10");
+  fieldLabelColor = Rgba.create(0.863, 0.392, 0.078, 1);
+  borderColor = Rgba.create(0.365, 0.341, 0.314, 0.5);
+  overlayBorderColor = Rgba.create(0.365, 0.341, 0.314, 0.5);
+  backgroundColor = Rgba.create(0.482, 0.451, 0.420, 0.5);
+  selectedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.5);
+  overlayBackgroundColor = Rgba.create(0.482, 0.451, 0.420, 1);
+  customStyles = Collections.emptyList();
+  styles = null;
+  constructor() {
+  }
+
+  getClass() {
+    return "DefaultUiStyler";
+  }
+
+  guardInvariants() {
+  }
+
+  getComponentStyle(key) {
+    this.ensureStyles();
+    let res = this.styles.get(key);
+    if (res==null) {
+      throw new Error("style not defined: "+key.toString());
+    }
+    return res;
+  }
+
+  setH1Font(h1Font) {
+    Guard.notNull(h1Font, "h1Font cannot be null");
+    this.h1Font = h1Font;
+    this.styles = null;
+    return this;
+  }
+
+  setH1Color(h1Color) {
+    Guard.notNull(h1Color, "h1Color cannot be null");
+    this.h1Color = h1Color;
+    this.styles = null;
+    return this;
+  }
+
+  setH2Font(h2Font) {
+    Guard.notNull(h2Font, "h2Font cannot be null");
+    this.h2Font = h2Font;
+    this.styles = null;
+    return this;
+  }
+
+  setH2Color(h2Color) {
+    Guard.notNull(h2Color, "h2Color cannot be null");
+    this.h2Color = h2Color;
+    this.styles = null;
+    return this;
+  }
+
+  setH3Font(h3Font) {
+    Guard.notNull(h3Font, "h3Font cannot be null");
+    this.h3Font = h3Font;
+    this.styles = null;
+    return this;
+  }
+
+  setH3Color(h3Color) {
+    Guard.notNull(h3Color, "h3Color cannot be null");
+    this.h3Color = h3Color;
+    this.styles = null;
+    return this;
+  }
+
+  setExtraLargeTextFont(extraLargeTextFont) {
+    Guard.notNull(extraLargeTextFont, "extraLargeTextFont cannot be null");
+    this.extraLargeTextFont = extraLargeTextFont;
+    this.styles = null;
+    return this;
+  }
+
+  setLargeTextFont(largeTextFont) {
+    Guard.notNull(largeTextFont, "largeTextFont cannot be null");
+    this.largeTextFont = largeTextFont;
+    this.styles = null;
+    return this;
+  }
+
+  setMediumTextFont(mediumTextFont) {
+    Guard.notNull(mediumTextFont, "mediumTextFont cannot be null");
+    this.mediumTextFont = mediumTextFont;
+    this.styles = null;
+    return this;
+  }
+
+  setSmallTextFont(smallTextFont) {
+    Guard.notNull(smallTextFont, "smallTextFont cannot be null");
+    this.smallTextFont = smallTextFont;
+    this.styles = null;
+    return this;
+  }
+
+  setExtraSmallTextFont(extraSmallTextFont) {
+    Guard.notNull(extraSmallTextFont, "extraSmallTextFont cannot be null");
+    this.extraSmallTextFont = extraSmallTextFont;
+    this.styles = null;
+    return this;
+  }
+
+  setTextColor(textColor) {
+    Guard.notNull(this.h1Color, "textColor cannot be null");
+    this.textColor = textColor;
+    this.styles = null;
+    return this;
+  }
+
+  setButtonLabelFont(buttonLabelFont) {
+    Guard.notNull(buttonLabelFont, "buttonLabelFont cannot be null");
+    this.buttonLabelFont = buttonLabelFont;
+    this.styles = null;
+    return this;
+  }
+
+  setButtonLabelColor(buttonLabelColor) {
+    Guard.notNull(this.buttonLabelFont, "buttonLabelFont cannot be null");
+    this.buttonLabelColor = buttonLabelColor;
+    this.styles = null;
+    return this;
+  }
+
+  setDisabledButtonLabelColor(disabledButtonLabelColor) {
+    Guard.notNull(disabledButtonLabelColor, "disabledButtonLabelColor cannot be null");
+    this.disabledButtonLabelColor = disabledButtonLabelColor;
+    this.styles = null;
+    return this;
+  }
+
+  addCustomStyle(customStyle) {
+    Guard.notNull(customStyle, "style cannot be null");
+    this.customStyles = Dut.immutableListPlusItem(this.customStyles, customStyle);
+    this.styles = null;
+    return this;
+  }
+
+  ensureStyles() {
+    if (this.styles!=null) {
+      return ;
+    }
+    this.styles = new HashMap();
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.PANEL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.PANEL).plusTrait(UiComponentTrait.TRANSPARENT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, Rgba.TRANSPARENT, UiComponentStylePropertyKey.BACKGROUND_COLOR, Rgba.TRANSPARENT)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LABEL).plusTrait(UiComponentTrait.H1), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.TEXT_FONT, this.h1Font, UiComponentStylePropertyKey.TEXT_COLOR, this.h1Color)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LABEL).plusTrait(UiComponentTrait.H2), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.TEXT_FONT, this.h2Font, UiComponentStylePropertyKey.TEXT_COLOR, this.h2Color)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LABEL).plusTrait(UiComponentTrait.H3), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.TEXT_FONT, this.h3Font, UiComponentStylePropertyKey.TEXT_COLOR, this.h3Color)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LABEL).plusTrait(UiComponentTrait.XS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.TEXT_FONT, this.extraSmallTextFont, UiComponentStylePropertyKey.TEXT_COLOR, this.textColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LABEL).plusTrait(UiComponentTrait.S), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.TEXT_FONT, this.smallTextFont, UiComponentStylePropertyKey.TEXT_COLOR, this.textColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LABEL).plusTrait(UiComponentTrait.M), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.TEXT_FONT, this.mediumTextFont, UiComponentStylePropertyKey.TEXT_COLOR, this.textColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LABEL).plusTrait(UiComponentTrait.L), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.TEXT_FONT, this.largeTextFont, UiComponentStylePropertyKey.TEXT_COLOR, this.textColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LABEL).plusTrait(UiComponentTrait.XL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.TEXT_FONT, this.extraLargeTextFont, UiComponentStylePropertyKey.TEXT_COLOR, this.textColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LABEL), this.styles.get(UiComponentStyleKey.plain(UiComponentType.LABEL).plusTrait(UiComponentTrait.M)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TAB_NAVBAR), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, Rgba.TRANSPARENT, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.navbarBackgroundColor, UiComponentStylePropertyKey.HIGHLIGHTED_BACKGROUND_COLOR, this.navbarHighlightedBackgroundColor, UiComponentStylePropertyKey.SELECTED_BACKGROUND_COLOR, this.navbarSelectedBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.navbarItemFont, UiComponentStylePropertyKey.TEXT_COLOR, this.navbarItemColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.navbarItemFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.navbarItemColor, UiComponentStylePropertyKey.SELECTED_TEXT_FONT, this.navbarItemFont, UiComponentStylePropertyKey.SELECTED_TEXT_COLOR, this.navbarItemColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TAB_CONTAINER), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, Rgba.TRANSPARENT, UiComponentStylePropertyKey.BACKGROUND_COLOR, Rgba.TRANSPARENT)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.XS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-xs-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-xs-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-xs-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.S), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-s-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-s-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-s-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.M), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-m-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-m-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-m-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON), this.styles.get(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.M)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.L), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-l-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-l-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-l-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.XL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-xl-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-xl-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-xl-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.HAMBURGER), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-hamburger-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-hamburger-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-hamburger-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.CROSS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-cross-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-cross-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-cross-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.XS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-xs-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-xs-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.S), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-s-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-s-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.M), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-m-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-m-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON), this.styles.get(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.M)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.L), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-l-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-l-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.XL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-xl-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-xl-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.JOYSTICK), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BASE_TEXTURE, TextureId.of("joystick-base"), UiComponentStylePropertyKey.TOP_TEXTURE, TextureId.of("joystick-top"))));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LIST_SELECT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.SELECTED_BACKGROUND_COLOR, this.selectedBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.SELECTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.SELECTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.ITEM_HEIGHT, 20)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TEXT_FIELD), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.DROPDOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor, UiComponentStylePropertyKey.OVERLAY_BORDER_COLOR, this.overlayBorderColor, UiComponentStylePropertyKey.OVERLAY_BACKGROUND_COLOR, this.overlayBackgroundColor, UiComponentStylePropertyKey.OVERLAY_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_ITEM_HEIGHT, 20)));
+    for (let customStyle of this.customStyles) {
+      let newStyle = customStyle.getStyle();
+      if (customStyle.getBaseKey()!=null) {
+        let base = this.styles.get(customStyle.getBaseKey());
+        newStyle = base.extend(customStyle.getStyle());
+      }
+      this.styles.put(customStyle.getKey(), newStyle);
+    }
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new DefaultUiStyler();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.DefaultUiStyler = DefaultUiStyler;
 class UiPainters {
   constructor() {
   }
@@ -12925,6 +13951,54 @@ class UiPainters {
     }
   }
 
+  static drawColorText(painter, text, font, rgba, pos, alignment) {
+    if (text.isEmpty()) {
+      return ;
+    }
+    let fontData = painter.getFont(font);
+    let parser = new StringParser(text);
+    let cursorX = pos.x();
+    let cursorY = pos.y();
+    if (alignment.getHorizontal().equals(TextAlignmentHorizontal.LEFT)) {
+      cursorX = cursorX-fontData.getCharacterOffset(parser.lookupCharacter()).x();
+    }
+    else if (alignment.getHorizontal().equals(TextAlignmentHorizontal.CENTER)) {
+      cursorX = cursorX-fontData.getTextWidth(text)/2;
+    }
+    else if (alignment.getHorizontal().equals(TextAlignmentHorizontal.RIGHT)) {
+      cursorX = cursorX-fontData.getTextWidth(text);
+    }
+    else {
+      throw new Error("unsupprted horizontal alignment: "+alignment.getHorizontal());
+    }
+    if (alignment.getVertical().equals(TextAlignmentVertical.TOP)) {
+    }
+    else if (alignment.getVertical().equals(TextAlignmentVertical.CENTER)) {
+      cursorY = cursorY-fontData.getSize()/2;
+    }
+    else if (alignment.getVertical().equals(TextAlignmentVertical.BASE)) {
+      cursorY = cursorY-fontData.getBase();
+    }
+    else if (alignment.getVertical().equals(TextAlignmentVertical.BOTOM)) {
+      cursorY = cursorY-fontData.getSize();
+    }
+    else {
+      throw new Error("unsupprted vertical alignment: "+alignment.getVertical());
+    }
+    while (parser.hasNext()) {
+      let ch = parser.readCharacter();
+      let sprite = fontData.getCharacterSprite(ch);
+      let offset = fontData.getCharacterOffset(ch);
+      let size = fontData.getCharacterSize(ch);
+      let x = cursorX+offset.x();
+      let y = cursorY+offset.y();
+      painter.drawSilhouette(sprite, rgba, x, y, size.width(), size.height(), fontData.getTextureStyle());
+      if (parser.hasNext()) {
+        cursorX = cursorX+fontData.getCharAdvance(ch, parser.lookupCharacter());
+      }
+    }
+  }
+
 }
 classRegistry.UiPainters = UiPainters;
 class StretchUiPainter {
@@ -12964,8 +14038,36 @@ class StretchUiPainter {
     this.drawImage(img, region.x(), region.y(), region.width(), region.height(), style);
   }
 
+  drawSilhouette() {
+    if (arguments.length===7&&arguments[0] instanceof TextureId&&arguments[1] instanceof Rgba&& typeof arguments[2]==="number"&& typeof arguments[3]==="number"&& typeof arguments[4]==="number"&& typeof arguments[5]==="number"&&arguments[6] instanceof TextureStyle) {
+      this.drawSilhouette_7_TextureId_Rgba_number_number_number_number_TextureStyle(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5], arguments[6]);
+    }
+    else if (arguments.length===4&&arguments[0] instanceof TextureId&&arguments[1] instanceof Rgba&&arguments[2] instanceof Rect2&&arguments[3] instanceof TextureStyle) {
+      this.drawSilhouette_4_TextureId_Rgba_Rect2_TextureStyle(arguments[0], arguments[1], arguments[2], arguments[3]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  drawSilhouette_7_TextureId_Rgba_number_number_number_number_TextureStyle(img, rgba, x, y, width, height, style) {
+    let nx = x/this.size.width();
+    let ny = y/this.size.height();
+    let nw = width/this.size.width();
+    let nh = height/this.size.height();
+    this.target.drawSilhouette(img, rgba, nx, ny, nw, nh, style);
+  }
+
+  drawSilhouette_4_TextureId_Rgba_Rect2_TextureStyle(img, rgba, region, style) {
+    this.drawSilhouette(img, rgba, region.x(), region.y(), region.width(), region.height(), style);
+  }
+
   drawText(text, font, pos, alignment) {
     UiPainters.drawText(this, text, font, pos, alignment);
+  }
+
+  drawColorText(text, font, rgba, pos, alignment) {
+    UiPainters.drawColorText(this, text, font, rgba, pos, alignment);
   }
 
   fillRect(rect, color) {
@@ -13005,10 +14107,214 @@ class StretchUiPainter {
 
 }
 classRegistry.StretchUiPainter = StretchUiPainter;
+class StretchUiLayer {
+  parent;
+  size;
+  components = new ArrayList();
+  lock = new Object();
+  touches = new HashMap();
+  pressedKeys = new HashSet();
+  constructor() {
+  }
+
+  getClass() {
+    return "StretchUiLayer";
+  }
+
+  guardInvariants() {
+  }
+
+  addComponent(component) {
+    Guard.notNull(component, "component cannot be null");
+    this.components.add(component);
+    component.init(this);
+    component.onContainerResize(this.size);
+  }
+
+  removeComponent(component) {
+    this.components.remove(component);
+  }
+
+  move(dt) {
+    for (let cmp of this.components) {
+      cmp.move(dt);
+    }
+  }
+
+  draw(painter) {
+    let painterWrapper = StretchUiPainter.create(painter, this.size);
+    for (let cmp of this.components) {
+      cmp.draw(painterWrapper);
+    }
+  }
+
+  pushLayer() {
+    return this.parent.pushLayer();
+  }
+
+  popLayer() {
+    this.parent.popLayer();
+  }
+
+  getNumLayers() {
+    return this.parent.getNumLayers();
+  }
+
+  requestFocus(target) {
+    return this.parent.requestFocus(target);
+  }
+
+  getFocused() {
+    return this.parent.getFocused();
+  }
+
+  getAbsoluteRegion(local) {
+    return local;
+  }
+
+  getComponentStyle(key) {
+    return this.parent.getComponentStyle(key);
+  }
+
+  onKeyPressed(key) {
+    this.pressedKeys.add(key);
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp.onKeyPressed(key)) {
+        break;
+      }
+    }
+  }
+
+  onKeyReleased(key) {
+    this.pressedKeys.remove(key);
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp.onKeyReleased(key)) {
+        break;
+      }
+    }
+  }
+
+  onMouseMove(pos, size, locked) {
+    let hx = pos.x()*this.size.width()/size.width();
+    let hy = pos.y()*this.size.height()/size.height();
+    let hpos = Pos2.create(hx, hy);
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp.onMouseMove(hpos, locked)) {
+        break;
+      }
+    }
+  }
+
+  onMouseDown(button, pos, size) {
+    let hx = pos.x()*this.size.width()/size.width();
+    let hy = pos.y()*this.size.height()/size.height();
+    let hpos = Pos2.create(hx, hy);
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp.onMouseDown(button, hpos)) {
+        break;
+      }
+    }
+  }
+
+  onMouseUp(button, pos, size, cancel) {
+    let hx = pos.x()*this.size.width()/size.width();
+    let hy = pos.y()*this.size.height()/size.height();
+    let hpos = Pos2.create(hx, hy);
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp.onMouseUp(button, hpos, cancel)) {
+        break;
+      }
+    }
+  }
+
+  onTouchStart(id, pos, size) {
+    let hx = pos.x()*this.size.width()/size.width();
+    let hy = pos.y()*this.size.height()/size.height();
+    let hpos = Pos2.create(hx, hy);
+    let handled = false;
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp.onTouchStart(id, hpos, size)) {
+        handled = true;
+        break;
+      }
+    }
+    this.touches.put(id, handled);
+  }
+
+  onTouchMove(id, pos, size) {
+    let hx = pos.x()*this.size.width()/size.width();
+    let hy = pos.y()*this.size.height()/size.height();
+    let hpos = Pos2.create(hx, hy);
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp.onTouchMove(id, hpos, size)) {
+        break;
+      }
+    }
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    let hx = pos.x()*this.size.width()/size.width();
+    let hy = pos.y()*this.size.height()/size.height();
+    let hpos = Pos2.create(hx, hy);
+    for (let i = this.components.size()-1; i>=0; --i) {
+      let cmp = this.components.get(i);
+      if (cmp.onTouchEnd(id, hpos, size, cancel)) {
+        break;
+      }
+    }
+    if (this.touches.containsKey(id)) {
+      if (!this.touches.get(id)) {
+        this.requestFocus(null);
+      }
+    }
+    this.touches.remove(id);
+  }
+
+  resize(size) {
+    this.size = size;
+    for (let cmp of this.components) {
+      cmp.onContainerResize(size);
+    }
+    return this;
+  }
+
+  cancelInputs() {
+    for (let touch of this.touches.keySet()) {
+      this.onTouchEnd(touch, Pos2.ZERO, this.size, true);
+    }
+    this.touches = new HashMap();
+    for (let key of this.pressedKeys) {
+      this.onKeyReleased(key);
+    }
+    this.pressedKeys = new HashSet();
+    return this;
+  }
+
+  toString() {
+  }
+
+  static create(parent) {
+    let res = new StretchUiLayer();
+    res.parent = parent;
+    res.size = parent.getSize();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.StretchUiLayer = StretchUiLayer;
 class StretchUi {
   sizeFnc;
   size;
-  components = new ArrayList();
+  styler;
+  layers;
   focused;
   lock = new Object();
   constructor() {
@@ -13053,141 +14359,129 @@ class StretchUi {
 
   addComponent(component) {
     Guard.notNull(component, "component cannot be null");
-    this.components.add(component);
-    component.init(this);
-    component.onContainerResize(this.size);
+    this.layers.get(this.layers.size()-1).addComponent(component);
   }
 
   removeComponent(component) {
-    this.components.remove(component);
+    this.layers.get(this.layers.size()-1).removeComponent(component);
   }
 
   move(dt) {
-    for (let cmp of this.components) {
-      cmp.move(dt);
+    for (let i = 0; i<this.layers.size(); ++i) {
+      this.layers.get(i).move(dt);
     }
   }
 
   draw(painter) {
-    let painterWrapper = StretchUiPainter.create(painter, this.size);
-    for (let cmp of this.components) {
-      cmp.draw(painterWrapper);
+    for (let i = 0; i<this.layers.size(); ++i) {
+      this.layers.get(i).draw(painter);
     }
   }
 
+  pushLayer() {
+    this.layers.get(this.layers.size()-1).cancelInputs();
+    let layer = StretchUiLayer.create(this);
+    layer.resize(this.size);
+    this.layers.add(layer);
+    return layer;
+  }
+
+  popLayer() {
+    if (this.layers.size()<=1) {
+      return ;
+    }
+    let layer = this.layers.get(this.layers.size()-1);
+    layer.cancelInputs();
+    this.layers.remove(layer);
+  }
+
+  getNumLayers() {
+    return this.layers.size();
+  }
+
   requestFocus(target) {
-    if (!target.isFocusable()) {
-      throw new Error("trying to focus on a component that is not focusable");
+    let loosingFocus = this.focused;
+    this.focused = null;
+    if (target==null) {
+      if (loosingFocus!=null) {
+        loosingFocus.onFocusLost();
+      }
+      return true;
     }
-    if (this.focused!=null) {
-      this.focused.onFocusLost();
+    else {
+      if (!target.isFocusable()) {
+        throw new Error("trying to focus on a component that is not focusable");
+      }
+      if (loosingFocus!=null) {
+        loosingFocus.onFocusLost();
+      }
+      if (target!=null) {
+        this.focused = target;
+        target.onFocus();
+      }
+      return true;
     }
-    if (target!=null) {
-      this.focused = target;
-      target.onFocus();
-    }
-    return true;
   }
 
   getFocused() {
     return this.focused;
   }
 
+  getAbsoluteRegion(local) {
+    return local;
+  }
+
+  getComponentStyle(key) {
+    return this.styler.getComponentStyle(key);
+  }
+
   onKeyPressed(key) {
-    for (let i = this.components.size()-1; i>=0; --i) {
-      let cmp = this.components.get(i);
-      if (cmp.onKeyPressed(key)) {
-        break;
-      }
-    }
+    this.layers.get(this.layers.size()-1).onKeyPressed(key);
   }
 
   onKeyReleased(key) {
-    for (let i = this.components.size()-1; i>=0; --i) {
-      let cmp = this.components.get(i);
-      if (cmp.onKeyReleased(key)) {
-        break;
-      }
-    }
+    this.layers.get(this.layers.size()-1).onKeyReleased(key);
   }
 
-  onMouseMove(pos, locked) {
-    let hx = pos.x()*this.size.width()/this.size.width();
-    let hy = pos.y()*this.size.height()/this.size.height();
-    let hpos = Pos2.create(hx, hy);
-    for (let i = this.components.size()-1; i>=0; --i) {
-      let cmp = this.components.get(i);
-      if (cmp.onMouseMove(hpos, locked)) {
-        break;
-      }
-    }
+  onMouseMove(pos, size, locked) {
+    this.layers.get(this.layers.size()-1).onMouseMove(pos, size, locked);
   }
 
-  onMouseDown(button, pos) {
-    let hx = pos.x()*this.size.width()/this.size.width();
-    let hy = pos.y()*this.size.height()/this.size.height();
-    let hpos = Pos2.create(hx, hy);
-    for (let i = this.components.size()-1; i>=0; --i) {
-      let cmp = this.components.get(i);
-      if (cmp.onMouseDown(button, hpos)) {
-        break;
-      }
-    }
+  onMouseDown(button, pos, size) {
+    this.layers.get(this.layers.size()-1).onMouseDown(button, pos, size);
   }
 
-  onMouseUp(button, pos, cancel) {
-    let hx = pos.x()*this.size.width()/this.size.width();
-    let hy = pos.y()*this.size.height()/this.size.height();
-    let hpos = Pos2.create(hx, hy);
-    for (let i = this.components.size()-1; i>=0; --i) {
-      let cmp = this.components.get(i);
-      if (cmp.onMouseUp(button, hpos, cancel)) {
-        break;
-      }
-    }
+  onMouseUp(button, pos, size, cancel) {
+    this.layers.get(this.layers.size()-1).onMouseUp(button, pos, size, cancel);
   }
 
   onTouchStart(id, pos, size) {
-    let hx = pos.x()*this.size.width()/size.width();
-    let hy = pos.y()*this.size.height()/size.height();
-    let hpos = Pos2.create(hx, hy);
-    for (let i = this.components.size()-1; i>=0; --i) {
-      let cmp = this.components.get(i);
-      if (cmp.onTouchStart(id, hpos, size)) {
-        break;
-      }
-    }
+    this.layers.get(this.layers.size()-1).onTouchStart(id, pos, size);
   }
 
   onTouchMove(id, pos, size) {
-    let hx = pos.x()*this.size.width()/size.width();
-    let hy = pos.y()*this.size.height()/size.height();
-    let hpos = Pos2.create(hx, hy);
-    for (let i = this.components.size()-1; i>=0; --i) {
-      let cmp = this.components.get(i);
-      if (cmp.onTouchMove(id, hpos, size)) {
-        break;
-      }
-    }
+    this.layers.get(this.layers.size()-1).onTouchMove(id, pos, size);
   }
 
   onTouchEnd(id, pos, size, cancel) {
-    let hx = pos.x()*this.size.width()/size.width();
-    let hy = pos.y()*this.size.height()/size.height();
-    let hpos = Pos2.create(hx, hy);
-    for (let i = this.components.size()-1; i>=0; --i) {
-      let cmp = this.components.get(i);
-      if (cmp.onTouchEnd(id, hpos, size, cancel)) {
-        break;
-      }
-    }
+    this.layers.get(this.layers.size()-1).onTouchEnd(id, pos, size, cancel);
   }
 
   onDisplayResize(size) {
     this.size = Functions.apply(this.sizeFnc, size);
-    for (let cmp of this.components) {
-      cmp.onContainerResize(this.size);
+    for (let i = 0; i<this.layers.size(); ++i) {
+      this.layers.get(i).resize(this.size);
     }
+  }
+
+  getSize() {
+    return this.size;
+  }
+
+  setStyler(styler) {
+    Guard.notNull(styler, "styler cannot be null");
+    this.styler = styler;
+    return this;
   }
 
   toString() {
@@ -13197,7 +14491,12 @@ class StretchUi {
     let res = new StretchUi();
     res.sizeFnc = sizeFnc;
     res.size = Functions.apply(sizeFnc, Size2.create(1, 1));
+    res.styler = DefaultUiStyler.create();
+    res.layers = new ArrayList();
     res.guardInvariants();
+    let layer = StretchUiLayer.create(res);
+    layer.resize(res.size);
+    res.layers.add(layer);
     return res;
   }
 
@@ -13209,7 +14508,7 @@ class UiComponent {
     return "UiComponent";
   }
 
-  init(controller) {
+  init(container) {
   }
 
   move(dt) {
@@ -13349,12 +14648,10 @@ class ImageView extends UiComponent {
 
 }
 classRegistry.ImageView = ImageView;
-class ImageButton extends UiComponent {
-  upTexture;
-  downTexture;
-  disabledTexture;
+class Button extends UiComponent {
+  container;
+  styleKey;
   text;
-  font;
   regionFnc;
   onClickActions;
   containerSize;
@@ -13371,29 +14668,38 @@ class ImageButton extends UiComponent {
   }
 
   getClass() {
-    return "ImageButton";
+    return "Button";
   }
 
   guardInvariants() {
   }
 
-  init(controller) {
+  init(container) {
+    this.container = container;
   }
 
   move(dt) {
   }
 
   draw(painter) {
+    let style = this.container.getComponentStyle(this.styleKey);
     if (this.disabled) {
-      painter.drawImage(this.disabledTexture, this.region, TextureStyle.PIXEL_EDGE);
+      painter.drawImage(style.getTextureId(UiComponentStylePropertyKey.DISABLED_TEXTURE), this.region, TextureStyle.PIXEL_EDGE);
     }
     else if (this.downTouch||this.downKey) {
-      painter.drawImage(this.downTexture, this.region, TextureStyle.PIXEL_EDGE);
+      painter.drawImage(style.getTextureId(UiComponentStylePropertyKey.DOWN_TEXTURE), this.region, TextureStyle.PIXEL_EDGE);
     }
     else {
-      painter.drawImage(this.upTexture, this.region, TextureStyle.PIXEL_EDGE);
+      painter.drawImage(style.getTextureId(UiComponentStylePropertyKey.UP_TEXTURE), this.region, TextureStyle.PIXEL_EDGE);
     }
-    painter.drawText(this.text, this.font, this.region.center(), TextAlignment.CENTER);
+    let color = style.getRgbaNonStrict(this.disabled?UiComponentStylePropertyKey.DISABLED_TEXT_COLOR:UiComponentStylePropertyKey.TEXT_COLOR);
+    let font = style.getFontId(this.disabled?UiComponentStylePropertyKey.DISABLED_TEXT_FONT:UiComponentStylePropertyKey.TEXT_FONT);
+    if (color==null) {
+      painter.drawText(this.text, font, this.region.center(), TextAlignment.CENTER);
+    }
+    else {
+      painter.drawColorText(this.text, font, color, this.region.center(), TextAlignment.CENTER);
+    }
   }
 
   onTouchStart(id, pos, size) {
@@ -13485,6 +14791,11 @@ class ImageButton extends UiComponent {
     this.region = Functions.apply(this.regionFnc, size);
   }
 
+  addTrait(trait) {
+    this.styleKey = this.styleKey.plusTrait(trait);
+    return this;
+  }
+
   isDown() {
     return this.downTouch||this.downKey;
   }
@@ -13514,72 +14825,6 @@ class ImageButton extends UiComponent {
     return this;
   }
 
-  setUpTexture() {
-    if (arguments.length===1&&arguments[0] instanceof TextureId) {
-      return this.setUpTexture_1_TextureId(arguments[0]);
-    }
-    else if (arguments.length===1&& typeof arguments[0]==="string") {
-      return this.setUpTexture_1_string(arguments[0]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  setUpTexture_1_TextureId(upTexture) {
-    Guard.notNull(upTexture, "upTexture cannot be null");
-    this.upTexture = upTexture;
-    return this;
-  }
-
-  setUpTexture_1_string(upTexture) {
-    return this.setUpTexture(TextureId.of(upTexture));
-  }
-
-  setDownTexture() {
-    if (arguments.length===1&&arguments[0] instanceof TextureId) {
-      return this.setDownTexture_1_TextureId(arguments[0]);
-    }
-    else if (arguments.length===1&& typeof arguments[0]==="string") {
-      return this.setDownTexture_1_string(arguments[0]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  setDownTexture_1_TextureId(downTexture) {
-    Guard.notNull(downTexture, "downTexture cannot be null");
-    this.downTexture = downTexture;
-    return this;
-  }
-
-  setDownTexture_1_string(downTexture) {
-    return this.setDownTexture(TextureId.of(downTexture));
-  }
-
-  setDisabledTexture() {
-    if (arguments.length===1&&arguments[0] instanceof TextureId) {
-      return this.setDisabledTexture_1_TextureId(arguments[0]);
-    }
-    else if (arguments.length===1&& typeof arguments[0]==="string") {
-      return this.setDisabledTexture_1_string(arguments[0]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  setDisabledTexture_1_TextureId(disabledTexture) {
-    Guard.notNull(disabledTexture, "disabledTexture cannot be null");
-    this.disabledTexture = disabledTexture;
-    return this;
-  }
-
-  setDisabledTexture_1_string(disabledTexture) {
-    return this.setDisabledTexture(TextureId.of(disabledTexture));
-  }
-
   setKeyCodeMatchers(keyCodeMatchers) {
     this.keyCodeMatchers = Dut.copyImmutableList(keyCodeMatchers);
     this.matchingKeyCodes = new ArrayList();
@@ -13604,12 +14849,6 @@ class ImageButton extends UiComponent {
     return this;
   }
 
-  setFont(font) {
-    Guard.notNull(font, "font cannot be null");
-    this.font = font;
-    return this;
-  }
-
   setRegionFnc(regionFnc) {
     Guard.notNull(regionFnc, "regionFnc cannot be null");
     this.regionFnc = regionFnc;
@@ -13621,12 +14860,9 @@ class ImageButton extends UiComponent {
   }
 
   static create() {
-    let res = new ImageButton();
-    res.upTexture = TextureId.of("button-up");
-    res.downTexture = TextureId.of("button-down");
-    res.disabledTexture = TextureId.of("button-disabled");
+    let res = new Button();
+    res.styleKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
     res.text = "";
-    res.font = FontId.DEFAULT;
     res.regionFnc = UiRegionFncs.center(100, 25);
     res.containerSize = Size2.create(1, 1);
     res.region = Functions.apply(res.regionFnc, res.containerSize);
@@ -13636,18 +14872,17 @@ class ImageButton extends UiComponent {
   }
 
 }
-classRegistry.ImageButton = ImageButton;
-class ImageToggleButton extends UiComponent {
-  upTexture;
-  downTexture;
+classRegistry.Button = Button;
+class ToggleButton extends UiComponent {
+  container;
+  styleKey;
   text;
-  font;
   regionFnc;
   onToggleActions;
   containerSize;
   region;
-  down = false;
-  toggledDown = false;
+  on = false;
+  toggledOn = false;
   trackedTouch = null;
   keyCodeMatchers = new ArrayList();
   matchingKeyCodes = new ArrayList();
@@ -13657,23 +14892,35 @@ class ImageToggleButton extends UiComponent {
   }
 
   getClass() {
-    return "ImageToggleButton";
+    return "ToggleButton";
   }
 
   guardInvariants() {
+  }
+
+  init(container) {
+    this.container = container;
   }
 
   move(dt) {
   }
 
   draw(painter) {
-    if (this.down) {
-      painter.drawImage(this.downTexture, this.region, TextureStyle.PIXEL_EDGE);
+    let style = this.container.getComponentStyle(this.styleKey);
+    if (this.on) {
+      painter.drawImage(style.getTextureId(UiComponentStylePropertyKey.ON_TEXTURE), this.region, TextureStyle.PIXEL_EDGE);
     }
     else {
-      painter.drawImage(this.upTexture, this.region, TextureStyle.PIXEL_EDGE);
+      painter.drawImage(style.getTextureId(UiComponentStylePropertyKey.OFF_TEXTURE), this.region, TextureStyle.PIXEL_EDGE);
     }
-    painter.drawText(this.text, this.font, this.region.center(), TextAlignment.CENTER);
+    let color = style.getRgbaNonStrict(UiComponentStylePropertyKey.TEXT_COLOR);
+    let font = style.getFontId(UiComponentStylePropertyKey.TEXT_FONT);
+    if (color==null) {
+      painter.drawText(this.text, font, this.region.center(), TextAlignment.CENTER);
+    }
+    else {
+      painter.drawColorText(this.text, font, color, this.region.center(), TextAlignment.CENTER);
+    }
   }
 
   onTouchStart(id, pos, size) {
@@ -13683,7 +14930,7 @@ class ImageToggleButton extends UiComponent {
     }
     if (inside) {
       this.trackedTouch = id;
-      this.down = !this.toggledDown;
+      this.on = !this.toggledOn;
     }
     return inside;
   }
@@ -13693,10 +14940,10 @@ class ImageToggleButton extends UiComponent {
       return false;
     }
     if (this.region.isInside(pos)) {
-      this.down = !this.toggledDown;
+      this.on = !this.toggledOn;
     }
     else {
-      this.down = this.toggledDown;
+      this.on = this.toggledOn;
     }
     return true;
   }
@@ -13707,13 +14954,13 @@ class ImageToggleButton extends UiComponent {
     }
     this.trackedTouch = null;
     if (this.region.isInside(pos.x(), pos.y())&&!cancel) {
-      this.toggledDown = !this.toggledDown;
-      this.down = this.toggledDown;
+      this.toggledOn = !this.toggledOn;
+      this.on = this.toggledOn;
       for (let action of this.onToggleActions) {
         Functions.runUiEventAction(action, this);
       }
     }
-    this.down = this.toggledDown;
+    this.on = this.toggledOn;
     return true;
   }
 
@@ -13727,8 +14974,8 @@ class ImageToggleButton extends UiComponent {
       if (Functions.keyCodeMatches(mtch, key)) {
         this.matchingKeyCodes.add(key);
         if (this.matchingKeyCodes.size()==this.keyCodeMatchers.size()) {
-          this.toggledDown = !this.toggledDown;
-          this.down = this.toggledDown;
+          this.toggledOn = !this.toggledOn;
+          this.on = this.toggledOn;
           for (let action of this.onToggleActions) {
             Functions.runUiEventAction(action, this);
           }
@@ -13761,33 +15008,30 @@ class ImageToggleButton extends UiComponent {
     this.region = Functions.apply(this.regionFnc, size);
   }
 
-  toggleDown() {
-    if (this.toggledDown) {
+  addTrait(trait) {
+    Guard.notNull(trait, "trait cannot be null");
+    this.styleKey = this.styleKey.plusTrait(trait);
+    return this;
+  }
+
+  toggleOn() {
+    if (this.toggledOn) {
       return ;
     }
-    this.toggledDown = true;
-    this.down = true;
+    this.toggledOn = true;
+    this.on = true;
     this.trackedTouch = null;
     for (let action of this.onToggleActions) {
       Functions.runUiEventAction(action, this);
     }
   }
 
-  toggleDownSilent() {
-    if (this.toggledDown) {
-      return ;
-    }
-    this.toggledDown = true;
-    this.down = true;
-    this.trackedTouch = null;
-  }
-
-  toggleUp() {
-    if (!this.toggledDown) {
+  toggleOff() {
+    if (!this.toggledOn) {
       return this;
     }
-    this.toggledDown = false;
-    this.down = false;
+    this.toggledOn = false;
+    this.on = false;
     this.trackedTouch = null;
     for (let action of this.onToggleActions) {
       Functions.runUiEventAction(action, this);
@@ -13795,28 +15039,21 @@ class ImageToggleButton extends UiComponent {
     return this;
   }
 
-  toggleUpSilent() {
-    if (!this.toggledDown) {
+  toggle(toggle) {
+    if (this.toggledOn==toggle) {
       return this;
     }
-    this.toggledDown = false;
-    this.down = false;
+    this.toggledOn = toggle;
+    this.on = toggle;
     this.trackedTouch = null;
-    return this;
-  }
-
-  toggleSilent(toggledDown) {
-    if (toggledDown) {
-      this.toggleDownSilent();
-    }
-    else {
-      this.toggleUpSilent();
+    for (let action of this.onToggleActions) {
+      Functions.runUiEventAction(action, this);
     }
     return this;
   }
 
-  isToggledDown() {
-    return this.toggledDown;
+  isToggledOn() {
+    return this.toggledOn;
   }
 
   addOnToggleAction(action) {
@@ -13828,50 +15065,6 @@ class ImageToggleButton extends UiComponent {
   removeOnToggleAction(action) {
     this.onToggleActions.remove(action);
     return this;
-  }
-
-  setUpTexture() {
-    if (arguments.length===1&&arguments[0] instanceof TextureId) {
-      return this.setUpTexture_1_TextureId(arguments[0]);
-    }
-    else if (arguments.length===1&& typeof arguments[0]==="string") {
-      return this.setUpTexture_1_string(arguments[0]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  setUpTexture_1_TextureId(upTexture) {
-    Guard.notNull(upTexture, "upTexture cannot be null");
-    this.upTexture = upTexture;
-    return this;
-  }
-
-  setUpTexture_1_string(upTexture) {
-    return this.setUpTexture(TextureId.of(upTexture));
-  }
-
-  setDownTexture() {
-    if (arguments.length===1&&arguments[0] instanceof TextureId) {
-      return this.setDownTexture_1_TextureId(arguments[0]);
-    }
-    else if (arguments.length===1&& typeof arguments[0]==="string") {
-      return this.setDownTexture_1_string(arguments[0]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  setDownTexture_1_TextureId(downTexture) {
-    Guard.notNull(downTexture, "downTexture cannot be null");
-    this.downTexture = downTexture;
-    return this;
-  }
-
-  setDownTexture_1_string(downTexture) {
-    return this.setDownTexture(TextureId.of(downTexture));
   }
 
   setKeyCodeMatchers(keyCodeMatchers) {
@@ -13896,12 +15089,6 @@ class ImageToggleButton extends UiComponent {
     return this;
   }
 
-  setFont(font) {
-    Guard.notNull(font, "font cannot be null");
-    this.font = font;
-    return this;
-  }
-
   setRegionFnc(regionFnc) {
     Guard.notNull(regionFnc, "regionFnc cannot be null");
     this.regionFnc = regionFnc;
@@ -13913,11 +15100,9 @@ class ImageToggleButton extends UiComponent {
   }
 
   static create() {
-    let res = new ImageToggleButton();
-    res.upTexture = TextureId.of("button-up");
-    res.downTexture = TextureId.of("button-down");
+    let res = new ToggleButton();
+    res.styleKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
     res.text = "";
-    res.font = FontId.DEFAULT;
     res.regionFnc = UiRegionFncs.center(100, 25);
     res.containerSize = Size2.create(1, 1);
     res.region = Functions.apply(res.regionFnc, res.containerSize);
@@ -13927,10 +15112,10 @@ class ImageToggleButton extends UiComponent {
   }
 
 }
-classRegistry.ImageToggleButton = ImageToggleButton;
+classRegistry.ToggleButton = ToggleButton;
 class Joystick extends UiComponent {
-  baseTexture;
-  topTexture;
+  container;
+  styleKey;
   regionFnc;
   containerSize;
   region;
@@ -13954,14 +15139,19 @@ class Joystick extends UiComponent {
   guardInvariants() {
   }
 
+  init(container) {
+    this.container = container;
+  }
+
   move(dt) {
   }
 
   draw(painter) {
+    let style = this.container.getComponentStyle(this.styleKey);
     let dir = this.getDir();
-    painter.drawImage(this.baseTexture, this.region, TextureStyle.PIXEL_EDGE);
+    painter.drawImage(style.getTextureId(UiComponentStylePropertyKey.BASE_TEXTURE), this.region, TextureStyle.PIXEL_EDGE);
     let inreg = Rect2.create(this.region.x()+this.region.width()*0.125+dir.x()*this.radius.x(), this.region.y()+this.region.height()*0.125-dir.y()*this.radius.y(), this.region.width()*0.75, this.region.height()*0.75);
-    painter.drawImage(this.topTexture, inreg, TextureStyle.PIXEL_EDGE);
+    painter.drawImage(style.getTextureId(UiComponentStylePropertyKey.TOP_TEXTURE), inreg, TextureStyle.PIXEL_EDGE);
   }
 
   onTouchStart(id, pos, size) {
@@ -13994,6 +15184,7 @@ class Joystick extends UiComponent {
   }
 
   onKeyPressed(key) {
+    key = key.withUpperCharacter();
     if (this.pressedKeys.contains(key)) {
       return false;
     }
@@ -14003,6 +15194,7 @@ class Joystick extends UiComponent {
   }
 
   onKeyReleased(key) {
+    key = key.withUpperCharacter();
     this.pressedKeys.remove(key);
     this.dirKey = this.calculateDirectionKeys(this.pressedKeys);
     return false;
@@ -14018,46 +15210,10 @@ class Joystick extends UiComponent {
     this.radius = Vec2.create(this.region.width()*0.25, this.region.height()*0.25);
   }
 
-  setBaseTexture() {
-    if (arguments.length===1&&arguments[0] instanceof TextureId) {
-      return this.setBaseTexture_1_TextureId(arguments[0]);
-    }
-    else if (arguments.length===1&& typeof arguments[0]==="string") {
-      return this.setBaseTexture_1_string(arguments[0]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  setBaseTexture_1_TextureId(baseTexture) {
-    this.baseTexture = baseTexture;
+  addTrait(trait) {
+    Guard.notNull(trait, "trait cannot be null");
+    this.styleKey = this.styleKey.plusTrait(trait);
     return this;
-  }
-
-  setBaseTexture_1_string(baseTexture) {
-    return this.setBaseTexture(TextureId.of(baseTexture));
-  }
-
-  setTopTexture() {
-    if (arguments.length===1&&arguments[0] instanceof TextureId) {
-      return this.setTopTexture_1_TextureId(arguments[0]);
-    }
-    else if (arguments.length===1&& typeof arguments[0]==="string") {
-      return this.setTopTexture_1_string(arguments[0]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  setTopTexture_1_TextureId(topTexture) {
-    this.topTexture = topTexture;
-    return this;
-  }
-
-  setTopTexture_1_string(topTexture) {
-    return this.setTopTexture(TextureId.of(topTexture));
   }
 
   setRegionFnc(regionFnc) {
@@ -14137,8 +15293,7 @@ class Joystick extends UiComponent {
 
   static create() {
     let res = new Joystick();
-    res.baseTexture = TextureId.of("joystick-base");
-    res.topTexture = TextureId.of("joystick-top");
+    res.styleKey = UiComponentStyleKey.plain(UiComponentType.JOYSTICK);
     res.regionFnc = UiRegionFncs.center(100, 25);
     res.containerSize = Size2.create(1, 1);
     res.region = Functions.apply(res.regionFnc, res.containerSize);
@@ -14150,8 +15305,9 @@ class Joystick extends UiComponent {
 }
 classRegistry.Joystick = Joystick;
 class Label extends UiComponent {
+  container;
+  styleKey;
   text;
-  font;
   posFnc;
   alignment;
   containerSize;
@@ -14167,16 +15323,34 @@ class Label extends UiComponent {
   guardInvariants() {
   }
 
+  init(container) {
+    this.container = container;
+  }
+
   move(dt) {
   }
 
   draw(painter) {
-    painter.drawText(this.text, this.font, this.pos, this.alignment);
+    let style = this.container.getComponentStyle(this.styleKey);
+    let color = style.getRgbaNonStrict(UiComponentStylePropertyKey.TEXT_COLOR);
+    let font = style.getFontId(UiComponentStylePropertyKey.TEXT_FONT);
+    if (color==null) {
+      painter.drawText(this.text, font, this.pos, this.alignment);
+    }
+    else {
+      painter.drawColorText(this.text, font, color, this.pos, this.alignment);
+    }
   }
 
   onContainerResize(size) {
     this.containerSize = size;
     this.pos = Functions.apply(this.posFnc, size);
+  }
+
+  addTrait(trait) {
+    Guard.notNull(trait, "trait cannot be null");
+    this.styleKey = this.styleKey.plusTrait(trait);
+    return this;
   }
 
   getText() {
@@ -14186,16 +15360,6 @@ class Label extends UiComponent {
   setText(text) {
     Guard.notNull(text, "text cannot be null");
     this.text = text;
-    return this;
-  }
-
-  getFont() {
-    return this.font;
-  }
-
-  setFont(font) {
-    Guard.notNull(font, "font cannot be null");
-    this.font = font;
     return this;
   }
 
@@ -14225,8 +15389,8 @@ class Label extends UiComponent {
 
   static create() {
     let res = new Label();
+    res.styleKey = UiComponentStyleKey.plain(UiComponentType.LABEL);
     res.text = "";
-    res.font = FontId.DEFAULT;
     res.alignment = TextAlignment.CENTER;
     res.posFnc = UiPosFncs.center();
     res.containerSize = Size2.create(1, 1);
@@ -14280,8 +15444,39 @@ class PanelPainter {
     this.drawImage(img, region.x(), region.y(), region.width(), region.height(), style);
   }
 
+  drawSilhouette() {
+    if (arguments.length===7&&arguments[0] instanceof TextureId&&arguments[1] instanceof Rgba&& typeof arguments[2]==="number"&& typeof arguments[3]==="number"&& typeof arguments[4]==="number"&& typeof arguments[5]==="number"&&arguments[6] instanceof TextureStyle) {
+      this.drawSilhouette_7_TextureId_Rgba_number_number_number_number_TextureStyle(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5], arguments[6]);
+    }
+    else if (arguments.length===4&&arguments[0] instanceof TextureId&&arguments[1] instanceof Rgba&&arguments[2] instanceof Rect2&&arguments[3] instanceof TextureStyle) {
+      this.drawSilhouette_4_TextureId_Rgba_Rect2_TextureStyle(arguments[0], arguments[1], arguments[2], arguments[3]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  drawSilhouette_7_TextureId_Rgba_number_number_number_number_TextureStyle(img, rgba, x, y, width, height, style) {
+    if (this.fullyClipped||this.innerSize.width()==0||this.innerSize.height()==0) {
+      return ;
+    }
+    let nx = this.region.x()+x*this.region.width()/this.innerSize.width();
+    let ny = this.region.y()+y*this.region.height()/this.innerSize.height();
+    let nw = width*this.region.width()/this.innerSize.width();
+    let nh = height*this.region.height()/this.innerSize.height();
+    this.target.drawSilhouette(img, rgba, nx, ny, nw, nh, style);
+  }
+
+  drawSilhouette_4_TextureId_Rgba_Rect2_TextureStyle(img, rgba, region, style) {
+    this.drawSilhouette(img, rgba, region.x(), region.y(), region.width(), region.height(), style);
+  }
+
   drawText(text, font, pos, alignment) {
     UiPainters.drawText(this, text, font, pos, alignment);
+  }
+
+  drawColorText(text, font, rgba, pos, alignment) {
+    UiPainters.drawColorText(this, text, font, rgba, pos, alignment);
   }
 
   fillRect(rect, color) {
@@ -14348,9 +15543,8 @@ class PanelPainter {
 }
 classRegistry.PanelPainter = PanelPainter;
 class Panel extends UiComponent {
-  controller;
-  borderColor;
-  bgColor;
+  container;
+  styleKey;
   clipRegion = true;
   doubleClickInterval;
   regionFnc;
@@ -14375,8 +15569,8 @@ class Panel extends UiComponent {
   guardInvariants() {
   }
 
-  init(controller) {
-    this.controller = controller;
+  init(container) {
+    this.container = container;
   }
 
   move(dt) {
@@ -14387,28 +15581,31 @@ class Panel extends UiComponent {
   }
 
   draw(painter) {
-    let painterWrapper = PanelPainter.create(painter, this.region, this.innerSize, this.clipRegion);
-    if (this.bgColor.a()>0) {
-      painter.fillRect(this.region, this.bgColor);
+    let style = this.container.getComponentStyle(this.styleKey);
+    let backroungColor = style.getRgba(UiComponentStylePropertyKey.BACKGROUND_COLOR);
+    let borderColor = style.getRgba(UiComponentStylePropertyKey.BORDER_COLOR);
+    if (backroungColor.a()>0) {
+      painter.fillRect(this.region, backroungColor);
     }
     if (this.clipRegion) {
       painter.setClipRect(this.region);
     }
+    let painterWrapper = PanelPainter.create(painter, this.region, this.innerSize, this.clipRegion);
     for (let cmp of this.components) {
       cmp.draw(painterWrapper);
     }
     if (this.clipRegion) {
       painter.unsetClipRect();
     }
-    let p1 = Vec2.create(this.region.x(), this.region.y());
-    let p2 = Vec2.create(this.region.x()+this.region.width(), this.region.y());
-    let p3 = Vec2.create(this.region.x()+this.region.width(), this.region.y()+this.region.height());
-    let p4 = Vec2.create(this.region.x(), this.region.y()+this.region.height());
-    if (this.borderColor.a()>0) {
-      painter.drawLine(p1, p2, this.borderColor);
-      painter.drawLine(p2, p3, this.borderColor);
-      painter.drawLine(p3, p4, this.borderColor);
-      painter.drawLine(p4, p1, this.borderColor);
+    if (borderColor.a()>0) {
+      let p1 = Vec2.create(this.region.x(), this.region.y());
+      let p2 = Vec2.create(this.region.x()+this.region.width(), this.region.y());
+      let p3 = Vec2.create(this.region.x()+this.region.width(), this.region.y()+this.region.height());
+      let p4 = Vec2.create(this.region.x(), this.region.y()+this.region.height());
+      painter.drawLine(p1, p2, borderColor);
+      painter.drawLine(p2, p3, borderColor);
+      painter.drawLine(p3, p4, borderColor);
+      painter.drawLine(p4, p1, borderColor);
     }
   }
 
@@ -14421,12 +15618,36 @@ class Panel extends UiComponent {
     }
   }
 
+  pushLayer() {
+    return this.container.pushLayer();
+  }
+
+  popLayer() {
+    this.container.popLayer();
+  }
+
+  getNumLayers() {
+    return this.container.getNumLayers();
+  }
+
   requestFocus(target) {
-    return this.controller.requestFocus(target);
+    return this.container.requestFocus(target);
   }
 
   getFocused() {
-    return this.controller.getFocused();
+    return this.container.getFocused();
+  }
+
+  getAbsoluteRegion(local) {
+    let nx = this.region.x()+local.x()*this.region.width()/this.innerSize.width();
+    let ny = this.region.y()+local.y()*this.region.height()/this.innerSize.height();
+    let nw = local.width()*this.region.width()/this.innerSize.width();
+    let nh = local.height()*this.region.height()/this.innerSize.height();
+    return this.container.getAbsoluteRegion(Rect2.create(nx, ny, nw, nh));
+  }
+
+  getComponentStyle(key) {
+    return this.container.getComponentStyle(key);
   }
 
   onKeyPressed(key) {
@@ -14454,12 +15675,8 @@ class Panel extends UiComponent {
     let hy = (pos.y()-this.region.y())*this.innerSize.height()/this.region.height();
     let hpos = Pos2.create(hx, hy);
     let inside = this.region.isInside(pos);
-    let res = false;
     if (inside) {
-      if (inside) {
-        this.trackedTouches.add(id);
-        res = true;
-      }
+      this.trackedTouches.add(id);
       for (let i = this.components.size()-1; i>=0; --i) {
         let cmp = this.components.get(i);
         if (cmp.onTouchStart(id, hpos, this.innerSize)) {
@@ -14467,7 +15684,7 @@ class Panel extends UiComponent {
         }
       }
     }
-    return res;
+    return inside;
   }
 
   onTouchMove(id, pos, size) {
@@ -14514,20 +15731,15 @@ class Panel extends UiComponent {
           Functions.runUiEventAction(action, this);
         }
       }
+      this.container.requestFocus(null);
       return true;
     }
     return false;
   }
 
-  setBorderColor(borderColor) {
-    Guard.notNull(borderColor, "borderColor cannot be null");
-    this.borderColor = borderColor;
-    return this;
-  }
-
-  setBgColor(bgColor) {
-    Guard.notNull(bgColor, "bgColor cannot be null");
-    this.bgColor = bgColor;
+  addTrait(trait) {
+    Guard.notNull(trait, "trait cannot be null");
+    this.styleKey = this.styleKey.plusTrait(trait);
     return this;
   }
 
@@ -14595,8 +15807,7 @@ class Panel extends UiComponent {
 
   static create() {
     let res = new Panel();
-    res.borderColor = Rgba.create(0.8, 0.8, 0.8, 1);
-    res.bgColor = Rgba.create(0.2, 0.2, 0.2, 1);
+    res.styleKey = UiComponentStyleKey.plain(UiComponentType.PANEL);
     res.clipRegion = true;
     res.doubleClickInterval = 0.5;
     res.regionFnc = UiRegionFncs.center(100, 25);
@@ -14610,8 +15821,8 @@ class Panel extends UiComponent {
 
 }
 classRegistry.Panel = Panel;
-class Page extends UiComponent {
-  controller;
+class Tab extends UiComponent {
+  container;
   containerSize;
   components = new ArrayList();
   lock = new Object();
@@ -14620,7 +15831,7 @@ class Page extends UiComponent {
   }
 
   getClass() {
-    return "Page";
+    return "Tab";
   }
 
   guardInvariants() {
@@ -14639,8 +15850,8 @@ class Page extends UiComponent {
     return this;
   }
 
-  init(controller) {
-    this.controller = controller;
+  init(container) {
+    this.container = container;
   }
 
   move(dt) {
@@ -14655,12 +15866,32 @@ class Page extends UiComponent {
     }
   }
 
+  pushLayer() {
+    return this.container.pushLayer();
+  }
+
+  popLayer() {
+    this.container.popLayer();
+  }
+
+  getNumLayers() {
+    return this.container.getNumLayers();
+  }
+
   requestFocus(target) {
-    return this.controller.requestFocus(target);
+    return this.container.requestFocus(target);
   }
 
   getFocused() {
-    return this.controller.getFocused();
+    return this.container.getFocused();
+  }
+
+  getAbsoluteRegion(local) {
+    return this.container.getAbsoluteRegion(local);
+  }
+
+  getComponentStyle(key) {
+    return this.container.getComponentStyle(key);
   }
 
   onKeyPressed(key) {
@@ -14724,170 +15955,1763 @@ class Page extends UiComponent {
   }
 
   static create() {
-    let res = new Page();
+    let res = new Tab();
     res.containerSize = Size2.create(1, 1);
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.Page = Page;
-class PageList extends UiComponent {
-  controller;
-  pages = new ArrayList();
-  active = 0;
+classRegistry.Tab = Tab;
+class TabContainer extends UiComponent {
+  container;
+  styleKey;
+  tabs = new ArrayList();
+  activeTabIdx = -1;
+  regionFnc;
   containerSize = Size2.create(1, 1);
+  region;
   trackedTouches = new HashSet();
+  pressedKeys = new HashSet();
   constructor() {
     super();
   }
 
   getClass() {
-    return "PageList";
+    return "TabContainer";
   }
 
   guardInvariants() {
   }
 
-  init(controller) {
-    this.controller = controller;
+  init(container) {
+    this.container = container;
   }
 
   move(dt) {
-    if (this.pages.isEmpty()) {
+    if (this.tabs.isEmpty()) {
       return ;
     }
-    this.pages.get(this.active).move(dt);
+    this.tabs.get(this.activeTabIdx).move(dt);
   }
 
   draw(painter) {
-    if (this.pages.isEmpty()) {
-      return ;
+    let style = this.container.getComponentStyle(this.styleKey);
+    let clipRegion = true;
+    let backroungColor = style.getRgba(UiComponentStylePropertyKey.BACKGROUND_COLOR);
+    let borderColor = style.getRgba(UiComponentStylePropertyKey.BORDER_COLOR);
+    if (backroungColor.a()>0) {
+      painter.fillRect(this.region, backroungColor);
     }
-    this.pages.get(this.active).draw(painter);
-  }
-
-  requestFocus(target) {
-    return this.controller.requestFocus(target);
-  }
-
-  getFocused() {
-    return this.controller.getFocused();
-  }
-
-  onTouchStart(id, pos, size) {
-    if (this.pages.isEmpty()) {
-      return false;
+    if (clipRegion) {
+      painter.setClipRect(this.region);
     }
-    this.trackedTouches.add(id);
-    return this.pages.get(this.active).onTouchStart(id, pos, size);
-  }
-
-  onTouchMove(id, pos, size) {
-    if (this.pages.isEmpty()) {
-      return false;
+    if (!this.tabs.isEmpty()) {
+      let painterWrapper = PanelPainter.create(painter, this.region, this.region.size(), clipRegion);
+      this.tabs.get(this.activeTabIdx).draw(painterWrapper);
     }
-    return this.pages.get(this.active).onTouchMove(id, pos, size);
-  }
-
-  onTouchEnd(id, pos, size, cancel) {
-    if (this.pages.isEmpty()) {
-      return false;
+    if (clipRegion) {
+      painter.unsetClipRect();
     }
-    this.trackedTouches.remove(id);
-    return this.pages.get(this.active).onTouchEnd(id, pos, size, cancel);
-  }
-
-  onKeyPressed(key) {
-    if (this.pages.isEmpty()) {
-      return false;
+    if (borderColor.a()>0) {
+      let p1 = Vec2.create(this.region.x(), this.region.y());
+      let p2 = Vec2.create(this.region.x()+this.region.width(), this.region.y());
+      let p3 = Vec2.create(this.region.x()+this.region.width(), this.region.y()+this.region.height());
+      let p4 = Vec2.create(this.region.x(), this.region.y()+this.region.height());
+      painter.drawLine(p1, p2, borderColor);
+      painter.drawLine(p2, p3, borderColor);
+      painter.drawLine(p3, p4, borderColor);
+      painter.drawLine(p4, p1, borderColor);
     }
-    return this.pages.get(this.active).onKeyPressed(key);
-  }
-
-  onKeyReleased(key) {
-    if (this.pages.isEmpty()) {
-      return false;
-    }
-    return this.pages.get(this.active).onKeyReleased(key);
   }
 
   onContainerResize(size) {
     this.containerSize = size;
-    if (this.pages.isEmpty()) {
-      return ;
+    this.region = Functions.apply(this.regionFnc, size);
+    for (let tab of this.tabs) {
+      tab.onContainerResize(this.region.size());
     }
-    this.pages.get(this.active).onContainerResize(size);
   }
 
-  addPage(page) {
-    this.pages.add(page);
-    page.init(this);
+  pushLayer() {
+    return this.container.pushLayer();
+  }
+
+  popLayer() {
+    this.container.popLayer();
+  }
+
+  getNumLayers() {
+    return this.container.getNumLayers();
+  }
+
+  requestFocus(target) {
+    return this.container.requestFocus(target);
+  }
+
+  getFocused() {
+    return this.container.getFocused();
+  }
+
+  getAbsoluteRegion(local) {
+    let nx = this.region.x()+local.x();
+    let ny = this.region.y()+local.y();
+    return this.container.getAbsoluteRegion(Rect2.create(nx, ny, local.width(), local.height()));
+  }
+
+  getComponentStyle(key) {
+    return this.container.getComponentStyle(key);
+  }
+
+  onTouchStart(id, pos, size) {
+    if (this.tabs.isEmpty()) {
+      return false;
+    }
+    this.trackedTouches.add(id);
+    return this.tabs.get(this.activeTabIdx).onTouchStart(id, pos.move(-this.region.x(), -this.region.y()), size);
+  }
+
+  onTouchMove(id, pos, size) {
+    if (this.tabs.isEmpty()) {
+      return false;
+    }
+    return this.tabs.get(this.activeTabIdx).onTouchMove(id, pos.move(-this.region.x(), -this.region.y()), size);
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    this.trackedTouches.remove(id);
+    if (this.tabs.isEmpty()) {
+      return false;
+    }
+    return this.tabs.get(this.activeTabIdx).onTouchEnd(id, pos.move(-this.region.x(), -this.region.y()), size, cancel);
+  }
+
+  onKeyPressed(key) {
+    if (this.tabs.isEmpty()) {
+      return false;
+    }
+    this.pressedKeys.add(key);
+    return this.tabs.get(this.activeTabIdx).onKeyPressed(key);
+  }
+
+  onKeyReleased(key) {
+    this.pressedKeys.remove(key);
+    if (this.tabs.isEmpty()) {
+      return false;
+    }
+    return this.tabs.get(this.activeTabIdx).onKeyReleased(key);
+  }
+
+  setRegionFnc(regionFnc) {
+    Guard.notNull(regionFnc, "regionFnc cannot be null");
+    this.regionFnc = regionFnc;
+    this.onContainerResize(this.containerSize);
     return this;
   }
 
-  getPage(idx) {
-    return this.pages.get(idx);
+  addTab(tab) {
+    this.tabs.add(tab);
+    tab.init(this);
+    if (this.activeTabIdx==-1) {
+      this.activeTabIdx = this.tabs.size()-1;
+    }
+    return this;
   }
 
-  getActivePage() {
-    if (this.pages.isEmpty()) {
+  getNumTabs() {
+    return this.tabs.size();
+  }
+
+  getTab(idx) {
+    return this.tabs.get(idx);
+  }
+
+  getActiveTabIdx() {
+    return this.activeTabIdx;
+  }
+
+  getActiveTab() {
+    if (this.tabs.isEmpty()) {
       return null;
     }
-    return this.pages.get(this.active);
+    return this.tabs.get(this.activeTabIdx);
   }
 
-  setActivePage(idx) {
-    this.cancelTrackedTouches();
-    this.active = idx;
-    this.pages.get(this.active).onContainerResize(this.containerSize);
-  }
-
-  previousPage() {
-    if (this.pages.isEmpty()) {
+  setActiveTabIdx(idx) {
+    if (this.tabs.isEmpty()) {
       return ;
     }
-    this.cancelTrackedTouches();
-    this.active = this.active-1;
-    if (this.active<0) {
-      this.active = this.pages.size()-1;
-    }
-    this.pages.get(this.active).onContainerResize(this.containerSize);
+    this.cancelTouchesKeysFocus();
+    this.activeTabIdx = idx;
   }
 
-  nextPage() {
-    if (this.pages.isEmpty()) {
+  previousTab() {
+    if (this.tabs.isEmpty()) {
       return ;
     }
-    this.cancelTrackedTouches();
-    this.active = this.active+1;
-    if (this.active>=this.pages.size()) {
-      this.active = 0;
+    this.cancelTouchesKeysFocus();
+    this.activeTabIdx = this.activeTabIdx-1;
+    if (this.activeTabIdx<0) {
+      this.activeTabIdx = this.tabs.size()-1;
     }
-    this.pages.get(this.active).onContainerResize(this.containerSize);
   }
 
-  cancelTrackedTouches() {
-    if (this.getActivePage()==null) {
+  nextTab() {
+    if (this.tabs.isEmpty()) {
+      return ;
+    }
+    this.cancelTouchesKeysFocus();
+    this.activeTabIdx = this.activeTabIdx+1;
+    if (this.activeTabIdx>=this.tabs.size()) {
+      this.activeTabIdx = 0;
+    }
+  }
+
+  cancelTouchesKeysFocus() {
+    let tab = this.getActiveTab();
+    if (tab==null) {
       return ;
     }
     for (let id of this.trackedTouches) {
-      this.getActivePage().onTouchEnd(id, Pos2.ZERO, this.containerSize, true);
+      tab.onTouchEnd(id, Pos2.ZERO, this.containerSize, true);
     }
     this.trackedTouches.clear();
+    for (let key of this.pressedKeys) {
+      tab.onKeyReleased(key);
+    }
+    this.pressedKeys.clear();
+    if (this.container!=null) {
+      this.container.requestFocus(null);
+    }
   }
 
   toString() {
   }
 
   static create() {
-    let res = new PageList();
+    let res = new TabContainer();
+    res.styleKey = UiComponentStyleKey.plain(UiComponentType.TAB_CONTAINER);
+    res.regionFnc = UiRegionFncs.full();
+    res.containerSize = Size2.create(1, 1);
+    res.region = Functions.apply(res.regionFnc, res.containerSize);
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.PageList = PageList;
+classRegistry.TabContainer = TabContainer;
+class TabNavbar extends UiComponent {
+  container;
+  styleKey;
+  tabContainer;
+  regionFnc;
+  tabLinkSizeFnc;
+  containerSize;
+  region;
+  tabLinkSize;
+  tabsLinks = new ArrayList();
+  trackedTouchId = null;
+  trackedTouchTabIdx = 0;
+  highlightedTabIdx = -1;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "TabNavbar";
+  }
+
+  guardInvariants() {
+  }
+
+  init(container) {
+    this.container = container;
+  }
+
+  move(dt) {
+  }
+
+  draw(painter) {
+    let style = this.container.getComponentStyle(this.styleKey);
+    let backroungColor = style.getRgba(UiComponentStylePropertyKey.BACKGROUND_COLOR);
+    let borderColor = style.getRgba(UiComponentStylePropertyKey.BORDER_COLOR);
+    let textColor = style.getRgbaNonStrict(UiComponentStylePropertyKey.TEXT_COLOR);
+    let textFont = style.getFontId(UiComponentStylePropertyKey.TEXT_FONT);
+    if (backroungColor.a()>0) {
+      painter.fillRect(this.region, backroungColor);
+    }
+    let numTabs = this.getNumTabs();
+    let activeTabIdx = this.getActiveTabIdx();
+    let posX = this.region.centerX()-numTabs*this.tabLinkSize/2;
+    for (let i = 0; i<numTabs; ++i) {
+      let text = this.tabsLinks.size()>i?this.tabsLinks.get(i):"";
+      let textPos = Pos2.create(posX+this.tabLinkSize/2, this.region.centerY());
+      if (i==activeTabIdx) {
+        let selecedBackroungColor = style.getRgba(UiComponentStylePropertyKey.SELECTED_BACKGROUND_COLOR);
+        let selectedTextFont = style.getFontId(UiComponentStylePropertyKey.SELECTED_TEXT_FONT);
+        let selectedTextColor = style.getRgbaNonStrict(UiComponentStylePropertyKey.SELECTED_TEXT_COLOR);
+        painter.fillRect(Rect2.create(posX, 0, this.tabLinkSize, this.region.height()), selecedBackroungColor);
+        if (selectedTextColor==null) {
+          painter.drawText(text, selectedTextFont, this.region.center(), TextAlignment.CENTER);
+        }
+        else {
+          painter.drawColorText(text, selectedTextFont, selectedTextColor, textPos, TextAlignment.CENTER);
+        }
+      }
+      else if (i==this.highlightedTabIdx) {
+        let highlightedBackroungColor = style.getRgba(UiComponentStylePropertyKey.HIGHLIGHTED_BACKGROUND_COLOR);
+        let highlightedTextFont = style.getFontId(UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT);
+        let highlightedTextColor = style.getRgbaNonStrict(UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR);
+        painter.fillRect(Rect2.create(posX, 0, this.tabLinkSize, this.region.height()), highlightedBackroungColor);
+        if (highlightedTextColor==null) {
+          painter.drawText(text, highlightedTextFont, this.region.center(), TextAlignment.CENTER);
+        }
+        else {
+          painter.drawColorText(text, highlightedTextFont, highlightedTextColor, textPos, TextAlignment.CENTER);
+        }
+      }
+      else {
+        if (textColor==null) {
+          painter.drawText(text, textFont, this.region.center(), TextAlignment.CENTER);
+        }
+        else {
+          painter.drawColorText(text, textFont, textColor, textPos, TextAlignment.CENTER);
+        }
+      }
+      posX = posX+this.tabLinkSize;
+    }
+    if (borderColor.a()>0) {
+      let p1 = Vec2.create(this.region.x(), this.region.y());
+      let p2 = Vec2.create(this.region.x()+this.region.width(), this.region.y());
+      let p3 = Vec2.create(this.region.x()+this.region.width(), this.region.y()+this.region.height());
+      let p4 = Vec2.create(this.region.x(), this.region.y()+this.region.height());
+      painter.drawLine(p1, p2, borderColor);
+      painter.drawLine(p2, p3, borderColor);
+      painter.drawLine(p3, p4, borderColor);
+      painter.drawLine(p4, p1, borderColor);
+    }
+  }
+
+  onContainerResize(size) {
+    this.containerSize = size;
+    this.region = Functions.apply(this.regionFnc, size);
+    this.tabLinkSize = Functions.apply(this.tabLinkSizeFnc, this.region.size());
+  }
+
+  onTouchStart(id, pos, size) {
+    if (this.trackedTouchId!=null) {
+      return false;
+    }
+    if (!this.region.isInside(pos)) {
+      return false;
+    }
+    let hx = pos.x()-this.region.x();
+    let numTabs = this.getNumTabs();
+    let tabStartX = this.region.centerX()-numTabs*this.tabLinkSize/2;
+    let tabIdx = FMath.floor((hx-tabStartX)/this.tabLinkSize);
+    if (tabIdx<0||tabIdx>=numTabs) {
+      return false;
+    }
+    this.trackedTouchId = id;
+    this.trackedTouchTabIdx = tabIdx;
+    this.highlightedTabIdx = tabIdx;
+    return true;
+  }
+
+  onTouchMove(id, pos, size) {
+    if (this.trackedTouchId==null||!id.equals(this.trackedTouchId)) {
+      return false;
+    }
+    if (!this.region.isInside(pos)) {
+      this.highlightedTabIdx = -1;
+      return false;
+    }
+    let hx = pos.x()-this.region.x();
+    let numTabs = this.getNumTabs();
+    let tabStartX = this.region.centerX()-numTabs*this.tabLinkSize/2;
+    let tabIdx = FMath.floor((hx-tabStartX)/this.tabLinkSize);
+    this.highlightedTabIdx = this.trackedTouchTabIdx==tabIdx?tabIdx:-1;
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    if (this.trackedTouchId==null||!id.equals(this.trackedTouchId)) {
+      return false;
+    }
+    this.trackedTouchId = null;
+    this.highlightedTabIdx = -1;
+    if (cancel||!this.region.isInside(pos)) {
+      return false;
+    }
+    let hx = pos.x()-this.region.x();
+    let numTabs = this.getNumTabs();
+    let tabStartX = this.region.centerX()-numTabs*this.tabLinkSize/2;
+    let tabIdx = FMath.floor((hx-tabStartX)/this.tabLinkSize);
+    if (this.trackedTouchTabIdx==tabIdx) {
+      this.tabContainer.setActiveTabIdx(tabIdx);
+    }
+    return false;
+  }
+
+  setTabContainer(tabContainer) {
+    this.tabContainer = tabContainer;
+    return this;
+  }
+
+  setRegionFnc(regionFnc) {
+    Guard.notNull(regionFnc, "regionFnc cannot be null");
+    this.regionFnc = regionFnc;
+    this.onContainerResize(this.containerSize);
+    return this;
+  }
+
+  setTabLinkSizeFnc(tabLinkSizeFnc) {
+    Guard.notNull(tabLinkSizeFnc, "tabLinkSizeFnc cannot be null");
+    this.tabLinkSizeFnc = tabLinkSizeFnc;
+    this.onContainerResize(this.containerSize);
+    return this;
+  }
+
+  addTextTabLink(text) {
+    this.tabsLinks.add(text);
+    return this;
+  }
+
+  getNumTabs() {
+    return this.tabContainer==null?0:this.tabContainer.getNumTabs();
+  }
+
+  getActiveTabIdx() {
+    return this.tabContainer==null?-1:this.tabContainer.getActiveTabIdx();
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new TabNavbar();
+    res.styleKey = UiComponentStyleKey.plain(UiComponentType.TAB_NAVBAR);
+    res.regionFnc = UiRegionFncs.full();
+    res.tabLinkSizeFnc = (s) => {
+      return 70;
+    };
+    res.containerSize = Size2.create(1, 1);
+    res.region = Functions.apply(res.regionFnc, res.containerSize);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.TabNavbar = TabNavbar;
+class ListSelectItem {
+  value = "";
+  text = "";
+  constructor() {
+  }
+
+  getClass() {
+    return "ListSelectItem";
+  }
+
+  guardInvariants() {
+  }
+
+  getValue() {
+    return this.value;
+  }
+
+  getText() {
+    return this.text;
+  }
+
+  hashCode() {
+    return this.value.hashCode()*this.text.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ListSelectItem)) {
+      return false;
+    }
+    let other = obj;
+    return other.value.equals(this.value)&&other.text.equals(this.text);
+  }
+
+  toString() {
+  }
+
+  static create(value, text) {
+    let res = new ListSelectItem();
+    res.value = value;
+    res.text = text;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ListSelectItem = ListSelectItem;
+class ListSelectItemEnvelope {
+  item;
+  selected = false;
+  constructor() {
+  }
+
+  getClass() {
+    return "ListSelectItemEnvelope";
+  }
+
+  guardInvariants() {
+  }
+
+  isSelected() {
+    return this.selected;
+  }
+
+  setSelected(selected) {
+    this.selected = selected;
+    return this;
+  }
+
+  getItem() {
+    return this.item;
+  }
+
+  getValue() {
+    return this.item.getValue();
+  }
+
+  getText() {
+    return this.item.getText();
+  }
+
+  toString() {
+  }
+
+  static create(item) {
+    let res = new ListSelectItemEnvelope();
+    res.item = item;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ListSelectItemEnvelope = ListSelectItemEnvelope;
+const createListSelectType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const ListSelectType = Object.freeze({
+  NONE: createListSelectType("NONE"),
+  SINGLE_MAX: createListSelectType("SINGLE_MAX"),
+  SINGLE_STICKY: createListSelectType("SINGLE_STICKY"),
+  MULTIPLE: createListSelectType("MULTIPLE"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class ListSelect extends UiComponent {
+  container;
+  styleKey;
+  type;
+  regionFnc;
+  onSelectActions = new HashSet();
+  containerSize;
+  region;
+  itemHeight = 20;
+  scroll;
+  items = new ArrayList();
+  trackedTouchId = null;
+  trackedTouchStartPos = Vec2.ZERO;
+  trackedTouchLastPos = Vec2.ZERO;
+  trackedTouchStartScroll = 0;
+  trackedTouchStartItemIdx = 0;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "ListSelect";
+  }
+
+  guardInvariants() {
+  }
+
+  init(container) {
+    this.container = container;
+  }
+
+  move(dt) {
+  }
+
+  draw(painter) {
+    let style = this.container.getComponentStyle(this.styleKey);
+    let backroungColor = style.getRgba(UiComponentStylePropertyKey.BACKGROUND_COLOR);
+    let borderColor = style.getRgba(UiComponentStylePropertyKey.BORDER_COLOR);
+    let selectedBackroungColor = style.getRgba(UiComponentStylePropertyKey.SELECTED_BACKGROUND_COLOR);
+    let textColor = style.getRgbaNonStrict(UiComponentStylePropertyKey.TEXT_COLOR);
+    let textFont = style.getFontId(UiComponentStylePropertyKey.TEXT_FONT);
+    let selectedTextColor = style.getRgbaNonStrict(UiComponentStylePropertyKey.SELECTED_TEXT_COLOR);
+    let selectedTextFont = style.getFontId(UiComponentStylePropertyKey.SELECTED_TEXT_FONT);
+    this.itemHeight = style.getFloat(UiComponentStylePropertyKey.ITEM_HEIGHT);
+    if (backroungColor.a()>0) {
+      painter.fillRect(this.region, backroungColor);
+    }
+    for (let i = 0; i<this.items.size(); ++i) {
+      let item = this.items.get(i);
+      let itemRegion = Rect2.create(this.region.x(), this.region.y()-this.scroll+i*this.itemHeight, this.region.width(), this.itemHeight);
+      if (itemRegion.y()+itemRegion.height()<this.region.y()) {
+        continue;
+      }
+      if (itemRegion.y()>this.region.y()+this.region.height()) {
+        continue;
+      }
+      painter.setClipRect(this.region.intersect(itemRegion));
+      if (item.isSelected()) {
+        painter.fillRect(itemRegion, selectedBackroungColor);
+      }
+      let color = item.isSelected()?selectedTextColor:textColor;
+      let font = item.isSelected()?selectedTextFont:textFont;
+      let pos = Pos2.create(itemRegion.x()+5, itemRegion.centerY());
+      if (color==null) {
+        painter.drawText(item.getText(), font, pos, TextAlignment.LEFT_CENTER);
+      }
+      else {
+        painter.drawColorText(item.getText(), font, color, pos, TextAlignment.LEFT_CENTER);
+      }
+      painter.unsetClipRect();
+    }
+    if (borderColor.a()>0) {
+      let p1 = Vec2.create(this.region.x(), this.region.y());
+      let p2 = Vec2.create(this.region.x()+this.region.width(), this.region.y());
+      let p3 = Vec2.create(this.region.x()+this.region.width(), this.region.y()+this.region.height());
+      let p4 = Vec2.create(this.region.x(), this.region.y()+this.region.height());
+      painter.drawLine(p1, p2, borderColor);
+      painter.drawLine(p2, p3, borderColor);
+      painter.drawLine(p3, p4, borderColor);
+      painter.drawLine(p4, p1, borderColor);
+    }
+  }
+
+  onContainerResize(size) {
+    this.containerSize = size;
+    this.region = Functions.apply(this.regionFnc, size);
+  }
+
+  isFocusable() {
+    return true;
+  }
+
+  onTouchStart(id, pos, size) {
+    if (this.trackedTouchId!=null) {
+      return false;
+    }
+    if (!this.region.isInside(pos)) {
+      return false;
+    }
+    let hx = pos.x()-this.region.x();
+    let hy = pos.y()-this.region.y();
+    let itemIdx = FMath.trunc((hy+this.scroll)/this.itemHeight);
+    if (itemIdx<0||itemIdx>=this.items.size()) {
+      return false;
+    }
+    this.trackedTouchId = id;
+    this.trackedTouchStartPos = Vec2.create(hx, hy);
+    this.trackedTouchLastPos = this.trackedTouchStartPos;
+    this.trackedTouchStartItemIdx = itemIdx;
+    this.trackedTouchStartScroll = this.scroll;
+    return true;
+  }
+
+  onTouchMove(id, pos, size) {
+    if (this.trackedTouchId==null||!id.equals(this.trackedTouchId)) {
+      return false;
+    }
+    let hx = pos.x()-this.region.x();
+    let hy = pos.y()-this.region.y();
+    let dy = this.trackedTouchLastPos.y()-hy;
+    this.trackedTouchLastPos = Vec2.create(hx, hy);
+    this.setScroll(this.scroll+dy);
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    if (this.trackedTouchId==null||!id.equals(this.trackedTouchId)) {
+      return false;
+    }
+    this.trackedTouchId = null;
+    if (cancel) {
+      return false;
+    }
+    let hy = pos.y()-this.region.y();
+    let itemIdx = FMath.trunc((hy+this.trackedTouchStartScroll)/this.itemHeight);
+    if (this.trackedTouchStartItemIdx==itemIdx) {
+      this.setSelectedAt(itemIdx, !this.items.get(itemIdx).isSelected());
+    }
+    this.container.requestFocus(this);
+    return false;
+  }
+
+  addTrait(trait) {
+    Guard.notNull(trait, "trait cannot be null");
+    this.styleKey = this.styleKey.plusTrait(trait);
+    return this;
+  }
+
+  setType(type) {
+    Guard.notNull(type, "type cannot be null");
+    Guard.beTrue(type.equals(ListSelectType.SINGLE_STICKY), "only SINGLE_STICKY is implemented at the moment, implement more if you need");
+    this.type = type;
+    return this;
+  }
+
+  getSelectedIndexes() {
+    let res = new ArrayList();
+    for (let i = 0; i<this.items.size(); ++i) {
+      if (this.items.get(i).isSelected()) {
+        res.add(i);
+      }
+    }
+    return res;
+  }
+
+  setSelectedAt(idx, selected) {
+    let before = this.getSelectedIndexes();
+    if (this.type.equals(ListSelectType.NONE)) {
+      throw new Error("implement me");
+    }
+    else if (this.type.equals(ListSelectType.SINGLE_MAX)) {
+      throw new Error("implement me");
+    }
+    else if (this.type.equals(ListSelectType.SINGLE_STICKY)) {
+      if (selected) {
+        for (let i = 0; i<this.items.size(); ++i) {
+          this.items.get(i).setSelected(i==idx);
+        }
+      }
+    }
+    else if (this.type.equals(ListSelectType.SINGLE_STICKY)) {
+      throw new Error("implement me");
+    }
+    else {
+      throw new Error("unknown type:"+this.type);
+    }
+    let after = this.getSelectedIndexes();
+    if (!before.equals(after)) {
+      for (let action of this.onSelectActions) {
+        Functions.runUiEventAction(action, this);
+      }
+    }
+    return this;
+  }
+
+  getScroll() {
+    return this.scroll;
+  }
+
+  getMaxScroll() {
+    return FMath.max(0, this.items.size()*this.itemHeight-this.region.height());
+  }
+
+  setScroll(scroll) {
+    scroll = FMath.clamp(scroll, 0, this.getMaxScroll());
+    this.scroll = scroll;
+    return this;
+  }
+
+  setRegionFnc(regionFnc) {
+    Guard.notNull(regionFnc, "regionFnc cannot be null");
+    this.regionFnc = regionFnc;
+    this.onContainerResize(this.containerSize);
+    return this;
+  }
+
+  addOnSelectAction(action) {
+    Guard.notNull(action, "action cannot be null");
+    this.onSelectActions.add(action);
+    return this;
+  }
+
+  removeOnSelectAction(action) {
+    this.onSelectActions.remove(action);
+    return this;
+  }
+
+  addItem(item) {
+    this.items.add(ListSelectItemEnvelope.create(item));
+    return this;
+  }
+
+  removeItem(index) {
+    throw new Error("TODO");
+  }
+
+  clearItems() {
+    let before = this.getSelectedIndexes();
+    this.items = new ArrayList();
+    if (!before.isEmpty()) {
+      for (let action of this.onSelectActions) {
+        Functions.runUiEventAction(action, this);
+      }
+    }
+    return this;
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new ListSelect();
+    res.styleKey = UiComponentStyleKey.plain(UiComponentType.LIST_SELECT);
+    res.type = ListSelectType.SINGLE_STICKY;
+    res.scroll = 0;
+    res.regionFnc = UiRegionFncs.full();
+    res.itemHeight = 20;
+    res.containerSize = Size2.create(1, 1);
+    res.region = Functions.apply(res.regionFnc, res.containerSize);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ListSelect = ListSelect;
+class DropdownItem {
+  value = "";
+  text = "";
+  constructor() {
+  }
+
+  getClass() {
+    return "DropdownItem";
+  }
+
+  guardInvariants() {
+  }
+
+  getValue() {
+    return this.value;
+  }
+
+  getText() {
+    return this.text;
+  }
+
+  hashCode() {
+    return this.value.hashCode()*this.text.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof DropdownItem)) {
+      return false;
+    }
+    let other = obj;
+    return other.value.equals(this.value)&&other.text.equals(this.text);
+  }
+
+  toString() {
+  }
+
+  static create(value, text) {
+    let res = new DropdownItem();
+    res.value = value;
+    res.text = text;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.DropdownItem = DropdownItem;
+class DropdownListSelect extends UiComponent {
+  container;
+  parent;
+  region;
+  itemHeight = 20;
+  scroll = 0;
+  items;
+  trackedTouchId = null;
+  trackedTouchStartPos = Vec2.ZERO;
+  trackedTouchLastPos = Vec2.ZERO;
+  trackedTouchStartScroll = 0;
+  trackedTouchStartItemIdx = 0;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "DropdownListSelect";
+  }
+
+  init(container) {
+    this.container = container;
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt) {
+  }
+
+  draw(painter) {
+    let style = this.container.getComponentStyle(this.parent.getStyleKey());
+    let backroungColor = style.getRgba(UiComponentStylePropertyKey.OVERLAY_BACKGROUND_COLOR);
+    let borderColor = style.getRgba(UiComponentStylePropertyKey.OVERLAY_BORDER_COLOR);
+    let textColor = style.getRgbaNonStrict(UiComponentStylePropertyKey.OVERLAY_TEXT_COLOR);
+    let textFont = style.getFontId(UiComponentStylePropertyKey.OVERLAY_TEXT_FONT);
+    this.itemHeight = style.getFloat(UiComponentStylePropertyKey.OVERLAY_ITEM_HEIGHT);
+    if (backroungColor.a()>0) {
+      painter.fillRect(this.region, backroungColor);
+    }
+    for (let i = 0; i<this.items.size(); ++i) {
+      let item = this.items.get(i);
+      let itemRegion = Rect2.create(this.region.x(), this.region.y()-this.scroll+i*this.itemHeight, this.region.width(), this.itemHeight);
+      if (itemRegion.y()+itemRegion.height()<this.region.y()) {
+        continue;
+      }
+      if (itemRegion.y()>this.region.y()+this.region.height()) {
+        continue;
+      }
+      painter.setClipRect(this.region.intersect(itemRegion));
+      let pos = Pos2.create(itemRegion.x()+5, itemRegion.centerY());
+      if (textColor==null) {
+        painter.drawText(item.getText(), textFont, pos, TextAlignment.LEFT_CENTER);
+      }
+      else {
+        painter.drawColorText(item.getText(), textFont, textColor, pos, TextAlignment.LEFT_CENTER);
+      }
+      painter.unsetClipRect();
+    }
+    if (borderColor.a()>0) {
+      let p1 = Vec2.create(this.region.x(), this.region.y());
+      let p2 = Vec2.create(this.region.x()+this.region.width(), this.region.y());
+      let p3 = Vec2.create(this.region.x()+this.region.width(), this.region.y()+this.region.height());
+      let p4 = Vec2.create(this.region.x(), this.region.y()+this.region.height());
+      painter.drawLine(p1, p2, borderColor);
+      painter.drawLine(p2, p3, borderColor);
+      painter.drawLine(p3, p4, borderColor);
+      painter.drawLine(p4, p1, borderColor);
+    }
+  }
+
+  onContainerResize(size) {
+    this.container.requestFocus(null);
+  }
+
+  isFocusable() {
+    return true;
+  }
+
+  onFocus() {
+  }
+
+  onFocusLost() {
+    this.container.popLayer();
+  }
+
+  onKeyPressed(key) {
+    return false;
+  }
+
+  onKeyReleased(key) {
+    if (key.isEscape()) {
+      this.container.requestFocus(null);
+    }
+    return true;
+  }
+
+  onTouchStart(id, pos, size) {
+    if (this.trackedTouchId!=null) {
+      return false;
+    }
+    if (!this.region.isInside(pos)) {
+      return false;
+    }
+    let hx = pos.x()-this.region.x();
+    let hy = pos.y()-this.region.y();
+    let itemIdx = FMath.trunc((hy+this.scroll)/this.itemHeight);
+    if (itemIdx<0||itemIdx>=this.items.size()) {
+      return false;
+    }
+    this.trackedTouchId = id;
+    this.trackedTouchStartPos = Vec2.create(hx, hy);
+    this.trackedTouchLastPos = this.trackedTouchStartPos;
+    this.trackedTouchStartItemIdx = itemIdx;
+    this.trackedTouchStartScroll = this.scroll;
+    return true;
+  }
+
+  onTouchMove(id, pos, size) {
+    if (this.trackedTouchId==null||!id.equals(this.trackedTouchId)) {
+      return false;
+    }
+    let hx = pos.x()-this.region.x();
+    let hy = pos.y()-this.region.y();
+    let dy = this.trackedTouchLastPos.y()-hy;
+    this.trackedTouchLastPos = Vec2.create(hx, hy);
+    this.setScroll(this.scroll+dy);
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    if (this.trackedTouchId==null||!id.equals(this.trackedTouchId)) {
+      return false;
+    }
+    this.trackedTouchId = null;
+    if (cancel) {
+      return false;
+    }
+    let hy = pos.y()-this.region.y();
+    let itemIdx = FMath.trunc((hy+this.trackedTouchStartScroll)/this.itemHeight);
+    if (this.trackedTouchStartItemIdx==itemIdx) {
+      this.parent.setSelected(this.items.get(itemIdx));
+      ;
+      this.container.requestFocus(null);
+    }
+    return true;
+  }
+
+  getScroll() {
+    return this.scroll;
+  }
+
+  getMaxScroll() {
+    return FMath.max(0, this.items.size()*this.itemHeight-this.region.height());
+  }
+
+  setScroll(scroll) {
+    scroll = FMath.clamp(scroll, 0, this.getMaxScroll());
+    this.scroll = scroll;
+    return this;
+  }
+
+  safeForFont(value, font) {
+    let parser = new StringParser(value);
+    let res = new StringBuilder();
+    while (parser.hasNext()) {
+      let ch = parser.readCharacter();
+      res.append(font.hasCharacter(ch)?ch:" ");
+    }
+    return res.toString();
+  }
+
+  toString() {
+  }
+
+  static create(parent, region) {
+    let res = new DropdownListSelect();
+    res.parent = parent;
+    res.region = region;
+    res.items = parent.getItems();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.DropdownListSelect = DropdownListSelect;
+class Dropdown extends UiComponent {
+  container;
+  styleKey;
+  labelText;
+  selected;
+  items;
+  regionFnc;
+  containerSize;
+  region;
+  trackedTouch = null;
+  focused = false;
+  error = false;
+  onChangeActions = new HashSet();
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "Dropdown";
+  }
+
+  init(container) {
+    this.container = container;
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt) {
+  }
+
+  draw(painter) {
+    let style = this.container.getComponentStyle(this.styleKey);
+    let backroungColor = style.getRgba(UiComponentStylePropertyKey.BACKGROUND_COLOR);
+    let borderColor = style.getRgba(UiComponentStylePropertyKey.BORDER_COLOR);
+    if (backroungColor.a()>0) {
+      painter.fillRect(this.region, backroungColor);
+    }
+    painter.setClipRect(this.region);
+    let labelColor = style.getRgbaNonStrict(UiComponentStylePropertyKey.LABEL_TEXT_COLOR);
+    let labelFont = style.getFontId(UiComponentStylePropertyKey.LABEL_TEXT_FONT);
+    if (labelColor==null) {
+      painter.drawText(this.labelText, labelFont, Pos2.create(this.region.x()+5, this.region.y()+2), TextAlignment.LEFT_TOP);
+    }
+    else {
+      painter.drawColorText(this.labelText, labelFont, labelColor, Pos2.create(this.region.x()+5, this.region.y()+2), TextAlignment.LEFT_TOP);
+    }
+    let valueColor = style.getRgbaNonStrict(UiComponentStylePropertyKey.TEXT_COLOR);
+    let valueFont = style.getFontId(UiComponentStylePropertyKey.TEXT_FONT);
+    let valueFullFont = painter.getFont(valueFont);
+    let safeDisplayedValue = this.safeForFont(this.selected.getText(), valueFullFont);
+    if (valueColor==null) {
+      painter.drawText(safeDisplayedValue, valueFont, Pos2.create(this.region.x()+5, this.region.centerY()+5), TextAlignment.LEFT_CENTER);
+    }
+    else {
+      painter.drawColorText(safeDisplayedValue, valueFont, valueColor, Pos2.create(this.region.x()+5, this.region.centerY()+5), TextAlignment.LEFT_CENTER);
+    }
+    painter.unsetClipRect();
+    if (borderColor.a()>0) {
+      let p1 = Vec2.create(this.region.x(), this.region.y());
+      let p2 = Vec2.create(this.region.x()+this.region.width(), this.region.y());
+      let p3 = Vec2.create(this.region.x()+this.region.width(), this.region.y()+this.region.height());
+      let p4 = Vec2.create(this.region.x(), this.region.y()+this.region.height());
+      painter.drawLine(p1, p2, borderColor);
+      painter.drawLine(p2, p3, borderColor);
+      painter.drawLine(p3, p4, borderColor);
+      painter.drawLine(p4, p1, borderColor);
+    }
+  }
+
+  onContainerResize(size) {
+    this.containerSize = size;
+    this.region = Functions.apply(this.regionFnc, size);
+  }
+
+  getStyleKey() {
+    return this.styleKey;
+  }
+
+  addTrait(trait) {
+    Guard.notNull(trait, "trait cannot be null");
+    this.styleKey = this.styleKey.plusTrait(trait);
+    return this;
+  }
+
+  isFocusable() {
+    return true;
+  }
+
+  setLabelText(labelText) {
+    Guard.notNull(labelText, "labelText cannot be null");
+    this.labelText = labelText;
+    return this;
+  }
+
+  getSelected() {
+    return this.selected;
+  }
+
+  setSelected(selected) {
+    Guard.notNull(selected, "selected cannot be null");
+    if (this.selected.equals(selected)) {
+      return this;
+    }
+    this.selected = selected;
+    for (let act of this.onChangeActions) {
+      Functions.runUiEventAction(act, this);
+    }
+    return this;
+  }
+
+  getItems() {
+    return Dut.copyImmutableList(this.items);
+  }
+
+  addItem(item) {
+    Guard.notNull(item, "item cannot be null");
+    this.items.add(item);
+    return this;
+  }
+
+  addItems(items) {
+    Guard.notNullCollection(items, "items cannot have null element");
+    this.items.addAll(items);
+    return this;
+  }
+
+  clearItems() {
+    this.items.clear();
+    return this;
+  }
+
+  setRegionFnc(regionFnc) {
+    Guard.notNull(regionFnc, "regionFnc cannot be null");
+    this.regionFnc = regionFnc;
+    this.onContainerResize(this.containerSize);
+    return this;
+  }
+
+  onFocus() {
+    this.focused = true;
+    let height = FMath.clamp(this.region.height()*5, 20, this.containerSize.height()-this.region.height()-10);
+    let y = FMath.min(this.region.y()+this.region.height(), this.containerSize.height()-5-height);
+    let dropRegion = this.container.getAbsoluteRegion(Rect2.create(this.region.x(), y, this.region.width(), height));
+    let layer = this.container.pushLayer();
+    let listSelect = DropdownListSelect.create(this, dropRegion);
+    layer.addComponent(listSelect);
+    this.container.requestFocus(listSelect);
+  }
+
+  onFocusLost() {
+    this.focused = false;
+  }
+
+  onKeyPressed(key) {
+    return false;
+  }
+
+  onKeyReleased(key) {
+    if (this.focused) {
+      if (key.isEscape()) {
+        if (this.focused) {
+          this.error = false;
+          this.container.requestFocus(null);
+        }
+      }
+      return true;
+    }
+    return false;
+  }
+
+  onTouchStart(id, pos, size) {
+    if (this.trackedTouch!=null) {
+      return false;
+    }
+    if (this.region.isInside(pos)) {
+      this.trackedTouch = id;
+      return true;
+    }
+    return false;
+  }
+
+  onTouchMove(id, pos, size) {
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    if (this.trackedTouch==null||!id.equals(this.trackedTouch)) {
+      return false;
+    }
+    this.trackedTouch = null;
+    if (this.region.isInside(pos)&&!cancel) {
+      this.container.requestFocus(this);
+    }
+    return false;
+  }
+
+  addOnChangeAction(action) {
+    Guard.notNull(action, "action cannot be null");
+    this.onChangeActions.add(action);
+    return this;
+  }
+
+  removeOnChangeAction(action) {
+    this.onChangeActions.remove(action);
+    return this;
+  }
+
+  safeForFont(value, font) {
+    let parser = new StringParser(value);
+    let res = new StringBuilder();
+    while (parser.hasNext()) {
+      let ch = parser.readCharacter();
+      res.append(font.hasCharacter(ch)?ch:" ");
+    }
+    return res.toString();
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new Dropdown();
+    res.styleKey = UiComponentStyleKey.plain(UiComponentType.DROPDOWN);
+    res.labelText = "";
+    res.selected = DropdownItem.create("", "");
+    res.items = new ArrayList();
+    res.regionFnc = UiRegionFncs.center(100, 25);
+    res.containerSize = Size2.create(1, 1);
+    res.region = Functions.apply(res.regionFnc, res.containerSize);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.Dropdown = Dropdown;
+class TextFieldFreeConstraint {
+  maxLength;
+  constructor() {
+  }
+
+  getClass() {
+    return "TextFieldFreeConstraint";
+  }
+
+  guardInvariants() {
+  }
+
+  fixEdit(str) {
+    return Strings.length(str)>this.maxLength?str.substring(0, this.maxLength):str;
+  }
+
+  fixValue(str) {
+    return Strings.length(str)>this.maxLength?str.substring(0, this.maxLength):str;
+  }
+
+  toString() {
+  }
+
+  static create(maxLength) {
+    let res = new TextFieldFreeConstraint();
+    res.maxLength = maxLength;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.TextFieldFreeConstraint = TextFieldFreeConstraint;
+class TextFieldIntegerConstraint {
+  negativeAllowed;
+  maxLength;
+  constructor() {
+  }
+
+  getClass() {
+    return "TextFieldIntegerConstraint";
+  }
+
+  guardInvariants() {
+  }
+
+  fixEdit(str) {
+    let parser = new StringParser(str);
+    let res = new StringBuilder();
+    let cnt = 0;
+    while (parser.hasNext()&&cnt<this.maxLength) {
+      let ch = parser.readCharacter();
+      if (!Strings.isNumeric(ch)&&!(cnt==0&&this.negativeAllowed&&ch.equals("-"))) {
+        break;
+      }
+      res.append(ch);
+      ++cnt;
+    }
+    return res.toString();
+  }
+
+  fixValue(str) {
+    let res = this.fixEdit(str);
+    return res.isEmpty()||res.equals("-")?"0":res;
+  }
+
+  toString() {
+  }
+
+  static create(negativeAllowed, maxLength) {
+    let res = new TextFieldIntegerConstraint();
+    res.negativeAllowed = negativeAllowed;
+    res.maxLength = maxLength;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.TextFieldIntegerConstraint = TextFieldIntegerConstraint;
+class TextFieldFloatConstraint {
+  negativeAllowed;
+  maxLength;
+  constructor() {
+  }
+
+  getClass() {
+    return "TextFieldFloatConstraint";
+  }
+
+  guardInvariants() {
+  }
+
+  fixEdit(str) {
+    let parser = new StringParser(str);
+    let res = new StringBuilder();
+    let cnt = 0;
+    let hasDigit = false;
+    let hasDot = false;
+    let sub = 2;
+    while (parser.hasNext()&&cnt<this.maxLength-sub) {
+      let ch = parser.readCharacter();
+      if (ch.equals("-")) {
+        if (cnt==0&&this.negativeAllowed) {
+          res.append(ch);
+          ++cnt;
+        }
+        else {
+          break;
+        }
+      }
+      else if (ch.equals(".")) {
+        if (hasDigit&&!hasDot) {
+          hasDot = true;
+          res.append(ch);
+          ++cnt;
+        }
+        else {
+          break;
+        }
+      }
+      else if (Strings.isNumeric(ch)) {
+        hasDigit = true;
+        res.append(ch);
+        ++cnt;
+      }
+      else {
+        break;
+      }
+      let lookup = parser.lookupCharacters(1);
+      if (lookup.equals(".")) {
+        sub = 1;
+      }
+      if (hasDot&&Strings.isNumeric(lookup)) {
+        sub = 0;
+      }
+    }
+    return res.toString();
+  }
+
+  fixValue(str) {
+    let res = this.fixEdit(str);
+    res = res.isEmpty()||res.equals("-")?"0.0":res;
+    if (!res.contains(".")) {
+      res = res+".0";
+    }
+    if (res.endsWith(".")) {
+      res = res+"0";
+    }
+    return res;
+  }
+
+  toString() {
+  }
+
+  static create(negativeAllowed, maxLength) {
+    let res = new TextFieldFloatConstraint();
+    res.negativeAllowed = negativeAllowed;
+    res.maxLength = maxLength;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.TextFieldFloatConstraint = TextFieldFloatConstraint;
+class TextField extends UiComponent {
+  container;
+  styleKey;
+  labelText;
+  value;
+  displayedValue;
+  constraint;
+  regionFnc;
+  containerSize;
+  region;
+  trackedTouch = null;
+  focused = false;
+  error = false;
+  cursor = "_";
+  cursorPos = 0;
+  cursorShown = false;
+  cursorBlinkInterval = 0.5;
+  cursorTime = 0;
+  onChangeActions = new HashSet();
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "TextField";
+  }
+
+  init(container) {
+    this.container = container;
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt) {
+    if (this.focused) {
+      this.cursorTime = this.cursorTime+dt;
+      while (this.cursorTime>=this.cursorBlinkInterval) {
+        this.cursorShown = !this.cursorShown;
+        this.cursorTime = this.cursorTime-this.cursorBlinkInterval;
+      }
+    }
+  }
+
+  draw(painter) {
+    let style = this.container.getComponentStyle(this.styleKey);
+    let backroungColor = style.getRgba(UiComponentStylePropertyKey.BACKGROUND_COLOR);
+    let borderColor = style.getRgba(UiComponentStylePropertyKey.BORDER_COLOR);
+    if (backroungColor.a()>0) {
+      painter.fillRect(this.region, backroungColor);
+    }
+    painter.setClipRect(this.region);
+    let labelColor = style.getRgbaNonStrict(UiComponentStylePropertyKey.LABEL_TEXT_COLOR);
+    let labelFont = style.getFontId(UiComponentStylePropertyKey.LABEL_TEXT_FONT);
+    if (labelColor==null) {
+      painter.drawText(this.labelText, labelFont, Pos2.create(this.region.x()+5, this.region.y()+2), TextAlignment.LEFT_TOP);
+    }
+    else {
+      painter.drawColorText(this.labelText, labelFont, labelColor, Pos2.create(this.region.x()+5, this.region.y()+2), TextAlignment.LEFT_TOP);
+    }
+    let valueColor = style.getRgbaNonStrict(UiComponentStylePropertyKey.TEXT_COLOR);
+    let valueFont = style.getFontId(UiComponentStylePropertyKey.TEXT_FONT);
+    let valueFullFont = painter.getFont(valueFont);
+    let safeDisplayedValue = this.safeForForn(this.displayedValue, valueFullFont);
+    if (valueColor==null) {
+      painter.drawText(safeDisplayedValue, valueFont, Pos2.create(this.region.x()+5, this.region.centerY()+5), TextAlignment.LEFT_CENTER);
+    }
+    else {
+      painter.drawColorText(safeDisplayedValue, valueFont, valueColor, Pos2.create(this.region.x()+5, this.region.centerY()+5), TextAlignment.LEFT_CENTER);
+    }
+    if (this.focused&&this.cursorShown) {
+      let toff = valueFullFont.getTextWidth(safeDisplayedValue.substring(0, this.cursorPos));
+      if (valueColor==null) {
+        painter.drawText(this.cursor, valueFont, this.region.pos().move(5+toff, this.region.height()/2+5), TextAlignment.LEFT_CENTER);
+      }
+      else {
+        painter.drawColorText(this.cursor, valueFont, valueColor, this.region.pos().move(5+toff, this.region.height()/2+5), TextAlignment.LEFT_CENTER);
+      }
+    }
+    painter.unsetClipRect();
+    if (borderColor.a()>0) {
+      let p1 = Vec2.create(this.region.x(), this.region.y());
+      let p2 = Vec2.create(this.region.x()+this.region.width(), this.region.y());
+      let p3 = Vec2.create(this.region.x()+this.region.width(), this.region.y()+this.region.height());
+      let p4 = Vec2.create(this.region.x(), this.region.y()+this.region.height());
+      painter.drawLine(p1, p2, borderColor);
+      painter.drawLine(p2, p3, borderColor);
+      painter.drawLine(p3, p4, borderColor);
+      painter.drawLine(p4, p1, borderColor);
+    }
+  }
+
+  onContainerResize(size) {
+    this.containerSize = size;
+    this.region = Functions.apply(this.regionFnc, size);
+  }
+
+  isFocusable() {
+    return true;
+  }
+
+  setLabelText(labelText) {
+    Guard.notNull(labelText, "labelText cannot be null");
+    this.labelText = labelText;
+    return this;
+  }
+
+  getValue() {
+    return this.value;
+  }
+
+  setValue(value) {
+    Guard.notNull(value, "value cannot be null");
+    let same = value.equals(this.value);
+    this.value = this.constraint.fixValue(value);
+    this.displayedValue = value;
+    this.cursorPos = IMath.min(Strings.length(value), this.cursorPos);
+    if (!same) {
+      for (let act of this.onChangeActions) {
+        Functions.runUiEventAction(act, this);
+      }
+    }
+    return this;
+  }
+
+  setConstraint(constraint) {
+    Guard.notNull(constraint, "constraint cannot be null");
+    this.constraint = constraint;
+    this.displayedValue = constraint.fixEdit(this.displayedValue);
+    this.value = constraint.fixValue(this.value);
+    return this;
+  }
+
+  setRegionFnc(regionFnc) {
+    Guard.notNull(regionFnc, "regionFnc cannot be null");
+    this.regionFnc = regionFnc;
+    this.onContainerResize(this.containerSize);
+    return this;
+  }
+
+  onFocus() {
+    this.focused = true;
+  }
+
+  onFocusLost() {
+    this.focused = false;
+    this.displayedValue = this.value;
+  }
+
+  onKeyPressed(key) {
+    return false;
+  }
+
+  onKeyReleased(key) {
+    if (this.focused) {
+      if (key.isBackspace()) {
+        if (this.cursorPos>0&&Strings.length(this.displayedValue)>0) {
+          this.displayedValue = this.displayedValue.substring(0, this.cursorPos-1)+this.displayedValue.substring(this.cursorPos);
+          this.cursorPos = IMath.max(0, this.cursorPos-1);
+        }
+      }
+      else if (key.isArrowLeft()) {
+        this.cursorPos = IMath.max(0, this.cursorPos-1);
+      }
+      else if (key.isArrowRight()) {
+        this.cursorPos = IMath.min(Strings.length(this.displayedValue), this.cursorPos+1);
+      }
+      else if (key.isEnter()) {
+        if (this.focused) {
+          this.error = false;
+          this.setValue(this.displayedValue);
+          this.container.requestFocus(null);
+        }
+      }
+      else if (key.isEscape()) {
+        if (this.focused) {
+          this.displayedValue = this.value;
+          this.error = false;
+          this.container.requestFocus(null);
+        }
+      }
+      else {
+        let k = key.getCharacter();
+        if (key.isSpace()) {
+          k = " ";
+        }
+        if (!k.isEmpty()) {
+          this.displayedValue = this.constraint.fixEdit(this.displayedValue.substring(0, this.cursorPos)+k+this.displayedValue.substring(this.cursorPos));
+          this.cursorPos = IMath.min(Strings.length(this.displayedValue), this.cursorPos+1);
+        }
+      }
+      return true;
+    }
+    return false;
+  }
+
+  onTouchStart(id, pos, size) {
+    if (this.trackedTouch!=null) {
+      return false;
+    }
+    if (this.region.isInside(pos)) {
+      this.trackedTouch = id;
+      return true;
+    }
+    return false;
+  }
+
+  onTouchMove(id, pos, size) {
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    if (this.trackedTouch==null||!id.equals(this.trackedTouch)) {
+      return false;
+    }
+    this.trackedTouch = null;
+    if (this.region.isInside(pos)&&!cancel) {
+      this.container.requestFocus(this);
+      this.cursorTime = 0;
+      this.cursorShown = true;
+      this.cursorPos = Strings.length(this.displayedValue);
+    }
+    return false;
+  }
+
+  addOnChangeAction(action) {
+    Guard.notNull(action, "action cannot be null");
+    this.onChangeActions.add(action);
+    return this;
+  }
+
+  removeOnChangeAction(action) {
+    this.onChangeActions.remove(action);
+    return this;
+  }
+
+  safeForForn(value, font) {
+    let parser = new StringParser(value);
+    let res = new StringBuilder();
+    while (parser.hasNext()) {
+      let ch = parser.readCharacter();
+      res.append(font.hasCharacter(ch)?ch:" ");
+    }
+    return res.toString();
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new TextField();
+    res.styleKey = UiComponentStyleKey.plain(UiComponentType.TEXT_FIELD);
+    res.labelText = "";
+    res.value = "";
+    res.displayedValue = "";
+    res.constraint = TextFieldFreeConstraint.create(Integer.MAX_VALUE);
+    res.regionFnc = UiRegionFncs.center(100, 25);
+    res.containerSize = Size2.create(1, 1);
+    res.region = Functions.apply(res.regionFnc, res.containerSize);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.TextField = TextField;
 const createTextAlignmentHorizontal = (description) => {
   const symbol = Symbol(description);
   return {
@@ -15037,11 +17861,11 @@ class TextAlignment {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -15108,11 +17932,11 @@ class Character {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -15319,11 +18143,11 @@ class Font {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -15542,9 +18366,55 @@ class Clip {
 
 }
 classRegistry.Clip = Clip;
+class ClipAnimationKey {
+  mKey;
+  constructor() {
+  }
+
+  getClass() {
+    return "ClipAnimationKey";
+  }
+
+  guardInvariants() {
+  }
+
+  key() {
+    return this.mKey;
+  }
+
+  hashCode() {
+    return this.mKey.hashCode();
+  }
+
+  equals(obj) {
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ClipAnimationKey)) {
+      return false;
+    }
+    let other = obj;
+    return other.mKey.equals(this.mKey);
+  }
+
+  toString() {
+  }
+
+  static of(key) {
+    let res = new ClipAnimationKey();
+    res.mKey = key;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ClipAnimationKey = ClipAnimationKey;
 class ClipAnimationTrigger {
   time;
-  triggers;
+  values;
   constructor() {
   }
 
@@ -15554,31 +18424,28 @@ class ClipAnimationTrigger {
 
   guardInvaritants() {
     Guard.notNegative(this.time, "time cannot be negative");
-    Guard.notEmptyStringCollection(this.triggers, "triggers cannot have empty element");
+    Guard.notEmptyStringCollection(this.values, "values cannot have empty element");
   }
 
   getTime() {
     return this.time;
   }
 
-  getTriggers() {
-    return this.triggers;
+  getValues() {
+    return this.values;
   }
 
   merge(other) {
     Guard.equals(this.time, other.time, "triggers must have same time, otherwise cannot merge");
     let res = new ClipAnimationTrigger();
     res.time = this.time;
-    let trgs = new HashSet();
-    trgs.addAll(this.triggers);
-    trgs.addAll(other.triggers);
-    res.triggers = Collections.unmodifiableSet(trgs);
+    res.values = Dut.immutableSetPlusItems(this.values, other.values);
     res.guardInvaritants();
     return res;
   }
 
   hashCode() {
-    return (7*this.time)+13*this.triggers.hashCode();
+    return (7*this.time)+13*this.values.hashCode();
   }
 
   equals(obj) {
@@ -15592,16 +18459,16 @@ class ClipAnimationTrigger {
       return false;
     }
     let other = obj;
-    return this.time==other.time&&this.triggers.equals(other.triggers);
+    return this.time==other.time&&this.values.equals(other.values);
   }
 
   toString() {
   }
 
-  static single(time, trigger) {
+  static single(time, value) {
     let res = new ClipAnimationTrigger();
     res.time = time;
-    res.triggers = Dut.immutableSet(trigger);
+    res.values = Dut.immutableSet(value);
     res.guardInvaritants();
     return res;
   }
@@ -15609,13 +18476,77 @@ class ClipAnimationTrigger {
   static multiple(time, triggers) {
     let res = new ClipAnimationTrigger();
     res.time = time;
-    res.triggers = Dut.copyImmutableSet(triggers);
+    res.values = Dut.copyImmutableSet(triggers);
     res.guardInvaritants();
     return res;
   }
 
 }
 classRegistry.ClipAnimationTrigger = ClipAnimationTrigger;
+class ClipAnimationStep {
+  key;
+  time;
+  end;
+  interpolation;
+  triggers;
+  constructor() {
+  }
+
+  getClass() {
+    return "ClipAnimationStep";
+  }
+
+  guardInvariants() {
+  }
+
+  getKey() {
+    return this.key;
+  }
+
+  getTime() {
+    return this.time;
+  }
+
+  isEnd() {
+    return this.end;
+  }
+
+  getInterpolation() {
+    return this.interpolation;
+  }
+
+  getTriggers() {
+    return this.triggers;
+  }
+
+  hasTrigger(trigger) {
+    return this.triggers.contains(trigger);
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(key, time, end, interpolation, triggers) {
+    let res = new ClipAnimationStep();
+    res.key = key;
+    res.time = time;
+    res.end = end;
+    res.interpolation = interpolation;
+    res.triggers = Dut.copyImmutableSet(triggers);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ClipAnimationStep = ClipAnimationStep;
 class ClipAnimation {
   clip;
   duration;
@@ -15670,7 +18601,7 @@ class ClipAnimation {
       if (tEnd-tStart>=this.duration) {
         let res = new HashSet();
         for (let t of this.triggers) {
-          res.addAll(t.getTriggers());
+          res.addAll(t.getValues());
         }
         return res;
       }
@@ -15681,7 +18612,7 @@ class ClipAnimation {
       let res = new HashSet();
       for (let t of this.triggers) {
         if (t.getTime()<tEnd||t.getTime()>=tStart) {
-          res.addAll(t.getTriggers());
+          res.addAll(t.getValues());
         }
       }
       return res;
@@ -15690,7 +18621,7 @@ class ClipAnimation {
       let res = new HashSet();
       for (let t of this.triggers) {
         if (t.getTime()>=tStart&&t.getTime()<tEnd) {
-          res.addAll(t.getTriggers());
+          res.addAll(t.getValues());
         }
       }
       return res;
@@ -15718,23 +18649,23 @@ class ClipAnimation {
     return Interpolation.create(this.clip.getFrame(sfidx), this.clip.getFrame(sfidx+1), intt);
   }
 
-  withAddedTrigger() {
+  plusTrigger() {
     if (arguments.length===2&& typeof arguments[0]==="number"&& typeof arguments[1]==="string") {
-      return this.withAddedTrigger_2_number_string(arguments[0], arguments[1]);
+      return this.plusTrigger_2_number_string(arguments[0], arguments[1]);
     }
     else if (arguments.length===1&&arguments[0] instanceof ClipAnimationTrigger) {
-      return this.withAddedTrigger_1_ClipAnimationTrigger(arguments[0]);
+      return this.plusTrigger_1_ClipAnimationTrigger(arguments[0]);
     }
     else {
       throw new Error("ambiguous overload");
     }
   }
 
-  withAddedTrigger_2_number_string(time, trigger) {
-    return this.withAddedTrigger(ClipAnimationTrigger.single(time, trigger));
+  plusTrigger_2_number_string(time, value) {
+    return this.plusTrigger(ClipAnimationTrigger.single(time, value));
   }
 
-  withAddedTrigger_1_ClipAnimationTrigger(trigger) {
+  plusTrigger_1_ClipAnimationTrigger(trigger) {
     let added = false;
     let trgs = new ArrayList();
     for (let tr of this.triggers) {
@@ -15763,10 +18694,10 @@ class ClipAnimation {
     return res;
   }
 
-  withAddedTriggers(triggers) {
+  plusTriggers(triggers) {
     let res = this;
     for (let tr of triggers) {
-      res = res.withAddedTrigger(tr);
+      res = res.plusTrigger(tr);
     }
     return res;
   }
@@ -15875,12 +18806,19 @@ class ClipAnimationCollection {
     return res;
   }
 
+  plusAnimation(key, animation) {
+    let res = new ClipAnimationCollection();
+    res.animations = Dut.immutableMapPlusEntry(this.animations, key, animation);
+    res.guardInvariants();
+    return res;
+  }
+
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -15889,6 +18827,13 @@ class ClipAnimationCollection {
   static create(animations) {
     let res = new ClipAnimationCollection();
     res.animations = Dut.copyImmutableMap(animations);
+    res.guardInvariants();
+    return res;
+  }
+
+  static empty() {
+    let res = new ClipAnimationCollection();
+    res.animations = Collections.emptyMap();
     res.guardInvariants();
     return res;
   }
@@ -15914,7 +18859,7 @@ class ClipAnimationPlayer {
     let st = this.time;
     this.time = this.time+dt;
     let triggers = this.animation.getTriggers(st, this.time);
-    return triggers;
+    return ClipAnimationStep.create(this.animationKey, this.time, this.isEnd(), this.getInterpolation(), triggers);
   }
 
   play(key) {
@@ -15932,14 +18877,14 @@ class ClipAnimationPlayer {
     this.time = 0;
   }
 
-  isAnimationEnd() {
+  isEnd() {
     if (this.animation.isLoop()) {
       return false;
     }
     return this.time>=this.animation.getDuration();
   }
 
-  getAnimationKey() {
+  getKey() {
     return this.animationKey;
   }
 
@@ -15957,7 +18902,7 @@ class ClipAnimationPlayer {
   toString() {
   }
 
-  static create(start, collection) {
+  static create(collection, start) {
     let res = new ClipAnimationPlayer();
     res.collection = collection;
     res.animationKey = start;
@@ -16110,11 +19055,11 @@ class TextureStyle {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -16219,11 +19164,11 @@ class Viewport {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -16257,11 +19202,11 @@ class BasicEnvironment {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -16303,11 +19248,11 @@ class SceneEnvironment {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -16398,11 +19343,11 @@ class ShadowMapEnvironment {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -16435,11 +19380,11 @@ class UiEnvironment {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -16655,11 +19600,11 @@ class SoundTrack {
   }
 
   hashCode() {
-    return HashCodeBuilder.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return EqualsBuilder.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -16764,11 +19709,11 @@ class Sound {
   }
 
   hashCode() {
-    return HashCodeBuilder.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return EqualsBuilder.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -16804,28 +19749,6 @@ class Sound {
 
 }
 classRegistry.Sound = Sound;
-class AssetPlaceholder {
-  static INSTANCE = new AssetPlaceholder();
-  constructor() {
-  }
-
-  getClass() {
-    return "AssetPlaceholder";
-  }
-
-  hashCode() {
-    return 0;
-  }
-
-  equals(obj) {
-    return this==obj;
-  }
-
-  toString() {
-  }
-
-}
-classRegistry.AssetPlaceholder = AssetPlaceholder;
 class AssetGroup {
   cache;
   constructor() {
@@ -17049,11 +19972,11 @@ class AssetGroup {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -17278,7 +20201,7 @@ class Assets {
       let dur = Float.valueOf(animJson.getString("duration"));
       let loop = animJson.getBoolean("loop");
       let triggers = animJson.containsKey("triggers")?Assets.parseClipAnimationTriggers(animJson.getJsonArray("triggers")):Collections.emptyList();
-      animations.put(key, ClipAnimation.create(clip, dur, loop).withAddedTriggers(triggers));
+      animations.put(ClipAnimationKey.of(key), ClipAnimation.create(clip, dur, loop).plusTriggers(triggers));
     }
     let res = ClipAnimationCollection.create(animations);
     return AssetGroup.of(id, res);
@@ -17306,7 +20229,7 @@ class Assets {
       let dur = Float.valueOf(spriteJson.getString("duration"));
       let loop = spriteJson.getBoolean("loop");
       let triggers = spriteJson.containsKey("triggers")?Assets.parseSpriteTriggers(spriteJson.getJsonArray("triggers")):Collections.emptyList();
-      let sprite = sheet.createSprite(dur, loop).withAddedTriggers(triggers);
+      let sprite = sheet.createSprite(dur, loop).plusTriggers(triggers);
       let id = SpriteId.of(key);
       res = res.remove(tid).mergeStrict(sheet.getAssets()).put(id, sprite);
     }
@@ -17374,57 +20297,9 @@ class Assets {
 
 }
 classRegistry.Assets = Assets;
-const createAssetCompanionType = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const AssetCompanionType = Object.freeze({
-  BOUNDING_AABB: createAssetCompanionType("BOUNDING_AABB"),
-  SIZE: createAssetCompanionType("SIZE"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
 class DefaultAssetBank {
   assets = new HashMap();
-  companions = new HashMap();
+  syncedIds = new HashSet();
   lock = new Object();
   constructor() {
   }
@@ -17436,12 +20311,7 @@ class DefaultAssetBank {
   put(key, asset) {
     Guard.notNull(asset, "asset cannot be null");
     this.assets.put(key, asset);
-    this.companions.put(key, new HashMap());
-  }
-
-  putCompanion(key, type, companion) {
-    Guard.notNull(companion, "companion cannot be null");
-    this.companions.get(key).put(type, companion);
+    this.syncedIds.remove(key);
   }
 
   containsKey(key) {
@@ -17458,53 +20328,25 @@ class DefaultAssetBank {
     return res;
   }
 
-  isMaterialized(key) {
-    return !AssetPlaceholder.INSTANCE.equals(this.assets.get(key));
-  }
-
   get(assetClass, key) {
     if (!this.assets.containsKey(key)) {
       throw new Error("no asset under "+key.id());
     }
     let res = this.assets.get(key);
-    if (AssetPlaceholder.INSTANCE.equals(res)) {
-      throw new Error("asset is dematerialized (e.g. pushed to the hardware) "+key);
-    }
-    return res;
-  }
-
-  hasCompanion(key, type) {
-    if (!this.companions.containsKey(key)) {
-      return false;
-    }
-    return this.companions.get(key).containsKey(type);
-  }
-
-  getCompanion(clazz, key, type) {
-    if (!this.companions.containsKey(key)) {
-      throw new Error("no asset under "+key.id());
-    }
-    let res = this.companions.get(key).get(type);
-    if (res==null) {
-      throw new Error("asset "+key+" does not have companion "+type.toString());
-    }
     return res;
   }
 
   markSynced(id) {
-    this.assets.put(id, AssetPlaceholder.INSTANCE);
+    this.syncedIds.add(id);
   }
 
   isSynced(key) {
-    if (!this.assets.containsKey(key)) {
-      throw new Error("no asset under "+key.id());
-    }
-    return AssetPlaceholder.INSTANCE.equals(this.assets.get(key));
+    return this.syncedIds.contains(key);
   }
 
   remove(key) {
     this.assets.remove(key);
-    this.companions.remove(key);
+    this.syncedIds.remove(key);
   }
 
   toString() {
@@ -17610,11 +20452,11 @@ class TapEntry {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -17658,11 +20500,11 @@ class Tap {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -18022,7 +20864,7 @@ class TapModels {
         for (let i = 0; i<num; ++i) {
           let mesh = reader.readString();
           let mat = reader.readString();
-          model = model.addPart(ModelPart.of(MeshId.of(mesh), MaterialId.of(mat)));
+          model = model.plusPart(ModelPart.of(MeshId.of(mesh), MaterialId.of(mat)));
         }
       }
       finally {
@@ -18050,9 +20892,13 @@ class TapClipAnimationCollections {
     let bos = new ByteArrayOutputStream();
     try {
       bos.write(TapBytes.intToBytes(collection.getAnimations().size()));
-      for (let aid of Dut.copySortedSet(collection.getAnimations().keySet())) {
-        let anim = collection.getAnimation(aid);
-        bos.write(TapBytes.stringToBytes(aid));
+      let aKeyStrs = new TreeSet();
+      for (let key of collection.getAnimations().keySet()) {
+        aKeyStrs.add(key.key());
+      }
+      for (let aKeyStr of aKeyStrs) {
+        let anim = collection.getAnimation(ClipAnimationKey.of(aKeyStr));
+        bos.write(TapBytes.stringToBytes(aKeyStr));
         bos.write(TapBytes.intToBytes(anim.getClip().getNumFrames()));
         for (let idx of anim.getClip().getFrames()) {
           bos.write(TapBytes.intToBytes(idx));
@@ -18062,8 +20908,8 @@ class TapClipAnimationCollections {
         bos.write(TapBytes.intToBytes(anim.getTriggers().size()));
         for (let t of anim.getTriggers()) {
           bos.write(TapBytes.floatToBytes(t.getTime()));
-          bos.write(TapBytes.intToBytes(t.getTriggers().size()));
-          for (let trigger of Dut.copySortedSet(t.getTriggers())) {
+          bos.write(TapBytes.intToBytes(t.getValues().size()));
+          for (let trigger of Dut.copySortedSet(t.getValues())) {
             bos.write(TapBytes.stringToBytes(trigger));
           }
         }
@@ -18110,9 +20956,9 @@ class TapClipAnimationCollections {
             for (let tr = 0; tr<numTriggers; ++tr) {
               tTriggers.add(reader.readString());
             }
-            anim = anim.withAddedTrigger(ClipAnimationTrigger.multiple(t, tTriggers));
+            anim = anim.plusTrigger(ClipAnimationTrigger.multiple(t, tTriggers));
           }
-          animations.put(key, anim);
+          animations.put(ClipAnimationKey.of(key), anim);
         }
         return AssetGroup.of(ClipAnimationCollectionId.of(entry.getId()), ClipAnimationCollection.create(animations));
       }
@@ -18539,7 +21385,7 @@ class TapScenes {
           let name = reader.readString();
           let pid = reader.readString();
           let aidh = reader.readString();
-          let aid = StringUtils.isEmpty(aidh)?null:ActorId.of(aidh);
+          let aid = Strings.isEmpty(aidh)?null:ActorId.of(aidh);
           let x = reader.readFloat();
           let y = reader.readFloat();
           let z = reader.readFloat();
@@ -18548,7 +21394,7 @@ class TapScenes {
           let c = reader.readFloat();
           let d = reader.readFloat();
           let sceneObject = SceneObject.create(name, ActorPrefabId.of(pid)).withActorId(aid).withPos(Vec3.create(x, y, z)).withRot(Quaternion.create(a, b, c, d));
-          scene = scene.withAddedObject(sceneObject);
+          scene = scene.plusObject(sceneObject);
         }
         return AssetGroup.of(SceneId.of(entry.getId()), scene);
       }
@@ -18563,8 +21409,51 @@ class TapScenes {
 
 }
 classRegistry.TapScenes = TapScenes;
+class TouchId {
+  mId;
+  constructor() {
+  }
+
+  getClass() {
+    return "TouchId";
+  }
+
+  guardInvariants() {
+  }
+
+  id() {
+    return this.mId;
+  }
+
+  hashCode() {
+    return this.mId.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof TouchId)) {
+      return false;
+    }
+    let other = obj;
+    return other.mId.equals(this.mId);
+  }
+
+  toString() {
+  }
+
+  static of(id) {
+    let res = new TouchId();
+    res.mId = id;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.TouchId = TouchId;
 class MouseTouches {
-  static MOUSE_TOUCH_ID = "MOUSE";
+  static MOUSE_TOUCH_ID = TouchId.of("MOUSE");
   constructor() {
   }
 
@@ -18615,27 +21504,28 @@ class MouseButton {
 }
 classRegistry.MouseButton = MouseButton;
 class KeyCode {
-  static ENTER = KeyCode.create("ENTER");
-  static ESCAPE = KeyCode.create("ESCAPE");
-  static BACKSPACE = KeyCode.create("BACKSPACE");
-  static TAB = KeyCode.create("TAB");
-  static SHIFT = KeyCode.create("SHIFT");
-  static SHIFT_LEFT = KeyCode.create("SHIFT_LEFT");
-  static SHIFT_RIGHT = KeyCode.create("SHIFT_RIGHT");
-  static CONTROL = KeyCode.create("CONTROL");
-  static CONTROL_LEFT = KeyCode.create("CONTROL_LEFT");
-  static CONTROL_RIGHT = KeyCode.create("CONTROL_RIGHT");
-  static ALT = KeyCode.create("ALT");
-  static ALT_LEFT = KeyCode.create("ALT_LEFT");
-  static ALT_RIGHT = KeyCode.create("ALT_RIGHT");
-  static SPACE = KeyCode.create("SPACE");
-  static HOME = KeyCode.create("HOME");
-  static END = KeyCode.create("END");
-  static ARROW_LEFT = KeyCode.create("ARROW_LEFT");
-  static ARROW_UP = KeyCode.create("ARROW_UP");
-  static ARROW_RIGHT = KeyCode.create("ARROW_RIGHT");
-  static ARROW_DOWN = KeyCode.create("ARROW_DOWN");
-  key;
+  static ENTER = KeyCode.create("ENTER", "");
+  static ESCAPE = KeyCode.create("ESCAPE", "");
+  static BACKSPACE = KeyCode.create("BACKSPACE", "");
+  static TAB = KeyCode.create("TAB", "");
+  static SHIFT = KeyCode.create("SHIFT", "");
+  static SHIFT_LEFT = KeyCode.create("SHIFT_LEFT", "");
+  static SHIFT_RIGHT = KeyCode.create("SHIFT_RIGHT", "");
+  static CONTROL = KeyCode.create("CONTROL", "");
+  static CONTROL_LEFT = KeyCode.create("CONTROL_LEFT", "");
+  static CONTROL_RIGHT = KeyCode.create("CONTROL_RIGHT", "");
+  static ALT = KeyCode.create("ALT", "");
+  static ALT_LEFT = KeyCode.create("ALT_LEFT", "");
+  static ALT_RIGHT = KeyCode.create("ALT_RIGHT", "");
+  static SPACE = KeyCode.create("SPACE", "");
+  static HOME = KeyCode.create("HOME", "");
+  static END = KeyCode.create("END", "");
+  static ARROW_LEFT = KeyCode.create("ARROW_LEFT", "");
+  static ARROW_UP = KeyCode.create("ARROW_UP", "");
+  static ARROW_RIGHT = KeyCode.create("ARROW_RIGHT", "");
+  static ARROW_DOWN = KeyCode.create("ARROW_DOWN", "");
+  code;
+  character;
   constructor() {
   }
 
@@ -18643,52 +21533,67 @@ class KeyCode {
     return "KeyCode";
   }
 
-  getKey() {
-    return this.key;
+  guardInvariants() {
   }
 
-  getUpperKey() {
-    return this.key.toUpperCase();
+  getCode() {
+    return this.code;
+  }
+
+  getCharacter() {
+    return this.character;
+  }
+
+  getUpperCharacter() {
+    return this.character.toUpperCase();
+  }
+
+  withUpperCharacter() {
+    return KeyCode.create(this.code, this.character.toUpperCase());
   }
 
   isEnter() {
-    return KeyCode.ENTER.equals(this);
+    return KeyCode.ENTER.code.equals(this.code);
+  }
+
+  isEscape() {
+    return KeyCode.ESCAPE.code.equals(this.code);
   }
 
   isBackspace() {
-    return KeyCode.BACKSPACE.equals(this);
+    return KeyCode.BACKSPACE.code.equals(this.code);
   }
 
   isShift() {
-    return KeyCode.SHIFT.equals(this)||KeyCode.SHIFT_LEFT.equals(this)||KeyCode.SHIFT_RIGHT.equals(this);
+    return KeyCode.SHIFT.code.equals(this.code)||KeyCode.SHIFT_LEFT.code.equals(this.code)||KeyCode.SHIFT_RIGHT.code.equals(this.code);
   }
 
   isConrol() {
-    return KeyCode.CONTROL.equals(this)||KeyCode.CONTROL_LEFT.equals(this)||KeyCode.CONTROL_RIGHT.equals(this);
+    return KeyCode.CONTROL.code.equals(this.code)||KeyCode.CONTROL_LEFT.code.equals(this.code)||KeyCode.CONTROL_RIGHT.code.equals(this.code);
   }
 
   isSpace() {
-    return KeyCode.SPACE.equals(this);
+    return KeyCode.SPACE.code.equals(this.code);
   }
 
   isArrowLeft() {
-    return KeyCode.ARROW_LEFT.equals(this);
+    return KeyCode.ARROW_LEFT.code.equals(this.code);
   }
 
   isArrowUp() {
-    return KeyCode.ARROW_UP.equals(this);
+    return KeyCode.ARROW_UP.code.equals(this.code);
   }
 
   isArrowRight() {
-    return KeyCode.ARROW_RIGHT.equals(this);
+    return KeyCode.ARROW_RIGHT.code.equals(this.code);
   }
 
   isArrowDown() {
-    return KeyCode.ARROW_DOWN.equals(this);
+    return KeyCode.ARROW_DOWN.code.equals(this.code);
   }
 
   hashCode() {
-    return this.key.hashCode();
+    return this.code.hashCode()*(this.character==null?1:this.character.hashCode());
   }
 
   equals(obj) {
@@ -18702,15 +21607,17 @@ class KeyCode {
       return false;
     }
     let ob = obj;
-    return ob.key.equals(this.key);
+    return ob.code.equals(this.code)&&ob.character.equals(this.character);
   }
 
   toString() {
   }
 
-  static create(key) {
+  static create(code, character) {
     let res = new KeyCode();
-    res.key = key;
+    res.code = code;
+    res.character = character;
+    res.guardInvariants();
     return res;
   }
 
@@ -18744,32 +21651,32 @@ class KeyCodeMatchers {
 
   static arrowUpOrW() {
     return (keyCode) => {
-      return keyCode.isArrowUp()||keyCode.getUpperKey().equals("W");
+      return keyCode.isArrowUp()||keyCode.getUpperCharacter().equals("W");
     };
   }
 
   static arrowDownOrS() {
     return (keyCode) => {
-      return keyCode.isArrowDown()||keyCode.getUpperKey().equals("S");
+      return keyCode.isArrowDown()||keyCode.getUpperCharacter().equals("S");
     };
   }
 
   static arrowLeftOrA() {
     return (keyCode) => {
-      return keyCode.isArrowLeft()||keyCode.getUpperKey().equals("A");
+      return keyCode.isArrowLeft()||keyCode.getUpperCharacter().equals("A");
     };
   }
 
   static arrowRightOrD() {
     return (keyCode) => {
-      return keyCode.isArrowRight()||keyCode.getUpperKey().equals("D");
+      return keyCode.isArrowRight()||keyCode.getUpperCharacter().equals("D");
     };
   }
 
-  static upperKey(upperKey) {
-    Guard.notEmpty(upperKey, "upperKey cannot be empty");
+  static upperCharacter(upperCharacter) {
+    Guard.notEmpty(upperCharacter, "upperCharacter cannot be empty");
     return (keyCode) => {
-      return keyCode.getUpperKey().equals(upperKey);
+      return keyCode.getUpperCharacter().equals(upperCharacter);
     };
   }
 
@@ -18844,8 +21751,10 @@ class BasicLoadingScreen extends TyracornScreen {
     let gDriver = drivers.getDriver("GraphicsDriver");
     if (this.image==null) {
       let assets = drivers.getDriver("AssetManager");
-      let texSize = assets.getCompanion("Size2", this.texture, AssetCompanionType.SIZE);
-      this.image = ImageView.create().setTexture(this.texture).setRegionFnc(UiRegionFncs.centerHeightSafe(400, texSize.aspect(), 0.8));
+      let tex = assets.get("Texture", this.texture);
+      let texW = tex.getWidth();
+      let texH = tex.getHeight();
+      this.image = ImageView.create().setTexture(this.texture).setRegionFnc(UiRegionFncs.centerHeightSafe(400, texW/texH, 0.8));
       this.ui.addComponent(this.image);
     }
     this.ui.move(dt);
@@ -19071,11 +21980,11 @@ class InMemoryActorTreeNode {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -19994,21 +22903,18 @@ class ActorPrefab {
     return res;
   }
 
-  withAddedComponent(component) {
+  plusComponent(component) {
     let res = new ActorPrefab();
     res.id = this.id;
     res.name = this.name;
     res.tags = this.tags;
-    res.components = new ArrayList();
-    res.components.addAll(this.components);
-    res.components.add(component);
-    res.components = Collections.unmodifiableList(res.components);
+    res.components = Dut.immutableListPlusItem(this.components, component);
     res.children = this.children;
     res.guardInvariants();
     return res;
   }
 
-  withUpdatedComponent(idx, component) {
+  replaceComponent(idx, component) {
     let res = new ActorPrefab();
     res.id = this.id;
     res.name = this.name;
@@ -20023,7 +22929,7 @@ class ActorPrefab {
     return res;
   }
 
-  withRemovedComponent(idx) {
+  minusComponent(idx) {
     let res = new ActorPrefab();
     res.id = this.id;
     res.name = this.name;
@@ -20047,6 +22953,17 @@ class ActorPrefab {
     res.tags = this.tags;
     res.components = this.components;
     res.children = Dut.copyImmutableList(children);
+    res.guardInvariants();
+    return res;
+  }
+
+  plusChild(child) {
+    let res = new ActorPrefab();
+    res.id = this.id;
+    res.name = this.name;
+    res.tags = this.tags;
+    res.components = this.components;
+    res.children = Dut.immutableListPlusItem(this.children, child);
     res.guardInvariants();
     return res;
   }
@@ -20083,11 +23000,11 @@ class ActorPrefab {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -20159,11 +23076,11 @@ class CreateActorRequest {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -20286,7 +23203,7 @@ class Component {
   registerActor(actor) {
     Guard.beNull(this.mActor, "component can be added to the actor only once");
     this.mActor = actor;
-    if (StringUtils.isNotEmpty(this.mKey)) {
+    if (Strings.isNotEmpty(this.mKey)) {
       let compByKey = actor.getComponentByKeyNonStrict("Component", this.mKey);
       if (compByKey!=null&&!compByKey.equals(this)) {
         throw new Error("component key is duplicated: "+this.mKey);
@@ -20334,7 +23251,7 @@ class Component {
 
   setKey(key) {
     Guard.notNull(key, "key cannot be null");
-    if (this.mActor!=null&&StringUtils.isNotEmpty(key)) {
+    if (this.mActor!=null&&Strings.isNotEmpty(key)) {
       if (this.mActor.getComponentByKeyNonStrict("Component", key)!=null) {
         throw new Error("component key is duplicated: "+key);
       }
@@ -20784,7 +23701,7 @@ class ModelComponent extends Component {
 
   getLocalAabb() {
     if (this.localAabb==null) {
-      let modelAabb = this.world().assets().getCompanion("Aabb3", this.modelId, AssetCompanionType.BOUNDING_AABB);
+      let modelAabb = this.world().modelAabb(this.modelId);
       this.localAabb = modelAabb.transform(this.transform);
     }
     return this.localAabb;
@@ -21610,10 +24527,10 @@ class ColliderComponent extends Component {
   randomPoint() {
     this.syncCache();
     if (this.shape.equals(ColliderShape.SPHERE)) {
-      let r = RandomUtils.nextFloat(0, this.radius);
-      let nx = RandomUtils.nextFloat(0, 1)-1;
-      let ny = RandomUtils.nextFloat(0, 1)-1;
-      let nz = RandomUtils.nextFloat(0, 1)-1;
+      let r = Randoms.nextFloat(0, this.radius);
+      let nx = Randoms.nextFloat(0, 1)-1;
+      let ny = Randoms.nextFloat(0, 1)-1;
+      let nz = Randoms.nextFloat(0, 1)-1;
       let mag = FMath.sqrt(nx*nx+ny*ny+nz*nz);
       nx = nx/mag;
       ny = ny/mag;
@@ -21621,9 +24538,9 @@ class ColliderComponent extends Component {
       return this.globalMat.mul(nx*this.radius, ny*this.radius, nz*this.radius);
     }
     else if (this.shape.equals(ColliderShape.BOX)) {
-      let x = RandomUtils.nextFloat(-this.ex, this.ex);
-      let y = RandomUtils.nextFloat(-this.ey, this.ey);
-      let z = RandomUtils.nextFloat(-this.ez, this.ez);
+      let x = Randoms.nextFloat(-this.ex, this.ex);
+      let y = Randoms.nextFloat(-this.ey, this.ey);
+      let z = Randoms.nextFloat(-this.ez, this.ez);
       return this.globalMat.mul(x, y, z);
     }
     else if (this.shape.equals(ColliderShape.CAPSULE)) {
@@ -22025,11 +24942,11 @@ class BallSocketJointConfig {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -22202,11 +25119,11 @@ class HingeJointConfig {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -22409,11 +25326,11 @@ class PrismaticJointConfig {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -22596,11 +25513,11 @@ class FixedJointConfig {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -23354,7 +26271,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.RP_GENERATOR)) {
       if (this.version==1) {
-        return RpGeneratorComponent.create().setActive(this.getBoolean("active")).setWeight(this.getFloat("weight")).setGroups(Dut.copySet(Json.decodeStringList(this.getString("groups")))).setShape(RpGeneratorShape.valueOf(this.getString("shape"))).setPos(this.getVec3("pos")).setRot(this.getQuaternion("rot")).setRadius(this.getFloat("radius")).setSize(this.getVec3("size")).setKey(this.key);
+        return RpGeneratorComponent.create().setActive(this.getBoolean("active")).setWeight(this.getFloat("weight")).setGroups(Dut.copySet(Jsons.toStringList(this.getString("groups")))).setShape(RpGeneratorShape.valueOf(this.getString("shape"))).setPos(this.getVec3("pos")).setRot(this.getQuaternion("rot")).setRadius(this.getFloat("radius")).setSize(this.getVec3("size")).setKey(this.key);
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -23377,11 +26294,11 @@ class ComponentPrefab {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -23552,7 +26469,7 @@ class ComponentPrefab {
     res.type = ComponentPrefabType.RP_GENERATOR;
     res.key = "";
     res.version = 1;
-    res.properties = Dut.immutableMap("active", String.valueOf(active), "weight", String.valueOf(weight), "groups", Json.encodeStringList(Dut.copyImmutableList(Dut.copySortedSet(groups))), "shape", shape.name(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "radius", String.valueOf(radius), "size", Jsons.toJson(size));
+    res.properties = Dut.immutableMap("active", String.valueOf(active), "weight", String.valueOf(weight), "groups", Jsons.stringListToJson(Dut.copyImmutableList(Dut.copySortedSet(groups))), "shape", shape.name(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "radius", String.valueOf(radius), "size", Jsons.toJson(size));
     res.guardInvariants();
     return res;
   }
@@ -23562,7 +26479,7 @@ class ComponentPrefab {
     res.type = ComponentPrefabType.SCRIPT;
     res.key = "";
     res.version = 1;
-    res.properties = Dut.immutableMap("className", className, "properties", Json.encodeStringMap(properties));
+    res.properties = Dut.immutableMap("className", className, "properties", Jsons.stringMapToJson(properties));
     res.guardInvariants();
     return res;
   }
@@ -23706,11 +26623,11 @@ class CollisionSphere {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -23769,11 +26686,11 @@ class CollisionCapsule {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -23957,11 +26874,11 @@ class CollisionBox {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -24148,11 +27065,11 @@ class CollisionLayerMatrix {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -24910,11 +27827,11 @@ class ContactPoint {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -24986,11 +27903,11 @@ class Contact {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -25504,11 +28421,11 @@ class BoxBoxSat {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -25951,11 +28868,11 @@ class PhysicalMaterial {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -26073,11 +28990,11 @@ class Island {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -26278,6 +29195,17 @@ class SolverConfiguration {
 
   getJointBaumgarte() {
     return this.jointBaumgarte;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
   }
 
   static create(timeStep) {
@@ -26536,36 +29464,36 @@ class ModelAabbs {
     return "ModelAabbs";
   }
 
-  static ensureModelAabbs(assets) {
-    let modelsIds = assets.getKeys(ModelId.TYPE);
-    for (let refId of modelsIds) {
+  static calculateAllModelAabbs(assets) {
+    let refIds = assets.getKeys(ModelId.TYPE);
+    let res = new HashMap();
+    for (let refId of refIds) {
       let modelId = refId;
-      if (!assets.hasCompanion(modelId, AssetCompanionType.BOUNDING_AABB)) {
-        let modelAabb = ModelAabbs.calculateModelAabb(modelId, assets);
-        if (modelAabb!=null) {
-          assets.putCompanion(modelId, AssetCompanionType.BOUNDING_AABB, modelAabb);
-        }
+      let modelAabb = ModelAabbs.calculateModelAabb(modelId, assets);
+      if (modelAabb!=null) {
+        res.put(modelId, modelAabb);
       }
     }
+    return res;
   }
 
   static calculateModelAabb(modelId, assets) {
     let model = assets.get("Model", modelId);
     if (model.getParts().isEmpty()) {
-      return null;
+      return Aabb3.ZERO;
     }
     let res = null;
     for (let part of model.getParts()) {
       let meshId = part.getMesh();
-      let meshAabb = assets.getCompanion("Aabb3", meshId, AssetCompanionType.BOUNDING_AABB);
+      let mesh = assets.get("Mesh", meshId);
       if (res==null) {
-        res = meshAabb;
+        res = mesh.getAabb();
       }
       else {
-        res = res.expand(meshAabb);
+        res = res.expand(mesh.getAabb());
       }
     }
-    return res;
+    return res==null?Aabb3.ZERO:res;
   }
 
 }
@@ -26652,6 +29580,9 @@ class InputCacheDisplayListener {
     this.inputs.put(this.key, size);
   }
 
+  toString() {
+  }
+
   static create(inputs) {
     let res = new InputCacheDisplayListener();
     res.inputs = inputs;
@@ -26682,11 +29613,12 @@ class World {
   assets() {
   }
 
+  modelAabb(modelId) {
+  }
+
 }
 classRegistry.World = World;
 class RigidBodyWorld extends World {
-  static FWD = Vec3.create(0, 0, -1);
-  static UP = Vec3.create(0, 1, 0);
   static AMBIENT_LIGHTS = Dut.immutableList(Light.directional(LightColor.AMBIENT_WHITE, Vec3.DOWN));
   assetManager;
   gDriver;
@@ -26699,6 +29631,7 @@ class RigidBodyWorld extends World {
   solver;
   timeStep;
   shadowBuffersIds;
+  modelAabbs;
   cumDt = 0;
   constructor() {
     super();
@@ -26814,6 +29747,12 @@ class RigidBodyWorld extends World {
     return this.assetManager;
   }
 
+  modelAabb(modelId) {
+    let res = this.modelAabbs.get(modelId);
+    Guard.notNull(res, "there is no AABB box defined for: %s", modelId);
+    return res;
+  }
+
   setCollisionLayerMatrix(matrix) {
     this.collisionManager.setLayerMatrix(matrix);
     return this;
@@ -26847,7 +29786,7 @@ class RigidBodyWorld extends World {
       if (lcmp.getType().equals(LightType.DIRECTIONAL)) {
         let tc = actor.getComponent("TransformComponent");
         let pos = tc.toGlobal(Vec3.ZERO);
-        let lookAt = tc.toGlobal(RigidBodyWorld.FWD);
+        let lookAt = tc.toGlobal(Vec3.BACKWARD);
         let dir = lookAt.subAndNormalize(pos);
         if (lcmp.isShadow()) {
           let sb = this.shadowBuffersIds.get(sbidx.get(0));
@@ -26929,7 +29868,7 @@ class RigidBodyWorld extends World {
     res.assetManager.put(shadow2, ShadowBuffer.create(2048, 2048));
     res.assetManager.put(shadow3, ShadowBuffer.create(2048, 2048));
     res.shadowBuffersIds = Dut.immutableList(shadow1, shadow2, shadow3);
-    ModelAabbs.ensureModelAabbs(res.assetManager);
+    res.modelAabbs = ModelAabbs.calculateAllModelAabbs(res.assetManager);
     res.guardInvariants();
     return res;
   }
@@ -27079,11 +30018,11 @@ class RenderRequest {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -27239,11 +30178,11 @@ class SceneObject {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -27299,7 +30238,7 @@ class Scene {
     return res;
   }
 
-  withAddedObject(obj) {
+  plusObject(obj) {
     let res = new Scene();
     res.name = this.name;
     res.objects = new ArrayList();
@@ -27310,7 +30249,7 @@ class Scene {
     return res;
   }
 
-  withUpdatedObject(idx, obj) {
+  replaceObject(idx, obj) {
     let res = new Scene();
     res.name = this.name;
     res.objects = new ArrayList();
@@ -27322,7 +30261,7 @@ class Scene {
     return res;
   }
 
-  withRemovedObject(idx) {
+  minusObject(idx) {
     let res = new Scene();
     res.name = this.name;
     res.objects = new ArrayList();
@@ -27357,11 +30296,11 @@ class Scene {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -27433,18 +30372,14 @@ class AboutScreen extends TyracornScreen {
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(20, 40));
-    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
-    let btnFont = FontId.of("kenny-mini-20");
-    let labelFont = FontId.of("kenny-mini-40");
-    let textFont = FontId.of("kenny-mini-20");
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(Uis.create().styler());
     let uiTop = -140;
     this.ui.addComponent(ImageView.create().setTexture("tyracorn").setRegionFnc(UiRegionFncs.center(-50, uiTop, 100, 100)));
-    this.ui.addComponent(Label.create().setFont(labelFont).setPosFnc(UiPosFncs.center(0, uiTop+110)).setText("Credits").setAlignment(TextAlignment.CENTER_TOP));
-    this.ui.addComponent(Label.create().setFont(textFont).setPosFnc(UiPosFncs.center(0, uiTop+160)).setText("https://quaternius.com").setAlignment(TextAlignment.CENTER_TOP));
-    this.ui.addComponent(Label.create().setFont(textFont).setPosFnc(UiPosFncs.center(0, uiTop+190)).setText("https://www.kenney.nl").setAlignment(TextAlignment.CENTER_TOP));
-    this.ui.addComponent(ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.center(-60, uiTop+230, 120, 30)).setText("Back").setFont(btnFont).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(null))));
-    let exitBtn = ImageButton.create().setUpTexture("shadedDark35").setDownTexture("shadedLight35").setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(null)));
+    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop+110)).setText("Credits").setAlignment(TextAlignment.CENTER_TOP));
+    this.ui.addComponent(Label.create().setPosFnc(UiPosFncs.center(0, uiTop+160)).setText("https://quaternius.com").setAlignment(TextAlignment.CENTER_TOP));
+    this.ui.addComponent(Label.create().setPosFnc(UiPosFncs.center(0, uiTop+190)).setText("https://www.kenney.nl").setAlignment(TextAlignment.CENTER_TOP));
+    this.ui.addComponent(Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, uiTop+230, 120, 30)).setText("Back").addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(null))));
+    let exitBtn = Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(null)));
     this.ui.addComponent(exitBtn);
     this.ui.subscribe(drivers);
   }
@@ -27546,45 +30481,41 @@ class CampaignScreen extends TyracornScreen {
     }
     let assets = drivers.getDriver("AssetManager");
     Fonts.prepareScaledFonts(assets, Dut.set(20, 30, 40));
-    let btnFont = FontId.of("kenny-mini-20");
-    let labelFont = FontId.of("kenny-mini-40");
-    let titleFont = FontId.of("kenny-mini-30");
-    let textFont = FontId.of("kenny-mini-20");
-    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(Uis.create().styler());
     let uiTop = -140;
-    this.ui.addComponent(Label.create().setFont(labelFont).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Campaign").setAlignment(TextAlignment.CENTER_TOP));
-    this.ui.addComponent(Label.create().setFont(textFont).setPosFnc(UiPosFncs.center(0, uiTop+40)).setText("Total Score: "+this.highScoreManager.getCampaignScore()).setAlignment(TextAlignment.CENTER_TOP));
-    let pageList = PageList.create();
-    let pgIdx = 0;
+    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Campaign").setAlignment(TextAlignment.CENTER_TOP));
+    this.ui.addComponent(Label.create().setPosFnc(UiPosFncs.center(0, uiTop+40)).setText("Total Score: "+this.highScoreManager.getCampaignScore()).setAlignment(TextAlignment.CENTER_TOP));
+    let tabs = TabContainer.create();
+    let tabIdx = 0;
     for (let i = 0; i<Levels.CAMPAIGN.size(); ++i) {
       let level = Levels.CAMPAIGN.get(i);
       let disabled = level.getRequiredScore()>this.highScoreManager.getCampaignScore();
       if (!disabled) {
-        pgIdx = i;
+        tabIdx = i;
       }
-      let pg = Page.create();
-      pg.addComponent(ImageView.create().setTexture(level.getImageId()).setRegionFnc(UiRegionFncs.center(-120, uiTop+60, 240, 180)));
-      pg.addComponent(Label.create().setFont(titleFont).setPosFnc(UiPosFncs.center(-115, uiTop+60)).setText(level.getName()).setAlignment(TextAlignment.LEFT_TOP));
-      pg.addComponent(Label.create().setFont(textFont).setPosFnc(UiPosFncs.center(-115, uiTop+90)).setText("Required Score: "+level.getRequiredScore()).setAlignment(TextAlignment.LEFT_TOP));
-      pg.addComponent(Label.create().setFont(textFont).setPosFnc(UiPosFncs.center(-115, uiTop+110)).setText("Difficulty: "+level.getDifficulty()).setAlignment(TextAlignment.LEFT_TOP));
-      pg.addComponent(Label.create().setFont(textFont).setPosFnc(UiPosFncs.center(-115, uiTop+130)).setText("High Score: "+this.highScoreManager.get(level)).setAlignment(TextAlignment.LEFT_TOP));
-      pg.addComponent(ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setDisabledTexture("button-120-disabled").setRegionFnc(UiRegionFncs.center(-60, uiTop+250, 120, 30)).setText("Play").setFont(btnFont).setDisabled(disabled).addOnClickAction(UiEventActions.showScreen(screenManager, new GameScreen(this.settings, this.highScoreManager, level))));
-      pageList.addPage(pg);
+      let tab = Tab.create();
+      tab.addComponent(ImageView.create().setTexture(level.getImageId()).setRegionFnc(UiRegionFncs.center(-120, uiTop+60, 240, 180)));
+      tab.addComponent(Label.create().addTrait(UiComponentTrait.H2).setPosFnc(UiPosFncs.center(-115, uiTop+60)).setText(level.getName()).setAlignment(TextAlignment.LEFT_TOP));
+      tab.addComponent(Label.create().setPosFnc(UiPosFncs.center(-115, uiTop+90)).setText("Required Score: "+level.getRequiredScore()).setAlignment(TextAlignment.LEFT_TOP));
+      tab.addComponent(Label.create().setPosFnc(UiPosFncs.center(-115, uiTop+110)).setText("Difficulty: "+level.getDifficulty()).setAlignment(TextAlignment.LEFT_TOP));
+      tab.addComponent(Label.create().setPosFnc(UiPosFncs.center(-115, uiTop+130)).setText("High Score: "+this.highScoreManager.get(level)).setAlignment(TextAlignment.LEFT_TOP));
+      tab.addComponent(Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, uiTop+250, 120, 30)).setText("Play").setDisabled(disabled).addOnClickAction(UiEventActions.showScreen(screenManager, new GameScreen(this.settings, this.highScoreManager, level))));
+      tabs.addTab(tab);
     }
-    let freeRidePg = Page.create();
+    let freeRideTab = Tab.create();
     if (this.highScoreManager.isFreeRideOpen()) {
-      pgIdx = pgIdx+1;
+      tabIdx = tabIdx+1;
     }
-    freeRidePg.addComponent(Label.create().setFont(textFont).setPosFnc(UiPosFncs.center(0, -35)).setText("Required Score: "+Levels.FREE_PLAY_REQUIRED_SCORE).setAlignment(TextAlignment.CENTER_TOP));
-    freeRidePg.addComponent(ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setDisabledTexture("button-120-disabled").setRegionFnc(UiRegionFncs.center(-60, -5, 120, 30)).setText("Free Ride").setFont(btnFont).setDisabled(!this.highScoreManager.isFreeRideOpen()).addOnClickAction(UiEventActions.showScreen(screenManager, new FreeRideScreen(this.settings))));
-    pageList.addPage(freeRidePg);
-    pageList.setActivePage(pgIdx);
-    this.ui.addComponent(pageList);
-    let prevPageBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.center(-110, uiTop+250, 30, 30)).setText("<").setFont(btnFont).addOnClickAction(UiEventActions.previousPage(pageList));
+    freeRideTab.addComponent(Label.create().setPosFnc(UiPosFncs.center(0, -35)).setText("Required Score: "+Levels.FREE_PLAY_REQUIRED_SCORE).setAlignment(TextAlignment.CENTER_TOP));
+    freeRideTab.addComponent(Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, -5, 120, 30)).setText("Free Ride").setDisabled(!this.highScoreManager.isFreeRideOpen()).addOnClickAction(UiEventActions.showScreen(screenManager, new FreeRideScreen(this.settings))));
+    tabs.addTab(freeRideTab);
+    tabs.setActiveTabIdx(tabIdx);
+    this.ui.addComponent(tabs);
+    let prevPageBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(-110, uiTop+250, 30, 30)).setText("<").addOnClickAction(UiEventActions.previousTab(tabs));
     this.ui.addComponent(prevPageBtn);
-    let nextPageBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.center(80, uiTop+250, 30, 30)).setText(">").setFont(btnFont).addOnClickAction(UiEventActions.nextPage(pageList));
+    let nextPageBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(80, uiTop+250, 30, 30)).setText(">").addOnClickAction(UiEventActions.nextTab(tabs));
     this.ui.addComponent(nextPageBtn);
-    let exitBtn = ImageButton.create().setUpTexture("shadedDark35").setDownTexture("shadedLight35").setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
+    let exitBtn = Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
     this.ui.addComponent(exitBtn);
     this.ui.subscribe(drivers);
   }
@@ -27627,6 +30558,10 @@ class ComponentDelay extends UiComponent {
   }
 
   guardInvariants() {
+  }
+
+  init(container) {
+    this.component.init(container);
   }
 
   move(dt) {
@@ -27793,20 +30728,16 @@ class FreeRideScreen extends TyracornScreen {
     }
     let assets = drivers.getDriver("AssetManager");
     Fonts.prepareScaledFonts(assets, Dut.set(20, 30, 40));
-    let btnFont = FontId.of("kenny-mini-20");
-    let labelFont = FontId.of("kenny-mini-40");
-    let titleFont = FontId.of("kenny-mini-30");
-    let textFont = FontId.of("kenny-mini-20");
-    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(Uis.create().styler());
     let uiTop = -140;
     const levelIdx = new AtomicInteger(0);
     const difficulty = new AtomicInteger(1);
-    this.ui.addComponent(Label.create().setFont(labelFont).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Free Ride").setAlignment(TextAlignment.CENTER_TOP));
+    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Free Ride").setAlignment(TextAlignment.CENTER_TOP));
     let levelImg = ImageView.create().setTexture(this.getLevel(levelIdx, difficulty).getImageId()).setRegionFnc(UiRegionFncs.center(-100, uiTop+45, 200, 130));
     this.ui.addComponent(levelImg);
-    const highScoreLabel = Label.create().setFont(textFont).setPosFnc(UiPosFncs.center(0, uiTop+45)).setText("High Score: "+this.highScoreManager.get(this.getLevel(levelIdx, difficulty))).setAlignment(TextAlignment.CENTER_TOP);
+    const highScoreLabel = Label.create().setPosFnc(UiPosFncs.center(0, uiTop+45)).setText("High Score: "+this.highScoreManager.get(this.getLevel(levelIdx, difficulty))).setAlignment(TextAlignment.CENTER_TOP);
     this.ui.addComponent(highScoreLabel);
-    const levelNameLabel = Label.create().setFont(labelFont).setPosFnc(UiPosFncs.center(0, uiTop+195)).setText(this.getLevel(levelIdx, difficulty).getName()).setAlignment(TextAlignment.CENTER);
+    const levelNameLabel = Label.create().addTrait(UiComponentTrait.H2).setPosFnc(UiPosFncs.center(0, uiTop+195)).setText(this.getLevel(levelIdx, difficulty).getName()).setAlignment(TextAlignment.CENTER);
     this.ui.addComponent(levelNameLabel);
     let prevLevelAct = (evtSource) => {
       if (levelIdx.addAndGet(-1)<0) {
@@ -27816,7 +30747,7 @@ class FreeRideScreen extends TyracornScreen {
       highScoreLabel.setText("High Score: "+this.highScoreManager.get(this.getLevel(levelIdx, difficulty)));
       levelNameLabel.setText(this.getLevel(levelIdx, difficulty).getName());
     };
-    let prevLevelBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.center(-110, uiTop+180, 30, 30)).setText("<").setFont(btnFont).addOnClickAction(prevLevelAct);
+    let prevLevelBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(-110, uiTop+180, 30, 30)).setText("<").addOnClickAction(prevLevelAct);
     this.ui.addComponent(prevLevelBtn);
     let nextLevelAct = (evtSource) => {
       if (levelIdx.addAndGet(1)>=Levels.FREE_PLAY.size()) {
@@ -27826,9 +30757,9 @@ class FreeRideScreen extends TyracornScreen {
       highScoreLabel.setText("High Score: "+this.highScoreManager.get(this.getLevel(levelIdx, difficulty)));
       levelNameLabel.setText(this.getLevel(levelIdx, difficulty).getName());
     };
-    let nextLevelBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.center(80, uiTop+180, 30, 30)).setText(">").setFont(btnFont).addOnClickAction(nextLevelAct);
+    let nextLevelBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(80, uiTop+180, 30, 30)).setText(">").addOnClickAction(nextLevelAct);
     this.ui.addComponent(nextLevelBtn);
-    const difficultyLabel = Label.create().setFont(textFont).setPosFnc(UiPosFncs.center(0, uiTop+235)).setText("Dificulty: "+difficulty.get()).setAlignment(TextAlignment.CENTER);
+    const difficultyLabel = Label.create().setPosFnc(UiPosFncs.center(0, uiTop+235)).setText("Dificulty: "+difficulty.get()).setAlignment(TextAlignment.CENTER);
     this.ui.addComponent(difficultyLabel);
     let prevDiffAct = (evtSource) => {
       if (difficulty.addAndGet(-1)<1) {
@@ -27837,7 +30768,7 @@ class FreeRideScreen extends TyracornScreen {
       highScoreLabel.setText("High Score: "+this.highScoreManager.get(this.getLevel(levelIdx, difficulty)));
       difficultyLabel.setText("Dificulty: "+difficulty.get());
     };
-    let prevDifficultyBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.center(-110, uiTop+220, 30, 30)).setText("<").setFont(btnFont).addOnClickAction(prevDiffAct);
+    let prevDifficultyBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(-110, uiTop+220, 30, 30)).setText("<").addOnClickAction(prevDiffAct);
     this.ui.addComponent(prevDifficultyBtn);
     let nextDiffAct = (evtSource) => {
       if (difficulty.addAndGet(1)>5) {
@@ -27846,14 +30777,14 @@ class FreeRideScreen extends TyracornScreen {
       highScoreLabel.setText("High Score: "+this.highScoreManager.get(this.getLevel(levelIdx, difficulty)));
       difficultyLabel.setText("Dificulty: "+difficulty.get());
     };
-    let nextDifficultyBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.center(80, uiTop+220, 30, 30)).setText(">").setFont(btnFont).addOnClickAction(nextDiffAct);
+    let nextDifficultyBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(80, uiTop+220, 30, 30)).setText(">").addOnClickAction(nextDiffAct);
     this.ui.addComponent(nextDifficultyBtn);
     let playAct = (evtSource) => {
       screenManager.showScreen(new GameScreen(this.settings, this.highScoreManager, this.getLevel(levelIdx, difficulty)));
     };
-    let platyBtn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setDisabledTexture("button-120-disabled").setRegionFnc(UiRegionFncs.center(-60, uiTop+260, 120, 30)).setText("Play").setFont(btnFont).addOnClickAction(playAct);
+    let platyBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, uiTop+260, 120, 30)).setText("Play").addOnClickAction(playAct);
     this.ui.addComponent(platyBtn);
-    let exitBtn = ImageButton.create().setUpTexture("shadedDark35").setDownTexture("shadedLight35").setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
+    let exitBtn = Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
     this.ui.addComponent(exitBtn);
     this.ui.subscribe(drivers);
   }
@@ -28019,9 +30950,9 @@ class GameScreen extends TyracornScreen {
         this.mainSprite.show(mainSpriteTid, 0.3, 1, 1);
         let btnFont = FontId.of("kenny-mini-20");
         let nextScr = this.level.getGameMode().equals(GameMode.CAMPAIGN)?new CampaignScreen(this.settings):new FreeRideScreen(this.settings);
-        let restartBtn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setDisabledTexture("button-120-disabled").setRegionFnc(UiRegionFncs.center(-130, 0, 120, 30)).setText("Restart").setFont(btnFont).addOnClickAction(UiEventActions.showScreen(screenManager, new GameScreen(this.settings, this.highScoreManager, this.level)));
+        let restartBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-130, 0, 120, 30)).setText("Restart").addOnClickAction(UiEventActions.showScreen(screenManager, new GameScreen(this.settings, this.highScoreManager, this.level)));
         this.ui.addComponent(ComponentDelay.create(restartBtn, 1));
-        let nextBtn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setDisabledTexture("button-120-disabled").setRegionFnc(UiRegionFncs.center(10, 0, 120, 30)).setText("Next").setFont(btnFont).addOnClickAction(UiEventActions.showScreen(screenManager, nextScr));
+        let nextBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(10, 0, 120, 30)).setText("Next").addOnClickAction(UiEventActions.showScreen(screenManager, nextScr));
         this.ui.addComponent(ComponentDelay.create(nextBtn, 1));
       }
       else {
@@ -28062,9 +30993,8 @@ class GameScreen extends TyracornScreen {
     this.world.actors().add(ActorId.ROOT, foodGenAct);
     let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create().lookAt(Vec3.create(0, 15, 9), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create().setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create().setDisplaySizeInputKey("display.size").setFovyLandscape(FMath.toRadians(60)).setFovyPortrait(FMath.toRadians(90))).addComponent(CameraTrackBehavior.create(GameScreen.SNAKE_HEAD_ID, Vec3.create(0, 7, 3), Vec3.create(0, 0, -1)));
     this.world.actors().add(ActorId.ROOT, camera);
-    let labelFont = FontId.of("kenny-mini-32");
-    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
-    this.joystick = Joystick.create().setBaseTexture("shadedDark11").setTopTexture("shadedDark01").setRegionFnc(UiRegionFncs.centerBottom(125, 100, 100)).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD());
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(Uis.create().styler());
+    this.joystick = Joystick.create().setRegionFnc(UiRegionFncs.centerBottom(125, 100, 100)).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD());
     this.ui.addComponent(this.joystick);
     let mainSpriteRegFnc = (t) => {
       let w = t.width()>t.hashCode()?t.width()*0.6:t.width()*0.9;
@@ -28073,9 +31003,9 @@ class GameScreen extends TyracornScreen {
     };
     this.mainSprite = MainSpritePanel.create(assets).setRegionFnc(mainSpriteRegFnc);
     this.ui.addComponent(this.mainSprite);
-    this.scoreLabel = Label.create().setFont(labelFont).setPosFnc(UiPosFncs.leftTop(5, 5)).setAlignment(TextAlignment.LEFT_TOP).setText("Score: 0");
+    this.scoreLabel = Label.create().addTrait(UiComponentTrait.H3).setPosFnc(UiPosFncs.leftTop(5, 5)).setAlignment(TextAlignment.LEFT_TOP).setText("Score: 0");
     this.ui.addComponent(this.scoreLabel);
-    let exitBtn = ImageButton.create().setUpTexture("shadedDark35").setDownTexture("shadedLight35").setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
+    let exitBtn = Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
     this.ui.addComponent(exitBtn);
     this.ui.subscribe(drivers);
     let dlist = InputCacheDisplayListener.create(this.inputs);
@@ -28397,11 +31327,11 @@ class Level {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -28436,8 +31366,8 @@ class Levels {
 }
 classRegistry.Levels = Levels;
 class MainSpritePanel extends UiComponent {
-  assetProvider;
-  container;
+  assets;
+  spriteContainer;
   sprite;
   visible;
   startScale;
@@ -28455,8 +31385,8 @@ class MainSpritePanel extends UiComponent {
   guardInvariants() {
   }
 
-  init(controller) {
-    this.container.init(controller);
+  init(container) {
+    this.spriteContainer.init(container);
   }
 
   move(dt) {
@@ -28471,16 +31401,16 @@ class MainSpritePanel extends UiComponent {
 
   draw(painter) {
     if (this.visible) {
-      this.container.draw(painter);
+      this.spriteContainer.draw(painter);
     }
   }
 
   onContainerResize(size) {
-    this.container.onContainerResize(size);
+    this.spriteContainer.onContainerResize(size);
   }
 
   setRegionFnc(regionFnc) {
-    this.container.setRegionFnc(regionFnc);
+    this.spriteContainer.setRegionFnc(regionFnc);
     return this;
   }
 
@@ -28508,31 +31438,34 @@ class MainSpritePanel extends UiComponent {
   }
 
   createSpriteRegFnc(scale) {
-    const spriteSize = this.assetProvider.getCompanion("Size2", this.sprite.getTexture(), AssetCompanionType.SIZE);
+    let sprTex = this.assets.get("Texture", this.sprite.getTexture());
+    let sprW = sprTex.getWidth();
+    let sprH = sprTex.getHeight();
+    let sprAsp = sprW/sprH;
     return (s) => {
       if (s.width()<1||s.height()<1) {
         return Rect2.create(Pos2.ZERO, s);
       }
       let aspect = s.width()/s.height();
-      if (spriteSize.aspect()>=aspect) {
+      if (sprAsp>=aspect) {
         let w = s.width()*scale;
-        let h = spriteSize.height()*s.width()/spriteSize.width()*scale;
+        let h = sprH*s.width()/sprW*scale;
         return Rect2.create(s.width()/2-w/2, s.height()/2-h/2, w, h);
       }
       else {
-        let w = spriteSize.width()*s.height()/spriteSize.height()*scale;
+        let w = sprW*s.height()/sprH*scale;
         let h = s.height()*scale;
         return Rect2.create(s.width()/2-w/2, s.height()/2-h/2, w, h);
       }
     };
   }
 
-  static create(assetProvider) {
+  static create(assets) {
     let res = new MainSpritePanel();
-    res.assetProvider = assetProvider;
-    res.container = Panel.create().setBgColor(Rgba.TRANSPARENT).setBorderColor(Rgba.TRANSPARENT).setClipRegion(false).setInnerSizeFnc(UiSizeFncs.identity()).setRegionFnc(UiRegionFncs.full());
-    res.sprite = ImageView.create().setRegionFnc(UiRegionFncs.full()).setTexture("empy");
-    res.container.addComponent(res.sprite);
+    res.assets = assets;
+    res.spriteContainer = Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setInnerSizeFnc(UiSizeFncs.identity()).setRegionFnc(UiRegionFncs.full());
+    res.sprite = ImageView.create().setRegionFnc(UiRegionFncs.full()).setTexture("empty");
+    res.spriteContainer.addComponent(res.sprite);
     res.visible = false;
     res.startScale = 1;
     res.endScale = 1;
@@ -28576,21 +31509,19 @@ class MenuScreen extends TyracornScreen {
       this.settings = LocalDataConfigProperties.create(drivers.getDriver("LocalDataStorage"), LocalDataKey.of("settings.properties")).withDefaults(Dut.map(PropertyKey.of("audio.sound.enabled"), "true", PropertyKey.of("audio.sound.volume"), "1"));
     }
     let highScoreManager = HighScoreManager.create(drivers.getDriver("LocalDataStorage"));
-    let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(20, 40));
-    let btnFont = FontId.of("kenny-mini-20");
-    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
+    Uis.prepareScaledFonts(drivers);
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(Uis.create().styler());
     this.ui.addComponent(ImageView.create().setTexture("snake").setRegionFnc(UiRegionFncs.center(-90, -140, 180, 100)));
-    let playBtn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.center(-60, -20, 120, 30)).setText("Campaign").setFont(btnFont).addOnClickAction(UiEventActions.showScreen(screenManager, new CampaignScreen(this.settings)));
+    let playBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, -20, 120, 30)).setText("Campaign").addOnClickAction(UiEventActions.showScreen(screenManager, new CampaignScreen(this.settings)));
     this.ui.addComponent(playBtn);
-    let freeRideBtn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setDisabledTexture("button-120-disabled").setRegionFnc(UiRegionFncs.center(-60, 20, 120, 30)).setText("Free Ride").setFont(btnFont).setDisabled(!highScoreManager.isFreeRideOpen()).addOnClickAction(UiEventActions.showScreen(screenManager, new FreeRideScreen(this.settings)));
+    let freeRideBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, 20, 120, 30)).setText("Free Ride").setDisabled(!highScoreManager.isFreeRideOpen()).addOnClickAction(UiEventActions.showScreen(screenManager, new FreeRideScreen(this.settings)));
     this.ui.addComponent(freeRideBtn);
-    let settingsBtn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.center(-60, 60, 120, 30)).setText("Settings").setFont(btnFont).addOnClickAction(UiEventActions.showScreen(screenManager, new SettingsScreen(this.settings)));
+    let settingsBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, 60, 120, 30)).setText("Settings").addOnClickAction(UiEventActions.showScreen(screenManager, new SettingsScreen(this.settings)));
     this.ui.addComponent(settingsBtn);
-    let aboutBtn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.center(-60, 100, 120, 30)).setText("About").setFont(btnFont).addOnClickAction(UiEventActions.showScreen(screenManager, new AboutScreen()));
+    let aboutBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, 100, 120, 30)).setText("About").addOnClickAction(UiEventActions.showScreen(screenManager, new AboutScreen()));
     this.ui.addComponent(aboutBtn);
     if (drivers.getPlatform().isExitable()) {
-      let exitBtn = ImageButton.create().setUpTexture("shadedDark35").setDownTexture("shadedLight35").setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager));
+      let exitBtn = Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager));
       this.ui.addComponent(exitBtn);
     }
     this.ui.subscribe(drivers);
@@ -28668,11 +31599,11 @@ class PosRotPoint {
   }
 
   hashCode() {
-    return Dut.reflectionHashCode(this);
+    return Reflections.hashCode(this);
   }
 
   equals(obj) {
-    return Dut.reflectionEquals(this, obj);
+    return Reflections.equals(this, obj);
   }
 
   toString() {
@@ -28723,18 +31654,12 @@ class SettingsScreen extends TyracornScreen {
   }
 
   init(drivers, screenManager, properties) {
-    let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(20, 30, 40));
     let storage = drivers.getDriver("LocalDataStorage");
-    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
-    let btnFont = FontId.of("kenny-mini-20");
-    let labelFont = FontId.of("kenny-mini-40");
-    let titleFont = FontId.of("kenny-mini-30");
-    let textFont = FontId.of("kenny-mini-20");
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(Uis.create().styler());
     let uiTop = -100;
-    let header = Label.create().setFont(labelFont).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Settings").setAlignment(TextAlignment.CENTER_TOP);
+    let header = Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Settings").setAlignment(TextAlignment.CENTER_TOP);
     this.ui.addComponent(header);
-    const soundVol = Label.create().setFont(textFont).setPosFnc(UiPosFncs.center(65, uiTop+95)).setText(Formats.floatToFixedDecimals(this.settings.getFloat(SettingsScreen.SOUND_VOLUME_KEY)*10, 0)).setAlignment(TextAlignment.CENTER);
+    const soundVol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+95)).setText(Formats.floatToFixedDecimals(this.settings.getFloat(SettingsScreen.SOUND_VOLUME_KEY)*10, 0)).setAlignment(TextAlignment.CENTER);
     this.ui.addComponent(soundVol);
     let soundVolDownAct = (evtSource) => {
       let vol = this.settings.getFloat(SettingsScreen.SOUND_VOLUME_KEY);
@@ -28742,7 +31667,7 @@ class SettingsScreen extends TyracornScreen {
       this.settings.put(SettingsScreen.SOUND_VOLUME_KEY, vol);
       soundVol.setText(Formats.floatToFixedDecimals(vol*10, 0));
     };
-    let soundVolDownBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.center(10, uiTop+80, 30, 30)).setText("-").setFont(btnFont).addOnClickAction(soundVolDownAct);
+    let soundVolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+80, 30, 30)).setText("-").addOnClickAction(soundVolDownAct);
     this.ui.addComponent(soundVolDownBtn);
     let soundVolUpAct = (evtSource) => {
       let vol = this.settings.getFloat(SettingsScreen.SOUND_VOLUME_KEY);
@@ -28750,23 +31675,23 @@ class SettingsScreen extends TyracornScreen {
       this.settings.put(SettingsScreen.SOUND_VOLUME_KEY, vol);
       soundVol.setText(Formats.floatToFixedDecimals(vol*10, 0));
     };
-    let soundVolUpBtn = ImageButton.create().setUpTexture("button-30-up").setDownTexture("button-30-down").setRegionFnc(UiRegionFncs.center(90, uiTop+80, 30, 30)).setText("+").setFont(btnFont).addOnClickAction(soundVolUpAct);
+    let soundVolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+80, 30, 30)).setText("+").addOnClickAction(soundVolUpAct);
     this.ui.addComponent(soundVolUpBtn);
     let soundToggleAct = (evtSource) => {
       let btn = evtSource;
-      this.settings.put(PropertyKey.of("audio.sound.enabled"), btn.isToggledDown());
+      this.settings.put(PropertyKey.of("audio.sound.enabled"), btn.isToggledOn());
     };
-    let soundToggle = ImageToggleButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.center(-120, uiTop+80, 120, 30)).setText("Sound").setFont(btnFont).toggleSilent(this.settings.getBoolean(PropertyKey.of("audio.sound.enabled"))).addOnToggleAction(soundToggleAct);
+    let soundToggle = ToggleButton.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+80, 120, 30)).setText("Sound").toggle(this.settings.getBoolean(PropertyKey.of("audio.sound.enabled"))).addOnToggleAction(soundToggleAct);
     this.ui.addComponent(soundToggle);
     let resetHsAct = (evtSource) => {
       let hsm = HighScoreManager.create(storage);
       hsm.clearAll();
     };
-    let resetHsBtn = ImageButton.create().setUpTexture("button-160-up").setDownTexture("button-160-down").setRegionFnc(UiRegionFncs.center(-80, uiTop+125, 160, 30)).setText("Reset Campaign").setFont(btnFont).addOnClickAction(resetHsAct);
+    let resetHsBtn = Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.center(-80, uiTop+125, 160, 30)).setText("Reset Campaign").addOnClickAction(resetHsAct);
     this.ui.addComponent(resetHsBtn);
-    let backBtn = ImageButton.create().setUpTexture("button-120-up").setDownTexture("button-120-down").setRegionFnc(UiRegionFncs.center(-60, uiTop+170, 120, 30)).setText("Back").setFont(btnFont).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
+    let backBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, uiTop+170, 120, 30)).setText("Back").addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
     this.ui.addComponent(backBtn);
-    let exitBtn = ImageButton.create().setUpTexture("shadedDark35").setDownTexture("shadedLight35").setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
+    let exitBtn = Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
     this.ui.addComponent(exitBtn);
     this.ui.subscribe(drivers);
   }
@@ -29024,6 +31949,45 @@ class SnakeHeadBehavior extends Behavior {
 
 }
 classRegistry.SnakeHeadBehavior = SnakeHeadBehavior;
+class Uis {
+  mStyler;
+  constructor() {
+  }
+
+  getClass() {
+    return "Uis";
+  }
+
+  guardInvariants() {
+  }
+
+  uiSizeFnc() {
+    return UiSizeFncs.constantHeight(1600);
+  }
+
+  styler() {
+    if (this.mStyler==null) {
+      this.mStyler = DefaultUiStyler.create().setH1Font(FontId.of("kenny-mini-40")).setH1Color(Rgba.WHITE).setH2Font(FontId.of("kenny-mini-30")).setH2Color(Rgba.WHITE).setH3Font(FontId.of("kenny-mini-32")).setH3Color(Rgba.WHITE).setMediumTextFont(FontId.of("kenny-mini-20")).setTextColor(Rgba.WHITE).setButtonLabelFont(FontId.of("kenny-mini-20")).setButtonLabelColor(Rgba.WHITE).setDisabledButtonLabelColor(Rgba.gray(0.8));
+    }
+    return this.mStyler;
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new Uis();
+    res.guardInvariants();
+    return res;
+  }
+
+  static prepareScaledFonts(drivers) {
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(20, 30, 32, 40));
+  }
+
+}
+classRegistry.Uis = Uis;
 
 
 // -------------------------------------
@@ -29092,7 +32056,7 @@ function handleTouchStart(evt) {
     const touches = evt.changedTouches;
     for (let i = 0; i < touches.length; i++) {
         const touch = touches[i];
-        const touchId = "" + touch.identifier;
+        const touchId = TouchId.of("" + touch.identifier);
         const x = (touch.clientX - rect.left) * scaleX;
         const y = (touch.clientY - rect.top) * scaleY;
         drivers.touchDriver.onTouchStart(touchId, x, y);
@@ -29112,7 +32076,7 @@ function handleTouchMove(evt) {
     const touches = evt.changedTouches;
     for (let i = 0; i < touches.length; i++) {
         const touch = touches[i];
-        const touchId = "" + touch.identifier;
+        const touchId = TouchId.of("" + touch.identifier);
         const x = (touch.clientX - rect.left) * scaleX;
         const y = (touch.clientY - rect.top) * scaleY;
         drivers.touchDriver.onTouchMove(touchId, x, y);
@@ -29132,7 +32096,7 @@ function handleTouchCancel(evt) {
     const touches = evt.changedTouches;
     for (let i = 0; i < touches.length; i++) {
         const touch = touches[i];
-        const touchId = "" + touch.identifier;
+        const touchId = TouchId.of("" + touch.identifier);
         const x = (touch.clientX - rect.left) * scaleX;
         const y = (touch.clientY - rect.top) * scaleY;
         drivers.touchDriver.onTouchEnd(touchId, x, y, true);
@@ -29152,7 +32116,7 @@ function handleTouchEnd(evt) {
     const touches = evt.changedTouches;
     for (let i = 0; i < touches.length; i++) {
         const touch = touches[i];
-        const touchId = "" + touch.identifier;
+        const touchId = TouchId.of("" + touch.identifier);
         const x = (touch.clientX - rect.left) * scaleX;
         const y = (touch.clientY - rect.top) * scaleY;
         drivers.touchDriver.onTouchEnd(touchId, x, y, false);
@@ -29225,42 +32189,6 @@ function handleMouseUp(evt) {
 
 // must be defined after the KeyCode is defined (i.e. after the java ccode)
 const keyCodeMap = {
-    KeyA: KeyCode.create("A"),
-    KeyB: KeyCode.create("B"),
-    KeyC: KeyCode.create("C"),
-    KeyD: KeyCode.create("D"),
-    KeyE: KeyCode.create("E"),
-    KeyF: KeyCode.create("F"),
-    KeyG: KeyCode.create("G"),
-    KeyH: KeyCode.create("H"),
-    KeyI: KeyCode.create("I"),
-    KeyJ: KeyCode.create("J"),
-    KeyK: KeyCode.create("K"),
-    KeyL: KeyCode.create("L"),
-    KeyM: KeyCode.create("M"),
-    KeyN: KeyCode.create("N"),
-    KeyO: KeyCode.create("O"),
-    KeyP: KeyCode.create("P"),
-    KeyQ: KeyCode.create("Q"),
-    KeyR: KeyCode.create("R"),
-    KeyS: KeyCode.create("S"),
-    KeyT: KeyCode.create("T"),
-    KeyU: KeyCode.create("U"),
-    KeyV: KeyCode.create("V"),
-    KeyW: KeyCode.create("W"),
-    KeyX: KeyCode.create("X"),
-    KeyY: KeyCode.create("Y"),
-    KeyZ: KeyCode.create("Z"),
-    Digit0: KeyCode.create("0"),
-    Digit1: KeyCode.create("1"),
-    Digit2: KeyCode.create("2"),
-    Digit3: KeyCode.create("3"),
-    Digit4: KeyCode.create("4"),
-    Digit5: KeyCode.create("5"),
-    Digit6: KeyCode.create("6"),
-    Digit7: KeyCode.create("7"),
-    Digit8: KeyCode.create("8"),
-    Digit9: KeyCode.create("9"),
     Enter: KeyCode.ENTER,
     Escape: KeyCode.ESCAPE,
     Backspace: KeyCode.BACKSPACE,
@@ -29276,7 +32204,46 @@ const keyCodeMap = {
     ArrowLeft: KeyCode.ARROW_LEFT,
     ArrowUp: KeyCode.ARROW_UP,
     ArrowRight: KeyCode.ARROW_RIGHT,
-    ArrowDown: KeyCode.ARROW_DOWN,
+    ArrowDown: KeyCode.ARROW_DOWN
+};
+
+const keyCodeLettersMap = {
+    KeyA: KeyCode.create("A", "a"),
+    KeyB: KeyCode.create("B", "b"),
+    KeyC: KeyCode.create("C", "c"),
+    KeyD: KeyCode.create("D", "d"),
+    KeyE: KeyCode.create("E", "e"),
+    KeyF: KeyCode.create("F", "f"),
+    KeyG: KeyCode.create("G", "g"),
+    KeyH: KeyCode.create("H", "h"),
+    KeyI: KeyCode.create("I", "i"),
+    KeyJ: KeyCode.create("J", "j"),
+    KeyK: KeyCode.create("K", "k"),
+    KeyL: KeyCode.create("L", "l"),
+    KeyM: KeyCode.create("M", "m"),
+    KeyN: KeyCode.create("N", "n"),
+    KeyO: KeyCode.create("O", "o"),
+    KeyP: KeyCode.create("P", "p"),
+    KeyQ: KeyCode.create("Q", "q"),
+    KeyR: KeyCode.create("R", "r"),
+    KeyS: KeyCode.create("S", "s"),
+    KeyT: KeyCode.create("T", "t"),
+    KeyU: KeyCode.create("U", "u"),
+    KeyV: KeyCode.create("V", "v"),
+    KeyW: KeyCode.create("W", "w"),
+    KeyX: KeyCode.create("X", "x"),
+    KeyY: KeyCode.create("Y", "y"),
+    KeyZ: KeyCode.create("Z", "z"),
+    Digit0: KeyCode.create("0", "0"),
+    Digit1: KeyCode.create("1", "1"),
+    Digit2: KeyCode.create("2", "2"),
+    Digit3: KeyCode.create("3", "3"),
+    Digit4: KeyCode.create("4", "4"),
+    Digit5: KeyCode.create("5", "5"),
+    Digit6: KeyCode.create("6", "6"),
+    Digit7: KeyCode.create("7", "7"),
+    Digit8: KeyCode.create("8", "8"),
+    Digit9: KeyCode.create("9", "9")
 };
 
 /**
@@ -29285,10 +32252,9 @@ const keyCodeMap = {
  * @param {KeyEvent} evt event
  */
 function handleKeyDown(evt) {
-    const key = keyCodeMap[evt.code];
+    let key = keyCodeMap[evt.code];
     if (key === null || key === undefined) {
-        // key is not deined, so ignoring
-        return;
+        key = KeyCode.create(evt.code, evt.key);
     }
     drivers.keyboardDriver.onKeyPressed(key);
 }
@@ -29299,10 +32265,9 @@ function handleKeyDown(evt) {
  * @param {KeyEvent} evt event
  */
 function handleKeyUp(evt) {
-    const key = keyCodeMap[evt.code];
+    let key = keyCodeMap[evt.code];
     if (key === null || key === undefined) {
-        // key is not deined, so ignoring
-        return;
+        key = KeyCode.create(evt.code, evt.key);
     }
     drivers.keyboardDriver.onKeyReleased(key);
 }
