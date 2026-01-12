@@ -2,5 +2,6 @@
     "name": "Tyracorn Engine",
     "short_name": "Tyracorn Engine",
     "description": "Progressive Web App build by Tyracorn Engine.",
-    "start_url": "./"
+    "start_url": "./",
+    "display": "fullscreen"
 }
