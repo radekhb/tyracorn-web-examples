@@ -48,5 +48,16 @@
         </div>
 
         <script src="./tyracorn-fcb0dc.js" defer></script>
+        <script>
+            if ("serviceWorker" in navigator) {
+                navigator.serviceWorker.register("./sw-1dcf24.js").then((registration) => {
+                    console.log("Service worker registration successful:", registration);
+                }, (error) => {
+                    console.error(`Service worker registration failed: ${error}`);
+                });
+            } else {
+                console.error("Service workers are not supported.");
+            }
+        </script>
     </body>
 </html>
