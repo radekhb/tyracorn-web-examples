@@ -8,11 +8,13 @@ const APP_STATIC_RESOURCES = ["/tyracorn-web-examples/rigid-body-app-06/","/tyra
 
 // On install, cache the static resources
 self.addEventListener("install", (event) => {
-    event.waitUntil(caches.open("v1").then((cache) => cache.addAll(APP_STATIC_RESOURCES)));
+    console.log("Install event" + CACHE_NAME);
+    event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_STATIC_RESOURCES)));
 });
 
 // delete old caches on activate
 self.addEventListener("activate", (event) => {
+    console.log("Activate event:" + CACHE_NAME);
     event.waitUntil(
             (async () => {
                 const names = await caches.keys();
@@ -29,27 +31,27 @@ self.addEventListener("activate", (event) => {
             );
 });
 
-// On fetch, intercept server requests
-// and respond with cached responses instead of going to network
 self.addEventListener("fetch", (event) => {
-    // As a single page app, direct app to always go to cached home page.
     console.log(event.request.url);
-    if (event.request.mode === "navigate") {
-        event.respondWith(caches.match(BASE_PATH + "/"));
-        return;
-    }
-
-    // For all other requests, go to the cache first, and then the network.
     event.respondWith(
-            (async () => {
-                const cache = await caches.open(CACHE_NAME);
-                const cachedResponse = await cache.match(event.request);
-                if (cachedResponse) {
-                    // Return the cached response if it's available.
-                    return cachedResponse;
-                }
-                // If resource isn't in the cache, return a 404.
-                return new Response(null, {status: 404});
-            })(),
+            caches.match(event.request).then((response) => {
+        console.log("Activate event:" + CACHE_NAME + ": " + event.request.url);
+        console.log(response);
+        if (response !== undefined) {
+            return response;
+        }
+        return fetch(event.request)
+                .then((response) => {
+                    // response may be used only once
+                    // we need to save clone to put one copy in cache
+                    // and serve second one
+                    let responseClone = response.clone();
+                    caches
+                            .open(CACHE_NAME)
+                            .then((cache) => cache.put(event.request, responseClone));
+                    return response;
+                })
+                .catch(() => caches.match(BASE_PATH));
+    }),
             );
 });
