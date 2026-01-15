@@ -7,7 +7,7 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const baseUrl = ".";
+const baseUrl = "/tyracorn-web-examples/rigid-body-app-06";
 const assetsDir = "/assets-882ef4";
 const localStoragePrefix = "app.";
 let mouseDown = false;
