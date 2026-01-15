@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const baseUrl = ".";
-const assetsDir = "/assets-882ef4";
+const basePath = "/tyracorn-web-examples/rigid-body-app-03";
+const assetsDirName = "/assets-882ef4";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -2886,7 +2886,7 @@ class WebAssetLoader {
     async listFiles(path, recursive) {
         // resolve the url
         const pathStr = path instanceof Path ? path.path : path;
-        const url = (path.startsWith("asset:") ? baseUrl + assetsDir + "/" + pathStr.substring(6) : pathStr) + "/content.json";
+        const url = (path.startsWith("asset:") ? basePath + assetsDirName + "/" + pathStr.substring(6) : pathStr) + "/content.json";
         let files = [];
         const promise = new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
@@ -2966,7 +2966,7 @@ class WebAssetLoader {
         }
         let url = path;
         if (path.startsWith("asset:")) {
-            url = baseUrl + assetsDir + "/" + path.substring(6);
+            url = basePath + assetsDirName + "/" + path.substring(6);
         }
         // load url
         const data = await new Promise((resolve, reject) => {
@@ -3010,7 +3010,7 @@ class WebAssetLoader {
         }
         let url = path;
         if (path.startsWith("asset:")) {
-            url = baseUrl + assetsDir + "/" + path.substring(6);
+            url = basePath + assetsDirName + "/" + path.substring(6);
         }
         let resTex = null;
         let promise = new Promise((resolve, reject) => {
