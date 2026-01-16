@@ -50,10 +50,12 @@
         <script src="/tyracorn-web-examples/rigid-body-app-06/tyracorn-b63494.js" defer></script>
         <script>
             if ("serviceWorker" in navigator) {
-                navigator.serviceWorker.register("/tyracorn-web-examples/rigid-body-app-06/sw-2f605f.js").then((registration) => {
-                    console.log("Service worker registration successful:", registration);
-                }, (error) => {
-                    console.error(`Service worker registration failed: ${error}`);
+                window.addEventListener("load", () => {
+                    navigator.serviceWorker.register("/tyracorn-web-examples/rigid-body-app-06/sw-12aa3e.js").then((registration) => {
+                        console.log("Service worker registration successful:", registration);
+                    }, (error) => {
+                        console.error(`Service worker registration failed: ${error}`);
+                    });
                 });
             } else {
                 console.error("Service workers are not supported.");
