@@ -7,9 +7,8 @@ const CACHE_NAME = "tyracorn.rigid-boddy-app-06-12aa3e";
 const APP_STATIC_RESOURCES = ["/tyracorn-web-examples/rigid-body-app-06/","/tyracorn-web-examples/rigid-body-app-06/index.html","/tyracorn-web-examples/rigid-body-app-06/manifest.json","/tyracorn-web-examples/rigid-body-app-06/tyracorn-b63494.js","/tyracorn-web-examples/rigid-body-app-06/style-6592d2.css","/tyracorn-web-examples/rigid-body-app-06/tyracorn-256.png","/tyracorn-web-examples/rigid-body-app-06/tyracorn-512.png","/tyracorn-web-examples/rigid-body-app-06/tyracorn-540x960.png","/tyracorn-web-examples/rigid-body-app-06/tyracorn-960x540.jpg","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/content.json","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/ar-backgrounds.tap","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/box-01.tap","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/characters/content.json","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/characters/tyracorn.tap","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/content.json","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/fonts-extra/content.json","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/fonts-extra/kenny-blocks-128.tap","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/fonts-extra/kenny-blocks-64.tap","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/fonts-extra/kenny-bold-64.tap","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/fonts-extra/kenny-future-64.tap","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/fonts-extra/kenny-future-square-64.tap","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/fonts-extra/kenny-space-64.tap","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/fonts-extra/nobile-regular-64.tap","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/fonts-extra/rubik-bold-64.tap","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/fonts-extra/rubik-regular-64.tap","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/images.tap","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/primitives.tap","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/sounds.tap","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/ui/buttons-controls.tap","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/ui/buttons.tap","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/ui/content.json","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/ui/controls.tap","/tyracorn-web-examples/rigid-body-app-06/assets-882ef4/packages/ui/fonts.tap"];
 
 self.addEventListener("install", event => {
-	// Kick out the old service worker
+	// Kick out old service worker
 	self.skipWaiting();
-
 	event.waitUntil(
 		caches.open(CACHE_NAME).then(cache => {
 			return cache.addAll(APP_STATIC_RESOURCES);
@@ -18,7 +17,7 @@ self.addEventListener("install", event => {
 });
 
 self.addEventListener("activate", event => {
-	// Delete any non-current cache
+	// Delete any cache that is not current
 	event.waitUntil(
 		caches.keys().then(keys => {
 			Promise.all(
@@ -32,10 +31,7 @@ self.addEventListener("activate", event => {
 	);
 });
 
-// Offline-first, cache-first strategy
-// Kick off two asynchronous requests, one to the cache and one to the network
-// If there's a cached version available, use it, but fetch an update for next time.
-// Gets data on screen as quickly as possible, then updates once the network has returned the latest data. 
+// Use offline-first, cache-first strategy
 self.addEventListener("fetch", event => {
 	event.respondWith(
 		caches.open(CACHE_NAME).then(cache => {
