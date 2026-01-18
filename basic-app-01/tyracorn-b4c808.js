@@ -13017,6 +13017,12 @@ class UiPosFncs {
     };
   }
 
+  static rightBottom(x, y) {
+    return (size) => {
+      return Pos2.create(size.width()-x, size.height()-y);
+    };
+  }
+
 }
 classRegistry.UiPosFncs = UiPosFncs;
 class UiSizeFncs {

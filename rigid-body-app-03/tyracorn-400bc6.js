@@ -7,7 +7,7 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/pwa-test-app";
+const basePath = "/tyracorn-web-examples/rigid-body-app-03";
 const assetsDirName = "/assets-882ef4";
 const localStoragePrefix = "app.";
 let mouseDown = false;
@@ -13014,6 +13014,12 @@ class UiPosFncs {
   static leftCenter_2_number_number(x, y) {
     return (size) => {
       return Pos2.create(x, size.height()/2+y);
+    };
+  }
+
+  static rightBottom(x, y) {
+    return (size) => {
+      return Pos2.create(size.width()-x, size.height()-y);
     };
   }
 
@@ -30354,24 +30360,247 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class PwaTestApp extends TyracornScreen {
-  ui;
-  storedValuesKey = LocalDataKey.of("values");
-  storedValues;
+class GamePad extends UiComponent {
+  leftJoystick;
+  rightJoystick;
   constructor() {
     super();
   }
 
   getClass() {
-    return "PwaTestApp";
+    return "GamePad";
+  }
+
+  guardInvariants() {
+  }
+
+  getLeftDir() {
+    return this.leftJoystick.getDir();
+  }
+
+  getRightDir() {
+    return this.rightJoystick.getDir();
+  }
+
+  init(container) {
+    this.leftJoystick.init(container);
+    this.rightJoystick.init(container);
+  }
+
+  move(dt) {
+    this.leftJoystick.move(dt);
+    this.rightJoystick.move(dt);
+  }
+
+  draw(painter) {
+    this.leftJoystick.draw(painter);
+    this.rightJoystick.draw(painter);
+  }
+
+  onContainerResize(size) {
+    this.leftJoystick.onContainerResize(size);
+    this.rightJoystick.onContainerResize(size);
+  }
+
+  onTouchStart(id, pos, size) {
+    this.leftJoystick.onTouchStart(id, pos, size);
+    this.rightJoystick.onTouchStart(id, pos, size);
+    return false;
+  }
+
+  onTouchMove(id, pos, size) {
+    this.leftJoystick.onTouchMove(id, pos, size);
+    this.rightJoystick.onTouchMove(id, pos, size);
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    this.leftJoystick.onTouchEnd(id, pos, size, cancel);
+    this.rightJoystick.onTouchEnd(id, pos, size, cancel);
+    return false;
+  }
+
+  onKeyPressed(key) {
+    this.leftJoystick.onKeyPressed(key);
+    this.rightJoystick.onKeyPressed(key);
+    return false;
+  }
+
+  onKeyReleased(key) {
+    this.leftJoystick.onKeyReleased(key);
+    this.rightJoystick.onKeyReleased(key);
+    return false;
+  }
+
+  toString() {
+  }
+
+  static create(drivers) {
+    let res = new GamePad();
+    res.leftJoystick = Joystick.create().setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.leftBottom(25, 125, 100, 100), UiRegionFncs.leftBottom(10, 125, 80, 80))).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("W"), KeyCodeMatchers.upperCharacter("S"), KeyCodeMatchers.upperCharacter("A"), KeyCodeMatchers.upperCharacter("D"));
+    res.rightJoystick = Joystick.create().setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.rightBottom(125, 125, 100, 100), UiRegionFncs.rightBottom(90, 125, 80, 80))).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("I"), KeyCodeMatchers.upperCharacter("K"), KeyCodeMatchers.upperCharacter("J"), KeyCodeMatchers.upperCharacter("L"));
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.GamePad = GamePad;
+class BoxMeshFactory {
+  constructor() {
+  }
+
+  getClass() {
+    return "BoxMeshFactory";
+  }
+
+  static rgbBox() {
+    if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&&arguments[3] instanceof Rgb) {
+      return BoxMeshFactory.rgbBox_4_Rgb_Rgb_Rgb_Rgb(arguments[0], arguments[1], arguments[2], arguments[3]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static rgbBox_3_number_number_number(r, g, b) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.create(-0.5, -0.5, 0.5, r, g, b), Vertex.create(-0.5, -0.5, -0.5, r, g, b), Vertex.create(0.5, -0.5, -0.5, r, g, b), Vertex.create(0.5, -0.5, 0.5, r, g, b), Vertex.create(-0.5, 0.5, 0.5, r, g, b), Vertex.create(0.5, 0.5, 0.5, r, g, b), Vertex.create(0.5, 0.5, -0.5, r, g, b), Vertex.create(-0.5, 0.5, -0.5, r, g, b), Vertex.create(-0.5, -0.5, -0.5, r, g, b), Vertex.create(-0.5, 0.5, -0.5, r, g, b), Vertex.create(0.5, 0.5, -0.5, r, g, b), Vertex.create(0.5, -0.5, -0.5, r, g, b), Vertex.create(-0.5, -0.5, 0.5, r, g, b), Vertex.create(0.5, -0.5, 0.5, r, g, b), Vertex.create(0.5, 0.5, 0.5, r, g, b), Vertex.create(-0.5, 0.5, 0.5, r, g, b), Vertex.create(-0.5, -0.5, 0.5, r, g, b), Vertex.create(-0.5, 0.5, 0.5, r, g, b), Vertex.create(-0.5, 0.5, -0.5, r, g, b), Vertex.create(-0.5, -0.5, -0.5, r, g, b), Vertex.create(0.5, -0.5, 0.5, r, g, b), Vertex.create(0.5, -0.5, -0.5, r, g, b), Vertex.create(0.5, 0.5, -0.5, r, g, b), Vertex.create(0.5, 0.5, 0.5, r, g, b))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static rgbaBox(c1, c2, c3, c4, a) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.create(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.create(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.create(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.create(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static fabricBox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.fabric(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.create(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.create(0.5, -0.5, -0.5, 0, -1, 0), Vertex.create(0.5, -0.5, 0.5, 0, -1, 0), Vertex.create(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.create(0.5, 0.5, 0.5, 0, 1, 0), Vertex.create(0.5, 0.5, -0.5, 0, 1, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.create(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.create(0.5, 0.5, -0.5, 0, 0, -1), Vertex.create(0.5, -0.5, -0.5, 0, 0, -1), Vertex.create(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.create(0.5, -0.5, 0.5, 0, 0, 1), Vertex.create(0.5, 0.5, 0.5, 0, 0, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.create(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.create(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.create(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.create(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 1, 0, 0), Vertex.create(0.5, -0.5, -0.5, 1, 0, 0), Vertex.create(0.5, 0.5, -0.5, 1, 0, 0), Vertex.create(0.5, 0.5, 0.5, 1, 0, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static modelBox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.create(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.create(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.create(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.create(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.create(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.create(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.create(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.create(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.create(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.create(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.create(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.create(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.create(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.create(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.create(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.create(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static modelSkybox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.create(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.create(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.create(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.create(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.create(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.create(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.create(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.create(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.create(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.create(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.create(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.create(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.create(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.create(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.create(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.create(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.create(0.5, 0.5, 0.5, -1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22))).toMesh();
+    return res;
+  }
+
+  static modelBoxDeformed1() {
+    let en = Vec2.create(1, -1).normalize();
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.create(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.create(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.create(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.create(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.create(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.create(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.create(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.create(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.create(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.create(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.create(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.create(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.create(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.create(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.create(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.create(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.create(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.create(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static modelBoxDeformed2() {
+    let en = Vec2.create(-1, -1).normalize();
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.create(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.create(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.create(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.create(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.create(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.create(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.create(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.create(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.create(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.create(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.create(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.create(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.create(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.create(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.create(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.create(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.create(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.create(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.create(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.create(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.create(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.create(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.create(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.create(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+}
+classRegistry.BoxMeshFactory = BoxMeshFactory;
+class FreeCameraBehavior extends Behavior {
+  moveDirInput = "moveDir";
+  rotDirInput = "rotDir";
+  moveSpeed = 3;
+  rotSpeed = 1;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "FreeCameraBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt, inputs) {
+    let moveDir = inputs.getVec2(this.moveDirInput, Vec2.ZERO);
+    let rotDir = inputs.getVec2(this.rotDirInput, Vec2.ZERO);
+    let tc = this.actor().getComponent("TransformComponent");
+    let rot = tc.getRot();
+    if (!moveDir.equals(Vec2.ZERO)) {
+      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize().scale(moveDir.y()*this.moveSpeed*dt);
+      let right = rot.rotate(Vec3.create(1, 0, 0)).normalize().scale(moveDir.x()*this.moveSpeed*dt);
+      tc.move(fwd.add(right));
+    }
+    if (!rotDir.equals(Vec2.ZERO)) {
+      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize();
+      let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
+      let rotX = FMath.asin(fwd.y())+rotDir.y()*this.rotSpeed*dt;
+      let rotY = (fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y()))-rotDir.x()*this.rotSpeed*dt;
+      let rx = Quaternion.rot(1, 0, 0, rotX);
+      let ry = Quaternion.rot(0, 1, 0, rotY);
+      tc.setRot(ry.mul(rx));
+    }
+  }
+
+  static create() {
+    if (arguments.length===0) {
+      return FreeCameraBehavior.create_0();
+    }
+    else if (arguments.length===4&& typeof arguments[0]==="string"&& typeof arguments[1]==="string"&& typeof arguments[2]==="number"&& typeof arguments[3]==="number") {
+      return FreeCameraBehavior.create_4_string_string_number_number(arguments[0], arguments[1], arguments[2], arguments[3]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  static create_0() {
+    let res = new FreeCameraBehavior();
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_4_string_string_number_number(moveDirInput, rotDirInput, moveSpeed, rotSpeed) {
+    let res = new FreeCameraBehavior();
+    res.moveDirInput = moveDirInput;
+    res.rotDirInput = rotDirInput;
+    res.moveSpeed = moveSpeed;
+    res.rotSpeed = rotSpeed;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FreeCameraBehavior = FreeCameraBehavior;
+class RigidBodyApp03 extends TyracornScreen {
+  time = 0;
+  world;
+  inputs = InputCache.create();
+  ui;
+  gamePad;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "RigidBodyApp03";
   }
 
   move(drivers, screenManager, dt) {
+    this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    this.ui.move(dt);
+    this.inputs.put("moveDir", this.gamePad.getLeftDir());
+    this.inputs.put("rotDir", this.gamePad.getRightDir());
+    this.world.move(dt, this.inputs);
+    this.world.render(RenderRequest.NORMAL);
     gDriver.clearBuffers(BufferId.DEPTH);
     let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
     uiRenderer.render(this.ui);
     uiRenderer.end();
   }
@@ -30380,49 +30609,100 @@ class PwaTestApp extends TyracornScreen {
     let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
     res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/primitives.tap")));
     return res;
   }
 
   init(drivers, screenManager, properties) {
-    let platform = drivers.getPlatform();
     let assets = drivers.getDriver("AssetManager");
-    let lds = drivers.getDriver("LocalDataStorage");
-    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 28));
-    this.ui = StretchUi.create(UiSizeFncs.scale(0.7));
-    let ldsString = lds.exists(this.storedValuesKey)?lds.loadString(this.storedValuesKey):"{\"listSelect1\":\"item0\"}";
-    this.storedValues = JsonObjects.parse(ldsString);
-    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Select").setAlignment(TextAlignment.LEFT_TOP));
-    let listSelect1Items = Dut.list(ListSelectItem.create("item0", "Item 1"), ListSelectItem.create("item1", "Item 2"), ListSelectItem.create("item2", "Item 3"), ListSelectItem.create("item3", "Item 4"), ListSelectItem.create("item4", "Item 5"), ListSelectItem.create("item5", "Item 6"), ListSelectItem.create("item6", "Item 7"), ListSelectItem.create("item7", "Item 8"), ListSelectItem.create("item8", "Item 9"), ListSelectItem.create("item9", "Item 10"), ListSelectItem.create("item10", "Item 11"), ListSelectItem.create("item11", "Item 12"), ListSelectItem.create("item12", "Item 13"), ListSelectItem.create("item13", "Item 14"), ListSelectItem.create("item14", "Item 15"), ListSelectItem.create("item15", "Item 16"), ListSelectItem.create("item16", "Item 17"), ListSelectItem.create("item17", "Item 18"), ListSelectItem.create("item18", "Item 19"), ListSelectItem.create("item19", "Item 20"), ListSelectItem.create("item20", "Item 21"), ListSelectItem.create("item21", "Item 22"), ListSelectItem.create("item22", "Item 23"), ListSelectItem.create("item23", "Item 24"), ListSelectItem.create("item24", "Item 25"), ListSelectItem.create("item25", "Item 26"), ListSelectItem.create("item26", "Item 27"), ListSelectItem.create("item27", "Item 28"), ListSelectItem.create("item28", "Item 29"), ListSelectItem.create("item29", "Item 30"));
-    let listSelect1Value = this.storedValues.getString("listSelect1");
-    let listSelect1SelectedIdx = 0;
-    for (let i = 0; i<listSelect1Items.size(); ++i) {
-      if (listSelect1Items.get(i).getValue().equals(listSelect1Value)) {
-        listSelect1SelectedIdx = i;
-        break;
-      }
+    Fonts.prepareScaledFonts(assets, Dut.set(12, 20));
+    assets.put(MaterialId.of("brass"), Material.BRASS);
+    assets.put(MaterialId.of("copper"), Material.COPPER);
+    assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
+    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("brass"));
+    let groundModelId = ModelId.of("ground");
+    assets.put(groundModelId, groundModel);
+    let sphereModelId = ModelId.of("sphere");
+    let boxModelId = ModelId.of("box");
+    let cylinderRoundModelId = ModelId.of("cylinder-round");
+    let halfSphereModelId = ModelId.of("half-sphere");
+    let boxModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
+    assets.put(boxModelId, boxModel);
+    const wallColMatId = PhysicalMaterialId.of("wall");
+    assets.put(wallColMatId, PhysicalMaterial.simple(0.6, 1.8, 1.8));
+    const objectColMatId = PhysicalMaterialId.of("object");
+    assets.put(objectColMatId, PhysicalMaterial.create(0.6, PhysicalMaterialCombineType.AVG, 18, 18, PhysicalMaterialCombineType.MAX));
+    this.world = RigidBodyWorld.create(drivers);
+    let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create().setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-30, -30, -30, 30, 30, 30)));
+    this.world.actors().add(ActorId.ROOT, worldActor);
+    let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create()).addComponent(SkyboxComponent.create().setModelId(ModelId.of("skybox-1")).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create().setAngularVelocity(Vec3.create(0, 0.1, 0)));
+    this.world.actors().add(ActorId.ROOT, skybox);
+    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create().move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(20, 1, 20)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 2, 22)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, ground);
+    let back = Actor.create("back").setName("back").addComponent(TransformComponent.create().move(Vec3.create(0, 0, -10))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(22, 1, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 7, 1)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, back);
+    let front = Actor.create("front").setName("front").addComponent(TransformComponent.create().move(Vec3.create(0, 0, 10))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(22, 1, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 7, 1)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, front);
+    let left = Actor.create("left").setName("left").addComponent(TransformComponent.create().move(Vec3.create(-10, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 22, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 22)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, left);
+    let right = Actor.create("right").setName("right").addComponent(TransformComponent.create().move(Vec3.create(10, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 22, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 22)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, right);
+    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create().lookAt(Vec3.create(2, 5, 5), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create().setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
+    this.world.actors().add(ActorId.ROOT, light);
+    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create().lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create().setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create("moveDir", "rotDir", 5, 1)).addComponent(CameraFovyComponent.create());
+    this.world.actors().add(ActorId.ROOT, camera);
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
+    this.gamePad = GamePad.create(drivers);
+    this.ui.addComponent(this.gamePad);
+    let addSphereAct = (evtSource) => {
+      let r = Randoms.nextFloat(0.5, 1.5);
+      let m = Randoms.nextFloat(1, 2);
+      let sphere = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(objectColMatId));
+      this.world.actors().add(ActorId.ROOT, sphere);
+    };
+    let sphereBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(20, 20, 120, 30)).setText("Sphere").addOnClickAction(addSphereAct);
+    this.ui.addComponent(sphereBtn);
+    let addBoxAct = (evtSource) => {
+      let box = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId));
+      this.world.actors().add(ActorId.ROOT, box);
+    };
+    let boxBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(20, 70, 120, 30)).setText("Box").addOnClickAction(addBoxAct);
+    this.ui.addComponent(boxBtn);
+    let addBoxStraightAct = (evtSource) => {
+      let box = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 12, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId));
+      this.world.actors().add(ActorId.ROOT, box);
+    };
+    let boxStraightBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(20, 120, 120, 30)).setText("Box Straight").addOnClickAction(addBoxStraightAct);
+    this.ui.addComponent(boxStraightBtn);
+    let addCapsuleAct = (evtSource) => {
+      let capsule = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(cylinderRoundModelId).setTransform(Mat44.rotX(FMath.PI/2).mul(Mat44.scale(1, 1, 1)))).addComponent(ModelComponent.create().setModelId(halfSphereModelId).setTransform(Mat44.trans(0, 1, 0).mul(Mat44.rotX(FMath.PI/2)))).addComponent(ModelComponent.create().setModelId(halfSphereModelId).setTransform(Mat44.trans(0, -1, 0).mul(Mat44.rotX(-FMath.PI/2)))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.CAPSULE).setRadius(1).setHeight(4).setMaterialId(objectColMatId));
+      this.world.actors().add(ActorId.ROOT, capsule);
+    };
+    let capsuleBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(20, 170, 120, 30)).setText("Capsule").addOnClickAction(addCapsuleAct);
+    this.ui.addComponent(capsuleBtn);
+    if (drivers.getPlatform().isExitable()) {
+      this.ui.addComponent(Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager)));
     }
-    this.ui.addComponent(ListSelect.create().setRegionFnc(UiRegionFncs.leftTop(10, 50, 200, 150)).addItems(listSelect1Items).setSelectedAt(listSelect1SelectedIdx, true).addOnSelectAction((src) => {
-  let ls = src;
-  let indexes = ls.getSelectedIndexes();
-  if (indexes.isEmpty()) {
-    return ;
-  }
-  let idx = indexes.get(0);
-  let item = ls.getItems().get(idx);
-  this.storedValues = this.storedValues.withString("listSelect1", item.getValue());
-  let storedStr = JsonObjects.toJson(this.storedValues);
-  lds.saveString(this.storedValuesKey, storedStr);
-  platform.logInfo("Updated listSelect1 value to "+item.getValue()+" at index "+idx);
-}));
     this.ui.subscribe(drivers);
+    let dlist = InputCacheDisplayListener.create(this.inputs);
+    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
+    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
   }
 
   leave(drivers) {
     this.ui.unsubscribe(drivers);
+    this.world.destroy(drivers);
+  }
+
+  getRandomVelocity() {
+    let vx = Randoms.nextFloat(0, 2)-1;
+    let vy = Randoms.nextFloat(0, 2)-1;
+    let vz = Randoms.nextFloat(0, 2)-1;
+    return Vec3.create(vx, vy, vz);
   }
 
 }
-classRegistry.PwaTestApp = PwaTestApp;
+classRegistry.RigidBodyApp03 = RigidBodyApp03;
 
 
 // -------------------------------------
@@ -30805,7 +31085,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new PwaTestApp());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new RigidBodyApp03());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
