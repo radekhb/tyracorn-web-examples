@@ -16776,8 +16776,23 @@ class ListSelect extends UiComponent {
     return this;
   }
 
+  getItems() {
+    let res = new ArrayList();
+    for (let env of this.items) {
+      res.add(env.getItem());
+    }
+    return res;
+  }
+
   addItem(item) {
     this.items.add(ListSelectItemEnvelope.create(item));
+    return this;
+  }
+
+  addItems(items) {
+    for (let item of items) {
+      this.addItem(item);
+    }
     return this;
   }
 
