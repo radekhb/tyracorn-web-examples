@@ -101,6 +101,12 @@ a.logo:hover {
     background-clip: text;
 }
 
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
 /* Buttons */
 .btn {
     display: inline-flex;
