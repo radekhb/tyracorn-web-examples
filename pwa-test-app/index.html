@@ -51,11 +51,11 @@
             </footer>
         </div>
 
-        <script src="/tyracorn-web-examples/pwa-test-app/tyracorn-1d14f2.js" defer></script>
+        <script src="/tyracorn-web-examples/pwa-test-app/tyracorn-938cef.js" defer></script>
         <script>
             if ("serviceWorker" in navigator) {
                 window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/tyracorn-web-examples/pwa-test-app/sw-3bcbfe.js").then((registration) => {
+                    navigator.serviceWorker.register("/tyracorn-web-examples/pwa-test-app/sw.js").then((registration) => {
                         console.log("Service worker registration successful:", registration);
                     }, (error) => {
                         console.error(`Service worker registration failed: ${error}`);
