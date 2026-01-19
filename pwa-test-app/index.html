@@ -55,7 +55,9 @@
         <script>
             if ("serviceWorker" in navigator) {
                 window.addEventListener("load", () => {
-                    navigator.serviceWorker.register("/tyracorn-web-examples/pwa-test-app/sw.js").then((registration) => {
+                    navigator.serviceWorker.register("/tyracorn-web-examples/pwa-test-app/sw.js", {
+                        scope: "/tyracorn-web-examples/pwa-test-app/"
+                    }).then((registration) => {
                         console.log("Service worker registration successful:", registration);
                     }, (error) => {
                         console.error(`Service worker registration failed: ${error}`);
@@ -77,15 +79,22 @@
 
             // Show install button if app is not installed
             function setInstallBtnVisibility() {
-                if (isAppInstalled()) {
-                    installBtn.style.display = 'none';
-                    return;
-                }
-
-                // Show button if beforeinstallprompt was captured
                 if (deferredPrompt) {
                     installBtn.style.display = 'inline-flex';
+                } else {
+                    installBtn.style.display = 'none';
                 }
+                /*
+                 if (isAppInstalled()) {
+                 installBtn.style.display = 'none';
+                 return;
+                 }
+                 
+                 // Show button if beforeinstallprompt was captured
+                 if (deferredPrompt) {
+                 installBtn.style.display = 'inline-flex';
+                 }
+                 */
             }
 
             // Listen for beforeinstallprompt event
@@ -124,66 +133,6 @@
 
             window.addEventListener('load', () => {
                 setInstallBtnVisibility();
-            });
-
-            // Go directly fo fullscreen in case app is opened
-            function enterFullscreen() {
-                const canvas = document.getElementById('glCanvas');
-                if (!canvas) {
-                    return;
-                }
-
-                // Enter fullscreen when app is opened (especially in standalone mode)
-                const requestFullscreen = () => {
-                    if (canvas.requestFullscreen) {
-                        return canvas.requestFullscreen().catch(err => {
-                            console.log('Fullscreen request failed:', err);
-                        });
-                    } else if (canvas.webkitRequestFullscreen) {
-                        return canvas.webkitRequestFullscreen();
-                    } else if (canvas.mozRequestFullScreen) {
-                        return canvas.mozRequestFullScreen();
-                    } else if (canvas.msRequestFullscreen) {
-                        return canvas.msRequestFullscreen();
-                    }
-                };
-
-                // Always try to enter fullscreen when app opens, especially in standalone mode
-                if (isAppInstalled()) {
-                    requestFullscreen();
-                }
-            }
-
-            // Wait for canvas to be available and initialized
-            function initFullscreen() {
-                const canvas = document.getElementById('glCanvas');
-                if (canvas) {
-                    // Try multiple times to ensure canvas is ready
-                    let attempts = 0;
-                    const maxAttempts = 10;
-                    const tryFullscreen = () => {
-                        if (canvas.width > 0 && canvas.height > 0) {
-                            enterFullscreen();
-                        } else if (attempts < maxAttempts) {
-                            attempts++;
-                            setTimeout(tryFullscreen, 100);
-                        }
-                    };
-                    tryFullscreen();
-                }
-            }
-
-            // Initialize fullscreen when page loads
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', () => {
-                    setTimeout(initFullscreen, 300);
-                });
-            } else {
-                setTimeout(initFullscreen, 300);
-            }
-
-            window.addEventListener('load', () => {
-                setTimeout(initFullscreen, 500);
             });
         </script>
     </body>
