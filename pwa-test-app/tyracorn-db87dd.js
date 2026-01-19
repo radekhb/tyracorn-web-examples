@@ -30420,7 +30420,7 @@ class PwaTestApp extends TyracornScreen {
   lds.saveString(this.storedValuesKey, storedStr);
   platform.logInfo("Updated listSelect1 value to "+item.getValue()+" at index "+idx);
 }));
-    this.ui.addComponent(Label.create().setText("Test Version 5").setPosFnc(UiPosFncs.rightBottom(10, 10)).setAlignment(TextAlignment.RIGHT_BOTTOM));
+    this.ui.addComponent(Label.create().setText("Test Version 6").setPosFnc(UiPosFncs.rightBottom(10, 10)).setAlignment(TextAlignment.RIGHT_BOTTOM));
     this.ui.subscribe(drivers);
   }
 
