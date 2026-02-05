@@ -7,9 +7,9 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/ui-test-app";
-const assetsDirName = "/assets-c0230d";
-const localStoragePrefix = "app.";
+const basePath = "/tyracorn-web-examples/snake";
+const assetsDirName = "/assets-b66164";
+const localStoragePrefix = "snake.";
 let mouseDown = false;
 let mouseLastDragX = 0;
 let mouseLastDragY = 0;
@@ -111,10 +111,9 @@ class Integer {
     }
 
 }
-// -------------------------------------
-// Float
-// -------------------------------------
-
+/**
+ * Float class.
+ */
 class Float {
     static POSITIVE_INFINITY = Number.POSITIVE_INFINITY;
     static NEGATIVE_INFINITY = Number.NEGATIVE_INFINITY;
@@ -122,9 +121,21 @@ class Float {
     static isInfinite(a) {
         return !Number.isFinite(a);
     }
-    
-    static valueOf(str) {
-        return Number.parseFloat(str);
+
+    /**
+     * Returns or parses the value.
+     * 
+     * @param {Number|String} val string or number representation of the float
+     * @returns {Number} float value
+     */
+    static valueOf(val) {
+        if (typeof val === 'string') {
+            return Number.parseFloat(val);
+        } else if (typeof val === 'number') {
+            return val;
+        } else {
+            throw new Error("unknown value type: " + val);
+        }
     }
 }
 // -------------------------------------
@@ -31292,21 +31303,1160 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class UiTestApp extends TyracornScreen {
+class AboutScreen extends TyracornScreen {
   ui;
   constructor() {
     super();
+    this.guardInvariants();
   }
 
   getClass() {
-    return "UiTestApp";
+    return "AboutScreen";
+  }
+
+  guardInvariants() {
   }
 
   move(drivers, screenManager, dt) {
     let gDriver = drivers.getDriver("GraphicsDriver");
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    this.ui.move(dt);
     gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.add(assets.resolveAsync(Path.of("asset:packages/images.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    let assets = drivers.getDriver("AssetManager");
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(Uis.create().styler());
+    let uiTop = -140;
+    this.ui.addComponent(ImageView.create().setTexture("tyracorn").setRegionFnc(UiRegionFncs.center(-50, uiTop, 100, 100)));
+    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop+110)).setText("Credits").setAlignment(TextAlignment.CENTER_TOP));
+    this.ui.addComponent(Label.create().setPosFnc(UiPosFncs.center(0, uiTop+160)).setText("https://quaternius.com").setAlignment(TextAlignment.CENTER_TOP));
+    this.ui.addComponent(Label.create().setPosFnc(UiPosFncs.center(0, uiTop+190)).setText("https://www.kenney.nl").setAlignment(TextAlignment.CENTER_TOP));
+    this.ui.addComponent(Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, uiTop+230, 120, 30)).setText("Back").addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(null))));
+    let exitBtn = Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(null)));
+    this.ui.addComponent(exitBtn);
+    this.ui.subscribe(drivers);
+  }
+
+  leave(drivers) {
+    drivers.getDriver("AudioDriver").getMixer().stop();
+    this.ui.unsubscribe(drivers);
+  }
+
+}
+classRegistry.AboutScreen = AboutScreen;
+class CameraTrackBehavior extends Behavior {
+  targetId;
+  offset;
+  up;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "CameraTrackBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  lateMove(dt, inputs) {
+    let tc = this.actor().getComponent("TransformComponent");
+    let target = this.world().actors().get(this.targetId);
+    let targetTc = target.getComponent("TransformComponent");
+    tc.lookAt(targetTc.getPos().add(this.offset), targetTc.getPos(), this.up);
+  }
+
+  static create() {
+    if (arguments.length===0) {
+      return CameraTrackBehavior.create_0();
+    }
+    else if (arguments.length===3&&arguments[0] instanceof ActorId&&arguments[1] instanceof Vec3&&arguments[2] instanceof Vec3) {
+      return CameraTrackBehavior.create_3_ActorId_Vec3_Vec3(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  static create_0() {
+    let res = new CameraTrackBehavior();
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_3_ActorId_Vec3_Vec3(targetId, offset, up) {
+    let res = new CameraTrackBehavior();
+    res.targetId = targetId;
+    res.offset = offset;
+    res.up = up;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CameraTrackBehavior = CameraTrackBehavior;
+class CampaignScreen extends TyracornScreen {
+  settings;
+  highScoreManager;
+  ui = null;
+  constructor(settings) {
+    super();
+    this.settings = settings;
+    this.guardInvariants();
+  }
+
+  getClass() {
+    return "CampaignScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.add(assets.resolveAsync(Path.of("asset:packages/level-thumbs.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    if (this.highScoreManager==null) {
+      this.highScoreManager = HighScoreManager.create(drivers.getDriver("LocalDataStorage"));
+    }
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(20, 30, 40));
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(Uis.create().styler());
+    let uiTop = -140;
+    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Campaign").setAlignment(TextAlignment.CENTER_TOP));
+    this.ui.addComponent(Label.create().setPosFnc(UiPosFncs.center(0, uiTop+40)).setText("Total Score: "+this.highScoreManager.getCampaignScore()).setAlignment(TextAlignment.CENTER_TOP));
+    let tabs = TabContainer.create();
+    let tabIdx = 0;
+    for (let i = 0; i<Levels.CAMPAIGN.size(); ++i) {
+      let level = Levels.CAMPAIGN.get(i);
+      let disabled = level.getRequiredScore()>this.highScoreManager.getCampaignScore();
+      if (!disabled) {
+        tabIdx = i;
+      }
+      let tab = Tab.create();
+      tab.addComponent(ImageView.create().setTexture(level.getImageId()).setRegionFnc(UiRegionFncs.center(-120, uiTop+60, 240, 180)));
+      tab.addComponent(Label.create().addTrait(UiComponentTrait.H2).setPosFnc(UiPosFncs.center(-115, uiTop+60)).setText(level.getName()).setAlignment(TextAlignment.LEFT_TOP));
+      tab.addComponent(Label.create().setPosFnc(UiPosFncs.center(-115, uiTop+90)).setText("Required Score: "+level.getRequiredScore()).setAlignment(TextAlignment.LEFT_TOP));
+      tab.addComponent(Label.create().setPosFnc(UiPosFncs.center(-115, uiTop+110)).setText("Difficulty: "+level.getDifficulty()).setAlignment(TextAlignment.LEFT_TOP));
+      tab.addComponent(Label.create().setPosFnc(UiPosFncs.center(-115, uiTop+130)).setText("High Score: "+this.highScoreManager.get(level)).setAlignment(TextAlignment.LEFT_TOP));
+      tab.addComponent(Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, uiTop+250, 120, 30)).setText("Play").setDisabled(disabled).addOnClickAction(UiEventActions.showScreen(screenManager, new GameScreen(this.settings, this.highScoreManager, level))));
+      tabs.addTab(tab);
+    }
+    let freeRideTab = Tab.create();
+    if (this.highScoreManager.isFreeRideOpen()) {
+      tabIdx = tabIdx+1;
+    }
+    freeRideTab.addComponent(Label.create().setPosFnc(UiPosFncs.center(0, -35)).setText("Required Score: "+Levels.FREE_PLAY_REQUIRED_SCORE).setAlignment(TextAlignment.CENTER_TOP));
+    freeRideTab.addComponent(Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, -5, 120, 30)).setText("Free Ride").setDisabled(!this.highScoreManager.isFreeRideOpen()).addOnClickAction(UiEventActions.showScreen(screenManager, new FreeRideScreen(this.settings))));
+    tabs.addTab(freeRideTab);
+    tabs.setActiveTabIdx(tabIdx);
+    this.ui.addComponent(tabs);
+    let prevPageBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(-110, uiTop+250, 30, 30)).setText("<").addOnClickAction(UiEventActions.previousTab(tabs));
+    this.ui.addComponent(prevPageBtn);
+    let nextPageBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(80, uiTop+250, 30, 30)).setText(">").addOnClickAction(UiEventActions.nextTab(tabs));
+    this.ui.addComponent(nextPageBtn);
+    let exitBtn = Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
+    this.ui.addComponent(exitBtn);
+    this.ui.subscribe(drivers);
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+  }
+
+}
+classRegistry.CampaignScreen = CampaignScreen;
+class CollisionLayers {
+  static SNAKE_HEAD = CollisionLayer.of("SNAKE_HEAD");
+  static SNAKE_NECK = CollisionLayer.of("SNAKE_NECK");
+  static SNAKE_BODY = CollisionLayer.of("SNAKE_BODY");
+  static SNAKE_TAIL = CollisionLayer.of("SNAKE_TAIL");
+  static FOOD = CollisionLayer.of("FOOD");
+  constructor() {
+  }
+
+  getClass() {
+    return "CollisionLayers";
+  }
+
+  static getMatrix() {
+    return CollisionLayerMatrix.create().withDef(false).withValue(CollisionLayers.SNAKE_HEAD, CollisionLayer.WALL, true).withValue(CollisionLayers.SNAKE_HEAD, CollisionLayer.OBJECT, true).withValue(CollisionLayers.SNAKE_HEAD, CollisionLayers.SNAKE_BODY, true).withValue(CollisionLayers.SNAKE_HEAD, CollisionLayers.SNAKE_TAIL, true).withValue(CollisionLayers.SNAKE_HEAD, CollisionLayers.FOOD, true).withValue(CollisionLayers.FOOD, CollisionLayer.OBJECT, true).withValue(CollisionLayers.FOOD, CollisionLayer.WALL, true).withValue(CollisionLayers.FOOD, CollisionLayers.SNAKE_NECK, true).withValue(CollisionLayers.FOOD, CollisionLayers.SNAKE_BODY, true).withValue(CollisionLayers.FOOD, CollisionLayers.SNAKE_TAIL, true).withValue(CollisionLayers.FOOD, CollisionLayers.FOOD, true);
+  }
+
+}
+classRegistry.CollisionLayers = CollisionLayers;
+class ComponentDelay extends UiComponent {
+  component;
+  delay;
+  time;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "ComponentDelay";
+  }
+
+  guardInvariants() {
+  }
+
+  init(container) {
+    this.component.init(container);
+  }
+
+  move(dt) {
+    this.time = this.time+dt;
+  }
+
+  draw(painter) {
+    if (this.time<this.delay) {
+      return ;
+    }
+    this.component.draw(painter);
+  }
+
+  onContainerResize(size) {
+    this.component.onContainerResize(size);
+  }
+
+  onKeyPressed(key) {
+    if (this.time<this.delay) {
+      return false;
+    }
+    return this.component.onKeyPressed(key);
+  }
+
+  onKeyReleased(key) {
+    if (this.time<this.delay) {
+      return false;
+    }
+    return this.component.onKeyReleased(key);
+  }
+
+  onTouchStart(id, pos, size) {
+    if (this.time<this.delay) {
+      return false;
+    }
+    return this.component.onTouchStart(id, pos, size);
+  }
+
+  onTouchMove(id, pos, size) {
+    if (this.time<this.delay) {
+      return false;
+    }
+    return this.component.onTouchMove(id, pos, size);
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    if (this.time<this.delay) {
+      return false;
+    }
+    return this.component.onTouchEnd(id, pos, size, cancel);
+  }
+
+  toString() {
+  }
+
+  static create(component, delay) {
+    let res = new ComponentDelay();
+    res.component = component;
+    res.delay = delay;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ComponentDelay = ComponentDelay;
+class FoodGeneratorBehavior extends Behavior {
+  gameState = null;
+  foodPrefabs = null;
+  spawns = null;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "FoodGeneratorBehavior";
+  }
+
+  init() {
+    this.gameState = this.world().actors().get(GameScreen.GAME_STATE_ID).getComponent("GameStateBehavior");
+    this.foodPrefabs = ActorPrefabs.findAllByTag(this.world().assets(), "food");
+    this.spawns = GameActors.findAllByTag(this.world().actors(), "food-spawn");
+  }
+
+  move(dt, inputs) {
+  }
+
+  lateMove(dt, inputs) {
+    if (!this.gameState.getState().equals(GameState.PLAYING)) {
+      return ;
+    }
+    if (this.foodExists()||this.foodPrefabs.isEmpty()) {
+      return ;
+    }
+    let foodSpawn = this.spawns.get(Randoms.nextInt(0, this.spawns.size()));
+    let localPos = Vec3.create(Randoms.nextFloat(0, 1)-0.5, 0, Randoms.nextFloat(0, 1)-0.5);
+    let mc = foodSpawn.getComponent("ModelComponent");
+    let pos = mc.toGlobal(localPos);
+    let rot = Quaternion.rotY(Randoms.nextFloat(0, 2*FMath.PI));
+    let fp = this.foodPrefabs.get(Randoms.nextInt(0, this.foodPrefabs.size()));
+    let fact = this.world().constructActor(CreateActorRequest.create(fp, null, pos, rot));
+    let collider = fact.getComponent("ColliderComponent");
+    while (!this.world().collisions().withCollider(collider).isEmpty()) {
+      foodSpawn = this.spawns.get(Randoms.nextInt(0, this.spawns.size()));
+      mc = foodSpawn.getComponent("ModelComponent");
+      localPos = Vec3.create(Randoms.nextFloat(0, 1)-0.5, 0, Randoms.nextFloat(0, 1)-0.5);
+      pos = mc.toGlobal(localPos);
+      fact.getComponent("TransformComponent").setPos(pos);
+    }
+  }
+
+  foodExists() {
+    let res = new HashSet();
+    let act = (ac) => {
+      if (ac.hasTag("food")) {
+        res.add(true);
+      }
+    };
+    this.world().actors().forEach(ActorId.ROOT, act);
+    return !res.isEmpty();
+  }
+
+  static create() {
+    return new FoodGeneratorBehavior();
+  }
+
+}
+classRegistry.FoodGeneratorBehavior = FoodGeneratorBehavior;
+class FreeRideScreen extends TyracornScreen {
+  settings;
+  highScoreManager;
+  ui = null;
+  constructor(settings) {
+    super();
+    this.settings = settings;
+    this.guardInvariants();
+  }
+
+  getClass() {
+    return "FreeRideScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.add(assets.resolveAsync(Path.of("asset:packages/level-thumbs.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    if (this.highScoreManager==null) {
+      this.highScoreManager = HighScoreManager.create(drivers.getDriver("LocalDataStorage"));
+    }
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(20, 30, 40));
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(Uis.create().styler());
+    let uiTop = -140;
+    const levelIdx = new AtomicInteger(0);
+    const difficulty = new AtomicInteger(1);
+    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Free Ride").setAlignment(TextAlignment.CENTER_TOP));
+    let levelImg = ImageView.create().setTexture(this.getLevel(levelIdx, difficulty).getImageId()).setRegionFnc(UiRegionFncs.center(-100, uiTop+45, 200, 130));
+    this.ui.addComponent(levelImg);
+    const highScoreLabel = Label.create().setPosFnc(UiPosFncs.center(0, uiTop+45)).setText("High Score: "+this.highScoreManager.get(this.getLevel(levelIdx, difficulty))).setAlignment(TextAlignment.CENTER_TOP);
+    this.ui.addComponent(highScoreLabel);
+    const levelNameLabel = Label.create().addTrait(UiComponentTrait.H2).setPosFnc(UiPosFncs.center(0, uiTop+195)).setText(this.getLevel(levelIdx, difficulty).getName()).setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(levelNameLabel);
+    let prevLevelAct = (evtSource) => {
+      if (levelIdx.addAndGet(-1)<0) {
+        levelIdx.set(Levels.FREE_PLAY.size()-1);
+      }
+      levelImg.setTexture(this.getLevel(levelIdx, difficulty).getImageId());
+      highScoreLabel.setText("High Score: "+this.highScoreManager.get(this.getLevel(levelIdx, difficulty)));
+      levelNameLabel.setText(this.getLevel(levelIdx, difficulty).getName());
+    };
+    let prevLevelBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(-110, uiTop+180, 30, 30)).setText("<").addOnClickAction(prevLevelAct);
+    this.ui.addComponent(prevLevelBtn);
+    let nextLevelAct = (evtSource) => {
+      if (levelIdx.addAndGet(1)>=Levels.FREE_PLAY.size()) {
+        levelIdx.set(0);
+      }
+      levelImg.setTexture(this.getLevel(levelIdx, difficulty).getImageId());
+      highScoreLabel.setText("High Score: "+this.highScoreManager.get(this.getLevel(levelIdx, difficulty)));
+      levelNameLabel.setText(this.getLevel(levelIdx, difficulty).getName());
+    };
+    let nextLevelBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(80, uiTop+180, 30, 30)).setText(">").addOnClickAction(nextLevelAct);
+    this.ui.addComponent(nextLevelBtn);
+    const difficultyLabel = Label.create().setPosFnc(UiPosFncs.center(0, uiTop+235)).setText("Dificulty: "+difficulty.get()).setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(difficultyLabel);
+    let prevDiffAct = (evtSource) => {
+      if (difficulty.addAndGet(-1)<1) {
+        difficulty.set(5);
+      }
+      highScoreLabel.setText("High Score: "+this.highScoreManager.get(this.getLevel(levelIdx, difficulty)));
+      difficultyLabel.setText("Dificulty: "+difficulty.get());
+    };
+    let prevDifficultyBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(-110, uiTop+220, 30, 30)).setText("<").addOnClickAction(prevDiffAct);
+    this.ui.addComponent(prevDifficultyBtn);
+    let nextDiffAct = (evtSource) => {
+      if (difficulty.addAndGet(1)>5) {
+        difficulty.set(1);
+      }
+      highScoreLabel.setText("High Score: "+this.highScoreManager.get(this.getLevel(levelIdx, difficulty)));
+      difficultyLabel.setText("Dificulty: "+difficulty.get());
+    };
+    let nextDifficultyBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(80, uiTop+220, 30, 30)).setText(">").addOnClickAction(nextDiffAct);
+    this.ui.addComponent(nextDifficultyBtn);
+    let playAct = (evtSource) => {
+      screenManager.showScreen(new GameScreen(this.settings, this.highScoreManager, this.getLevel(levelIdx, difficulty)));
+    };
+    let platyBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, uiTop+260, 120, 30)).setText("Play").addOnClickAction(playAct);
+    this.ui.addComponent(platyBtn);
+    let exitBtn = Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
+    this.ui.addComponent(exitBtn);
+    this.ui.subscribe(drivers);
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+  }
+
+  getLevel(idx, difficulty) {
+    return Levels.FREE_PLAY.get(idx.get()).withDifficulty(difficulty.get());
+  }
+
+}
+classRegistry.FreeRideScreen = FreeRideScreen;
+class GameActors {
+  constructor() {
+  }
+
+  getClass() {
+    return "GameActors";
+  }
+
+  static findAllByTag(actors, tag) {
+    const res = new ArrayList();
+    let act = (actor) => {
+      if (actor.hasTag(tag)) {
+        res.add(actor);
+      }
+    };
+    actors.forEach(ActorId.ROOT, act);
+    return res;
+  }
+
+  static findByUniqueName(actors, name) {
+    let res = GameActors.findByUniqueNameNonStrict(actors, ActorId.ROOT, name);
+    if (res==null) {
+      throw new Error("actor with the given name doesn't exists: "+name);
+    }
+    return res;
+  }
+
+  static findByNameUniqueNonStrict(actors, name) {
+    return GameActors.findByUniqueNameNonStrict(actors, ActorId.ROOT, name);
+  }
+
+  static findByUniqueNameNonStrict(actors, root, name) {
+    let res = null;
+    let self = actors.get(root);
+    if (self.getName().equals(name)) {
+      res = self;
+    }
+    for (let ch of actors.children(root)) {
+      let chres = GameActors.findByUniqueNameNonStrict(actors, ch.getId(), name);
+      if (chres!=null) {
+        if (res!=null) {
+          throw new Error("actor name is ambiguous: "+name);
+        }
+        res = chres;
+      }
+    }
+    return res;
+  }
+
+}
+classRegistry.GameActors = GameActors;
+const createGameMode = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const GameMode = Object.freeze({
+  CAMPAIGN: createGameMode("CAMPAIGN"),
+  FREE_PLAY: createGameMode("FREE_PLAY"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class GameScreen extends TyracornScreen {
+  static SNAKE_HEAD_ID = ActorId.of("snake-head");
+  static SNAKE_NECK_1_ID = ActorId.of("snake-neck-1");
+  static SNAKE_NECK_2_ID = ActorId.of("snake-neck-2");
+  static SNAKE_TAIL_ID = ActorId.of("snake-tail");
+  static GAME_STATE_ID = ActorId.of("game-state");
+  settings;
+  highScoreManager;
+  level;
+  world;
+  inputs = InputCache.create();
+  ui;
+  joystick;
+  gameState;
+  mainSprite;
+  scoreLabel;
+  paused = false;
+  constructor(settings, highScoreManager, level) {
+    super();
+    this.settings = settings;
+    this.highScoreManager = highScoreManager;
+    this.level = level;
+    this.guardInvariants();
+  }
+
+  getClass() {
+    return "GameScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    if (this.paused) {
+      screenManager.showScreen(new MenuScreen(this.settings));
+      return ;
+    }
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    this.inputs.put("dir", this.joystick.getDir());
+    this.world.move(dt, this.inputs);
+    this.world.render(RenderRequest.NORMAL);
+    let mainSpriteTid = this.gameState.getMainSprite();
+    if (mainSpriteTid==null) {
+      this.mainSprite.hide();
+    }
+    else if (!mainSpriteTid.equals(this.mainSprite.getSprite())) {
+      if (mainSpriteTid.equals(GameStateBehavior.SPRITE_GAME_OVER)) {
+        this.highScoreManager.updateMaybe(this.level, this.gameState.getScore());
+        this.mainSprite.show(mainSpriteTid, 0.3, 1, 1);
+        let btnFont = FontId.of("kenny-mini-20");
+        let nextScr = this.level.getGameMode().equals(GameMode.CAMPAIGN)?new CampaignScreen(this.settings):new FreeRideScreen(this.settings);
+        let restartBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-130, 0, 120, 30)).setText("Restart").addOnClickAction(UiEventActions.showScreen(screenManager, new GameScreen(this.settings, this.highScoreManager, this.level)));
+        this.ui.addComponent(ComponentDelay.create(restartBtn, 1));
+        let nextBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(10, 0, 120, 30)).setText("Next").addOnClickAction(UiEventActions.showScreen(screenManager, nextScr));
+        this.ui.addComponent(ComponentDelay.create(nextBtn, 1));
+      }
+      else {
+        this.mainSprite.show(mainSpriteTid, 1, 0.3, 1);
+      }
+    }
+    gDriver.clearBuffers(BufferId.DEPTH);
+    this.scoreLabel.setText("Score: "+this.gameState.getScore());
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/nature")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/audio")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/snake.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:default.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:prefabs.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:scenes.tap")));
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(20, 32));
+    this.world = RigidBodyWorld.create(drivers).setCollisionLayerMatrix(CollisionLayers.getMatrix());
+    assets.get("Scene", this.level.getSceneId()).emptyWorld(this.world).loadToWorld(this.world, assets);
+    this.gameState = GameStateBehavior.create().setSettings(this.settings);
+    let gameStateAct = Actor.create(GameScreen.GAME_STATE_ID).addComponent(this.gameState);
+    this.world.actors().add(ActorId.ROOT, gameStateAct);
+    this.buildSnake(assets);
+    let foodGenAct = Actor.create("food-generator").addComponent(FoodGeneratorBehavior.create());
+    this.world.actors().add(ActorId.ROOT, foodGenAct);
+    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create().lookAt(Vec3.create(0, 15, 9), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create().setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create().setDisplaySizeInputKey("display.size").setFovyLandscape(FMath.toRadians(60)).setFovyPortrait(FMath.toRadians(90))).addComponent(CameraTrackBehavior.create(GameScreen.SNAKE_HEAD_ID, Vec3.create(0, 7, 3), Vec3.create(0, 0, -1)));
+    this.world.actors().add(ActorId.ROOT, camera);
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(Uis.create().styler());
+    this.joystick = Joystick.create().setRegionFnc(UiRegionFncs.centerBottom(125, 100, 100)).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD());
+    this.ui.addComponent(this.joystick);
+    let mainSpriteRegFnc = (t) => {
+      let w = t.width()>t.hashCode()?t.width()*0.6:t.width()*0.9;
+      let h = t.width()>t.hashCode()?100:t.height()*0.2;
+      return Rect2.create(t.width()/2-w/2, t.height()/3-h/2, w, h);
+    };
+    this.mainSprite = MainSpritePanel.create(assets).setRegionFnc(mainSpriteRegFnc);
+    this.ui.addComponent(this.mainSprite);
+    this.scoreLabel = Label.create().addTrait(UiComponentTrait.H3).setPosFnc(UiPosFncs.leftTop(5, 5)).setAlignment(TextAlignment.LEFT_TOP).setText("Score: 0");
+    this.ui.addComponent(this.scoreLabel);
+    let exitBtn = Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
+    this.ui.addComponent(exitBtn);
+    this.ui.subscribe(drivers);
+    let dlist = InputCacheDisplayListener.create(this.inputs);
+    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
+    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+    this.world.destroy(drivers);
+  }
+
+  pause(drivers) {
+    this.paused = true;
+  }
+
+  buildSnake(assets) {
+    let spawns = GameActors.findAllByTag(this.world.actors(), "snake-spawn");
+    let snakeSpawn = spawns.get(Randoms.nextInt(0, spawns.size()));
+    let localPos = Vec3.create(Randoms.nextFloat(0, 1)-0.5, 0, Randoms.nextFloat(0, 1)-0.5);
+    let mc = snakeSpawn.getComponent("ModelComponent");
+    let headPos = mc.getGlobalMat().mul(localPos);
+    let angle = FMath.PI*Randoms.nextInt(0, 4)*0.5;
+    let headPrefab = assets.get("ActorPrefab", ActorPrefabId.of("snake-head-1"));
+    let headCr = CreateActorRequest.create(headPrefab, GameScreen.SNAKE_HEAD_ID, headPos, Quaternion.rotY(angle));
+    let headActor = this.world.constructActor(headCr);
+    let hbeh = headActor.getComponent("SnakeHeadBehavior");
+    hbeh.scaleSpeed(1+(this.level.getDifficulty()-1)/4);
+    let neckPrefab = assets.get("ActorPrefab", ActorPrefabId.of("snake-neck-1"));
+    let neck1Pos = headActor.getComponent("TransformComponent").toGlobal(Vec3.create(0, 0, 0.5));
+    let neck1Cr = CreateActorRequest.create(neckPrefab, GameScreen.SNAKE_NECK_1_ID, neck1Pos, Quaternion.rotY(angle));
+    let neck1Actor = this.world.constructActor(neck1Cr);
+    neck1Actor.addComponent(ShadowMoveBehavior.create().setTargetActorId(GameScreen.SNAKE_HEAD_ID).setDistance(0.5));
+    let neck2Pos = neck1Actor.getComponent("TransformComponent").toGlobal(Vec3.create(0, 0, 0.5));
+    let neck2Cr = CreateActorRequest.create(neckPrefab, GameScreen.SNAKE_NECK_2_ID, neck2Pos, Quaternion.rotY(angle));
+    let neck2Actor = this.world.constructActor(neck2Cr);
+    neck2Actor.addComponent(ShadowMoveBehavior.create().setTargetActorId(GameScreen.SNAKE_NECK_1_ID).setDistance(0.5));
+    let tailPos = neck2Actor.getComponent("TransformComponent").toGlobal(Vec3.create(0, 0, 0.5));
+    let tailPrefab = assets.get("ActorPrefab", ActorPrefabId.of("snake-tail-1"));
+    let tailCr = CreateActorRequest.create(tailPrefab, GameScreen.SNAKE_TAIL_ID, tailPos, Quaternion.rotY(angle));
+    let tailActor = this.world.constructActor(tailCr);
+    tailActor.addComponent(ShadowMoveBehavior.create().setTargetActorId(GameScreen.SNAKE_NECK_2_ID).setDistance(0.5));
+  }
+
+}
+classRegistry.GameScreen = GameScreen;
+const createGameState = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const GameState = Object.freeze({
+  STARTING: createGameState("STARTING"),
+  PLAYING: createGameState("PLAYING"),
+  GAME_OVER: createGameState("GAME_OVER"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class GameStateBehavior extends Behavior {
+  static SPRITE_3 = TextureId.of("3");
+  static SPRITE_2 = TextureId.of("2");
+  static SPRITE_1 = TextureId.of("1");
+  static SPRITE_GO = TextureId.of("go");
+  static SPRITE_GAME_OVER = TextureId.of("game-over");
+  settings;
+  time = -3.5;
+  state = GameState.STARTING;
+  score = 0;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "GameStateBehavior";
+  }
+
+  move(dt, inputs) {
+    let before = this.getMainSprite();
+    this.time = this.time+dt;
+    let after = this.getMainSprite();
+    if (before!=null&&after!=null) {
+      if (before.equals(GameStateBehavior.SPRITE_3)&&after.equals(GameStateBehavior.SPRITE_2)&&this.isSoundEnabled()) {
+        this.world().audio().prepare(PlaybackId.of(Randoms.nextAlphabetic(8)), SoundId.of("zap2")).setVolume(this.getVolume()).play();
+      }
+      else if (before.equals(GameStateBehavior.SPRITE_2)&&after.equals(GameStateBehavior.SPRITE_1)&&this.isSoundEnabled()) {
+        this.world().audio().prepare(PlaybackId.of(Randoms.nextAlphabetic(8)), SoundId.of("zap2")).setVolume(this.getVolume()).play();
+      }
+      else if (before.equals(GameStateBehavior.SPRITE_1)&&after.equals(GameStateBehavior.SPRITE_GO)&&this.isSoundEnabled()) {
+        this.world().audio().prepare(PlaybackId.of(Randoms.nextAlphabetic(8)), SoundId.of("zap1")).setVolume(this.getVolume()).play();
+      }
+    }
+    if (this.state.equals(GameState.STARTING)&&this.time>=0) {
+      this.state = GameState.PLAYING;
+    }
+  }
+
+  getState() {
+    return this.state;
+  }
+
+  toGameOver() {
+    this.state = GameState.GAME_OVER;
+    return this;
+  }
+
+  getMainSprite() {
+    if (this.state.equals(GameState.STARTING)) {
+      if (this.time<-3) {
+        return null;
+      }
+      else if (this.time<-2) {
+        return GameStateBehavior.SPRITE_3;
+      }
+      else if (this.time<-1) {
+        return GameStateBehavior.SPRITE_2;
+      }
+      else if (this.time<0) {
+        return GameStateBehavior.SPRITE_1;
+      }
+      else if (this.time<1) {
+        return GameStateBehavior.SPRITE_GO;
+      }
+    }
+    if (this.state.equals(GameState.PLAYING)) {
+      if (this.time<1) {
+        return GameStateBehavior.SPRITE_GO;
+      }
+    }
+    else if (this.state.equals(GameState.GAME_OVER)) {
+      return GameStateBehavior.SPRITE_GAME_OVER;
+    }
+    return null;
+  }
+
+  getScore() {
+    return this.score;
+  }
+
+  incrementScore() {
+    this.score = this.score+1;
+    return this;
+  }
+
+  isSoundEnabled() {
+    return this.settings.getBoolean(PropertyKey.of("audio.sound.enabled"));
+  }
+
+  getVolume() {
+    return this.settings.getFloat(PropertyKey.of("audio.sound.volume"));
+  }
+
+  setSettings(settings) {
+    Guard.notNull(settings, "settings cannot be null");
+    this.settings = settings;
+    return this;
+  }
+
+  static create() {
+    return new GameStateBehavior();
+  }
+
+}
+classRegistry.GameStateBehavior = GameStateBehavior;
+class HighScoreManager {
+  properties;
+  constructor() {
+  }
+
+  getClass() {
+    return "HighScoreManager";
+  }
+
+  guardInvariants() {
+  }
+
+  get(level) {
+    return this.properties.getInt(level.getHighscoreKey(), 0);
+  }
+
+  updateMaybe(level, sc) {
+    let chs = this.get(level);
+    if (sc<=chs) {
+      return false;
+    }
+    this.properties.put(level.getHighscoreKey(), sc);
+    return true;
+  }
+
+  getCampaignScore() {
+    let res = 0;
+    for (let level of Levels.CAMPAIGN) {
+      res = res+this.get(level);
+    }
+    return res;
+  }
+
+  isFreeRideOpen() {
+    return this.getCampaignScore()>=Levels.FREE_PLAY_REQUIRED_SCORE;
+  }
+
+  clearAll() {
+    this.properties.removeAll();
+  }
+
+  toString() {
+  }
+
+  static create(storage) {
+    let res = new HighScoreManager();
+    res.properties = LocalDataConfigProperties.create(storage, LocalDataKey.of("highscore.properties"));
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.HighScoreManager = HighScoreManager;
+class Level {
+  gameMode;
+  key;
+  name;
+  imageId;
+  sceneId;
+  difficulty;
+  requiredScore;
+  constructor() {
+  }
+
+  getClass() {
+    return "Level";
+  }
+
+  guardInvariants() {
+  }
+
+  getGameMode() {
+    return this.gameMode;
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  getImageId() {
+    return this.imageId;
+  }
+
+  getSceneId() {
+    return this.sceneId;
+  }
+
+  getDifficulty() {
+    return this.difficulty;
+  }
+
+  getRequiredScore() {
+    return this.requiredScore;
+  }
+
+  withDifficulty(difficulty) {
+    let res = new Level();
+    res.gameMode = this.gameMode;
+    res.key = this.key;
+    res.name = this.name;
+    res.imageId = this.imageId;
+    res.sceneId = this.sceneId;
+    res.difficulty = difficulty;
+    res.requiredScore = this.requiredScore;
+    res.guardInvariants();
+    return res;
+  }
+
+  getHighscoreKey() {
+    if (this.gameMode.equals(GameMode.CAMPAIGN)) {
+      return PropertyKey.of("highscore."+this.key);
+    }
+    else if (this.gameMode.equals(GameMode.FREE_PLAY)) {
+      return PropertyKey.of("highscore."+this.key+"-"+this.difficulty);
+    }
+    else {
+      throw new Error("unknown game more: "+this.gameMode);
+    }
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(gameMode, key, name, imageId, sceneId, difficulty, requiredScore) {
+    let res = new Level();
+    res.gameMode = gameMode;
+    res.key = key;
+    res.name = name;
+    res.imageId = imageId;
+    res.sceneId = sceneId;
+    res.difficulty = difficulty;
+    res.requiredScore = requiredScore;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.Level = Level;
+class Levels {
+  static CAMPAIGN = Dut.immutableList(Level.create(GameMode.CAMPAIGN, "campaign-00", "Level 1", TextureId.of("level-1"), SceneId.of("level-1"), 1, 0), Level.create(GameMode.CAMPAIGN, "campaign-01", "Level 2", TextureId.of("level-2"), SceneId.of("level-2"), 1, 30), Level.create(GameMode.CAMPAIGN, "campaign-02", "Level 3", TextureId.of("level-1"), SceneId.of("level-1"), 2, 60), Level.create(GameMode.CAMPAIGN, "campaign-03", "Level 4", TextureId.of("level-3"), SceneId.of("level-3"), 2, 100), Level.create(GameMode.CAMPAIGN, "campaign-04", "Level 5", TextureId.of("level-2"), SceneId.of("level-2"), 2, 140), Level.create(GameMode.CAMPAIGN, "campaign-05", "Level 6", TextureId.of("level-3"), SceneId.of("level-3"), 3, 180), Level.create(GameMode.CAMPAIGN, "campaign-06", "Level 7", TextureId.of("level-1"), SceneId.of("level-1"), 3, 220), Level.create(GameMode.CAMPAIGN, "campaign-07", "Level 8", TextureId.of("level-2"), SceneId.of("level-2"), 4, 265), Level.create(GameMode.CAMPAIGN, "campaign-08", "Level 9", TextureId.of("level-3"), SceneId.of("level-3"), 4, 310), Level.create(GameMode.CAMPAIGN, "campaign-09", "Level 10", TextureId.of("level-4"), SceneId.of("level-4"), 5, 350));
+  static FREE_PLAY = Dut.immutableList(Level.create(GameMode.FREE_PLAY, "free-00", "Level 1", TextureId.of("level-1"), SceneId.of("level-1"), 1, 0), Level.create(GameMode.FREE_PLAY, "free-01", "Level 2", TextureId.of("level-2"), SceneId.of("level-2"), 1, 0), Level.create(GameMode.FREE_PLAY, "free-02", "Level 3", TextureId.of("level-3"), SceneId.of("level-3"), 1, 0), Level.create(GameMode.FREE_PLAY, "free-03", "Level 4", TextureId.of("level-4"), SceneId.of("level-4"), 1, 0));
+  static FREE_PLAY_REQUIRED_SCORE = 400;
+  constructor() {
+  }
+
+  getClass() {
+    return "Levels";
+  }
+
+}
+classRegistry.Levels = Levels;
+class MainSpritePanel extends UiComponent {
+  assets;
+  spriteContainer;
+  sprite;
+  visible;
+  startScale;
+  endScale;
+  duration;
+  atime;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "MainSpritePanel";
+  }
+
+  guardInvariants() {
+  }
+
+  init(container) {
+    this.spriteContainer.init(container);
+  }
+
+  move(dt) {
+    if (!this.visible||this.atime>this.duration) {
+      return ;
+    }
+    let t = this.atime/this.duration;
+    let scale = (1-t)*this.startScale+t*this.endScale;
+    this.sprite.setRegionFnc(this.createSpriteRegFnc(scale));
+    this.atime = this.atime+dt;
+  }
+
+  draw(painter) {
+    if (this.visible) {
+      this.spriteContainer.draw(painter);
+    }
+  }
+
+  onContainerResize(size) {
+    this.spriteContainer.onContainerResize(size);
+  }
+
+  setRegionFnc(regionFnc) {
+    this.spriteContainer.setRegionFnc(regionFnc);
+    return this;
+  }
+
+  toString() {
+  }
+
+  getSprite() {
+    return this.visible?this.sprite.getTexture():null;
+  }
+
+  show(sprite, startScale, endScale, duration) {
+    this.sprite.setTexture(sprite);
+    this.sprite.setRegionFnc(this.createSpriteRegFnc(startScale));
+    this.startScale = startScale;
+    this.endScale = endScale;
+    this.duration = duration;
+    this.atime = 0;
+    this.visible = true;
+    return this;
+  }
+
+  hide() {
+    this.visible = false;
+    return this;
+  }
+
+  createSpriteRegFnc(scale) {
+    let sprTex = this.assets.get("Texture", this.sprite.getTexture());
+    let sprW = sprTex.getWidth();
+    let sprH = sprTex.getHeight();
+    let sprAsp = sprW/sprH;
+    return (s) => {
+      if (s.width()<1||s.height()<1) {
+        return Rect2.create(Pos2.ZERO, s);
+      }
+      let aspect = s.width()/s.height();
+      if (sprAsp>=aspect) {
+        let w = s.width()*scale;
+        let h = sprH*s.width()/sprW*scale;
+        return Rect2.create(s.width()/2-w/2, s.height()/2-h/2, w, h);
+      }
+      else {
+        let w = sprW*s.height()/sprH*scale;
+        let h = s.height()*scale;
+        return Rect2.create(s.width()/2-w/2, s.height()/2-h/2, w, h);
+      }
+    };
+  }
+
+  static create(assets) {
+    let res = new MainSpritePanel();
+    res.assets = assets;
+    res.spriteContainer = Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setInnerSizeFnc(UiSizeFncs.identity()).setRegionFnc(UiRegionFncs.full());
+    res.sprite = ImageView.create().setRegionFnc(UiRegionFncs.full()).setTexture("empty");
+    res.spriteContainer.addComponent(res.sprite);
+    res.visible = false;
+    res.startScale = 1;
+    res.endScale = 1;
+    res.duration = 1;
+    res.atime = 0;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.MainSpritePanel = MainSpritePanel;
+class MenuScreen extends TyracornScreen {
+  settings;
+  ui = null;
+  constructor(settings) {
+    super();
+    this.settings = settings;
+  }
+
+  getClass() {
+    return "MenuScreen";
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
     let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
     uiRenderer.render(this.ui);
     uiRenderer.end();
@@ -31320,117 +32470,25 @@ class UiTestApp extends TyracornScreen {
   }
 
   init(drivers, screenManager, properties) {
-    let platform = drivers.getPlatform();
-    let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 28));
-    this.ui = StretchUi.create(UiSizeFncs.scale(0.7));
-    let tabs = TabContainer.create().setRegionFnc(UiRegionFncs.fullFromTop(50));
-    this.ui.addComponent(tabs);
-    let navbar = TabNavbar.create().setTabContainer(tabs).setRegionFnc(UiRegionFncs.fullTop(50)).addTextTabLink("Labels").addTextTabLink("Buttons").addTextTabLink("Selects").addTextTabLink("Inputs");
-    this.ui.addComponent(navbar);
-    let labelsTab = Tab.create();
-    tabs.addTab(labelsTab);
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Example of H1 text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.H2).setPosFnc(UiPosFncs.leftTop(10, 50)).setText("Example of H2 text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.H3).setPosFnc(UiPosFncs.leftTop(10, 90)).setText("Example of H3 text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.XL).setPosFnc(UiPosFncs.leftTop(10, 130)).setText("Example of extra-large regular text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.L).setPosFnc(UiPosFncs.leftTop(10, 160)).setText("Example of large regular text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 190)).setText("Example of regular text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.S).setPosFnc(UiPosFncs.leftTop(10, 220)).setText("Example of small regular text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.XS).setPosFnc(UiPosFncs.leftTop(10, 250)).setText("Example of extra-small regular text").setAlignment(TextAlignment.LEFT_TOP));
-    let butonsTab = Tab.create();
-    tabs.addTab(butonsTab);
-    butonsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Regular buttons").setAlignment(TextAlignment.LEFT_TOP));
-    butonsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 40)).setText("Press by Q, H, G or Ctrl + E").setAlignment(TextAlignment.LEFT_TOP));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 20, 20)).addTrait(UiComponentTrait.XS).setText("XS").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).addOnClickAction((evt) => {
-  platform.logInfo("XS button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(40, 70, 20, 20)).addTrait(UiComponentTrait.HAMBURGER).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("H")).addOnClickAction((evt) => {
-  platform.logInfo("Hamburger button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(70, 70, 20, 20)).addTrait(UiComponentTrait.CROSS).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("G")).addOnClickAction((evt) => {
-  platform.logInfo("Cross button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 100, 50, 20)).addTrait(UiComponentTrait.S).setText("Small").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).addOnClickAction((evt) => {
-  platform.logInfo("S button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 130, 100, 20)).setText("Medium").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).addOnClickAction((evt) => {
-  platform.logInfo("M button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 160, 150, 20)).addTrait(UiComponentTrait.L).setText("Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.control(), KeyCodeMatchers.upperCharacter("E"))).addOnClickAction((evt) => {
-  platform.logInfo("L button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 190, 200, 20)).addTrait(UiComponentTrait.XL).setText("Extra Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.control(), KeyCodeMatchers.upperCharacter("E"))).addOnClickAction((evt) => {
-  platform.logInfo("XL button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 220, 100, 20)).setText("Disabled").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).setDisabled(true).addOnClickAction((evt) => {
-  platform.logInfo("Disabled button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(120, 220, 20, 20)).addTrait(UiComponentTrait.HAMBURGER).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("H")).setDisabled(true).addOnClickAction((evt) => {
-  platform.logInfo("Disabled hamburger button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(150, 220, 20, 20)).addTrait(UiComponentTrait.CROSS).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("G")).setDisabled(true).addOnClickAction((evt) => {
-  platform.logInfo("Disabled cross button - click");
-}));
-    butonsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(230, 10)).setText("Toggle buttons").setAlignment(TextAlignment.LEFT_TOP));
-    butonsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(230, 40)).setText("Toggle by Z or Shift + X").setAlignment(TextAlignment.LEFT_TOP));
-    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 70, 20, 20)).addTrait(UiComponentTrait.XS).setText("XS").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Z")).addOnToggleAction((evt) => {
-  platform.logInfo("XS toggle button - toggled");
-}));
-    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 100, 50, 20)).addTrait(UiComponentTrait.S).setText("Small").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Z")).addOnToggleAction((evt) => {
-  platform.logInfo("S toggle button - toggled");
-}));
-    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 130, 100, 20)).setText("Medium").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Z")).addOnToggleAction((evt) => {
-  platform.logInfo("M toggle button - toggled");
-}));
-    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 160, 150, 20)).addTrait(UiComponentTrait.L).setText("Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.shift(), KeyCodeMatchers.upperCharacter("X"))).addOnToggleAction((evt) => {
-  platform.logInfo("L toggle button - toggled");
-}));
-    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 190, 200, 20)).addTrait(UiComponentTrait.XL).setText("Extra Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.shift(), KeyCodeMatchers.upperCharacter("X"))).addOnToggleAction((evt) => {
-  platform.logInfo("XL toggle button - toggled");
-}));
-    butonsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(450, 10)).setText("Joystick").setAlignment(TextAlignment.LEFT_TOP));
-    butonsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(450, 40)).setText("Control by arrows or WSAD").setAlignment(TextAlignment.LEFT_TOP));
-    butonsTab.addComponent(Joystick.create().setRegionFnc(UiRegionFncs.leftTop(450, 70, 80, 80)).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD()));
-    let selectsTab = Tab.create();
-    tabs.addTab(selectsTab);
-    selectsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Few items").setAlignment(TextAlignment.LEFT_TOP));
-    selectsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 40)).setText("No srolling").setAlignment(TextAlignment.LEFT_TOP));
-    selectsTab.addComponent(ListSelect.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 200, 100)).addOnSelectAction((src) => {
-  platform.logInfo("Small list: "+(src).getSelectedIndexes().toString());
-}).addItem(ListSelectItem.create("item1", "Item 1")).addItem(ListSelectItem.create("item2", "Item 2")).addItem(ListSelectItem.create("item3", "Item 3 - string that is long enough to be clipped")));
-    selectsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(230, 10)).setText("Scrolling").setAlignment(TextAlignment.LEFT_TOP));
-    selectsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(230, 40)).setText("Necessary to scroll").setAlignment(TextAlignment.LEFT_TOP));
-    selectsTab.addComponent(ListSelect.create().setRegionFnc(UiRegionFncs.leftTop(230, 70, 200, 100)).addOnSelectAction((src) => {
-  platform.logInfo("Big list: "+(src).getSelectedIndexes().toString());
-}).addItem(ListSelectItem.create("item1", "Item 1")).addItem(ListSelectItem.create("item2", "Item 2")).addItem(ListSelectItem.create("item3", "Item 3")).addItem(ListSelectItem.create("item4", "Item 4")).addItem(ListSelectItem.create("item5", "Item 5")).addItem(ListSelectItem.create("item6", "Item 6")).addItem(ListSelectItem.create("item7", "Item 7")).addItem(ListSelectItem.create("item8", "Item 8")).addItem(ListSelectItem.create("item9", "Item 9")).addItem(ListSelectItem.create("item10", "Item 10")).addItem(ListSelectItem.create("item11", "Item 11")).addItem(ListSelectItem.create("item12", "Item 12")).addItem(ListSelectItem.create("item13", "Item 13")).addItem(ListSelectItem.create("item14", "Item 14")).addItem(ListSelectItem.create("item15", "Item 15")).addItem(ListSelectItem.create("item16", "Item 16")).addItem(ListSelectItem.create("item17", "Item 17")).addItem(ListSelectItem.create("item18", "Item 18")).addItem(ListSelectItem.create("item19", "Item 19")).addItem(ListSelectItem.create("item20", "Item 20")).addItem(ListSelectItem.create("item21", "Item 21")).addItem(ListSelectItem.create("item22", "Item 22")).addItem(ListSelectItem.create("item23", "Item 23")).addItem(ListSelectItem.create("item24", "Item 24")).addItem(ListSelectItem.create("item25", "Item 25")).addItem(ListSelectItem.create("item26", "Item 26")).addItem(ListSelectItem.create("item27", "Item 27")).addItem(ListSelectItem.create("item28", "Item 28")).addItem(ListSelectItem.create("item29", "Item 29")).addItem(ListSelectItem.create("item30", "Item 30")));
-    selectsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(450, 10)).setText("Dropdown").setAlignment(TextAlignment.LEFT_TOP));
-    selectsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(450, 40)).setText("Select item from dropdown").setAlignment(TextAlignment.LEFT_TOP));
-    selectsTab.addComponent(Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(450, 70, 100, 30)).setLabelText("Small tiems").setSelected(DropdownItem.create("", "")).addItem(DropdownItem.create("item1", "Item 1")).addItem(DropdownItem.create("item2", "Item 2")).addItem(DropdownItem.create("item3", "Item 3 - string that is long enough to be clipped")).addOnChangeAction((src) => {
-  platform.logInfo("Dropdown changed: "+(src).getSelected().getText());
-}));
-    selectsTab.addComponent(Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(450, 110, 100, 30)).setLabelText("Many tiems").setSelected(DropdownItem.create("", "")).addItem(DropdownItem.create("item1", "Item 1")).addItem(DropdownItem.create("item2", "Item 2")).addItem(DropdownItem.create("item3", "Item 3")).addItem(DropdownItem.create("item4", "Item 4")).addItem(DropdownItem.create("item5", "Item 5")).addItem(DropdownItem.create("item6", "Item 6")).addItem(DropdownItem.create("item7", "Item 7")).addItem(DropdownItem.create("item8", "Item 8")).addItem(DropdownItem.create("item9", "Item 9")).addItem(DropdownItem.create("item10", "Item 10")).addItem(DropdownItem.create("item11", "Item 11")).addItem(DropdownItem.create("item12", "Item 12")).addItem(DropdownItem.create("item13", "Item 13")).addItem(DropdownItem.create("item14", "Item 14")).addItem(DropdownItem.create("item15", "Item 15")).addItem(DropdownItem.create("item16", "Item 16")).addItem(DropdownItem.create("item17", "Item 17")).addItem(DropdownItem.create("item18", "Item 18")).addItem(DropdownItem.create("item19", "Item 19")).addItem(DropdownItem.create("item20", "Item 20")).addOnChangeAction((src) => {
-  platform.logInfo("Dropdown changed: "+(src).getSelected().getText());
-}));
-    let inputsTab = Tab.create();
-    tabs.addTab(inputsTab);
-    inputsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Text fields").setAlignment(TextAlignment.LEFT_TOP));
-    inputsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 40)).setText("Input text, integers, and floats").setAlignment(TextAlignment.LEFT_TOP));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 100, 30)).setLabelText("Text").setValue("Hello").setConstraint(TextFieldFreeConstraint.create(10)).addOnChangeAction((src) => {
-  platform.logInfo("Text field changed: "+(src).getValue());
-}));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 110, 100, 30)).setLabelText("Integer").setValue("0").setConstraint(TextFieldIntegerConstraint.create(true, 8)).addOnChangeAction((src) => {
-  platform.logInfo("Integer field changed: "+(src).getValue());
-}));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 150, 100, 30)).setLabelText("Not negative Integer").setValue("0").setConstraint(TextFieldIntegerConstraint.create(false, 8)).addOnChangeAction((src) => {
-  platform.logInfo("Not negative Integer field changed: "+(src).getValue());
-}));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 190, 100, 30)).setLabelText("Float").setValue("0.0").setConstraint(TextFieldFloatConstraint.create(true, 8)).addOnChangeAction((src) => {
-  platform.logInfo("Float field changed: "+(src).getValue());
-}));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 230, 100, 30)).setLabelText("Not negative Float").setValue("0.0").setConstraint(TextFieldFloatConstraint.create(false, 8)).addOnChangeAction((src) => {
-  platform.logInfo("Not negative Float field changed: "+(src).getValue());
-}));
+    if (this.settings==null) {
+      this.settings = LocalDataConfigProperties.create(drivers.getDriver("LocalDataStorage"), LocalDataKey.of("settings.properties")).withDefaults(Dut.map(PropertyKey.of("audio.sound.enabled"), "true", PropertyKey.of("audio.sound.volume"), "1"));
+    }
+    let highScoreManager = HighScoreManager.create(drivers.getDriver("LocalDataStorage"));
+    Uis.prepareScaledFonts(drivers);
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(Uis.create().styler());
+    this.ui.addComponent(ImageView.create().setTexture("snake").setRegionFnc(UiRegionFncs.center(-90, -140, 180, 100)));
+    let playBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, -20, 120, 30)).setText("Campaign").addOnClickAction(UiEventActions.showScreen(screenManager, new CampaignScreen(this.settings)));
+    this.ui.addComponent(playBtn);
+    let freeRideBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, 20, 120, 30)).setText("Free Ride").setDisabled(!highScoreManager.isFreeRideOpen()).addOnClickAction(UiEventActions.showScreen(screenManager, new FreeRideScreen(this.settings)));
+    this.ui.addComponent(freeRideBtn);
+    let settingsBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, 60, 120, 30)).setText("Settings").addOnClickAction(UiEventActions.showScreen(screenManager, new SettingsScreen(this.settings)));
+    this.ui.addComponent(settingsBtn);
+    let aboutBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, 100, 120, 30)).setText("About").addOnClickAction(UiEventActions.showScreen(screenManager, new AboutScreen()));
+    this.ui.addComponent(aboutBtn);
+    if (drivers.getPlatform().isExitable()) {
+      let exitBtn = Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager));
+      this.ui.addComponent(exitBtn);
+    }
     this.ui.subscribe(drivers);
   }
 
@@ -31439,7 +32497,462 @@ class UiTestApp extends TyracornScreen {
   }
 
 }
-classRegistry.UiTestApp = UiTestApp;
+classRegistry.MenuScreen = MenuScreen;
+class OscilatorBehavior extends Behavior {
+  trans;
+  amplitude = Vec3.create(0, 0.1, 0);
+  frequency = Vec3.create(1, 1, 1);
+  basePos;
+  time = 0;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "OscilatorBehavior";
+  }
+
+  init() {
+    this.trans = this.actor().getComponent("TransformComponent");
+  }
+
+  move(dt, inputs) {
+    if (this.basePos==null) {
+      this.basePos = this.trans.getPos();
+    }
+    this.time = this.time+dt;
+    let dx = this.amplitude.x()*FMath.sin(this.time*this.frequency.x()*2*FMath.PI);
+    let dy = this.amplitude.y()*FMath.sin(this.time*this.frequency.y()*2*FMath.PI);
+    let dz = this.amplitude.z()*FMath.sin(this.time*this.frequency.z()*2*FMath.PI);
+    this.trans.setPos(this.basePos.add(dx, dy, dz));
+  }
+
+  setProperties(properties) {
+    if (properties.containsKey("amplitude")) {
+      this.amplitude = Jsons.toVec3("amplitude");
+    }
+    if (properties.containsKey("frequency")) {
+      this.frequency = Jsons.toVec3("frequency");
+    }
+  }
+
+  static create() {
+    return new OscilatorBehavior();
+  }
+
+}
+classRegistry.OscilatorBehavior = OscilatorBehavior;
+class PosRotPoint {
+  pos;
+  rot;
+  constructor() {
+  }
+
+  getClass() {
+    return "PosRotPoint";
+  }
+
+  guardInvariants() {
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getRot() {
+    return this.rot;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(pos, rot) {
+    let res = new PosRotPoint();
+    res.pos = pos;
+    res.rot = rot;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.PosRotPoint = PosRotPoint;
+class SettingsScreen extends TyracornScreen {
+  static SOUND_VOLUME_KEY = PropertyKey.of("audio.sound.volume");
+  settings;
+  ui;
+  constructor(settings) {
+    super();
+    this.settings = settings;
+    this.guardInvariants();
+  }
+
+  getClass() {
+    return "SettingsScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    let storage = drivers.getDriver("LocalDataStorage");
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(Uis.create().styler());
+    let uiTop = -100;
+    let header = Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Settings").setAlignment(TextAlignment.CENTER_TOP);
+    this.ui.addComponent(header);
+    const soundVol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+95)).setText(Formats.floatToFixedDecimals(this.settings.getFloat(SettingsScreen.SOUND_VOLUME_KEY)*10, 0)).setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(soundVol);
+    let soundVolDownAct = (evtSource) => {
+      let vol = this.settings.getFloat(SettingsScreen.SOUND_VOLUME_KEY);
+      vol = FMath.clamp(vol-0.1, 0, 1);
+      this.settings.put(SettingsScreen.SOUND_VOLUME_KEY, vol);
+      soundVol.setText(Formats.floatToFixedDecimals(vol*10, 0));
+    };
+    let soundVolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+80, 30, 30)).setText("-").addOnClickAction(soundVolDownAct);
+    this.ui.addComponent(soundVolDownBtn);
+    let soundVolUpAct = (evtSource) => {
+      let vol = this.settings.getFloat(SettingsScreen.SOUND_VOLUME_KEY);
+      vol = FMath.clamp(vol+0.1, 0, 1);
+      this.settings.put(SettingsScreen.SOUND_VOLUME_KEY, vol);
+      soundVol.setText(Formats.floatToFixedDecimals(vol*10, 0));
+    };
+    let soundVolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+80, 30, 30)).setText("+").addOnClickAction(soundVolUpAct);
+    this.ui.addComponent(soundVolUpBtn);
+    let soundToggleAct = (evtSource) => {
+      let btn = evtSource;
+      this.settings.put(PropertyKey.of("audio.sound.enabled"), btn.isToggledOn());
+    };
+    let soundToggle = ToggleButton.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+80, 120, 30)).setText("Sound").toggle(this.settings.getBoolean(PropertyKey.of("audio.sound.enabled"))).addOnToggleAction(soundToggleAct);
+    this.ui.addComponent(soundToggle);
+    let resetHsAct = (evtSource) => {
+      let hsm = HighScoreManager.create(storage);
+      hsm.clearAll();
+    };
+    let resetHsBtn = Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.center(-80, uiTop+125, 160, 30)).setText("Reset Campaign").addOnClickAction(resetHsAct);
+    this.ui.addComponent(resetHsBtn);
+    let backBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, uiTop+170, 120, 30)).setText("Back").addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
+    this.ui.addComponent(backBtn);
+    let exitBtn = Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
+    this.ui.addComponent(exitBtn);
+    this.ui.subscribe(drivers);
+  }
+
+  leave(drivers) {
+    drivers.getDriver("AudioDriver").getMixer().stop();
+    this.ui.unsubscribe(drivers);
+  }
+
+}
+classRegistry.SettingsScreen = SettingsScreen;
+class ShadowMoveBehavior extends Behavior {
+  targetActorId = null;
+  distance;
+  trace = new ArrayList();
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "ShadowMoveBehavior";
+  }
+
+  move(dt, inputs) {
+    if (!this.world().actors().exists(this.targetActorId)) {
+      return ;
+    }
+    if (this.trace.isEmpty()) {
+      return ;
+    }
+    let dst = 0;
+    let cut = -1;
+    for (let i = this.trace.size()-1; i>0; --i) {
+      let segDst = this.trace.get(i).getPos().dist(this.trace.get(i-1).getPos());
+      if (dst+segDst<this.distance) {
+        dst = dst+segDst;
+      }
+      else {
+        cut = i-1;
+        break;
+      }
+    }
+    if (cut==-1) {
+      let mytc = this.actor().getComponent("TransformComponent");
+      let mytr = PosRotPoint.create(mytc.getPos(), mytc.getRot());
+      let dstAfter = dst+this.trace.get(0).getPos().dist(mytr.getPos());
+      if (dstAfter>this.distance) {
+        if (dstAfter-dst>1e-4) {
+          let t = (this.distance-dstAfter)/(dst-dstAfter);
+          mytc.setPos(Vec3.interpolate(mytc.getPos(), this.trace.get(0).getPos(), t));
+          mytc.setRot(this.interpolateRot(mytc.getRot(), this.trace.get(0).getRot(), t));
+        }
+      }
+    }
+    else {
+      let mytc = this.actor().getComponent("TransformComponent");
+      for (let i = 0; i<cut; ++i) {
+        this.trace.remove(this.trace.get(0));
+      }
+      let dstAfter = dst+this.trace.get(0).getPos().dist(this.trace.get(1).getPos());
+      let t = (this.distance-dstAfter)/(dst-dstAfter);
+      mytc.setPos(Vec3.interpolate(this.trace.get(0).getPos(), this.trace.get(1).getPos(), t));
+      mytc.setRot(this.interpolateRot(this.trace.get(0).getRot(), this.trace.get(1).getRot(), t));
+    }
+  }
+
+  lateMove(dt, inputs) {
+    if (this.targetActorId==null||!this.world().actors().exists(this.targetActorId)) {
+      return ;
+    }
+    let act = this.world().actors().get(this.targetActorId);
+    let tc = act.getComponent("TransformComponent");
+    if (this.trace.isEmpty()||tc.getPos().dist(this.trace.get(this.trace.size()-1).getPos())>1e-4) {
+      this.trace.add(PosRotPoint.create(tc.getPos(), tc.getRot()));
+    }
+  }
+
+  setProperties(properties) {
+    if (properties.containsKey("actorId")) {
+      this.targetActorId = ActorId.of(properties.get("actorId"));
+      this.trace.clear();
+    }
+    if (properties.containsKey("distance")) {
+      this.distance = Float.valueOf(properties.get("distance"));
+    }
+  }
+
+  getTargetActorId() {
+    return this.targetActorId;
+  }
+
+  setTargetActorId(targetActorId) {
+    this.targetActorId = targetActorId;
+    this.trace.clear();
+    return this;
+  }
+
+  setDistance(distance) {
+    this.distance = distance;
+    return this;
+  }
+
+  interpolateRot(a, b, t) {
+    let ti = 1-t;
+    let aNeg = a.negate();
+    if (aNeg.dist(b)<a.dist(b)) {
+      a = aNeg;
+    }
+    return Quaternion.create(ti*a.a()+t*b.a(), ti*a.b()+t*b.b(), ti*a.c()+t*b.c(), ti*a.d()+t*b.d()).normalize();
+  }
+
+  static create() {
+    return new ShadowMoveBehavior();
+  }
+
+}
+classRegistry.ShadowMoveBehavior = ShadowMoveBehavior;
+class SnakeHeadBehavior extends Behavior {
+  static FWD = Vec3.create(0, 0, -1);
+  static EAT_SOUNDS = Dut.immutableList(SoundId.of("eat-1"), SoundId.of("eat-2"), SoundId.of("eat-3"), SoundId.of("eat-4"), SoundId.of("eat-5"));
+  static GAME_OVER_SOUNDS = Dut.immutableList(SoundId.of("game-over-1"));
+  gameStateScript = null;
+  speed = 2;
+  turnSpeed = 0.7*FMath.PI;
+  targetDir = null;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "SnakeHeadBehavior";
+  }
+
+  init() {
+    this.gameStateScript = this.world().actors().get(GameScreen.GAME_STATE_ID).getComponent("GameStateBehavior");
+    let tc = this.actor().getComponent("TransformComponent");
+    let zero = tc.toGlobal(Vec3.ZERO);
+    let fwd = tc.toGlobal(SnakeHeadBehavior.FWD);
+    let currDir = fwd.subAndNormalize(zero);
+    this.targetDir = Vec2.create(currDir.x(), -currDir.z());
+  }
+
+  move(dt, inputs) {
+    if (!this.gameStateScript.getState().equals(GameState.PLAYING)) {
+      return ;
+    }
+    let tc = this.actor().getComponent("TransformComponent");
+    let zero = tc.toGlobal(Vec3.ZERO);
+    let fwd = tc.toGlobal(SnakeHeadBehavior.FWD);
+    let currDir = fwd.subAndNormalize(zero);
+    let mv = currDir.scale(dt*this.speed);
+    this.actor().getComponent("TransformComponent").move(mv);
+    let dir = inputs.getVec2("dir", Vec2.ZERO);
+    if (dir.mag()>0.7) {
+      let dx = FMath.abs(dir.x())>=FMath.abs(dir.y())?FMath.signum(dir.x()):0;
+      let dy = FMath.abs(dir.x())<FMath.abs(dir.y())?FMath.signum(dir.y()):0;
+      let newTargetDir = Vec2.create(dx, dy);
+      if (!newTargetDir.equals(this.targetDir)&&!newTargetDir.add(this.targetDir).equals(Vec2.ZERO)) {
+        this.targetDir = newTargetDir;
+      }
+    }
+    dir = dir.normalize();
+    let turn = -FMath.atan2(currDir.x(), -currDir.z());
+    let targetTurn = -FMath.atan2(this.targetDir.x(), this.targetDir.y());
+    let maxdTurn = dt*this.turnSpeed;
+    if (FMath.abs(turn-targetTurn)<=maxdTurn||FMath.abs(turn+2*FMath.PI-targetTurn)<=maxdTurn||FMath.abs(turn-2*FMath.PI-targetTurn)<=maxdTurn) {
+      turn = targetTurn;
+    }
+    else if (targetTurn>turn) {
+      if (targetTurn-turn<turn-targetTurn+FMath.PI*2) {
+        turn = turn+maxdTurn;
+        if (turn>FMath.PI) {
+          turn = turn-2*FMath.PI;
+        }
+      }
+      else {
+        turn = turn-maxdTurn;
+        if (turn<-FMath.PI) {
+          turn = turn+2*FMath.PI;
+        }
+      }
+    }
+    else {
+      if (turn-targetTurn<targetTurn-turn+FMath.PI*2) {
+        turn = turn-maxdTurn;
+        if (turn<-FMath.PI) {
+          turn = turn+2*FMath.PI;
+        }
+      }
+      else {
+        turn = turn+maxdTurn;
+        if (turn>FMath.PI) {
+          turn = turn-2*FMath.PI;
+        }
+      }
+    }
+    this.actor().getComponent("TransformComponent").setRot(Quaternion.rotY(turn));
+  }
+
+  lateMove(dt, inputs) {
+    if (!this.gameStateScript.getState().equals(GameState.PLAYING)) {
+      return ;
+    }
+    let collider = this.actor().getComponent("ColliderComponent");
+    let cols = this.world().collisions().withCollider(collider);
+    for (let col of cols) {
+      let cl = col.getLayer();
+      if (cl.equals(CollisionLayers.FOOD)) {
+        if (this.gameStateScript.isSoundEnabled()) {
+          this.world().audio().prepare(PlaybackId.of(Randoms.nextAlphabetic(8)), this.getRandomSoundId(SnakeHeadBehavior.EAT_SOUNDS)).setVolume(this.gameStateScript.getVolume()).play();
+        }
+        let fact = col.actor();
+        this.world().actors().remove(fact.getId());
+        let tailAct = this.world().actors().get(GameScreen.SNAKE_TAIL_ID);
+        let tailTrans = tailAct.getComponent("TransformComponent");
+        let tailMvBeh = tailAct.getComponent("ShadowMoveBehavior");
+        let snakeBodyPrefab = this.world().assets().get("ActorPrefab", ActorPrefabId.of("snake-body-1"));
+        let breq = CreateActorRequest.create(snakeBodyPrefab, null, tailTrans.getPos(), tailTrans.getRot());
+        let bodyPart = this.world().constructActor(breq);
+        bodyPart.addComponent(ShadowMoveBehavior.create().setTargetActorId(tailMvBeh.getTargetActorId()).setDistance(0.7));
+        tailMvBeh.setTargetActorId(bodyPart.getId());
+        this.gameStateScript.incrementScore();
+      }
+      else {
+        this.gameStateScript.toGameOver();
+        if (this.gameStateScript.isSoundEnabled()) {
+          this.world().audio().prepare(PlaybackId.of(Randoms.nextAlphabetic(8)), this.getRandomSoundId(SnakeHeadBehavior.GAME_OVER_SOUNDS)).setVolume(1).play();
+        }
+      }
+    }
+  }
+
+  setProperties(properties) {
+    if (properties.containsKey("speed")) {
+      this.speed = Float.valueOf(properties.get("speed"));
+    }
+    if (properties.containsKey("turnSpeed")) {
+      this.turnSpeed = Float.valueOf(properties.get("turnSpeed"));
+    }
+  }
+
+  scaleSpeed(sf) {
+    this.speed = this.speed*sf;
+    this.turnSpeed = this.turnSpeed*sf;
+    return this;
+  }
+
+  getRandomSoundId(options) {
+    return options.get(Randoms.nextInt(0, options.size()));
+  }
+
+  static create() {
+    return new SnakeHeadBehavior();
+  }
+
+}
+classRegistry.SnakeHeadBehavior = SnakeHeadBehavior;
+class Uis {
+  mStyler;
+  constructor() {
+  }
+
+  getClass() {
+    return "Uis";
+  }
+
+  guardInvariants() {
+  }
+
+  uiSizeFnc() {
+    return UiSizeFncs.constantHeight(1600);
+  }
+
+  styler() {
+    if (this.mStyler==null) {
+      this.mStyler = DefaultUiStyler.create().setH1Font(FontId.of("kenny-mini-40")).setH1Color(Rgba.WHITE).setH2Font(FontId.of("kenny-mini-30")).setH2Color(Rgba.WHITE).setH3Font(FontId.of("kenny-mini-32")).setH3Color(Rgba.WHITE).setMediumTextFont(FontId.of("kenny-mini-20")).setTextColor(Rgba.WHITE).setButtonLabelFont(FontId.of("kenny-mini-20")).setButtonLabelColor(Rgba.WHITE).setDisabledButtonLabelColor(Rgba.gray(0.8));
+    }
+    return this.mStyler;
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new Uis();
+    res.guardInvariants();
+    return res;
+  }
+
+  static prepareScaledFonts(drivers) {
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(20, 30, 32, 40));
+  }
+
+}
+classRegistry.Uis = Uis;
 
 
 // -------------------------------------
@@ -31822,7 +33335,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new UiTestApp());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new MenuScreen());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

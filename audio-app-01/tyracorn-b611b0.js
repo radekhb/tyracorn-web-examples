@@ -111,10 +111,9 @@ class Integer {
     }
 
 }
-// -------------------------------------
-// Float
-// -------------------------------------
-
+/**
+ * Float class.
+ */
 class Float {
     static POSITIVE_INFINITY = Number.POSITIVE_INFINITY;
     static NEGATIVE_INFINITY = Number.NEGATIVE_INFINITY;
@@ -122,9 +121,21 @@ class Float {
     static isInfinite(a) {
         return !Number.isFinite(a);
     }
-    
-    static valueOf(str) {
-        return Number.parseFloat(str);
+
+    /**
+     * Returns or parses the value.
+     * 
+     * @param {Number|String} val string or number representation of the float
+     * @returns {Number} float value
+     */
+    static valueOf(val) {
+        if (typeof val === 'string') {
+            return Number.parseFloat(val);
+        } else if (typeof val === 'number') {
+            return val;
+        } else {
+            throw new Error("unknown value type: " + val);
+        }
     }
 }
 // -------------------------------------
