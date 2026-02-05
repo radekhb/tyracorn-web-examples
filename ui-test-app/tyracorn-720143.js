@@ -7,7 +7,7 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/audio-app-01";
+const basePath = "/tyracorn-web-examples/ui-test-app";
 const assetsDirName = "/assets-c0230d";
 const localStoragePrefix = "app.";
 let mouseDown = false;
@@ -5754,7 +5754,7 @@ class WebglGraphicsDriver {
             #define MAX_POINT_LIGHTS 10
             #define MAX_SPOT_LIGHTS 10
             #define MAX_SHADOW_MAPS 3
-            #define MAX_BONES 100
+            #define MAX_BONES 60
 
             struct ShadowMap {
                 mat4 lightMat;
@@ -6147,7 +6147,7 @@ class WebglGraphicsDriver {
 
             precision mediump float;
 
-            #define MAX_BONES 100
+            #define MAX_BONES 60
 
             layout (location=0) in vec3 position1;
             layout (location=1) in vec3 position2;
@@ -31303,23 +31303,22 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class AudioApp01 extends TyracornScreen {
-  static MUSIC_PLAYBACK_ID = PlaybackId.of("music");
+class UiTestApp extends TyracornScreen {
   ui;
   constructor() {
     super();
   }
 
   getClass() {
-    return "AudioApp01";
+    return "UiTestApp";
   }
 
   move(drivers, screenManager, dt) {
     let gDriver = drivers.getDriver("GraphicsDriver");
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    this.ui.move(dt);
     gDriver.clearBuffers(BufferId.DEPTH);
     let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
     uiRenderer.render(this.ui);
     uiRenderer.end();
   }
@@ -31328,111 +31327,130 @@ class AudioApp01 extends TyracornScreen {
     let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
     res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/sounds.tap")));
     return res;
   }
 
   init(drivers, screenManager, properties) {
+    let platform = drivers.getPlatform();
     let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(12, 14, 20, 24, 26, 28));
-    let audio = drivers.getDriver("AudioDriver");
-    let mixer = audio.getMixer();
-    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
-    let uiTop = -100;
-    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Audio").setAlignment(TextAlignment.CENTER_TOP));
-    let musicVol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+65)).setText("0.3").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(musicVol);
-    let musicVolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+50, 30, 30)).setText("-").addOnClickAction(this.getChangeMusicVolumeAction(mixer, musicVol, -0.1));
-    this.ui.addComponent(musicVolDownBtn);
-    let musicVolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+50, 30, 30)).setText("+").addOnClickAction(this.getChangeMusicVolumeAction(mixer, musicVol, 0.1));
-    this.ui.addComponent(musicVolUpBtn);
-    let musicBtn = ToggleButton.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+50, 120, 30)).setText("Music");
-    musicBtn.addOnToggleAction(this.getToggleMusicAction(mixer, musicBtn, musicVol));
-    this.ui.addComponent(musicBtn);
-    let sound1Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+105)).setText("1.0").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(sound1Vol);
-    let sound1VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+90, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound1Vol, -0.1));
-    this.ui.addComponent(sound1VolDownBtn);
-    let sound1VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+90, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound1Vol, 0.1));
-    this.ui.addComponent(sound1VolUpBtn);
-    let sound1Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+90, 120, 30)).setText("Spell").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("spell1"), sound1Vol));
-    this.ui.addComponent(sound1Btn);
-    let sound2Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+145)).setText("1.0").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(sound2Vol);
-    let sound2VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+130, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound2Vol, -0.1));
-    this.ui.addComponent(sound2VolDownBtn);
-    let sound2VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+130, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound2Vol, 0.1));
-    this.ui.addComponent(sound2VolUpBtn);
-    let sound2Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+130, 120, 30)).setText("Magic").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("magic1"), sound2Vol));
-    this.ui.addComponent(sound2Btn);
-    let sound3Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+185)).setText("1.0").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(sound3Vol);
-    let sound3VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+170, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound3Vol, -0.1));
-    this.ui.addComponent(sound3VolDownBtn);
-    let sound3VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+170, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound3Vol, 0.1));
-    this.ui.addComponent(sound3VolUpBtn);
-    let sound3Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+170, 120, 30)).setText("Swing").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("swing1"), sound3Vol));
-    this.ui.addComponent(sound3Btn);
-    if (drivers.getPlatform().isExitable()) {
-      this.ui.addComponent(Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager)));
-    }
+    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 28));
+    this.ui = StretchUi.create(UiSizeFncs.scale(0.7));
+    let tabs = TabContainer.create().setRegionFnc(UiRegionFncs.fullFromTop(50));
+    this.ui.addComponent(tabs);
+    let navbar = TabNavbar.create().setTabContainer(tabs).setRegionFnc(UiRegionFncs.fullTop(50)).addTextTabLink("Labels").addTextTabLink("Buttons").addTextTabLink("Selects").addTextTabLink("Inputs");
+    this.ui.addComponent(navbar);
+    let labelsTab = Tab.create();
+    tabs.addTab(labelsTab);
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Example of H1 text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.H2).setPosFnc(UiPosFncs.leftTop(10, 50)).setText("Example of H2 text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.H3).setPosFnc(UiPosFncs.leftTop(10, 90)).setText("Example of H3 text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.XL).setPosFnc(UiPosFncs.leftTop(10, 130)).setText("Example of extra-large regular text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.L).setPosFnc(UiPosFncs.leftTop(10, 160)).setText("Example of large regular text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 190)).setText("Example of regular text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.S).setPosFnc(UiPosFncs.leftTop(10, 220)).setText("Example of small regular text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.XS).setPosFnc(UiPosFncs.leftTop(10, 250)).setText("Example of extra-small regular text").setAlignment(TextAlignment.LEFT_TOP));
+    let butonsTab = Tab.create();
+    tabs.addTab(butonsTab);
+    butonsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Regular buttons").setAlignment(TextAlignment.LEFT_TOP));
+    butonsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 40)).setText("Press by Q, H, G or Ctrl + E").setAlignment(TextAlignment.LEFT_TOP));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 20, 20)).addTrait(UiComponentTrait.XS).setText("XS").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).addOnClickAction((evt) => {
+  platform.logInfo("XS button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(40, 70, 20, 20)).addTrait(UiComponentTrait.HAMBURGER).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("H")).addOnClickAction((evt) => {
+  platform.logInfo("Hamburger button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(70, 70, 20, 20)).addTrait(UiComponentTrait.CROSS).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("G")).addOnClickAction((evt) => {
+  platform.logInfo("Cross button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 100, 50, 20)).addTrait(UiComponentTrait.S).setText("Small").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).addOnClickAction((evt) => {
+  platform.logInfo("S button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 130, 100, 20)).setText("Medium").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).addOnClickAction((evt) => {
+  platform.logInfo("M button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 160, 150, 20)).addTrait(UiComponentTrait.L).setText("Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.control(), KeyCodeMatchers.upperCharacter("E"))).addOnClickAction((evt) => {
+  platform.logInfo("L button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 190, 200, 20)).addTrait(UiComponentTrait.XL).setText("Extra Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.control(), KeyCodeMatchers.upperCharacter("E"))).addOnClickAction((evt) => {
+  platform.logInfo("XL button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 220, 100, 20)).setText("Disabled").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).setDisabled(true).addOnClickAction((evt) => {
+  platform.logInfo("Disabled button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(120, 220, 20, 20)).addTrait(UiComponentTrait.HAMBURGER).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("H")).setDisabled(true).addOnClickAction((evt) => {
+  platform.logInfo("Disabled hamburger button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(150, 220, 20, 20)).addTrait(UiComponentTrait.CROSS).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("G")).setDisabled(true).addOnClickAction((evt) => {
+  platform.logInfo("Disabled cross button - click");
+}));
+    butonsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(230, 10)).setText("Toggle buttons").setAlignment(TextAlignment.LEFT_TOP));
+    butonsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(230, 40)).setText("Toggle by Z or Shift + X").setAlignment(TextAlignment.LEFT_TOP));
+    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 70, 20, 20)).addTrait(UiComponentTrait.XS).setText("XS").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Z")).addOnToggleAction((evt) => {
+  platform.logInfo("XS toggle button - toggled");
+}));
+    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 100, 50, 20)).addTrait(UiComponentTrait.S).setText("Small").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Z")).addOnToggleAction((evt) => {
+  platform.logInfo("S toggle button - toggled");
+}));
+    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 130, 100, 20)).setText("Medium").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Z")).addOnToggleAction((evt) => {
+  platform.logInfo("M toggle button - toggled");
+}));
+    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 160, 150, 20)).addTrait(UiComponentTrait.L).setText("Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.shift(), KeyCodeMatchers.upperCharacter("X"))).addOnToggleAction((evt) => {
+  platform.logInfo("L toggle button - toggled");
+}));
+    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 190, 200, 20)).addTrait(UiComponentTrait.XL).setText("Extra Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.shift(), KeyCodeMatchers.upperCharacter("X"))).addOnToggleAction((evt) => {
+  platform.logInfo("XL toggle button - toggled");
+}));
+    butonsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(450, 10)).setText("Joystick").setAlignment(TextAlignment.LEFT_TOP));
+    butonsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(450, 40)).setText("Control by arrows or WSAD").setAlignment(TextAlignment.LEFT_TOP));
+    butonsTab.addComponent(Joystick.create().setRegionFnc(UiRegionFncs.leftTop(450, 70, 80, 80)).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD()));
+    let selectsTab = Tab.create();
+    tabs.addTab(selectsTab);
+    selectsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Few items").setAlignment(TextAlignment.LEFT_TOP));
+    selectsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 40)).setText("No srolling").setAlignment(TextAlignment.LEFT_TOP));
+    selectsTab.addComponent(ListSelect.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 200, 100)).addOnSelectAction((src) => {
+  platform.logInfo("Small list: "+(src).getSelectedIndexes().toString());
+}).addItem(ListSelectItem.create("item1", "Item 1")).addItem(ListSelectItem.create("item2", "Item 2")).addItem(ListSelectItem.create("item3", "Item 3 - string that is long enough to be clipped")));
+    selectsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(230, 10)).setText("Scrolling").setAlignment(TextAlignment.LEFT_TOP));
+    selectsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(230, 40)).setText("Necessary to scroll").setAlignment(TextAlignment.LEFT_TOP));
+    selectsTab.addComponent(ListSelect.create().setRegionFnc(UiRegionFncs.leftTop(230, 70, 200, 100)).addOnSelectAction((src) => {
+  platform.logInfo("Big list: "+(src).getSelectedIndexes().toString());
+}).addItem(ListSelectItem.create("item1", "Item 1")).addItem(ListSelectItem.create("item2", "Item 2")).addItem(ListSelectItem.create("item3", "Item 3")).addItem(ListSelectItem.create("item4", "Item 4")).addItem(ListSelectItem.create("item5", "Item 5")).addItem(ListSelectItem.create("item6", "Item 6")).addItem(ListSelectItem.create("item7", "Item 7")).addItem(ListSelectItem.create("item8", "Item 8")).addItem(ListSelectItem.create("item9", "Item 9")).addItem(ListSelectItem.create("item10", "Item 10")).addItem(ListSelectItem.create("item11", "Item 11")).addItem(ListSelectItem.create("item12", "Item 12")).addItem(ListSelectItem.create("item13", "Item 13")).addItem(ListSelectItem.create("item14", "Item 14")).addItem(ListSelectItem.create("item15", "Item 15")).addItem(ListSelectItem.create("item16", "Item 16")).addItem(ListSelectItem.create("item17", "Item 17")).addItem(ListSelectItem.create("item18", "Item 18")).addItem(ListSelectItem.create("item19", "Item 19")).addItem(ListSelectItem.create("item20", "Item 20")).addItem(ListSelectItem.create("item21", "Item 21")).addItem(ListSelectItem.create("item22", "Item 22")).addItem(ListSelectItem.create("item23", "Item 23")).addItem(ListSelectItem.create("item24", "Item 24")).addItem(ListSelectItem.create("item25", "Item 25")).addItem(ListSelectItem.create("item26", "Item 26")).addItem(ListSelectItem.create("item27", "Item 27")).addItem(ListSelectItem.create("item28", "Item 28")).addItem(ListSelectItem.create("item29", "Item 29")).addItem(ListSelectItem.create("item30", "Item 30")));
+    selectsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(450, 10)).setText("Dropdown").setAlignment(TextAlignment.LEFT_TOP));
+    selectsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(450, 40)).setText("Select item from dropdown").setAlignment(TextAlignment.LEFT_TOP));
+    selectsTab.addComponent(Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(450, 70, 100, 30)).setLabelText("Small tiems").setSelected(DropdownItem.create("", "")).addItem(DropdownItem.create("item1", "Item 1")).addItem(DropdownItem.create("item2", "Item 2")).addItem(DropdownItem.create("item3", "Item 3 - string that is long enough to be clipped")).addOnChangeAction((src) => {
+  platform.logInfo("Dropdown changed: "+(src).getSelected().getText());
+}));
+    selectsTab.addComponent(Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(450, 110, 100, 30)).setLabelText("Many tiems").setSelected(DropdownItem.create("", "")).addItem(DropdownItem.create("item1", "Item 1")).addItem(DropdownItem.create("item2", "Item 2")).addItem(DropdownItem.create("item3", "Item 3")).addItem(DropdownItem.create("item4", "Item 4")).addItem(DropdownItem.create("item5", "Item 5")).addItem(DropdownItem.create("item6", "Item 6")).addItem(DropdownItem.create("item7", "Item 7")).addItem(DropdownItem.create("item8", "Item 8")).addItem(DropdownItem.create("item9", "Item 9")).addItem(DropdownItem.create("item10", "Item 10")).addItem(DropdownItem.create("item11", "Item 11")).addItem(DropdownItem.create("item12", "Item 12")).addItem(DropdownItem.create("item13", "Item 13")).addItem(DropdownItem.create("item14", "Item 14")).addItem(DropdownItem.create("item15", "Item 15")).addItem(DropdownItem.create("item16", "Item 16")).addItem(DropdownItem.create("item17", "Item 17")).addItem(DropdownItem.create("item18", "Item 18")).addItem(DropdownItem.create("item19", "Item 19")).addItem(DropdownItem.create("item20", "Item 20")).addOnChangeAction((src) => {
+  platform.logInfo("Dropdown changed: "+(src).getSelected().getText());
+}));
+    let inputsTab = Tab.create();
+    tabs.addTab(inputsTab);
+    inputsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Text fields").setAlignment(TextAlignment.LEFT_TOP));
+    inputsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 40)).setText("Input text, integers, and floats").setAlignment(TextAlignment.LEFT_TOP));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 100, 30)).setLabelText("Text").setValue("Hello").setConstraint(TextFieldFreeConstraint.create(10)).addOnChangeAction((src) => {
+  platform.logInfo("Text field changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 110, 100, 30)).setLabelText("Integer").setValue("0").setConstraint(TextFieldIntegerConstraint.create(true, 8)).addOnChangeAction((src) => {
+  platform.logInfo("Integer field changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 150, 100, 30)).setLabelText("Not negative Integer").setValue("0").setConstraint(TextFieldIntegerConstraint.create(false, 8)).addOnChangeAction((src) => {
+  platform.logInfo("Not negative Integer field changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 190, 100, 30)).setLabelText("Float").setValue("0.0").setConstraint(TextFieldFloatConstraint.create(true, 8)).addOnChangeAction((src) => {
+  platform.logInfo("Float field changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 230, 100, 30)).setLabelText("Not negative Float").setValue("0.0").setConstraint(TextFieldFloatConstraint.create(false, 8)).addOnChangeAction((src) => {
+  platform.logInfo("Not negative Float field changed: "+(src).getValue());
+}));
     this.ui.subscribe(drivers);
   }
 
   leave(drivers) {
-    drivers.getDriver("AudioDriver").getMixer().stop();
     this.ui.unsubscribe(drivers);
   }
 
-  getPlaySoundAction(mixer, soundId, volLabel) {
-    let res = (evtSource) => {
-      mixer.prepare(PlaybackId.of(Randoms.nextAlphabetic(10)), soundId).setVolume(Float.valueOf(volLabel.getText())).play();
-    };
-    return res;
-  }
-
-  getChangeSoundVolumeAction(label, delta) {
-    let res = (evtSource) => {
-      let vol = Float.valueOf(label.getText());
-      vol = FMath.clamp(vol+delta, 0, 1);
-      label.setText(Formats.floatToFixedDecimals(vol, 1));
-    };
-    return res;
-  }
-
-  getChangeMusicVolumeAction(mixer, label, delta) {
-    let res = (evtSource) => {
-      let vol = Float.valueOf(label.getText());
-      vol = FMath.clamp(vol+delta, 0, 1);
-      label.setText(Formats.floatToFixedDecimals(vol, 1));
-      let control = mixer.getControlNonStrict(AudioApp01.MUSIC_PLAYBACK_ID);
-      if (control!=null) {
-        control.setVolume(vol);
-      }
-    };
-    return res;
-  }
-
-  getToggleMusicAction(mixer, button, volLabel) {
-    let res = (evtSource) => {
-      let control = mixer.getControlNonStrict(AudioApp01.MUSIC_PLAYBACK_ID);
-      if (control!=null) {
-        if (button.isToggledOn()) {
-          control.play();
-        }
-        else {
-          control.stop();
-        }
-      }
-      else if (button.isToggledOn()) {
-        mixer.prepare(AudioApp01.MUSIC_PLAYBACK_ID, SoundId.of("alexander-ehlers-great-mission")).setLoop(true).setVolume(Float.valueOf(volLabel.getText())).play();
-      }
-    };
-    return res;
-  }
-
 }
-classRegistry.AudioApp01 = AudioApp01;
+classRegistry.UiTestApp = UiTestApp;
 
 
 // -------------------------------------
@@ -31815,7 +31833,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new AudioApp01());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new UiTestApp());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

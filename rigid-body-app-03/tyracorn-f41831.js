@@ -5754,7 +5754,7 @@ class WebglGraphicsDriver {
             #define MAX_POINT_LIGHTS 10
             #define MAX_SPOT_LIGHTS 10
             #define MAX_SHADOW_MAPS 3
-            #define MAX_BONES 100
+            #define MAX_BONES 60
 
             struct ShadowMap {
                 mat4 lightMat;
@@ -6147,7 +6147,7 @@ class WebglGraphicsDriver {
 
             precision mediump float;
 
-            #define MAX_BONES 100
+            #define MAX_BONES 60
 
             layout (location=0) in vec3 position1;
             layout (location=1) in vec3 position2;
