@@ -7,7 +7,7 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/rigid-body-app-06";
+const basePath = "/tyracorn-web-examples/rigid-body-app-08";
 const assetsDirName = "/assets-c0230d";
 const localStoragePrefix = "app.";
 let mouseDown = false;
@@ -5751,8 +5751,8 @@ class WebglGraphicsDriver {
             precision mediump int;
 
             #define MAX_DIR_LIGHTS 3
-            #define MAX_POINT_LIGHTS 10
-            #define MAX_SPOT_LIGHTS 10
+            #define MAX_POINT_LIGHTS 3
+            #define MAX_SPOT_LIGHTS 3
             #define MAX_SHADOW_MAPS 3
             #define MAX_BONES 60
 
@@ -5842,8 +5842,8 @@ class WebglGraphicsDriver {
             precision mediump int;
 
             #define MAX_DIR_LIGHTS 3
-            #define MAX_POINT_LIGHTS 10
-            #define MAX_SPOT_LIGHTS 10
+            #define MAX_POINT_LIGHTS 3
+            #define MAX_SPOT_LIGHTS 3
             #define MAX_SHADOW_MAPS 3
 
             struct Material {
@@ -31392,89 +31392,123 @@ class UiPlayStyles {
 
 }
 classRegistry.UiPlayStyles = UiPlayStyles;
-class CharacterController extends UiComponent {
-  joystick;
-  runButton;
-  punchButton;
+class CarController extends UiComponent {
+  forwardButton;
+  reverseButton;
+  leftButton;
+  rightButton;
+  brakeButton;
   constructor() {
     super();
   }
 
   getClass() {
-    return "CharacterController";
+    return "CarController";
   }
 
   guardInvariants() {
   }
 
-  getDir() {
-    return this.joystick.getDir();
+  getAcceleration() {
+    let res = 0;
+    if (this.forwardButton.isDown()) {
+      res = res+1;
+    }
+    if (this.reverseButton.isDown()) {
+      res = res-1;
+    }
+    return res;
   }
 
-  isRun() {
-    return this.runButton.isToggledOn();
+  getSteering() {
+    let res = 0;
+    if (this.rightButton.isDown()) {
+      res = res+1;
+    }
+    if (this.leftButton.isDown()) {
+      res = res-1;
+    }
+    return res;
   }
 
-  isPunch() {
-    return this.punchButton.isDown();
+  getBrake() {
+    return this.brakeButton.isDown()?1:0;
   }
 
   init(container) {
-    this.joystick.init(container);
-    this.runButton.init(container);
-    this.punchButton.init(container);
+    this.forwardButton.init(container);
+    this.reverseButton.init(container);
+    this.leftButton.init(container);
+    this.rightButton.init(container);
+    this.brakeButton.init(container);
   }
 
   move(dt) {
-    this.joystick.move(dt);
-    this.runButton.move(dt);
-    this.punchButton.move(dt);
+    this.forwardButton.move(dt);
+    this.reverseButton.move(dt);
+    this.leftButton.move(dt);
+    this.rightButton.move(dt);
+    this.brakeButton.move(dt);
   }
 
   draw(painter) {
-    this.joystick.draw(painter);
-    this.runButton.draw(painter);
-    this.punchButton.draw(painter);
+    this.forwardButton.draw(painter);
+    this.reverseButton.draw(painter);
+    this.leftButton.draw(painter);
+    this.rightButton.draw(painter);
+    this.brakeButton.draw(painter);
   }
 
   onContainerResize(size) {
-    this.joystick.onContainerResize(size);
-    this.runButton.onContainerResize(size);
-    this.punchButton.onContainerResize(size);
+    this.forwardButton.onContainerResize(size);
+    this.reverseButton.onContainerResize(size);
+    this.leftButton.onContainerResize(size);
+    this.rightButton.onContainerResize(size);
+    this.brakeButton.onContainerResize(size);
   }
 
   onTouchStart(id, pos, size) {
-    this.joystick.onTouchStart(id, pos, size);
-    this.runButton.onTouchStart(id, pos, size);
-    this.punchButton.onTouchStart(id, pos, size);
+    this.forwardButton.onTouchStart(id, pos, size);
+    this.reverseButton.onTouchStart(id, pos, size);
+    this.leftButton.onTouchStart(id, pos, size);
+    this.rightButton.onTouchStart(id, pos, size);
+    this.brakeButton.onTouchStart(id, pos, size);
     return false;
   }
 
   onTouchMove(id, pos, size) {
-    this.joystick.onTouchMove(id, pos, size);
-    this.runButton.onTouchMove(id, pos, size);
-    this.punchButton.onTouchMove(id, pos, size);
-    return false;
-  }
-
-  onKeyPressed(key) {
-    this.joystick.onKeyPressed(key);
-    this.runButton.onKeyPressed(key);
-    this.punchButton.onKeyPressed(key);
-    return false;
-  }
-
-  onKeyReleased(key) {
-    this.joystick.onKeyReleased(key);
-    this.runButton.onKeyReleased(key);
-    this.punchButton.onKeyReleased(key);
+    this.forwardButton.onTouchMove(id, pos, size);
+    this.reverseButton.onTouchMove(id, pos, size);
+    this.leftButton.onTouchMove(id, pos, size);
+    this.rightButton.onTouchMove(id, pos, size);
+    this.brakeButton.onTouchMove(id, pos, size);
     return false;
   }
 
   onTouchEnd(id, pos, size, cancel) {
-    this.joystick.onTouchEnd(id, pos, size, cancel);
-    this.runButton.onTouchEnd(id, pos, size, cancel);
-    this.punchButton.onTouchEnd(id, pos, size, cancel);
+    this.forwardButton.onTouchEnd(id, pos, size, cancel);
+    this.reverseButton.onTouchEnd(id, pos, size, cancel);
+    this.leftButton.onTouchEnd(id, pos, size, cancel);
+    this.rightButton.onTouchEnd(id, pos, size, cancel);
+    this.brakeButton.onTouchEnd(id, pos, size, cancel);
+    return false;
+  }
+
+  onKeyPressed(key) {
+    this.forwardButton.onKeyPressed(key);
+    this.reverseButton.onKeyPressed(key);
+    this.leftButton.onKeyPressed(key);
+    this.rightButton.onKeyPressed(key);
+    this.brakeButton.onKeyPressed(key);
+    return false;
+  }
+
+  onKeyReleased(key) {
+    this.forwardButton.onKeyReleased(key);
+    this.reverseButton.onKeyReleased(key);
+    this.leftButton.onKeyReleased(key);
+    this.rightButton.onKeyReleased(key);
+    this.brakeButton.onKeyReleased(key);
     return false;
   }
 
@@ -31482,17 +31516,18 @@ class CharacterController extends UiComponent {
   }
 
   static create(drivers) {
-    Guard.beTrue(drivers.isDriverAvailable("TouchDriver"), "touch driver is not available");
-    let res = new CharacterController();
-    res.joystick = Joystick.create().setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.leftBottom(25, 125, 100, 100), UiRegionFncs.leftBottom(10, 125, 80, 80))).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD());
-    res.runButton = ToggleButton.create().addTrait(UiPlayStyles.WALK_RUN).setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.rightBottom(150, 75, 50, 50), UiRegionFncs.rightBottom(140, 75, 40, 40))).setKeyCodeMatcher(KeyCodeMatchers.shift());
-    res.punchButton = Button.create().addTrait(UiPlayStyles.PUNCH).setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.rightBottom(85, 85, 60, 60), UiRegionFncs.rightBottom(75, 85, 50, 50))).setKeyCodeMatcher(KeyCodeMatchers.control());
+    let res = new CarController();
+    res.forwardButton = Button.create().addTrait(UiPlayStyles.ARROW_UP).setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.leftBottom(25, 135, 50, 50), UiRegionFncs.leftBottom(10, 135, 50, 50))).setKeyCodeMatcher(KeyCodeMatchers.arrowUpOrW());
+    res.reverseButton = Button.create().addTrait(UiPlayStyles.ARROW_DOWN).setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.leftBottom(25, 70, 50, 50), UiRegionFncs.leftBottom(10, 70, 50, 50))).setKeyCodeMatcher(KeyCodeMatchers.arrowDownOrS());
+    res.brakeButton = Button.create().addTrait(UiPlayStyles.BRAKE).setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.leftBottom(85, 105, 70, 50), UiRegionFncs.leftBottom(70, 105, 70, 50))).setKeyCodeMatcher(KeyCodeMatchers.space());
+    res.leftButton = Button.create().addTrait(UiPlayStyles.ARROW_LEFT).setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.rightBottom(140, 85, 50, 50), UiRegionFncs.rightBottom(125, 85, 50, 50))).setKeyCodeMatcher(KeyCodeMatchers.arrowLeftOrA());
+    res.rightButton = Button.create().addTrait(UiPlayStyles.ARROW_RIGHT).setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.rightBottom(75, 85, 50, 50), UiRegionFncs.rightBottom(60, 85, 50, 50))).setKeyCodeMatcher(KeyCodeMatchers.arrowRightOrD());
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.CharacterController = CharacterController;
+classRegistry.CarController = CarController;
 class CameraTrackBehavior extends Behavior {
   targetId;
   offset;
@@ -31544,106 +31579,6 @@ class CameraTrackBehavior extends Behavior {
 
 }
 classRegistry.CameraTrackBehavior = CameraTrackBehavior;
-class PlayerCharacterInput {
-  dt;
-  dir;
-  punch;
-  run;
-  constructor() {
-  }
-
-  getClass() {
-    return "PlayerCharacterInput";
-  }
-
-  guardInvariants() {
-  }
-
-  getDt() {
-    return this.dt;
-  }
-
-  getDir() {
-    return this.dir;
-  }
-
-  isPunch() {
-    return this.punch;
-  }
-
-  isRun() {
-    return this.run;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(dt, dir, punch, run) {
-    let res = new PlayerCharacterInput();
-    res.dt = dt;
-    res.dir = dir;
-    res.punch = punch;
-    res.run = run;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.PlayerCharacterInput = PlayerCharacterInput;
-class PunchableBehavior extends Behavior {
-  static FEATURES = Dut.immutableSet(ComponentFeature.create("HITTABLE"));
-  hit = false;
-  hitPos;
-  hitDir;
-  hitImpact;
-  impactMultiplier = 5;
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "PunchableBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  getFeatures() {
-    return PunchableBehavior.FEATURES;
-  }
-
-  move(dt, inputs) {
-    if (!this.hit) {
-      return ;
-    }
-    this.hit = false;
-    let rb = this.actor().getComponent("RigidBodyComponent");
-    rb.applyForce(this.hitPos, this.hitDir.scale(this.hitImpact*this.impactMultiplier));
-  }
-
-  onHit(pos, dir, impact) {
-    this.hitPos = pos;
-    this.hitDir = dir;
-    this.hitImpact = impact;
-    this.hit = true;
-  }
-
-  static create() {
-    let res = new PunchableBehavior();
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.PunchableBehavior = PunchableBehavior;
 class BreakableSphereBehavior extends Behavior {
   static FEATURES = Dut.immutableSet(ComponentFeature.create("HITTABLE"));
   numPieces = 10;
@@ -31705,281 +31640,396 @@ class BreakableSphereBehavior extends Behavior {
 
 }
 classRegistry.BreakableSphereBehavior = BreakableSphereBehavior;
-class PlayerCharacterBehavior extends Behavior {
-  static FEATURES = Dut.immutableSet(ComponentFeature.create("HITTABLE"));
-  static JOYSTICK_SENSITIVITY = 1e-5;
-  static FWD = Vec3.create(0, 0, -1);
-  transform;
-  model;
-  rigidBody;
-  groundedColliderKey = "body-collider";
-  groundedCollider;
-  punchColliderKey = "punch-collider";
-  punchCollider;
-  animationPlayer;
-  state;
-  grounded = false;
-  groundedBefore = false;
-  walkForce = 40;
-  runForce = 80;
-  airForce = 10;
-  groundedMaxYDiff = 0.5;
-  groundFriction = 10;
-  airFriction = 5;
-  turnSpeed = 4*FMath.PI;
-  punchImpact = 7;
-  turn = 0;
+class CarWheelJointConfig {
+  carActor;
+  wheelActor;
+  pos;
+  forward;
+  up;
   constructor() {
-    super();
-    let idle = ClipAnimation.create(Clip.simple(0, 1, 0), 2, true);
-    let walk = ClipAnimation.create(Clip.simple(2, 3, 4, 5, 6, 2), 1, true);
-    let run = ClipAnimation.create(Clip.simple(7, 8, 9, 10, 11, 12, 13, 7), 1, true);
-    let punch = ClipAnimation.create(Clip.simple(14, 15, 16, 17, 18), 0.5, false).plusTrigger(0.45, "punch");
-    let hit = ClipAnimation.create(Clip.simple(19, 20, 19), 0.3, false);
-    this.animationPlayer = ClipAnimationPlayer.create(ClipAnimationCollection.empty().plusAnimation(ClipAnimationKey.of("idle"), idle).plusAnimation(ClipAnimationKey.of("walk"), walk).plusAnimation(ClipAnimationKey.of("run"), run).plusAnimation(ClipAnimationKey.of("punch"), punch).plusAnimation(ClipAnimationKey.of("hit"), hit), ClipAnimationKey.of("idle"));
-    this.state = this.stateIdle.bind(this);
   }
 
   getClass() {
-    return "PlayerCharacterBehavior";
+    return "CarWheelJointConfig";
   }
 
   guardInvariants() {
   }
 
-  getFeatures() {
-    return PlayerCharacterBehavior.FEATURES;
+  getCarActor() {
+    return this.carActor;
   }
 
-  init() {
-    this.transform = this.actor().getComponent("TransformComponent");
-    this.model = this.actor().getComponent("ModelComponent");
-    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-    this.groundedCollider = this.actor().getComponentByKey("ColliderComponent", this.groundedColliderKey);
-    this.punchCollider = this.actor().getComponentByKey("ColliderComponent", this.punchColliderKey);
+  getWheelActor() {
+    return this.wheelActor;
   }
 
-  move(dt, inputs) {
-    this.updateGrounded();
-    let friction = this.grounded?this.groundFriction:this.airFriction;
-    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*this.rigidBody.getMass()*this.rigidBody.getVelocity().x(), 0, -friction*this.rigidBody.getMass()*this.rigidBody.getVelocity().z()));
-    let dir = inputs.getVec2("dir", Vec2.ZERO);
-    let run = inputs.getBoolean("run", false);
-    let punch = inputs.getBoolean("punch", false);
-    let input = PlayerCharacterInput.create(dt, dir, punch, run);
-    this.state(input);
-    let step = this.animationPlayer.move(dt);
-    if (step.getTriggers().contains("punch")) {
-      for (let cmp of this.actor().getComponents()) {
-        let punchWorld = this.punchCollider.toGlobal(Vec3.ZERO);
-        let punchDir = this.punchCollider.toGlobal(PlayerCharacterBehavior.FWD).subAndNormalize(punchWorld);
-        let hits = this.world().collisions().withCollider(this.punchCollider);
-        for (let hitCollider of hits) {
-          let hitAct = hitCollider.actor();
-          for (let tgtCmp of hitAct.getComponents()) {
-            if (tgtCmp.hasFeature(ComponentFeature.create("HITTABLE"))) {
-              (tgtCmp).onHit(punchWorld, punchDir, this.punchImpact);
-            }
-          }
-        }
-      }
-    }
-    this.model.setInterpolation(step.getInterpolation());
-    this.transform.setRot(Quaternion.rotY(this.turn));
-    if (!this.grounded&&this.groundedBefore&&this.rigidBody.getVelocity().y()>0) {
-      this.rigidBody.setVelocity(Vec3.create(this.rigidBody.getVelocity().x(), 0, this.rigidBody.getVelocity().y()));
-    }
-    if (this.grounded&&step.getKey().equals(ClipAnimationKey.of("idle"))) {
-      this.rigidBody.clearAccums();
-      this.rigidBody.setVelocity(Vec3.ZERO);
-      this.rigidBody.setAngularVelocity(Vec3.ZERO);
-    }
+  getPos() {
+    return this.pos;
   }
 
-  updateGrounded() {
-    this.groundedBefore = this.grounded;
-    let pos = this.transform.getPos();
-    let bestGroundPoint = Vec3.create(pos.x(), pos.y()+2, pos.z());
-    let contacts = this.world().collisions().withColliderContacts(this.groundedCollider);
-    for (let cont of contacts) {
-      if (cont.getColliderB().getLayer().equals(CollisionLayer.WALL)) {
-        for (let cp of cont.getContactPoints()) {
-          if (cp.getPosA().y()<bestGroundPoint.y()) {
-            bestGroundPoint = cp.getPosA();
-          }
-        }
-      }
-    }
-    if (bestGroundPoint.y()<pos.y()+this.groundedMaxYDiff) {
-      this.grounded = true;
-    }
-    else {
-      this.grounded = false;
-    }
+  getForward() {
+    return this.forward;
   }
 
-  stateIdle(input) {
-    this.animationPlayer.play(ClipAnimationKey.of("idle"));
-    if (input.isPunch()) {
-      this.state = this.statePunch.bind(this);
-    }
-    else if (input.getDir().mag()>=PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
-      this.state = input.isRun()?this.stateRun.bind(this):this.stateWalk.bind(this);
-    }
-    return null;
+  getUp() {
+    return this.up;
   }
 
-  stateWalk(input) {
-    this.animationPlayer.play(ClipAnimationKey.of("walk"));
-    if (input.isPunch()) {
-      this.state = this.statePunch.bind(this);
-    }
-    else if (input.getDir().mag()<PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
-      this.state = this.stateIdle.bind(this);
-    }
-    else if (input.isRun()) {
-      this.state = this.stateRun.bind(this);
-    }
-    else {
-      let dir = input.getDir().normalize();
-      let moveMag = this.grounded?this.walkForce:this.airForce;
-      this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x(), 0, -dir.y()).scale(moveMag*this.rigidBody.getMass()));
-      let targetTurn = -FMath.atan2(dir.x(), dir.y());
-      let maxdTurn = input.getDt()*this.turnSpeed;
-      if (FMath.abs(this.turn-targetTurn)<=maxdTurn) {
-        this.turn = targetTurn;
-      }
-      else if (targetTurn>this.turn) {
-        if (targetTurn-this.turn<this.turn-targetTurn+FMath.PI*2) {
-          this.turn = this.turn+maxdTurn;
-          if (this.turn>FMath.PI) {
-            this.turn = this.turn-2*FMath.PI;
-          }
-        }
-        else {
-          this.turn = this.turn-maxdTurn;
-          if (this.turn<-FMath.PI) {
-            this.turn = this.turn+2*FMath.PI;
-          }
-        }
-      }
-      else {
-        if (this.turn-targetTurn<targetTurn-this.turn+FMath.PI*2) {
-          this.turn = this.turn-maxdTurn;
-          if (this.turn<-FMath.PI) {
-            this.turn = this.turn+2*FMath.PI;
-          }
-        }
-        else {
-          this.turn = this.turn+maxdTurn;
-          if (this.turn>FMath.PI) {
-            this.turn = this.turn-2*FMath.PI;
-          }
-        }
-      }
-    }
-    return null;
+  hashCode() {
+    return Reflections.hashCode(this);
   }
 
-  stateRun(input) {
-    this.animationPlayer.play(ClipAnimationKey.of("run"));
-    if (input.isPunch()) {
-      this.state = this.statePunch.bind(this);
-    }
-    else if (input.getDir().mag()<PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
-      this.state = this.stateIdle.bind(this);
-    }
-    else if (!input.isRun()) {
-      this.state = this.stateWalk.bind(this);
-    }
-    else {
-      let dir = input.getDir().normalize();
-      let moveMag = this.grounded?this.runForce:this.airForce;
-      this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x(), 0, -dir.y()).scale(moveMag*this.rigidBody.getMass()));
-      let targetTurn = -FMath.atan2(dir.x(), dir.y());
-      let maxdTurn = input.getDt()*this.turnSpeed;
-      if (FMath.abs(this.turn-targetTurn)<=maxdTurn) {
-        this.turn = targetTurn;
-      }
-      else if (targetTurn>this.turn) {
-        if (targetTurn-this.turn<this.turn-targetTurn+FMath.PI*2) {
-          this.turn = this.turn+maxdTurn;
-          if (this.turn>FMath.PI) {
-            this.turn = this.turn-2*FMath.PI;
-          }
-        }
-        else {
-          this.turn = this.turn-maxdTurn;
-          if (this.turn<-FMath.PI) {
-            this.turn = this.turn+2*FMath.PI;
-          }
-        }
-      }
-      else {
-        if (this.turn-targetTurn<targetTurn-this.turn+FMath.PI*2) {
-          this.turn = this.turn-maxdTurn;
-          if (this.turn<-FMath.PI) {
-            this.turn = this.turn+2*FMath.PI;
-          }
-        }
-        else {
-          this.turn = this.turn+maxdTurn;
-          if (this.turn>FMath.PI) {
-            this.turn = this.turn-2*FMath.PI;
-          }
-        }
-      }
-    }
-    return null;
+  equals(obj) {
+    return Reflections.equals(this, obj);
   }
 
-  statePunch(input) {
-    this.animationPlayer.play(ClipAnimationKey.of("punch"));
-    if (this.animationPlayer.isEnd()) {
-      if (input.isPunch()) {
-        this.animationPlayer.playFromStart(ClipAnimationKey.of("punch"));
-      }
-      else if (input.getDir().mag()>=PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
-        this.state = input.isRun()?this.stateRun.bind(this):this.stateWalk.bind(this);
-      }
-      else {
-        this.state = this.stateIdle.bind(this);
-      }
-    }
-    return null;
+  toString() {
   }
 
-  static create() {
-    let res = new PlayerCharacterBehavior();
+  static create(carActor, wheelActor, pos, forward, up) {
+    let res = new CarWheelJointConfig();
+    res.carActor = carActor;
+    res.wheelActor = wheelActor;
+    res.pos = pos;
+    res.forward = forward;
+    res.up = up;
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.PlayerCharacterBehavior = PlayerCharacterBehavior;
-class RigidBodyApp06 extends TyracornScreen {
-  time = 0;
-  world;
-  inputs = InputCache.create();
-  ui;
-  controller;
+classRegistry.CarWheelJointConfig = CarWheelJointConfig;
+class CarWheelJointComponent extends Behavior {
+  static FEATURES = Dut.immutableSet(ComponentFeature.COLLISION_EXCLUSION_PRODUCER, ComponentFeature.RIGID_BODY_JOINT);
+  localCarPos;
+  localCarUp;
+  localCarRight;
+  localWheelPos;
+  localWheelRight;
+  carBody;
+  wheelBody;
+  collisionExclusions;
+  initDone = false;
+  config;
+  damp = 0.1;
+  suspensionStiffness = 200;
+  suspensionDamp = 10;
+  suspensionLastDir = Vec3.UP;
+  maxForwardTorque = 50;
+  maxReverseTorque = 25;
+  maxBrakeTorque = 1.5;
+  cumBrake = 0;
+  engine = 0;
+  brake = 0;
+  maxSteer = FMath.PI_THIRD/2;
+  steerSpeed = FMath.PI_THIRD/2;
+  steer = 0;
+  currentSteer = 0;
   constructor() {
     super();
   }
 
   getClass() {
-    return "RigidBodyApp06";
+    return "CarWheelJointComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.initDone = true;
+    if (this.config==null) {
+      return ;
+    }
+    let car = this.world().actors().get(this.config.getCarActor());
+    let wheel = this.world().actors().get(this.config.getWheelActor());
+    this.carBody = car.getComponent("RigidBodyComponent");
+    this.wheelBody = wheel.getComponent("RigidBodyComponent");
+    let globalRight = Vec3.cross(this.config.getForward(), this.config.getUp()).normalize();
+    this.localCarPos = this.carBody.toLocal(this.config.getPos());
+    this.localCarUp = this.carBody.toLocalRot(this.config.getUp()).normalize();
+    this.localCarRight = this.carBody.toLocalRot(globalRight).normalize();
+    this.localWheelPos = this.wheelBody.toLocal(this.config.getPos());
+    this.localWheelRight = this.wheelBody.toLocalRot(globalRight).normalize();
+    this.collisionExclusions = Dut.immutableSet(CollisionExclusion.create(this.config.getCarActor(), this.config.getWheelActor()));
+    this.broadcastDomainUpdate(ActorDomain.COLLISION_EXCLUSION, false, false);
+    this.config = null;
+  }
+
+  getFeatures() {
+    return CarWheelJointComponent.FEATURES;
+  }
+
+  move(dt, inputs) {
+    let wheelRight = this.wheelBody.toGlobalRot(this.localWheelRight);
+    let wheelRotVel = this.wheelBody.getAngularVelocity().dot(wheelRight);
+    this.wheelBody.applyTorque(wheelRight.scale(-this.damp*wheelRotVel));
+    let etq = this.engine>=0?this.engine*this.maxForwardTorque:this.engine*this.maxReverseTorque;
+    this.wheelBody.applyTorque(wheelRight.scale(-etq));
+    let carPos = this.carBody.toGlobal(this.localCarPos);
+    let carVel = this.carBody.getPointVelocity(carPos);
+    let wheelPos = this.wheelBody.toGlobal(this.localWheelPos);
+    let wheelVel = this.wheelBody.getPointVelocity(wheelPos);
+    let pDiff = wheelPos.sub(carPos);
+    let dir = pDiff.sqrMag()>0.0001?pDiff.normalize():this.suspensionLastDir;
+    let vDiff = wheelVel.sub(carVel).dot(dir);
+    let fmag = this.suspensionStiffness*pDiff.mag()+vDiff*this.suspensionDamp;
+    this.carBody.applyForce(carPos, dir.scale(fmag));
+    this.wheelBody.applyForce(wheelPos, dir.scale(-fmag));
+    this.suspensionLastDir = dir;
+    let tgtTurn = -this.steer*this.maxSteer;
+    if (this.currentSteer<tgtTurn) {
+      this.currentSteer = Math.min(this.maxSteer, this.currentSteer+dt*this.steerSpeed);
+    }
+    else if (this.currentSteer>tgtTurn) {
+      this.currentSteer = Math.max(-this.maxSteer, this.currentSteer-dt*this.steerSpeed);
+    }
+  }
+
+  getRigidBodyA() {
+    return this.carBody;
+  }
+
+  getRigidBodyB() {
+    return this.wheelBody;
+  }
+
+  solveVelocities(configuration, iteration) {
+    let res = false;
+    let carPos = this.carBody.toGlobal(this.localCarPos);
+    let carUp = this.carBody.toGlobalRot(this.localCarUp);
+    let carRight = this.carBody.toGlobalRot(Quaternion.rot(this.localCarUp, this.currentSteer).rotate(this.localCarRight));
+    let wheelPos = this.wheelBody.toGlobal(this.localWheelPos);
+    let wheelRight = this.wheelBody.toGlobalRot(this.localWheelRight);
+    let wheelProjPos = Geometry3.projectToLine(carPos, carUp, wheelPos);
+    let wheelProjVel = this.carBody.getPointVelocity(wheelProjPos);
+    let wheelVel = this.wheelBody.getPointVelocity(wheelPos);
+    let nextWheelProjPos = wheelProjPos.addScaled(wheelProjVel, configuration.getTimeStep());
+    let nextWheelPos = wheelPos.addScaled(wheelVel, configuration.getTimeStep());
+    let pivotDiff = nextWheelPos.sub(nextWheelProjPos).scale(1/configuration.getTimeStep());
+    pivotDiff = pivotDiff.subScaled(carUp, pivotDiff.dot(carUp));
+    let pivotMag = pivotDiff.mag();
+    if (pivotMag>=configuration.getVelError()) {
+      let normal = pivotDiff.normalize();
+      let uinefCar = this.carBody.getImpulseEffectOnPoint(wheelProjPos, normal, wheelProjPos);
+      let uinefWheel = this.wheelBody.getImpulseEffectOnPoint(wheelPos, normal, wheelPos);
+      let uinefnorm1 = normal.dot(uinefCar);
+      let uinefnorm2 = normal.dot(uinefWheel);
+      let uinefnorm = uinefnorm1+uinefnorm2;
+      let normimmag = pivotMag/uinefnorm;
+      Guard.notNegative(normimmag, "normimmag cannot be negative: %s", normimmag);
+      this.carBody.applyImpulse(wheelProjPos, normal.scale(normimmag));
+      this.wheelBody.applyImpulse(wheelPos, normal.scale(-normimmag));
+      if (normimmag>configuration.getImpulseError()) {
+        res = true;
+      }
+    }
+    let carSidePos = wheelProjPos.add(carRight);
+    let wheelSidePos = wheelPos.add(wheelRight);
+    let carSideVel = this.carBody.getPointVelocity(carSidePos);
+    let wheelSideVel = this.wheelBody.getPointVelocity(wheelSidePos);
+    let nextCarSidePos = carSidePos.addScaled(carSideVel, configuration.getTimeStep());
+    let nextWheelSidePos = wheelSidePos.addScaled(wheelSideVel, configuration.getTimeStep());
+    let sideDiff = nextWheelSidePos.sub(nextCarSidePos).scale(1/configuration.getTimeStep());
+    sideDiff = sideDiff.subScaled(carUp, sideDiff.dot(carUp));
+    let sideMag = sideDiff.mag();
+    if (sideMag>=configuration.getVelError()) {
+      let normal = sideDiff.normalize();
+      let uinefCar = this.carBody.getImpulseEffectOnPoint(carSidePos, normal, carSidePos);
+      let uinefWheel = this.wheelBody.getImpulseEffectOnPoint(wheelSidePos, normal, wheelSidePos);
+      let uinefnorm1 = normal.dot(uinefCar);
+      let uinefnorm2 = normal.dot(uinefWheel);
+      let uinefnorm = uinefnorm1+uinefnorm2;
+      let normimmag = sideMag/uinefnorm;
+      Guard.notNegative(normimmag, "normimmag cannot be negative: %s", normimmag);
+      this.carBody.applyImpulse(carSidePos, normal.scale(normimmag));
+      this.wheelBody.applyImpulse(wheelSidePos, normal.scale(-normimmag));
+      if (normimmag>configuration.getImpulseError()) {
+        res = true;
+      }
+    }
+    if (this.brake>0&&this.maxBrakeTorque>0) {
+      if (iteration==0) {
+        this.cumBrake = 0;
+      }
+      let wheelAngVel = this.wheelBody.getAngularVelocity();
+      let wheelAngVelProj = wheelRight.scale(wheelRight.dot(wheelAngVel));
+      let unitBrakeEfect = this.wheelBody.getInverseInertia().mul(wheelRight);
+      let btq = wheelAngVelProj.dot(wheelRight)/unitBrakeEfect.dot(wheelRight);
+      let targetBrakeTq = this.brake*this.maxBrakeTorque;
+      if (btq>=0) {
+        btq = FMath.min(btq, targetBrakeTq-this.cumBrake);
+      }
+      else {
+        btq = FMath.max(btq, -targetBrakeTq-this.cumBrake);
+      }
+      this.wheelBody.applyTorqueImpulse(wheelRight.scale(-btq));
+      this.cumBrake = this.cumBrake+btq;
+      if (btq>configuration.getImpulseError()) {
+        res = true;
+      }
+    }
+    return res;
+  }
+
+  getCollisionExclusions() {
+    return this.collisionExclusions;
+  }
+
+  setDamp(damp) {
+    this.damp = damp;
+    return this;
+  }
+
+  setSuspensionStiffness(suspensionStiffness) {
+    Guard.beTrue(suspensionStiffness>=0, "suspensionStiffness must be >= 0");
+    this.suspensionStiffness = suspensionStiffness;
+    return this;
+  }
+
+  setSuspensionDamp(suspensionDamp) {
+    Guard.beTrue(suspensionDamp>=0, "suspensionDamp must be >= 0");
+    this.suspensionDamp = suspensionDamp;
+    return this;
+  }
+
+  setMaxForwardTorque(maxForwardTorque) {
+    Guard.beTrue(maxForwardTorque>=0, "maxForwardTorque must be >= 0");
+    this.maxForwardTorque = maxForwardTorque;
+    return this;
+  }
+
+  setMaxReverseTorque(maxReverseTorque) {
+    Guard.beTrue(maxReverseTorque>=0, "maxReverseTorque must be >= 0");
+    this.maxReverseTorque = maxReverseTorque;
+    return this;
+  }
+
+  setMaxBrakeTorque(maxBrakeTorque) {
+    Guard.beTrue(maxBrakeTorque>=0, "maxBrakeTorque must be >= 0");
+    this.maxBrakeTorque = maxBrakeTorque;
+    return this;
+  }
+
+  setEngine(engine) {
+    Guard.beTrue(engine>=-1&&engine<=1, "engine must be in [-1, 1] interval");
+    this.engine = engine;
+    return this;
+  }
+
+  setBrake(brake) {
+    Guard.beTrue(brake>=0&&brake<=1, "brake must be in [0, 1] interval");
+    this.brake = brake;
+    return this;
+  }
+
+  setMaxSteer(maxSteer) {
+    Guard.beTrue(maxSteer>=0, "maxSteer must be >= 0");
+    this.maxSteer = maxSteer;
+    return this;
+  }
+
+  setSteerSpeed(steerSpeed) {
+    Guard.beTrue(steerSpeed>=0, "steerSpeed must be >= 0");
+    this.steerSpeed = steerSpeed;
+    return this;
+  }
+
+  setSteer(steer) {
+    Guard.beTrue(steer>=-1&&steer<=1, "steer must be in [-1, 1] interval");
+    this.steer = steer;
+    return this;
+  }
+
+  setJoint() {
+    if (arguments.length===1&&arguments[0] instanceof CarWheelJointConfig) {
+      return this.setJoint_1_CarWheelJointConfig(arguments[0]);
+    }
+    else if (arguments.length===5&& typeof arguments[0]==="string"&& typeof arguments[1]==="string"&&arguments[2] instanceof Vec3&&arguments[3] instanceof Vec3&&arguments[4] instanceof Vec3) {
+      return this.setJoint_5_string_string_Vec3_Vec3_Vec3(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  setJoint_1_CarWheelJointConfig(config) {
+    this.config = config;
+    if (this.initDone) {
+      this.init();
+    }
+    return this;
+  }
+
+  setJoint_5_string_string_Vec3_Vec3_Vec3(carActor, wheelActor, pos, forward, up) {
+    return this.setJoint(CarWheelJointConfig.create(ActorId.of(carActor), ActorId.of(wheelActor), pos, forward, up));
+  }
+
+  renderDebug(gDriver, request, camera) {
+    if (!request.hasDebugRenderRealm(DebugRenderRealm.JOINT)) {
+      return ;
+    }
+    let prend = gDriver.startRenderer("PrimitiveRenderer", BasicEnvironment.create(camera));
+    let carPos = this.carBody.toGlobal(this.localCarPos);
+    let carUp = this.carBody.toGlobal(this.localCarPos.add(this.localCarUp));
+    let carRight = this.carBody.toGlobal(this.localCarPos.add(this.localCarRight));
+    let wheelPos = this.wheelBody.toGlobal(this.localWheelPos);
+    let wheelRight = this.wheelBody.toGlobal(this.localWheelPos.add(this.localWheelRight));
+    DebugRendering.sphere(prend, carPos, 0.3, Rgb.BLUE);
+    DebugRendering.sphere(prend, wheelPos, 0.3, Rgb.BLUE);
+    DebugRendering.line(prend, carPos, wheelPos, Rgb.BLUE);
+    DebugRendering.line(prend, carPos, carUp, Rgb.BLUE);
+    DebugRendering.line(prend, carPos, carRight, Rgb.BLUE);
+    DebugRendering.line(prend, wheelPos, wheelRight, Rgb.BLUE);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new CarWheelJointComponent();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CarWheelJointComponent = CarWheelJointComponent;
+class RigidBodyApp08 extends TyracornScreen {
+  time = 0;
+  world;
+  inputs = InputCache.create();
+  ui;
+  controller;
+  wheelFL;
+  wheelFR;
+  wheelBL;
+  wheelBR;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "RigidBodyApp08";
   }
 
   move(drivers, screenManager, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    this.inputs.put("dir", this.controller.getDir());
-    this.inputs.put("run", this.controller.isRun());
-    this.inputs.put("punch", this.controller.isPunch());
     this.world.move(dt, this.inputs);
     this.world.render(RenderRequest.NORMAL);
+    let steer = this.controller.getSteering();
+    let accel = this.controller.getAcceleration();
+    let brake = this.controller.getBrake();
+    this.wheelFL.setSteer(steer);
+    this.wheelFR.setSteer(steer);
+    this.wheelFL.setEngine(accel);
+    this.wheelFR.setEngine(accel);
+    this.wheelFL.setBrake(brake);
+    this.wheelFR.setBrake(brake);
+    this.wheelBL.setBrake(brake);
+    this.wheelBR.setBrake(brake);
     gDriver.clearBuffers(BufferId.DEPTH);
     let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
     this.ui.move(dt);
@@ -31992,98 +32042,95 @@ class RigidBodyApp06 extends TyracornScreen {
     let assets = drivers.getDriver("AssetManager");
     res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
     res.add(assets.resolveAsync(Path.of("asset:packages/primitives.tap")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/characters/tyracorn.tap")));
     return res;
   }
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(12, 20));
+    Fonts.prepareScaledFonts(assets, Dut.set(12, 14, 20));
     assets.put(MaterialId.of("brass"), Material.BRASS);
     assets.put(MaterialId.of("copper"), Material.COPPER);
+    assets.put(MaterialId.of("chrome"), Material.CHROME);
     const sphereModelId = ModelId.of("sphere");
     const skyboxModelId = ModelId.of("skybox-1");
+    const cylinderModelId = ModelId.of("cylinder");
     assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
     let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("brass"));
     const groundModelId = ModelId.of("ground");
     assets.put(groundModelId, groundModel);
-    let sphereModel = assets.get("Model", ModelId.of("sphere"));
-    let boxModel = Model.simple(MeshId.of("modelBox"), sphereModel.getParts().get(0).getMaterial());
+    let copperBox = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
+    const copperBoxModelId = ModelId.of("copperBox");
+    assets.put(copperBoxModelId, copperBox);
+    let chromeBox = Model.simple(MeshId.of("modelBox"), MaterialId.of("chrome"));
+    const chromeBoxModelId = ModelId.of("chromeBox");
+    assets.put(chromeBoxModelId, chromeBox);
+    let boxModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("stone-1"));
     const boxModelId = ModelId.of("box");
     assets.put(boxModelId, boxModel);
-    const characterModelId = ModelId.of("tyracorn");
     const wallColMatId = PhysicalMaterialId.of("wall");
     assets.put(wallColMatId, PhysicalMaterial.simple(0.6, 1.8, 1.8));
     const objectColMatId = PhysicalMaterialId.of("object");
     assets.put(objectColMatId, PhysicalMaterial.create(0.6, PhysicalMaterialCombineType.AVG, 18, 18, PhysicalMaterialCombineType.MAX));
-    const charColMatId = PhysicalMaterialId.of("character");
-    assets.put(charColMatId, PhysicalMaterial.create(0, PhysicalMaterialCombineType.MIN, 0, 0, PhysicalMaterialCombineType.MIN));
+    const carColMat = PhysicalMaterialId.of("car");
+    assets.put(carColMat, PhysicalMaterial.create(0.2, PhysicalMaterialCombineType.AVG, 2, 2.5, PhysicalMaterialCombineType.MIN));
+    const wheelColMat = PhysicalMaterialId.of("wheel");
+    assets.put(wheelColMat, PhysicalMaterial.create(0.0, PhysicalMaterialCombineType.MIN, 18, 20, PhysicalMaterialCombineType.MAX));
     this.world = RigidBodyWorld.create(drivers);
     let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create().setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-300, -30, -300, 300, 30, 300)));
-    this.world.actors().add(ActorId.ROOT, worldActor);
+    this.world.actors().add(worldActor);
     let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create()).addComponent(SkyboxComponent.create().setModelId(skyboxModelId).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create().setAngularVelocity(Vec3.create(0, 0.1, 0)));
-    this.world.actors().add(ActorId.ROOT, skybox);
-    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create().move(Vec3.create(10, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(40, 1, 30)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 2, 32)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, ground);
-    let back = Actor.create("back").setName("back").addComponent(TransformComponent.create().move(Vec3.create(10, 0, -15))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(42, 1, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 7, 1)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, back);
-    let front = Actor.create("front").setName("front").addComponent(TransformComponent.create().move(Vec3.create(10, 0, 15))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(42, 1, 3)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 3, 1)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, front);
-    let left = Actor.create("left").setName("left").addComponent(TransformComponent.create().move(Vec3.create(-10, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 32, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 32)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, left);
-    let right = Actor.create("right").setName("right").addComponent(TransformComponent.create().move(Vec3.create(30, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 32, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 32)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, right);
-    let slope1 = Actor.create("slope-1").setName("slope-1").addComponent(TransformComponent.create().move(Vec3.create(8, 2, 5)).rotate(FMath.PI/4, Vec3.create(0, 0, 1))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(7, 1, 6))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(7, 1, 6)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, slope1);
-    let slope2 = Actor.create("slope-2").setName("slope-2").addComponent(TransformComponent.create().move(Vec3.create(20, 2, 5)).rotate(-FMath.PI/4, Vec3.create(0, 0, 1))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(7, 1, 6))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(7, 1, 6)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, slope2);
-    let bridge = Actor.create("bridge").setName("bridge").addComponent(TransformComponent.create().move(Vec3.create(14, 4.25, 5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(7.5, 1, 6))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(7.5, 1, 6)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, bridge);
-    let stair = Actor.create("stair").setName("stair").addComponent(TransformComponent.create().move(Vec3.create(-2, -0.1, 3)).rotate(-FMath.PI/3, Vec3.create(0, 1, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(3, 1, 3))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(3, 1, 3)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, stair);
+    this.world.actors().add(skybox);
+    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create().move(Vec3.create(10, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(40, 1, 60)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 2, 62)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
+    this.world.actors().add(ground);
+    let back = Actor.create("back").setName("back").addComponent(TransformComponent.create().move(Vec3.create(10, 0, -30))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(42, 1, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 7, 1)).setMaterialId(wallColMatId));
+    this.world.actors().add(back);
+    let front = Actor.create("front").setName("front").addComponent(TransformComponent.create().move(Vec3.create(10, 0, 30))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(42, 1, 3)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 3, 1)).setMaterialId(wallColMatId));
+    this.world.actors().add(front);
+    let left = Actor.create("left").setName("left").addComponent(TransformComponent.create().move(Vec3.create(-10, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 62, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 62)).setMaterialId(wallColMatId));
+    this.world.actors().add(left);
+    let right = Actor.create("right").setName("right").addComponent(TransformComponent.create().move(Vec3.create(30, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 62, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 62)).setMaterialId(wallColMatId));
+    this.world.actors().add(right);
+    let slope1 = Actor.create("slope-1").setName("slope-1").addComponent(TransformComponent.create().move(8, 0.5, 0).rotate(FMath.PI/10, Vec3.create(0, 0, 1))).addComponent(ModelComponent.create().setModelId(copperBoxModelId).setTransform(Mat44.scale(7, 1, 15))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(7, 1, 15).setMaterialId(wallColMatId));
+    this.world.actors().add(slope1);
+    let slope2 = Actor.create("slope-2").setName("slope-2").addComponent(TransformComponent.create().move(20, 0.5, 0).rotate(-FMath.PI/10, Vec3.create(0, 0, 1))).addComponent(ModelComponent.create().setModelId(copperBoxModelId).setTransform(Mat44.scale(7, 1, 15))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(7, 1, 15).setMaterialId(wallColMatId));
+    this.world.actors().add(slope2);
+    let bridge = Actor.create("bridge").setName("bridge").addComponent(TransformComponent.create().move(14, 1.54, 0)).addComponent(ModelComponent.create().setModelId(copperBoxModelId).setTransform(Mat44.scale(5.6, 1, 15))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(5.6, 1, 15).setMaterialId(wallColMatId));
+    this.world.actors().add(bridge);
+    let stair = Actor.create("stair").setName("stair").addComponent(TransformComponent.create().move(Vec3.create(-2, -0.1, -18)).rotate(-FMath.PI/3, Vec3.create(0, 1, 0))).addComponent(ModelComponent.create().setModelId(copperBoxModelId).setTransform(Mat44.scale(6, 1, 6))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(6, 1, 6)).setMaterialId(wallColMatId));
+    this.world.actors().add(stair);
     let light = Actor.create("light").setName("light").addComponent(TransformComponent.create().lookAt(Vec3.create(2, 5, 4), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create().setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
-    this.world.actors().add(ActorId.ROOT, light);
-    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create().lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create().setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create()).addComponent(CameraTrackBehavior.create(ActorId.of("character"), Vec3.create(0, 10, 8), Vec3.create(0, 0, -1)));
-    this.world.actors().add(ActorId.ROOT, camera);
-    let character = Actor.create("character").setName("character").addComponent(TransformComponent.create().move(Vec3.create(0, 5, 0))).addComponent(ModelComponent.create().setModelId(characterModelId).setTransform(Mat44.rotY(FMath.PI))).addComponent(RigidBodyComponent.create().setMass(20).setRotationLock(true).setKinematic(false)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setPos(Vec3.create(0, 1.5, 0)).setShape(ColliderShape.CAPSULE).setRadius(0.7).setHeight(3).setMaterialId(charColMatId).setKey("body-collider")).addComponent(ColliderComponent.create().setTrigger(true).setActive(false).setLayer(CollisionLayer.OBJECT).setPos(Vec3.create(0.3, 1.7, -1.6)).setShape(ColliderShape.SPHERE).setRadius(0.1).setKey("punch-collider")).addComponent(PlayerCharacterBehavior.create());
-    this.world.actors().add(ActorId.ROOT, character);
-    let sphere1 = Actor.create("sphere-1").setName("sphere-1").addComponent(TransformComponent.create().move(Vec3.create(-3, 4, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(0.5).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, sphere1);
-    let sphere2 = Actor.create("sphere-2").setName("sphere-2").addComponent(TransformComponent.create().move(Vec3.create(-3, 3.2, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setRadius(0.5).setSize(Vec3.create(1, 1, 1)).setMaterialId(objectColMatId)).addComponent(PunchableBehavior.create()).addComponent(BallSocketJointComponent.create().setJoint("sphere-1", "sphere-2", Vec3.create(-3, 3.6, 0)));
-    this.world.actors().add(ActorId.ROOT, sphere2);
-    let sphere3 = Actor.create("sphere-3").setName("sphere-3").addComponent(TransformComponent.create().move(Vec3.create(-3, 2.4, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setRadius(0.5).setSize(Vec3.create(1, 1, 1)).setMaterialId(objectColMatId)).addComponent(PunchableBehavior.create()).addComponent(BallSocketJointComponent.create().setJoint("sphere-2", "sphere-3", Vec3.create(-3, 2.7, 0)));
-    this.world.actors().add(ActorId.ROOT, sphere3);
-    let sphere4 = Actor.create("sphere-4").setName("sphere-4").addComponent(TransformComponent.create().move(Vec3.create(-3, 1.6, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setRadius(0.5).setSize(Vec3.create(1, 1, 1)).setMaterialId(objectColMatId)).addComponent(PunchableBehavior.create()).addComponent(BallSocketJointComponent.create().setJoint("sphere-3", "sphere-4", Vec3.create(-3, 1.8, 0)));
-    this.world.actors().add(ActorId.ROOT, sphere4);
-    let fixedBase = Actor.create("fixed-base").setName("fixed-base").addComponent(TransformComponent.create().move(Vec3.create(-1, 2, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(1, 4, 1))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 4, 1)).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, fixedBase);
-    let fixedBlock = Actor.create("fixed-block").setName("fixed-block").addComponent(TransformComponent.create().move(Vec3.create(-3, 3, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(4, 2, 0.5))).addComponent(RigidBodyComponent.create().setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(4, 2, 0.5)).setMaterialId(objectColMatId)).addComponent(FixedJointComponent.create().setJoint("fixed-base", "fixed-block"));
-    this.world.actors().add(ActorId.ROOT, fixedBlock);
-    let hingeBase = Actor.create("hinge-base").setName("hinge-base").addComponent(TransformComponent.create().move(Vec3.create(9, 2, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(1, 4, 1))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 4, 1)).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, hingeBase);
-    let hingeBlock = Actor.create("hinge-block").setName("hinge-block").addComponent(TransformComponent.create().move(Vec3.create(9, 3, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.trans(-2, 0, 0).mul(Mat44.scale(4, 2, 0.5)))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(10)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(4, 2, 0.5)).setPos(Vec3.create(-2, 0, 0)).setMaterialId(objectColMatId)).addComponent(HingeJointComponent.create().setJoint("hinge-base", "hinge-block", Vec3.create(9, 3, -8), Vec3.UP));
-    this.world.actors().add(ActorId.ROOT, hingeBlock);
-    let prismaticBase = Actor.create("prismatic-base").setName("prismatic-base").addComponent(TransformComponent.create().move(Vec3.create(20, 4, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(10, 0.5, 0.5))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(10, 0.5, 0.5)).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, prismaticBase);
-    let prismaticEnds = Actor.create("prismatic-ends").setName("prismatic-ends").addComponent(TransformComponent.create().move(Vec3.create(20, 4, -8))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setPos(Vec3.create(-5.125, 0, 0)).setSize(Vec3.create(0.25, 0.5, 0.5)).setMaterialId(objectColMatId)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setPos(Vec3.create(5.125, 0, 0)).setSize(Vec3.create(0.25, 0.5, 0.5)).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, prismaticEnds);
-    let prismaticBlock = Actor.create("prismatic-block").setName("prismatic-block").addComponent(TransformComponent.create().move(Vec3.create(20, 3, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(10)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId)).addComponent(PrismaticJointComponent.create().setJoint("prismatic-base", "prismatic-block", Vec3.create(20, 4, -8), Vec3.RIGHT));
-    this.world.actors().add(ActorId.ROOT, prismaticBlock);
+    this.world.actors().add(light);
+    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create().lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create().setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraTrackBehavior.create(ActorId.of("car"), Vec3.create(0, 5, 11), Vec3.create(0, 0, -1))).addComponent(CameraFovyComponent.create());
+    this.world.actors().add(camera);
+    let suspensionStiffness = 200;
+    let suspensionDamp = 10;
+    let maxTurn = FMath.PI_THIRD/2;
+    let turnSpeed = FMath.PI_THIRD/2;
+    let car = Actor.create("car").addComponent(TransformComponent.create().setPos(0, 5, 0)).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(chromeBoxModelId).setTransform(Mat44.trans(0, -0.3, 0).mul(Mat44.scale(2, 1.0, 5)))).addComponent(ModelComponent.create().setModelId(chromeBoxModelId).setTransform(Mat44.trans(0, 0, -0.5).mul(Mat44.scale(1.8, 1.6, 2)))).addComponent(RigidBodyComponent.create().setMass(10)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setPos(0, -0.3, 0).setSize(2, 1, 5).setMaterialId(carColMat)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setPos(0, 0, -0.5).setSize(1.8, 1.6, 2).setMaterialId(carColMat));
+    this.world.actors().add(car);
+    let wheelFRAct = Actor.create("wheel-front-right").addComponent(TransformComponent.create().setPos(1, 3.5, -1.6)).addComponent(ModelComponent.create().setModelId(cylinderModelId).setTransform(Mat44.rotZ(FMath.PI_HALF).mul(Mat44.scale(0.8, 0.3, 0.8)))).addComponent(RigidBodyComponent.create().setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(0.8).setMaterialId(wheelColMat)).addComponent(CarWheelJointComponent.create().setJoint("car", "wheel-front-right", Vec3.create(1, 3.5, -1.6), Vec3.BACKWARD, Vec3.UP));
+    this.world.actors().add(car.getId(), wheelFRAct);
+    this.wheelFR = wheelFRAct.getComponent("CarWheelJointComponent");
+    let wheelFLAct = Actor.create("wheel-front-left").addComponent(TransformComponent.create().setPos(-1, 3.5, -1.6)).addComponent(ModelComponent.create().setModelId(cylinderModelId).setTransform(Mat44.rotZ(FMath.PI_HALF).mul(Mat44.scale(0.8, 0.3, 0.8)))).addComponent(RigidBodyComponent.create().setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(0.8).setMaterialId(wheelColMat)).addComponent(CarWheelJointComponent.create().setJoint("car", "wheel-front-left", Vec3.create(-1, 3.5, -1.6), Vec3.BACKWARD, Vec3.UP));
+    this.world.actors().add(car.getId(), wheelFLAct);
+    this.wheelFL = wheelFLAct.getComponent("CarWheelJointComponent");
+    let wheelBRAct = Actor.create("wheel-back-right").addComponent(TransformComponent.create().setPos(1, 3.5, 1.8)).addComponent(ModelComponent.create().setModelId(cylinderModelId).setTransform(Mat44.rotZ(FMath.PI_HALF).mul(Mat44.scale(0.8, 0.3, 0.8)))).addComponent(RigidBodyComponent.create().setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(0.8).setMaterialId(wheelColMat)).addComponent(CarWheelJointComponent.create().setJoint("car", "wheel-back-right", Vec3.create(1, 3.5, 1.8), Vec3.BACKWARD, Vec3.UP));
+    this.world.actors().add(car.getId(), wheelBRAct);
+    this.wheelBR = wheelBRAct.getComponent("CarWheelJointComponent");
+    let wheelBLAct = Actor.create("wheel-back-left").addComponent(TransformComponent.create().setPos(Vec3.create(-1, 3.5, 1.8))).addComponent(ModelComponent.create().setModelId(cylinderModelId).setTransform(Mat44.rotZ(FMath.PI_HALF).mul(Mat44.scale(0.8, 0.3, 0.8)))).addComponent(RigidBodyComponent.create().setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(0.8).setMaterialId(wheelColMat)).addComponent(CarWheelJointComponent.create().setJoint("car", "wheel-back-left", Vec3.create(-1, 3.5, 1.8), Vec3.BACKWARD, Vec3.UP));
+    this.world.actors().add(car.getId(), wheelBLAct);
+    this.wheelBL = wheelBLAct.getComponent("CarWheelJointComponent");
     this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(UiPlayStyles.createPlayStyler());
-    let addObjectAct = (evetSource) => {
-      let r = Randoms.nextFloat(1, 3);
-      let m = Randoms.nextFloat(1, 2);
-      let id1 = Randoms.nextAlphabetic(32);
-      let id2 = Randoms.nextAlphabetic(32);
-      let sphereObj1 = Actor.create(id1).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(objectColMatId)).addComponent(BreakableSphereBehavior.create().setSphereModelId(sphereModelId));
-      this.world.actors().add(ActorId.ROOT, sphereObj1);
-      let sphereObj2 = Actor.create(id2).addComponent(TransformComponent.create().move(Vec3.create(0, 8, r))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(r/2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m/10)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r/2).setMaterialId(objectColMatId)).addComponent(BreakableSphereBehavior.create().setSphereModelId(sphereModelId)).addComponent(FixedJointComponent.create().setJoint(id1, id2));
-      this.world.actors().add(sphereObj1.getId(), sphereObj2);
-    };
-    let objectBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(20, 20, 120, 30)).setText("Object").addOnClickAction(addObjectAct);
-    this.ui.addComponent(objectBtn);
-    this.controller = CharacterController.create(drivers);
+    this.controller = CarController.create(drivers);
     this.ui.addComponent(this.controller);
+    let addSphereAct = (evtSource) => {
+      let r = Randoms.nextFloat(1, 1.5);
+      let m = Randoms.nextFloat(1, 2);
+      let sphere = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(objectColMatId)).addComponent(BreakableSphereBehavior.create().setSphereModelId(sphereModelId));
+      this.world.actors().add(sphere);
+    };
+    let sphereBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(20, 20, 120, 30)).setText("Sphere").addOnClickAction(addSphereAct);
+    this.ui.addComponent(sphereBtn);
     if (drivers.getPlatform().isExitable()) {
       this.ui.addComponent(Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager)));
     }
@@ -32106,7 +32153,7 @@ class RigidBodyApp06 extends TyracornScreen {
   }
 
 }
-classRegistry.RigidBodyApp06 = RigidBodyApp06;
+classRegistry.RigidBodyApp08 = RigidBodyApp08;
 
 
 // -------------------------------------
@@ -32489,7 +32536,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new RigidBodyApp06());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new RigidBodyApp08());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

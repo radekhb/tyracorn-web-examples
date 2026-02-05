@@ -7,7 +7,7 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/rigid-body-app-01";
+const basePath = "/tyracorn-web-examples/rigid-body-app-03";
 const assetsDirName = "/assets-c0230d";
 const localStoragePrefix = "app.";
 let mouseDown = false;
@@ -5751,8 +5751,8 @@ class WebglGraphicsDriver {
             precision mediump int;
 
             #define MAX_DIR_LIGHTS 3
-            #define MAX_POINT_LIGHTS 10
-            #define MAX_SPOT_LIGHTS 10
+            #define MAX_POINT_LIGHTS 3
+            #define MAX_SPOT_LIGHTS 3
             #define MAX_SHADOW_MAPS 3
             #define MAX_BONES 60
 
@@ -5842,8 +5842,8 @@ class WebglGraphicsDriver {
             precision mediump int;
 
             #define MAX_DIR_LIGHTS 3
-            #define MAX_POINT_LIGHTS 10
-            #define MAX_SPOT_LIGHTS 10
+            #define MAX_POINT_LIGHTS 3
+            #define MAX_SPOT_LIGHTS 3
             #define MAX_SHADOW_MAPS 3
 
             struct Material {
@@ -31519,30 +31519,7 @@ class FreeCameraBehavior extends Behavior {
 
 }
 classRegistry.FreeCameraBehavior = FreeCameraBehavior;
-class RotationBehavior extends Behavior {
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "RotationBehavior";
-  }
-
-  move(dt, inputs) {
-    let tx = this.actor().getComponent("TransformComponent");
-    let x = inputs.getFloat("x", 0);
-    let y = inputs.getFloat("y", 0);
-    let z = inputs.getFloat("z", 0);
-    tx.rotate(dt, Vec3.create(x, y, z));
-  }
-
-  static create() {
-    return new RotationBehavior();
-  }
-
-}
-classRegistry.RotationBehavior = RotationBehavior;
-class RigidBodyApp01 extends TyracornScreen {
+class RigidBodyApp03 extends TyracornScreen {
   time = 0;
   world;
   inputs = InputCache.create();
@@ -31553,7 +31530,7 @@ class RigidBodyApp01 extends TyracornScreen {
   }
 
   getClass() {
-    return "RigidBodyApp01";
+    return "RigidBodyApp03";
   }
 
   move(drivers, screenManager, dt) {
@@ -31575,68 +31552,77 @@ class RigidBodyApp01 extends TyracornScreen {
     let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
     res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/box-01.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/primitives.tap")));
     return res;
   }
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(12, 14, 20));
-    let boxDiffuse = TextureId.of("tex_box_01_d");
-    let boxSpecular = TextureId.of("tex_box_01_s");
+    Fonts.prepareScaledFonts(assets, Dut.set(12, 20));
     assets.put(MaterialId.of("brass"), Material.BRASS);
-    assets.put(MaterialId.of("box"), Material.SILVER.plusTexture(TextureAttachment.diffuse(boxDiffuse)).plusTexture(TextureAttachment.specular(boxSpecular)));
+    assets.put(MaterialId.of("copper"), Material.COPPER);
     assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
     let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("brass"));
     let groundModelId = ModelId.of("ground");
     assets.put(groundModelId, groundModel);
-    let boxModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("box"));
+    let sphereModelId = ModelId.of("sphere");
     let boxModelId = ModelId.of("box");
+    let cylinderRoundModelId = ModelId.of("cylinder-round");
+    let halfSphereModelId = ModelId.of("half-sphere");
+    let boxModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
     assets.put(boxModelId, boxModel);
+    const wallColMatId = PhysicalMaterialId.of("wall");
+    assets.put(wallColMatId, PhysicalMaterial.simple(0.6, 1.8, 1.8));
+    const objectColMatId = PhysicalMaterialId.of("object");
+    assets.put(objectColMatId, PhysicalMaterial.create(0.6, PhysicalMaterialCombineType.AVG, 18, 18, PhysicalMaterialCombineType.MAX));
     this.world = RigidBodyWorld.create(drivers);
-    let box1 = Actor.create("box-1").setName("box-1").addComponent(TransformComponent.create()).addComponent(ModelComponent.create().setModelId(boxModelId)).addComponent(RotationBehavior.create());
-    this.world.actors().add(ActorId.ROOT, box1);
-    let box11 = Actor.create("box-1-1").setName("box-1-1").addComponent(TransformComponent.create().move(Vec3.create(0.5, 0.5, 0.5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
-    this.world.actors().add(box1.getId(), box11);
-    let box111 = Actor.create("box-1-1-1").setName("box-1-1-1").addComponent(TransformComponent.create().move(Vec3.create(0.25, 0.25, 0.25))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.25, 0.25, 0.25)));
-    this.world.actors().add(box11.getId(), box111);
-    let box12 = Actor.create("box-1-2").setName("box-1-2").addComponent(TransformComponent.create().move(Vec3.create(-0.5, 0.5, 0.5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
-    this.world.actors().add(box1.getId(), box12);
-    let box13 = Actor.create("box-1-3").setName("box-1-3").addComponent(TransformComponent.create().move(Vec3.create(0.5, 0.5, -0.5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
-    this.world.actors().add(box1.getId(), box13);
-    let box14 = Actor.create("box-1-4").setName("box-1-4").addComponent(TransformComponent.create().move(Vec3.create(-0.5, 0.5, -0.5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
-    this.world.actors().add(box1.getId(), box14);
-    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create().lookAt(Vec3.create(0, 1, 0), Vec3.create(0.7, 0, 0.4), Vec3.create(1, 0, 0))).addComponent(LightComponent.create().setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
+    let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create().setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-30, -30, -30, 30, 30, 30)));
+    this.world.actors().add(ActorId.ROOT, worldActor);
+    let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create()).addComponent(SkyboxComponent.create().setModelId(ModelId.of("skybox-1")).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create().setAngularVelocity(Vec3.create(0, 0.1, 0)));
+    this.world.actors().add(ActorId.ROOT, skybox);
+    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create().move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(20, 1, 20)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 2, 22)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, ground);
+    let back = Actor.create("back").setName("back").addComponent(TransformComponent.create().move(Vec3.create(0, 0, -10))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(22, 1, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 7, 1)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, back);
+    let front = Actor.create("front").setName("front").addComponent(TransformComponent.create().move(Vec3.create(0, 0, 10))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(22, 1, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 7, 1)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, front);
+    let left = Actor.create("left").setName("left").addComponent(TransformComponent.create().move(Vec3.create(-10, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 22, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 22)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, left);
+    let right = Actor.create("right").setName("right").addComponent(TransformComponent.create().move(Vec3.create(10, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 22, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 22)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, right);
+    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create().lookAt(Vec3.create(2, 5, 5), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create().setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
     this.world.actors().add(ActorId.ROOT, light);
-    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create().lookAt(Vec3.create(1, 2, 7), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create().setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create("moveDir", "rotDir", 3, 1)).addComponent(CameraFovyComponent.create());
+    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create().lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create().setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create("moveDir", "rotDir", 5, 1)).addComponent(CameraFovyComponent.create());
     this.world.actors().add(ActorId.ROOT, camera);
     this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
     this.gamePad = GamePad.create(drivers);
     this.ui.addComponent(this.gamePad);
-    let xLabel = Label.create().setPosFnc(UiPosFncs.leftTop(55, 25)).setText("X-axis").setAlignment(TextAlignment.RIGHT_CENTER);
-    this.ui.addComponent(xLabel);
-    let xVal = Label.create().setPosFnc(UiPosFncs.leftTop(125, 25)).setText("0.0").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(xVal);
-    let xMinusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(65, 10, 30, 30)).setText("-").addOnClickAction(this.inputChangeAction(this.inputs, "x", -0.1, xVal));
-    this.ui.addComponent(xMinusBtn);
-    let xPlusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(155, 10, 30, 30)).setText("+").addOnClickAction(this.inputChangeAction(this.inputs, "x", 0.1, xVal));
-    this.ui.addComponent(xPlusBtn);
-    let yLabel = Label.create().setPosFnc(UiPosFncs.leftTop(55, 65)).setText("Y-axis").setAlignment(TextAlignment.RIGHT_CENTER);
-    this.ui.addComponent(yLabel);
-    let yVal = Label.create().setPosFnc(UiPosFncs.leftTop(125, 65)).setText("0.0").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(yVal);
-    let yMinusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(65, 50, 30, 30)).setText("-").addOnClickAction(this.inputChangeAction(this.inputs, "y", -0.1, yVal));
-    this.ui.addComponent(yMinusBtn);
-    let yPlusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(155, 50, 30, 30)).setText("+").addOnClickAction(this.inputChangeAction(this.inputs, "y", 0.1, yVal));
-    this.ui.addComponent(yPlusBtn);
-    let zLabel = Label.create().setPosFnc(UiPosFncs.leftTop(55, 105)).setText("Z-axis").setAlignment(TextAlignment.RIGHT_CENTER);
-    this.ui.addComponent(zLabel);
-    let zVal = Label.create().setPosFnc(UiPosFncs.leftTop(125, 105)).setText("0.0").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(zVal);
-    let zMinusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(65, 90, 30, 30)).setText("-").addOnClickAction(this.inputChangeAction(this.inputs, "z", -0.1, zVal));
-    this.ui.addComponent(zMinusBtn);
-    let zPlusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(155, 90, 30, 30)).setText("+").addOnClickAction(this.inputChangeAction(this.inputs, "z", 0.1, zVal));
-    this.ui.addComponent(zPlusBtn);
+    let addSphereAct = (evtSource) => {
+      let r = Randoms.nextFloat(0.5, 1.5);
+      let m = Randoms.nextFloat(1, 2);
+      let sphere = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(objectColMatId));
+      this.world.actors().add(ActorId.ROOT, sphere);
+    };
+    let sphereBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(20, 20, 120, 30)).setText("Sphere").addOnClickAction(addSphereAct);
+    this.ui.addComponent(sphereBtn);
+    let addBoxAct = (evtSource) => {
+      let box = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId));
+      this.world.actors().add(ActorId.ROOT, box);
+    };
+    let boxBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(20, 70, 120, 30)).setText("Box").addOnClickAction(addBoxAct);
+    this.ui.addComponent(boxBtn);
+    let addBoxStraightAct = (evtSource) => {
+      let box = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 12, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId));
+      this.world.actors().add(ActorId.ROOT, box);
+    };
+    let boxStraightBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(20, 120, 120, 30)).setText("Box Straight").addOnClickAction(addBoxStraightAct);
+    this.ui.addComponent(boxStraightBtn);
+    let addCapsuleAct = (evtSource) => {
+      let capsule = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(cylinderRoundModelId).setTransform(Mat44.rotX(FMath.PI/2).mul(Mat44.scale(1, 1, 1)))).addComponent(ModelComponent.create().setModelId(halfSphereModelId).setTransform(Mat44.trans(0, 1, 0).mul(Mat44.rotX(FMath.PI/2)))).addComponent(ModelComponent.create().setModelId(halfSphereModelId).setTransform(Mat44.trans(0, -1, 0).mul(Mat44.rotX(-FMath.PI/2)))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.CAPSULE).setRadius(1).setHeight(4).setMaterialId(objectColMatId));
+      this.world.actors().add(ActorId.ROOT, capsule);
+    };
+    let capsuleBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(20, 170, 120, 30)).setText("Capsule").addOnClickAction(addCapsuleAct);
+    this.ui.addComponent(capsuleBtn);
     if (drivers.getPlatform().isExitable()) {
       this.ui.addComponent(Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager)));
     }
@@ -31651,17 +31637,15 @@ class RigidBodyApp01 extends TyracornScreen {
     this.world.destroy(drivers);
   }
 
-  inputChangeAction(inputs, key, d, label) {
-    return (evtSource) => {
-      let x = inputs.getFloat(key, 0);
-      x = x+d;
-      inputs.put(key, x);
-      label.setText(Formats.floatToFixedDecimals(x, 1));
-    };
+  getRandomVelocity() {
+    let vx = Randoms.nextFloat(0, 2)-1;
+    let vy = Randoms.nextFloat(0, 2)-1;
+    let vz = Randoms.nextFloat(0, 2)-1;
+    return Vec3.create(vx, vy, vz);
   }
 
 }
-classRegistry.RigidBodyApp01 = RigidBodyApp01;
+classRegistry.RigidBodyApp03 = RigidBodyApp03;
 
 
 // -------------------------------------
@@ -32044,7 +32028,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new RigidBodyApp01());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new RigidBodyApp03());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
