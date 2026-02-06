@@ -5753,7 +5753,7 @@ class WebglGraphicsDriver {
             precision mediump int;
 
             #define MAX_DIR_LIGHTS 1
-            #define MAX_POINT_LIGHTS 3
+            #define MAX_POINT_LIGHTS 6
             #define MAX_SPOT_LIGHTS 3
             #define MAX_SHADOW_MAPS 3
             #define MAX_BONES 55
@@ -5844,7 +5844,7 @@ class WebglGraphicsDriver {
             precision mediump int;
 
             #define MAX_DIR_LIGHTS 1
-            #define MAX_POINT_LIGHTS 2
+            #define MAX_POINT_LIGHTS 6
             #define MAX_SPOT_LIGHTS 3
             #define MAX_SHADOW_MAPS 3
 
