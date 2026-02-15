@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/rigid-body-app-01";
-const assetsDirName = "/assets-f49844";
+const basePath = "/tyracorn-web-examples/basic-app-01";
+const assetsDirName = "/null";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -732,7 +732,7 @@ class HashMap {
     constructor(initialCapacity = 16, loadFactor = 0.75) {
         this.capacity = initialCapacity;
         this.loadFactor = loadFactor;
-        this.size = 0;
+        this.mSize = 0;
         this.buckets = new Array(this.capacity).fill(null).map(() => []);
     }
 
@@ -771,10 +771,10 @@ class HashMap {
 
         // Add new key-value pair
         bucket.push([key, value]);
-        this.size++;
+        this.mSize++;
 
         // Resize if load factor exceeded
-        if (this.size > this.capacity * this.loadFactor) {
+        if (this.mSize > this.capacity * this.loadFactor) {
             this.resize();
         }
 
@@ -827,7 +827,7 @@ class HashMap {
             if (this.elementsEqual(bucket[i][0], key)) {
                 const removedValue = bucket[i][1];
                 bucket.splice(i, 1);
-                this.size--;
+                this.mSize--;
                 return removedValue;
             }
         }
@@ -853,7 +853,7 @@ class HashMap {
 
     // Check if map is empty
     isEmpty() {
-        return this.size === 0;
+        return this.mSize === 0;
     }
 
     // Get all keys
@@ -892,14 +892,14 @@ class HashMap {
     // Clear all entries
     clear() {
         this.buckets = new Array(this.capacity).fill(null).map(() => []);
-        this.size = 0;
+        this.mSize = 0;
     }
 
     // Resize the hash table when load factor is exceeded
     resize() {
         const oldBuckets = this.buckets;
         this.capacity *= 2;
-        this.size = 0;
+        this.mSize = 0;
         this.buckets = new Array(this.capacity).fill(null).map(() => []);
 
         // Rehash all existing entries
@@ -911,8 +911,8 @@ class HashMap {
     }
 
     // Get current size
-    getSize() {
-        return this.size;
+    size() {
+        return this.mSize;
     }
 
     // Override hashCode for HashMap
@@ -968,7 +968,7 @@ class HashMap {
             return false;
         }
 
-        if (this.size !== other.size) {
+        if (this.mSize !== other.mSize) {
             return false;
         }
 
@@ -12657,6 +12657,7 @@ class Armature {
       this.idsToIndexes.put(this.nodes.get(i).getId(), i);
     }
     this.idsToIndexes = Collections.unmodifiableMap(this.idsToIndexes);
+    Guard.beTrue(this.nodes.size()==this.idsToIndexes.size(), "nodes cannot have duplicated ids");
   }
 
   getNodes() {
@@ -19274,6 +19275,7 @@ class Clip {
 }
 classRegistry.Clip = Clip;
 class ArmaturePoseTrackChannel {
+  nodeId;
   ticksPerSecond;
   positionKeys;
   rotationKeys;
@@ -19286,6 +19288,10 @@ class ArmaturePoseTrackChannel {
   }
 
   guardInvariants() {
+  }
+
+  getNodeId() {
+    return this.nodeId;
   }
 
   getTicksPerSecond() {
@@ -19394,8 +19400,9 @@ class ArmaturePoseTrackChannel {
   toString() {
   }
 
-  static create(ticksPerSecond, positionKeys, rotationKeys, scalingKeys) {
+  static create(nodeId, ticksPerSecond, positionKeys, rotationKeys, scalingKeys) {
     let res = new ArmaturePoseTrackChannel();
+    res.nodeId = nodeId;
     res.ticksPerSecond = ticksPerSecond;
     res.positionKeys = Dut.copyImmutableList(positionKeys);
     res.rotationKeys = Dut.copyImmutableList(rotationKeys);
@@ -19410,6 +19417,7 @@ class ArmaturePoseTrack {
   ticksPerSecond;
   armature;
   channels;
+  channelsByNodeId;
   constructor() {
   }
 
@@ -19428,27 +19436,28 @@ class ArmaturePoseTrack {
     return this.armature;
   }
 
-  getChannel(id) {
-    return this.channels.get(id);
-  }
-
   getChannels() {
     return this.channels;
   }
 
-  plusChannel(nodeId, channel) {
+  getChannel(id) {
+    return this.channelsByNodeId.get(id);
+  }
+
+  plusChannel(channel) {
     let res = new ArmaturePoseTrack();
     res.ticksPerSecond = this.ticksPerSecond;
     res.armature = this.armature;
-    res.channels = Dut.immutableMapPlusEntry(this.channels, nodeId, channel);
+    res.channels = Dut.immutableListPlusItem(this.channels, channel);
+    res.channelsByNodeId = Dut.immutableMapPlusEntry(this.channelsByNodeId, channel.getNodeId(), channel);
     res.guardInvariants();
     return res;
   }
 
   getPose(time) {
     let nodeLocalTransforms = new HashMap();
-    for (let id of this.channels.keySet()) {
-      nodeLocalTransforms.put(id, this.channels.get(id).getTransform(time));
+    for (let channel of this.channels) {
+      nodeLocalTransforms.put(channel.getNodeId(), channel.getTransform(time));
     }
     return this.armature.getPose(nodeLocalTransforms);
   }
@@ -19468,7 +19477,8 @@ class ArmaturePoseTrack {
     let res = new ArmaturePoseTrack();
     res.ticksPerSecond = ticksPerSecond;
     res.armature = armature;
-    res.channels = Collections.emptyMap();
+    res.channels = Collections.emptyList();
+    res.channelsByNodeId = Collections.emptyMap();
     res.guardInvariants();
     return res;
   }
@@ -19666,6 +19676,7 @@ class MeshAnimationStep {
 }
 classRegistry.MeshAnimationStep = MeshAnimationStep;
 class MeshAnimation {
+  key;
   ticksPerSecond;
   numTicks;
   loop;
@@ -19680,6 +19691,10 @@ class MeshAnimation {
   }
 
   guardInvariants() {
+  }
+
+  getKey() {
+    return this.key;
   }
 
   getTicksPerSecond() {
@@ -19832,6 +19847,7 @@ class MeshAnimation {
       trgs.add(trigger);
     }
     let res = new MeshAnimation();
+    res.key = this.key;
     res.numTicks = this.numTicks;
     res.ticksPerSecond = this.ticksPerSecond;
     res.loop = this.loop;
@@ -19844,6 +19860,7 @@ class MeshAnimation {
 
   withClip(clip) {
     let res = new MeshAnimation();
+    res.key = this.key;
     res.numTicks = this.numTicks;
     res.ticksPerSecond = this.ticksPerSecond;
     res.loop = this.loop;
@@ -19856,6 +19873,7 @@ class MeshAnimation {
 
   withPoseTrack(poseTrack) {
     let res = new MeshAnimation();
+    res.key = this.key;
     res.numTicks = this.numTicks;
     res.ticksPerSecond = this.ticksPerSecond;
     res.loop = this.loop;
@@ -19885,8 +19903,9 @@ class MeshAnimation {
   toString() {
   }
 
-  static create(ticksPerSecond, numTicks, loop) {
+  static create(key, ticksPerSecond, numTicks, loop) {
     let res = new MeshAnimation();
+    res.key = key;
     res.ticksPerSecond = ticksPerSecond;
     res.numTicks = numTicks;
     res.loop = loop;
@@ -19950,6 +19969,7 @@ class MeshAnimationCollectionId extends RefId {
 classRegistry.MeshAnimationCollectionId = MeshAnimationCollectionId;
 class MeshAnimationCollection {
   animations;
+  animationsByKey;
   constructor() {
   }
 
@@ -19965,14 +19985,15 @@ class MeshAnimationCollection {
   }
 
   getAnimation(key) {
-    let res = this.animations.get(key);
+    let res = this.animationsByKey.get(key);
     Guard.notNull(res, "no animation under key: "+key);
     return res;
   }
 
-  plusAnimation(key, animation) {
+  plusAnimation(animation) {
     let res = new MeshAnimationCollection();
-    res.animations = Dut.immutableMapPlusEntry(this.animations, key, animation);
+    res.animations = Dut.immutableListPlusItem(this.animations, animation);
+    res.animationsByKey = Dut.immutableMapPlusEntry(this.animationsByKey, animation.getKey(), animation);
     res.guardInvariants();
     return res;
   }
@@ -19990,14 +20011,20 @@ class MeshAnimationCollection {
 
   static create(animations) {
     let res = new MeshAnimationCollection();
-    res.animations = Dut.copyImmutableMap(animations);
+    res.animations = Dut.copyImmutableList(animations);
+    res.animationsByKey = new HashMap();
+    for (let anim of animations) {
+      res.animationsByKey.put(anim.getKey(), anim);
+    }
+    res.animationsByKey = Dut.copyImmutableMap(res.animationsByKey);
     res.guardInvariants();
     return res;
   }
 
   static empty() {
     let res = new MeshAnimationCollection();
-    res.animations = Collections.emptyMap();
+    res.animations = Collections.emptyList();
+    res.animationsByKey = Collections.emptyMap();
     res.guardInvariants();
     return res;
   }
@@ -21390,10 +21417,11 @@ class Assets {
 
   static parseCreateClipAnimationCollectionTask(taskJson) {
     let id = MeshAnimationCollectionId.of(taskJson.getString("collectionId"));
-    let animations = new HashMap();
-    let animsJson = taskJson.getJsonObject("animations");
-    for (let key of animsJson.keySet()) {
-      let animJson = animsJson.getJsonObject(key);
+    let animations = new ArrayList();
+    let animsJson = taskJson.getJsonArray("animations");
+    for (let i = 0; i<animsJson.size(); ++i) {
+      let animJson = animsJson.getJsonObject(i);
+      let key = animJson.getString("key");
       let clip = Assets.parseClip(animJson.getJsonArray("clip"));
       let ticksPerSecond = animJson.getInt("ticksPerSecond");
       ;
@@ -21401,7 +21429,7 @@ class Assets {
       ;
       let loop = animJson.getBoolean("loop");
       let triggers = animJson.containsKey("triggers")?Assets.parseClipAnimationTriggers(animJson.getJsonArray("triggers")):Collections.emptyList();
-      animations.put(MeshAnimationKey.of(key), MeshAnimation.create(ticksPerSecond, numTicks, loop).withClip(clip).plusTriggers(triggers));
+      animations.add(MeshAnimation.create(MeshAnimationKey.of(key), ticksPerSecond, numTicks, loop).withClip(clip).plusTriggers(triggers));
     }
     let res = MeshAnimationCollection.create(animations);
     return AssetGroup.of(id, res);
@@ -22179,7 +22207,7 @@ class TapClipAnimationCollections {
     if (entry.getVersion()==1) {
       let reader = TapBufferReader.create(entry);
       try {
-        let animations = new HashMap();
+        let animations = new ArrayList();
         let numAnims = reader.readInt();
         for (let i = 0; i<numAnims; ++i) {
           let key = reader.readString();
@@ -22192,7 +22220,7 @@ class TapClipAnimationCollections {
           let ticksPerSecond = 1000;
           let numTicks = FMath.trunc(duration*1000);
           let loop = reader.readBoolean();
-          let anim = MeshAnimation.create(ticksPerSecond, numTicks, loop).withClip(Clip.create(frames));
+          let anim = MeshAnimation.create(MeshAnimationKey.of(key), ticksPerSecond, numTicks, loop).withClip(Clip.create(frames));
           let numTriggerTimes = reader.readInt();
           for (let tt = 0; tt<numTriggerTimes; ++tt) {
             let t = reader.readFloat();
@@ -22204,7 +22232,7 @@ class TapClipAnimationCollections {
             }
             anim = anim.plusTrigger(MeshAnimationTrigger.multiple(tick, tTriggers));
           }
-          animations.put(MeshAnimationKey.of(key), anim);
+          animations.add(anim);
         }
         return AssetGroup.of(MeshAnimationCollectionId.of(entry.getId()), MeshAnimationCollection.create(animations));
       }
@@ -22231,13 +22259,8 @@ class TapMeshAnimationCollections {
     let buf = null;
     let bos = new ByteArrayOutputStream();
     try {
-      let animKeyStrs = new TreeSet();
-      for (let key of collection.getAnimations().keySet()) {
-        animKeyStrs.add(key.key());
-      }
       let armatures = new ArrayList();
-      for (let aKeyStr of animKeyStrs) {
-        let anim = collection.getAnimation(MeshAnimationKey.of(aKeyStr));
+      for (let anim of collection.getAnimations()) {
         let armature = anim.getPoseTrack().getArmature();
         if (armature.equals(Armature.EMPTY)||armatures.contains(armature)) {
           continue;
@@ -22255,9 +22278,8 @@ class TapMeshAnimationCollections {
         }
       }
       bos.write(TapBytes.intToBytesBigEndian(collection.getAnimations().size()));
-      for (let aKeyStr of animKeyStrs) {
-        let anim = collection.getAnimation(MeshAnimationKey.of(aKeyStr));
-        bos.write(TapBytes.stringToBytesBigEndian(aKeyStr));
+      for (let anim of collection.getAnimations()) {
+        bos.write(TapBytes.stringToBytesBigEndian(anim.getKey().key()));
         bos.write(TapBytes.intToBytesBigEndian(anim.getTicksPerSecond()));
         bos.write(TapBytes.intToBytesBigEndian(anim.getNumTicks()));
         bos.write(TapBytes.booleanToBytes(anim.isLoop()));
@@ -22267,16 +22289,11 @@ class TapMeshAnimationCollections {
         }
         let poseTrack = anim.getPoseTrack();
         let armatureIdx = poseTrack.getArmature().equals(Armature.EMPTY)?-1:armatures.indexOf(poseTrack.getArmature());
-        let channelsIdStrs = new TreeSet();
-        for (let nid of poseTrack.getChannels().keySet()) {
-          channelsIdStrs.add(nid.id());
-        }
         bos.write(TapBytes.intToBytesBigEndian(poseTrack.getTicksPerSecond()));
         bos.write(TapBytes.intToBytesBigEndian(armatureIdx));
         bos.write(TapBytes.intToBytesBigEndian(poseTrack.getChannels().size()));
-        for (let chIdStr of channelsIdStrs) {
-          let channel = poseTrack.getChannel(ArmatureNodeId.of(chIdStr));
-          bos.write(TapBytes.stringToBytesBigEndian(chIdStr));
+        for (let channel of poseTrack.getChannels()) {
+          bos.write(TapBytes.stringToBytesBigEndian(channel.getNodeId().id()));
           bos.write(TapBytes.intToBytesBigEndian(channel.getTicksPerSecond()));
           bos.write(TapBytes.intToBytesBigEndian(channel.getPositionKeys().size()));
           for (let kf of channel.getPositionKeys()) {
@@ -22340,13 +22357,13 @@ class TapMeshAnimationCollections {
           armatures.add(Armature.create(armatureNodes));
         }
         let numAnimations = reader.readInt();
-        let animations = new HashMap();
+        let animations = new ArrayList();
         for (let i = 0; i<numAnimations; ++i) {
           let key = MeshAnimationKey.of(reader.readString());
           let ticksPerSecond = reader.readInt();
           let numTicks = reader.readInt();
           let loop = reader.readBoolean();
-          let animation = MeshAnimation.create(ticksPerSecond, numTicks, loop);
+          let animation = MeshAnimation.create(key, ticksPerSecond, numTicks, loop);
           let numFrames = reader.readInt();
           let frames = new ArrayList();
           for (let f = 0; f<numFrames; ++f) {
@@ -22381,7 +22398,7 @@ class TapMeshAnimationCollections {
               let kfVal = Vec3.create(reader.readFloat(), reader.readFloat(), reader.readFloat());
               sclKeys.add(KeyFrame.create(kftick, kfVal));
             }
-            poseTrack = poseTrack.plusChannel(nodeId, ArmaturePoseTrackChannel.create(channelTps, posKeys, rotKeys, sclKeys));
+            poseTrack = poseTrack.plusChannel(ArmaturePoseTrackChannel.create(nodeId, channelTps, posKeys, rotKeys, sclKeys));
           }
           animation = animation.withPoseTrack(poseTrack);
           let numTriggerTicks = reader.readInt();
@@ -22394,7 +22411,7 @@ class TapMeshAnimationCollections {
             }
             animation = animation.plusTrigger(MeshAnimationTrigger.multiple(tick, tTriggers));
           }
-          animations.put(key, animation);
+          animations.add(animation);
         }
         return AssetGroup.of(MeshAnimationCollectionId.of(entry.getId()), MeshAnimationCollection.create(animations));
       }
@@ -31793,91 +31810,6 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class GamePad extends UiComponent {
-  leftJoystick;
-  rightJoystick;
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "GamePad";
-  }
-
-  guardInvariants() {
-  }
-
-  getLeftDir() {
-    return this.leftJoystick.getDir();
-  }
-
-  getRightDir() {
-    return this.rightJoystick.getDir();
-  }
-
-  init(container) {
-    this.leftJoystick.init(container);
-    this.rightJoystick.init(container);
-  }
-
-  move(dt) {
-    this.leftJoystick.move(dt);
-    this.rightJoystick.move(dt);
-  }
-
-  draw(painter) {
-    this.leftJoystick.draw(painter);
-    this.rightJoystick.draw(painter);
-  }
-
-  onContainerResize(size) {
-    this.leftJoystick.onContainerResize(size);
-    this.rightJoystick.onContainerResize(size);
-  }
-
-  onTouchStart(id, pos, size) {
-    this.leftJoystick.onTouchStart(id, pos, size);
-    this.rightJoystick.onTouchStart(id, pos, size);
-    return false;
-  }
-
-  onTouchMove(id, pos, size) {
-    this.leftJoystick.onTouchMove(id, pos, size);
-    this.rightJoystick.onTouchMove(id, pos, size);
-    return false;
-  }
-
-  onTouchEnd(id, pos, size, cancel) {
-    this.leftJoystick.onTouchEnd(id, pos, size, cancel);
-    this.rightJoystick.onTouchEnd(id, pos, size, cancel);
-    return false;
-  }
-
-  onKeyPressed(key) {
-    this.leftJoystick.onKeyPressed(key);
-    this.rightJoystick.onKeyPressed(key);
-    return false;
-  }
-
-  onKeyReleased(key) {
-    this.leftJoystick.onKeyReleased(key);
-    this.rightJoystick.onKeyReleased(key);
-    return false;
-  }
-
-  toString() {
-  }
-
-  static create(drivers) {
-    let res = new GamePad();
-    res.leftJoystick = Joystick.create().setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.leftBottom(25, 125, 100, 100), UiRegionFncs.leftBottom(10, 125, 80, 80))).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("W"), KeyCodeMatchers.upperCharacter("S"), KeyCodeMatchers.upperCharacter("A"), KeyCodeMatchers.upperCharacter("D"));
-    res.rightJoystick = Joystick.create().setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.rightBottom(125, 125, 100, 100), UiRegionFncs.rightBottom(90, 125, 80, 80))).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("I"), KeyCodeMatchers.upperCharacter("K"), KeyCodeMatchers.upperCharacter("J"), KeyCodeMatchers.upperCharacter("L"));
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.GamePad = GamePad;
 class BoxMeshFactory {
   constructor() {
   }
@@ -31942,216 +31874,56 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class FreeCameraBehavior extends Behavior {
-  moveDirInput = "moveDir";
-  rotDirInput = "rotDir";
-  moveSpeed = 3;
-  rotSpeed = 1;
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "FreeCameraBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  move(dt, inputs) {
-    let moveDir = inputs.getVec2(this.moveDirInput, Vec2.ZERO);
-    let rotDir = inputs.getVec2(this.rotDirInput, Vec2.ZERO);
-    let tc = this.actor().getComponent("TransformComponent");
-    let rot = tc.getRot();
-    if (!moveDir.equals(Vec2.ZERO)) {
-      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize().scale(moveDir.y()*this.moveSpeed*dt);
-      let right = rot.rotate(Vec3.create(1, 0, 0)).normalize().scale(moveDir.x()*this.moveSpeed*dt);
-      tc.move(fwd.add(right));
-    }
-    if (!rotDir.equals(Vec2.ZERO)) {
-      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize();
-      let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
-      let rotX = FMath.asin(fwd.y())+rotDir.y()*this.rotSpeed*dt;
-      let rotY = (fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y()))-rotDir.x()*this.rotSpeed*dt;
-      let rx = Quaternion.rot(1, 0, 0, rotX);
-      let ry = Quaternion.rot(0, 1, 0, rotY);
-      tc.setRot(ry.mul(rx));
-    }
-  }
-
-  static create() {
-    if (arguments.length===0) {
-      return FreeCameraBehavior.create_0();
-    }
-    else if (arguments.length===4&& typeof arguments[0]==="string"&& typeof arguments[1]==="string"&& typeof arguments[2]==="number"&& typeof arguments[3]==="number") {
-      return FreeCameraBehavior.create_4_string_string_number_number(arguments[0], arguments[1], arguments[2], arguments[3]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  static create_0() {
-    let res = new FreeCameraBehavior();
-    res.guardInvariants();
-    return res;
-  }
-
-  static create_4_string_string_number_number(moveDirInput, rotDirInput, moveSpeed, rotSpeed) {
-    let res = new FreeCameraBehavior();
-    res.moveDirInput = moveDirInput;
-    res.rotDirInput = rotDirInput;
-    res.moveSpeed = moveSpeed;
-    res.rotSpeed = rotSpeed;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FreeCameraBehavior = FreeCameraBehavior;
-class RotationBehavior extends Behavior {
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "RotationBehavior";
-  }
-
-  move(dt, inputs) {
-    let tx = this.actor().getComponent("TransformComponent");
-    let x = inputs.getFloat("x", 0);
-    let y = inputs.getFloat("y", 0);
-    let z = inputs.getFloat("z", 0);
-    tx.rotate(dt, Vec3.create(x, y, z));
-  }
-
-  static create() {
-    return new RotationBehavior();
-  }
-
-}
-classRegistry.RotationBehavior = RotationBehavior;
-class RigidBodyApp01 extends TyracornScreen {
+class BasicApp01 extends TyracornApp {
+  box1 = MeshId.of("box1");
+  box2 = MeshId.of("box2");
+  box3 = MeshId.of("box3");
+  boxT = MeshId.of("boxT");
   time = 0;
-  world;
-  inputs = InputCache.create();
-  ui;
-  gamePad;
   constructor() {
     super();
   }
 
   getClass() {
-    return "RigidBodyApp01";
+    return "BasicApp01";
   }
 
-  move(drivers, screenManager, dt) {
+  move(drivers, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
+    let aspect = gDriver.getScreenViewport().getAspect();
+    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
+    let m = 2*FMath.sin(this.time/3);
+    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 7), Vec3.ZERO, Vec3.create(0, 1, 0));
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    this.inputs.put("moveDir", this.gamePad.getLeftDir());
-    this.inputs.put("rotDir", this.gamePad.getRightDir());
-    this.world.move(dt, this.inputs);
-    this.world.render(RenderRequest.NORMAL);
-    gDriver.clearBuffers(BufferId.DEPTH);
-    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
-    uiRenderer.render(this.ui);
-    uiRenderer.end();
+    let renderer = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
+    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(-4, 0, -2).mul(Mat44.rotX(this.time/2)));
+    renderer.render(this.box2, Interpolation.ZERO, Mat44.trans(-4, 0, 0).mul(Mat44.rotY(this.time/1)));
+    renderer.render(this.box3, Interpolation.ZERO, Mat44.trans(-4, 0, 2).mul(Mat44.rotZ(this.time/0.4)));
+    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(-2, 0, 0));
+    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(-2, 0, 2), BlendType.ALPHA);
+    renderer.render(this.box2, Interpolation.ZERO, Mat44.trans(0, 0, 0));
+    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(0, 0, 2), BlendType.ADDITIVE);
+    renderer.render(this.box3, Interpolation.ZERO, Mat44.trans(2, 0, 0));
+    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(2, 0, 2), BlendType.MULTIPLICATIVE);
+    renderer.end();
   }
 
-  load(drivers, screenManager, properties) {
-    let res = new ArrayList();
+  init(drivers, properties) {
     let assets = drivers.getDriver("AssetManager");
-    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/box-01.tap")));
-    return res;
+    assets.put(this.box1, BoxMeshFactory.rgbBox(Rgb.RED, Rgb.GREEN, Rgb.BLUE, Rgb.WHITE));
+    assets.put(this.box2, BoxMeshFactory.rgbBox(Rgb.GREEN, Rgb.GREEN, Rgb.create(1, 1, 0), Rgb.BLUE));
+    assets.put(this.box3, BoxMeshFactory.rgbBox(Rgb.create(1, 0, 1), Rgb.GREEN, Rgb.create(0, 1, 1), Rgb.BLUE));
+    assets.put(this.boxT, BoxMeshFactory.rgbaBox(Rgb.WHITE, Rgb.BLUE, Rgb.create(1, 0, 1), Rgb.RED, 0.5));
+    return Collections.emptyList();
   }
 
-  init(drivers, screenManager, properties) {
-    let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(12, 14, 20));
-    let boxDiffuse = TextureId.of("tex_box_01_d");
-    let boxSpecular = TextureId.of("tex_box_01_s");
-    assets.put(MaterialId.of("brass"), Material.BRASS);
-    assets.put(MaterialId.of("box"), Material.SILVER.plusTexture(TextureAttachment.diffuse(boxDiffuse)).plusTexture(TextureAttachment.specular(boxSpecular)));
-    assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
-    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("brass"));
-    let groundModelId = ModelId.of("ground");
-    assets.put(groundModelId, groundModel);
-    let boxModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("box"));
-    let boxModelId = ModelId.of("box");
-    assets.put(boxModelId, boxModel);
-    this.world = RigidBodyWorld.create(drivers);
-    let box1 = Actor.create("box-1").setName("box-1").addComponent(TransformComponent.create()).addComponent(ModelComponent.create().setModelId(boxModelId)).addComponent(RotationBehavior.create());
-    this.world.actors().add(ActorId.ROOT, box1);
-    let box11 = Actor.create("box-1-1").setName("box-1-1").addComponent(TransformComponent.create().move(Vec3.create(0.5, 0.5, 0.5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
-    this.world.actors().add(box1.getId(), box11);
-    let box111 = Actor.create("box-1-1-1").setName("box-1-1-1").addComponent(TransformComponent.create().move(Vec3.create(0.25, 0.25, 0.25))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.25, 0.25, 0.25)));
-    this.world.actors().add(box11.getId(), box111);
-    let box12 = Actor.create("box-1-2").setName("box-1-2").addComponent(TransformComponent.create().move(Vec3.create(-0.5, 0.5, 0.5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
-    this.world.actors().add(box1.getId(), box12);
-    let box13 = Actor.create("box-1-3").setName("box-1-3").addComponent(TransformComponent.create().move(Vec3.create(0.5, 0.5, -0.5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
-    this.world.actors().add(box1.getId(), box13);
-    let box14 = Actor.create("box-1-4").setName("box-1-4").addComponent(TransformComponent.create().move(Vec3.create(-0.5, 0.5, -0.5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
-    this.world.actors().add(box1.getId(), box14);
-    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create().lookAt(Vec3.create(0, 1, 0), Vec3.create(0.7, 0, 0.4), Vec3.create(1, 0, 0))).addComponent(LightComponent.create().setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
-    this.world.actors().add(ActorId.ROOT, light);
-    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create().lookAt(Vec3.create(1, 2, 7), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create().setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create("moveDir", "rotDir", 3, 1)).addComponent(CameraFovyComponent.create());
-    this.world.actors().add(ActorId.ROOT, camera);
-    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
-    this.gamePad = GamePad.create(drivers);
-    this.ui.addComponent(this.gamePad);
-    let xLabel = Label.create().setPosFnc(UiPosFncs.leftTop(55, 25)).setText("X-axis").setAlignment(TextAlignment.RIGHT_CENTER);
-    this.ui.addComponent(xLabel);
-    let xVal = Label.create().setPosFnc(UiPosFncs.leftTop(125, 25)).setText("0.0").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(xVal);
-    let xMinusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(65, 10, 30, 30)).setText("-").addOnClickAction(this.inputChangeAction(this.inputs, "x", -0.1, xVal));
-    this.ui.addComponent(xMinusBtn);
-    let xPlusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(155, 10, 30, 30)).setText("+").addOnClickAction(this.inputChangeAction(this.inputs, "x", 0.1, xVal));
-    this.ui.addComponent(xPlusBtn);
-    let yLabel = Label.create().setPosFnc(UiPosFncs.leftTop(55, 65)).setText("Y-axis").setAlignment(TextAlignment.RIGHT_CENTER);
-    this.ui.addComponent(yLabel);
-    let yVal = Label.create().setPosFnc(UiPosFncs.leftTop(125, 65)).setText("0.0").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(yVal);
-    let yMinusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(65, 50, 30, 30)).setText("-").addOnClickAction(this.inputChangeAction(this.inputs, "y", -0.1, yVal));
-    this.ui.addComponent(yMinusBtn);
-    let yPlusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(155, 50, 30, 30)).setText("+").addOnClickAction(this.inputChangeAction(this.inputs, "y", 0.1, yVal));
-    this.ui.addComponent(yPlusBtn);
-    let zLabel = Label.create().setPosFnc(UiPosFncs.leftTop(55, 105)).setText("Z-axis").setAlignment(TextAlignment.RIGHT_CENTER);
-    this.ui.addComponent(zLabel);
-    let zVal = Label.create().setPosFnc(UiPosFncs.leftTop(125, 105)).setText("0.0").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(zVal);
-    let zMinusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(65, 90, 30, 30)).setText("-").addOnClickAction(this.inputChangeAction(this.inputs, "z", -0.1, zVal));
-    this.ui.addComponent(zMinusBtn);
-    let zPlusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(155, 90, 30, 30)).setText("+").addOnClickAction(this.inputChangeAction(this.inputs, "z", 0.1, zVal));
-    this.ui.addComponent(zPlusBtn);
-    if (drivers.getPlatform().isExitable()) {
-      this.ui.addComponent(Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager)));
-    }
-    this.ui.subscribe(drivers);
-    let dlist = InputCacheDisplayListener.create(this.inputs);
-    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
-    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
-  }
-
-  leave(drivers) {
-    this.ui.unsubscribe(drivers);
-    this.world.destroy(drivers);
-  }
-
-  inputChangeAction(inputs, key, d, label) {
-    return (evtSource) => {
-      let x = inputs.getFloat(key, 0);
-      x = x+d;
-      inputs.put(key, x);
-      label.setText(Formats.floatToFixedDecimals(x, 1));
-    };
+  close(drivers) {
   }
 
 }
-classRegistry.RigidBodyApp01 = RigidBodyApp01;
+classRegistry.BasicApp01 = BasicApp01;
 
 
 // -------------------------------------
@@ -32534,7 +32306,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new RigidBodyApp01());
+    tyracornApp = new BasicApp01();
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

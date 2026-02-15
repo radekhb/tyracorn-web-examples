@@ -732,7 +732,7 @@ class HashMap {
     constructor(initialCapacity = 16, loadFactor = 0.75) {
         this.capacity = initialCapacity;
         this.loadFactor = loadFactor;
-        this.size = 0;
+        this.mSize = 0;
         this.buckets = new Array(this.capacity).fill(null).map(() => []);
     }
 
@@ -771,10 +771,10 @@ class HashMap {
 
         // Add new key-value pair
         bucket.push([key, value]);
-        this.size++;
+        this.mSize++;
 
         // Resize if load factor exceeded
-        if (this.size > this.capacity * this.loadFactor) {
+        if (this.mSize > this.capacity * this.loadFactor) {
             this.resize();
         }
 
@@ -827,7 +827,7 @@ class HashMap {
             if (this.elementsEqual(bucket[i][0], key)) {
                 const removedValue = bucket[i][1];
                 bucket.splice(i, 1);
-                this.size--;
+                this.mSize--;
                 return removedValue;
             }
         }
@@ -853,7 +853,7 @@ class HashMap {
 
     // Check if map is empty
     isEmpty() {
-        return this.size === 0;
+        return this.mSize === 0;
     }
 
     // Get all keys
@@ -892,14 +892,14 @@ class HashMap {
     // Clear all entries
     clear() {
         this.buckets = new Array(this.capacity).fill(null).map(() => []);
-        this.size = 0;
+        this.mSize = 0;
     }
 
     // Resize the hash table when load factor is exceeded
     resize() {
         const oldBuckets = this.buckets;
         this.capacity *= 2;
-        this.size = 0;
+        this.mSize = 0;
         this.buckets = new Array(this.capacity).fill(null).map(() => []);
 
         // Rehash all existing entries
@@ -911,8 +911,8 @@ class HashMap {
     }
 
     // Get current size
-    getSize() {
-        return this.size;
+    size() {
+        return this.mSize;
     }
 
     // Override hashCode for HashMap
@@ -968,7 +968,7 @@ class HashMap {
             return false;
         }
 
-        if (this.size !== other.size) {
+        if (this.mSize !== other.mSize) {
             return false;
         }
 
@@ -12657,6 +12657,7 @@ class Armature {
       this.idsToIndexes.put(this.nodes.get(i).getId(), i);
     }
     this.idsToIndexes = Collections.unmodifiableMap(this.idsToIndexes);
+    Guard.beTrue(this.nodes.size()==this.idsToIndexes.size(), "nodes cannot have duplicated ids");
   }
 
   getNodes() {
@@ -19274,6 +19275,7 @@ class Clip {
 }
 classRegistry.Clip = Clip;
 class ArmaturePoseTrackChannel {
+  nodeId;
   ticksPerSecond;
   positionKeys;
   rotationKeys;
@@ -19286,6 +19288,10 @@ class ArmaturePoseTrackChannel {
   }
 
   guardInvariants() {
+  }
+
+  getNodeId() {
+    return this.nodeId;
   }
 
   getTicksPerSecond() {
@@ -19394,8 +19400,9 @@ class ArmaturePoseTrackChannel {
   toString() {
   }
 
-  static create(ticksPerSecond, positionKeys, rotationKeys, scalingKeys) {
+  static create(nodeId, ticksPerSecond, positionKeys, rotationKeys, scalingKeys) {
     let res = new ArmaturePoseTrackChannel();
+    res.nodeId = nodeId;
     res.ticksPerSecond = ticksPerSecond;
     res.positionKeys = Dut.copyImmutableList(positionKeys);
     res.rotationKeys = Dut.copyImmutableList(rotationKeys);
@@ -19410,6 +19417,7 @@ class ArmaturePoseTrack {
   ticksPerSecond;
   armature;
   channels;
+  channelsByNodeId;
   constructor() {
   }
 
@@ -19428,27 +19436,28 @@ class ArmaturePoseTrack {
     return this.armature;
   }
 
-  getChannel(id) {
-    return this.channels.get(id);
-  }
-
   getChannels() {
     return this.channels;
   }
 
-  plusChannel(nodeId, channel) {
+  getChannel(id) {
+    return this.channelsByNodeId.get(id);
+  }
+
+  plusChannel(channel) {
     let res = new ArmaturePoseTrack();
     res.ticksPerSecond = this.ticksPerSecond;
     res.armature = this.armature;
-    res.channels = Dut.immutableMapPlusEntry(this.channels, nodeId, channel);
+    res.channels = Dut.immutableListPlusItem(this.channels, channel);
+    res.channelsByNodeId = Dut.immutableMapPlusEntry(this.channelsByNodeId, channel.getNodeId(), channel);
     res.guardInvariants();
     return res;
   }
 
   getPose(time) {
     let nodeLocalTransforms = new HashMap();
-    for (let id of this.channels.keySet()) {
-      nodeLocalTransforms.put(id, this.channels.get(id).getTransform(time));
+    for (let channel of this.channels) {
+      nodeLocalTransforms.put(channel.getNodeId(), channel.getTransform(time));
     }
     return this.armature.getPose(nodeLocalTransforms);
   }
@@ -19468,7 +19477,8 @@ class ArmaturePoseTrack {
     let res = new ArmaturePoseTrack();
     res.ticksPerSecond = ticksPerSecond;
     res.armature = armature;
-    res.channels = Collections.emptyMap();
+    res.channels = Collections.emptyList();
+    res.channelsByNodeId = Collections.emptyMap();
     res.guardInvariants();
     return res;
   }
@@ -19666,6 +19676,7 @@ class MeshAnimationStep {
 }
 classRegistry.MeshAnimationStep = MeshAnimationStep;
 class MeshAnimation {
+  key;
   ticksPerSecond;
   numTicks;
   loop;
@@ -19680,6 +19691,10 @@ class MeshAnimation {
   }
 
   guardInvariants() {
+  }
+
+  getKey() {
+    return this.key;
   }
 
   getTicksPerSecond() {
@@ -19832,6 +19847,7 @@ class MeshAnimation {
       trgs.add(trigger);
     }
     let res = new MeshAnimation();
+    res.key = this.key;
     res.numTicks = this.numTicks;
     res.ticksPerSecond = this.ticksPerSecond;
     res.loop = this.loop;
@@ -19844,6 +19860,7 @@ class MeshAnimation {
 
   withClip(clip) {
     let res = new MeshAnimation();
+    res.key = this.key;
     res.numTicks = this.numTicks;
     res.ticksPerSecond = this.ticksPerSecond;
     res.loop = this.loop;
@@ -19856,6 +19873,7 @@ class MeshAnimation {
 
   withPoseTrack(poseTrack) {
     let res = new MeshAnimation();
+    res.key = this.key;
     res.numTicks = this.numTicks;
     res.ticksPerSecond = this.ticksPerSecond;
     res.loop = this.loop;
@@ -19885,8 +19903,9 @@ class MeshAnimation {
   toString() {
   }
 
-  static create(ticksPerSecond, numTicks, loop) {
+  static create(key, ticksPerSecond, numTicks, loop) {
     let res = new MeshAnimation();
+    res.key = key;
     res.ticksPerSecond = ticksPerSecond;
     res.numTicks = numTicks;
     res.loop = loop;
@@ -19950,6 +19969,7 @@ class MeshAnimationCollectionId extends RefId {
 classRegistry.MeshAnimationCollectionId = MeshAnimationCollectionId;
 class MeshAnimationCollection {
   animations;
+  animationsByKey;
   constructor() {
   }
 
@@ -19965,14 +19985,15 @@ class MeshAnimationCollection {
   }
 
   getAnimation(key) {
-    let res = this.animations.get(key);
+    let res = this.animationsByKey.get(key);
     Guard.notNull(res, "no animation under key: "+key);
     return res;
   }
 
-  plusAnimation(key, animation) {
+  plusAnimation(animation) {
     let res = new MeshAnimationCollection();
-    res.animations = Dut.immutableMapPlusEntry(this.animations, key, animation);
+    res.animations = Dut.immutableListPlusItem(this.animations, animation);
+    res.animationsByKey = Dut.immutableMapPlusEntry(this.animationsByKey, animation.getKey(), animation);
     res.guardInvariants();
     return res;
   }
@@ -19990,14 +20011,20 @@ class MeshAnimationCollection {
 
   static create(animations) {
     let res = new MeshAnimationCollection();
-    res.animations = Dut.copyImmutableMap(animations);
+    res.animations = Dut.copyImmutableList(animations);
+    res.animationsByKey = new HashMap();
+    for (let anim of animations) {
+      res.animationsByKey.put(anim.getKey(), anim);
+    }
+    res.animationsByKey = Dut.copyImmutableMap(res.animationsByKey);
     res.guardInvariants();
     return res;
   }
 
   static empty() {
     let res = new MeshAnimationCollection();
-    res.animations = Collections.emptyMap();
+    res.animations = Collections.emptyList();
+    res.animationsByKey = Collections.emptyMap();
     res.guardInvariants();
     return res;
   }
@@ -21390,10 +21417,11 @@ class Assets {
 
   static parseCreateClipAnimationCollectionTask(taskJson) {
     let id = MeshAnimationCollectionId.of(taskJson.getString("collectionId"));
-    let animations = new HashMap();
-    let animsJson = taskJson.getJsonObject("animations");
-    for (let key of animsJson.keySet()) {
-      let animJson = animsJson.getJsonObject(key);
+    let animations = new ArrayList();
+    let animsJson = taskJson.getJsonArray("animations");
+    for (let i = 0; i<animsJson.size(); ++i) {
+      let animJson = animsJson.getJsonObject(i);
+      let key = animJson.getString("key");
       let clip = Assets.parseClip(animJson.getJsonArray("clip"));
       let ticksPerSecond = animJson.getInt("ticksPerSecond");
       ;
@@ -21401,7 +21429,7 @@ class Assets {
       ;
       let loop = animJson.getBoolean("loop");
       let triggers = animJson.containsKey("triggers")?Assets.parseClipAnimationTriggers(animJson.getJsonArray("triggers")):Collections.emptyList();
-      animations.put(MeshAnimationKey.of(key), MeshAnimation.create(ticksPerSecond, numTicks, loop).withClip(clip).plusTriggers(triggers));
+      animations.add(MeshAnimation.create(MeshAnimationKey.of(key), ticksPerSecond, numTicks, loop).withClip(clip).plusTriggers(triggers));
     }
     let res = MeshAnimationCollection.create(animations);
     return AssetGroup.of(id, res);
@@ -22179,7 +22207,7 @@ class TapClipAnimationCollections {
     if (entry.getVersion()==1) {
       let reader = TapBufferReader.create(entry);
       try {
-        let animations = new HashMap();
+        let animations = new ArrayList();
         let numAnims = reader.readInt();
         for (let i = 0; i<numAnims; ++i) {
           let key = reader.readString();
@@ -22192,7 +22220,7 @@ class TapClipAnimationCollections {
           let ticksPerSecond = 1000;
           let numTicks = FMath.trunc(duration*1000);
           let loop = reader.readBoolean();
-          let anim = MeshAnimation.create(ticksPerSecond, numTicks, loop).withClip(Clip.create(frames));
+          let anim = MeshAnimation.create(MeshAnimationKey.of(key), ticksPerSecond, numTicks, loop).withClip(Clip.create(frames));
           let numTriggerTimes = reader.readInt();
           for (let tt = 0; tt<numTriggerTimes; ++tt) {
             let t = reader.readFloat();
@@ -22204,7 +22232,7 @@ class TapClipAnimationCollections {
             }
             anim = anim.plusTrigger(MeshAnimationTrigger.multiple(tick, tTriggers));
           }
-          animations.put(MeshAnimationKey.of(key), anim);
+          animations.add(anim);
         }
         return AssetGroup.of(MeshAnimationCollectionId.of(entry.getId()), MeshAnimationCollection.create(animations));
       }
@@ -22231,13 +22259,8 @@ class TapMeshAnimationCollections {
     let buf = null;
     let bos = new ByteArrayOutputStream();
     try {
-      let animKeyStrs = new TreeSet();
-      for (let key of collection.getAnimations().keySet()) {
-        animKeyStrs.add(key.key());
-      }
       let armatures = new ArrayList();
-      for (let aKeyStr of animKeyStrs) {
-        let anim = collection.getAnimation(MeshAnimationKey.of(aKeyStr));
+      for (let anim of collection.getAnimations()) {
         let armature = anim.getPoseTrack().getArmature();
         if (armature.equals(Armature.EMPTY)||armatures.contains(armature)) {
           continue;
@@ -22255,9 +22278,8 @@ class TapMeshAnimationCollections {
         }
       }
       bos.write(TapBytes.intToBytesBigEndian(collection.getAnimations().size()));
-      for (let aKeyStr of animKeyStrs) {
-        let anim = collection.getAnimation(MeshAnimationKey.of(aKeyStr));
-        bos.write(TapBytes.stringToBytesBigEndian(aKeyStr));
+      for (let anim of collection.getAnimations()) {
+        bos.write(TapBytes.stringToBytesBigEndian(anim.getKey().key()));
         bos.write(TapBytes.intToBytesBigEndian(anim.getTicksPerSecond()));
         bos.write(TapBytes.intToBytesBigEndian(anim.getNumTicks()));
         bos.write(TapBytes.booleanToBytes(anim.isLoop()));
@@ -22267,16 +22289,11 @@ class TapMeshAnimationCollections {
         }
         let poseTrack = anim.getPoseTrack();
         let armatureIdx = poseTrack.getArmature().equals(Armature.EMPTY)?-1:armatures.indexOf(poseTrack.getArmature());
-        let channelsIdStrs = new TreeSet();
-        for (let nid of poseTrack.getChannels().keySet()) {
-          channelsIdStrs.add(nid.id());
-        }
         bos.write(TapBytes.intToBytesBigEndian(poseTrack.getTicksPerSecond()));
         bos.write(TapBytes.intToBytesBigEndian(armatureIdx));
         bos.write(TapBytes.intToBytesBigEndian(poseTrack.getChannels().size()));
-        for (let chIdStr of channelsIdStrs) {
-          let channel = poseTrack.getChannel(ArmatureNodeId.of(chIdStr));
-          bos.write(TapBytes.stringToBytesBigEndian(chIdStr));
+        for (let channel of poseTrack.getChannels()) {
+          bos.write(TapBytes.stringToBytesBigEndian(channel.getNodeId().id()));
           bos.write(TapBytes.intToBytesBigEndian(channel.getTicksPerSecond()));
           bos.write(TapBytes.intToBytesBigEndian(channel.getPositionKeys().size()));
           for (let kf of channel.getPositionKeys()) {
@@ -22340,13 +22357,13 @@ class TapMeshAnimationCollections {
           armatures.add(Armature.create(armatureNodes));
         }
         let numAnimations = reader.readInt();
-        let animations = new HashMap();
+        let animations = new ArrayList();
         for (let i = 0; i<numAnimations; ++i) {
           let key = MeshAnimationKey.of(reader.readString());
           let ticksPerSecond = reader.readInt();
           let numTicks = reader.readInt();
           let loop = reader.readBoolean();
-          let animation = MeshAnimation.create(ticksPerSecond, numTicks, loop);
+          let animation = MeshAnimation.create(key, ticksPerSecond, numTicks, loop);
           let numFrames = reader.readInt();
           let frames = new ArrayList();
           for (let f = 0; f<numFrames; ++f) {
@@ -22381,7 +22398,7 @@ class TapMeshAnimationCollections {
               let kfVal = Vec3.create(reader.readFloat(), reader.readFloat(), reader.readFloat());
               sclKeys.add(KeyFrame.create(kftick, kfVal));
             }
-            poseTrack = poseTrack.plusChannel(nodeId, ArmaturePoseTrackChannel.create(channelTps, posKeys, rotKeys, sclKeys));
+            poseTrack = poseTrack.plusChannel(ArmaturePoseTrackChannel.create(nodeId, channelTps, posKeys, rotKeys, sclKeys));
           }
           animation = animation.withPoseTrack(poseTrack);
           let numTriggerTicks = reader.readInt();
@@ -22394,7 +22411,7 @@ class TapMeshAnimationCollections {
             }
             animation = animation.plusTrigger(MeshAnimationTrigger.multiple(tick, tTriggers));
           }
-          animations.put(key, animation);
+          animations.add(animation);
         }
         return AssetGroup.of(MeshAnimationCollectionId.of(entry.getId()), MeshAnimationCollection.create(animations));
       }

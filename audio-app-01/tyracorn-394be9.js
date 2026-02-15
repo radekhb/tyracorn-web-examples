@@ -7,7 +7,7 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-10";
+const basePath = "/tyracorn-web-examples/audio-app-01";
 const assetsDirName = "/assets-f49844";
 const localStoragePrefix = "app.";
 let mouseDown = false;
@@ -732,7 +732,7 @@ class HashMap {
     constructor(initialCapacity = 16, loadFactor = 0.75) {
         this.capacity = initialCapacity;
         this.loadFactor = loadFactor;
-        this.size = 0;
+        this.mSize = 0;
         this.buckets = new Array(this.capacity).fill(null).map(() => []);
     }
 
@@ -771,10 +771,10 @@ class HashMap {
 
         // Add new key-value pair
         bucket.push([key, value]);
-        this.size++;
+        this.mSize++;
 
         // Resize if load factor exceeded
-        if (this.size > this.capacity * this.loadFactor) {
+        if (this.mSize > this.capacity * this.loadFactor) {
             this.resize();
         }
 
@@ -827,7 +827,7 @@ class HashMap {
             if (this.elementsEqual(bucket[i][0], key)) {
                 const removedValue = bucket[i][1];
                 bucket.splice(i, 1);
-                this.size--;
+                this.mSize--;
                 return removedValue;
             }
         }
@@ -853,7 +853,7 @@ class HashMap {
 
     // Check if map is empty
     isEmpty() {
-        return this.size === 0;
+        return this.mSize === 0;
     }
 
     // Get all keys
@@ -892,14 +892,14 @@ class HashMap {
     // Clear all entries
     clear() {
         this.buckets = new Array(this.capacity).fill(null).map(() => []);
-        this.size = 0;
+        this.mSize = 0;
     }
 
     // Resize the hash table when load factor is exceeded
     resize() {
         const oldBuckets = this.buckets;
         this.capacity *= 2;
-        this.size = 0;
+        this.mSize = 0;
         this.buckets = new Array(this.capacity).fill(null).map(() => []);
 
         // Rehash all existing entries
@@ -911,8 +911,8 @@ class HashMap {
     }
 
     // Get current size
-    getSize() {
-        return this.size;
+    size() {
+        return this.mSize;
     }
 
     // Override hashCode for HashMap
@@ -968,7 +968,7 @@ class HashMap {
             return false;
         }
 
-        if (this.size !== other.size) {
+        if (this.mSize !== other.mSize) {
             return false;
         }
 
@@ -12657,6 +12657,7 @@ class Armature {
       this.idsToIndexes.put(this.nodes.get(i).getId(), i);
     }
     this.idsToIndexes = Collections.unmodifiableMap(this.idsToIndexes);
+    Guard.beTrue(this.nodes.size()==this.idsToIndexes.size(), "nodes cannot have duplicated ids");
   }
 
   getNodes() {
@@ -19274,6 +19275,7 @@ class Clip {
 }
 classRegistry.Clip = Clip;
 class ArmaturePoseTrackChannel {
+  nodeId;
   ticksPerSecond;
   positionKeys;
   rotationKeys;
@@ -19286,6 +19288,10 @@ class ArmaturePoseTrackChannel {
   }
 
   guardInvariants() {
+  }
+
+  getNodeId() {
+    return this.nodeId;
   }
 
   getTicksPerSecond() {
@@ -19394,8 +19400,9 @@ class ArmaturePoseTrackChannel {
   toString() {
   }
 
-  static create(ticksPerSecond, positionKeys, rotationKeys, scalingKeys) {
+  static create(nodeId, ticksPerSecond, positionKeys, rotationKeys, scalingKeys) {
     let res = new ArmaturePoseTrackChannel();
+    res.nodeId = nodeId;
     res.ticksPerSecond = ticksPerSecond;
     res.positionKeys = Dut.copyImmutableList(positionKeys);
     res.rotationKeys = Dut.copyImmutableList(rotationKeys);
@@ -19410,6 +19417,7 @@ class ArmaturePoseTrack {
   ticksPerSecond;
   armature;
   channels;
+  channelsByNodeId;
   constructor() {
   }
 
@@ -19428,27 +19436,28 @@ class ArmaturePoseTrack {
     return this.armature;
   }
 
-  getChannel(id) {
-    return this.channels.get(id);
-  }
-
   getChannels() {
     return this.channels;
   }
 
-  plusChannel(nodeId, channel) {
+  getChannel(id) {
+    return this.channelsByNodeId.get(id);
+  }
+
+  plusChannel(channel) {
     let res = new ArmaturePoseTrack();
     res.ticksPerSecond = this.ticksPerSecond;
     res.armature = this.armature;
-    res.channels = Dut.immutableMapPlusEntry(this.channels, nodeId, channel);
+    res.channels = Dut.immutableListPlusItem(this.channels, channel);
+    res.channelsByNodeId = Dut.immutableMapPlusEntry(this.channelsByNodeId, channel.getNodeId(), channel);
     res.guardInvariants();
     return res;
   }
 
   getPose(time) {
     let nodeLocalTransforms = new HashMap();
-    for (let id of this.channels.keySet()) {
-      nodeLocalTransforms.put(id, this.channels.get(id).getTransform(time));
+    for (let channel of this.channels) {
+      nodeLocalTransforms.put(channel.getNodeId(), channel.getTransform(time));
     }
     return this.armature.getPose(nodeLocalTransforms);
   }
@@ -19468,7 +19477,8 @@ class ArmaturePoseTrack {
     let res = new ArmaturePoseTrack();
     res.ticksPerSecond = ticksPerSecond;
     res.armature = armature;
-    res.channels = Collections.emptyMap();
+    res.channels = Collections.emptyList();
+    res.channelsByNodeId = Collections.emptyMap();
     res.guardInvariants();
     return res;
   }
@@ -19666,6 +19676,7 @@ class MeshAnimationStep {
 }
 classRegistry.MeshAnimationStep = MeshAnimationStep;
 class MeshAnimation {
+  key;
   ticksPerSecond;
   numTicks;
   loop;
@@ -19680,6 +19691,10 @@ class MeshAnimation {
   }
 
   guardInvariants() {
+  }
+
+  getKey() {
+    return this.key;
   }
 
   getTicksPerSecond() {
@@ -19832,6 +19847,7 @@ class MeshAnimation {
       trgs.add(trigger);
     }
     let res = new MeshAnimation();
+    res.key = this.key;
     res.numTicks = this.numTicks;
     res.ticksPerSecond = this.ticksPerSecond;
     res.loop = this.loop;
@@ -19844,6 +19860,7 @@ class MeshAnimation {
 
   withClip(clip) {
     let res = new MeshAnimation();
+    res.key = this.key;
     res.numTicks = this.numTicks;
     res.ticksPerSecond = this.ticksPerSecond;
     res.loop = this.loop;
@@ -19856,6 +19873,7 @@ class MeshAnimation {
 
   withPoseTrack(poseTrack) {
     let res = new MeshAnimation();
+    res.key = this.key;
     res.numTicks = this.numTicks;
     res.ticksPerSecond = this.ticksPerSecond;
     res.loop = this.loop;
@@ -19885,8 +19903,9 @@ class MeshAnimation {
   toString() {
   }
 
-  static create(ticksPerSecond, numTicks, loop) {
+  static create(key, ticksPerSecond, numTicks, loop) {
     let res = new MeshAnimation();
+    res.key = key;
     res.ticksPerSecond = ticksPerSecond;
     res.numTicks = numTicks;
     res.loop = loop;
@@ -19950,6 +19969,7 @@ class MeshAnimationCollectionId extends RefId {
 classRegistry.MeshAnimationCollectionId = MeshAnimationCollectionId;
 class MeshAnimationCollection {
   animations;
+  animationsByKey;
   constructor() {
   }
 
@@ -19965,14 +19985,15 @@ class MeshAnimationCollection {
   }
 
   getAnimation(key) {
-    let res = this.animations.get(key);
+    let res = this.animationsByKey.get(key);
     Guard.notNull(res, "no animation under key: "+key);
     return res;
   }
 
-  plusAnimation(key, animation) {
+  plusAnimation(animation) {
     let res = new MeshAnimationCollection();
-    res.animations = Dut.immutableMapPlusEntry(this.animations, key, animation);
+    res.animations = Dut.immutableListPlusItem(this.animations, animation);
+    res.animationsByKey = Dut.immutableMapPlusEntry(this.animationsByKey, animation.getKey(), animation);
     res.guardInvariants();
     return res;
   }
@@ -19990,14 +20011,20 @@ class MeshAnimationCollection {
 
   static create(animations) {
     let res = new MeshAnimationCollection();
-    res.animations = Dut.copyImmutableMap(animations);
+    res.animations = Dut.copyImmutableList(animations);
+    res.animationsByKey = new HashMap();
+    for (let anim of animations) {
+      res.animationsByKey.put(anim.getKey(), anim);
+    }
+    res.animationsByKey = Dut.copyImmutableMap(res.animationsByKey);
     res.guardInvariants();
     return res;
   }
 
   static empty() {
     let res = new MeshAnimationCollection();
-    res.animations = Collections.emptyMap();
+    res.animations = Collections.emptyList();
+    res.animationsByKey = Collections.emptyMap();
     res.guardInvariants();
     return res;
   }
@@ -21390,10 +21417,11 @@ class Assets {
 
   static parseCreateClipAnimationCollectionTask(taskJson) {
     let id = MeshAnimationCollectionId.of(taskJson.getString("collectionId"));
-    let animations = new HashMap();
-    let animsJson = taskJson.getJsonObject("animations");
-    for (let key of animsJson.keySet()) {
-      let animJson = animsJson.getJsonObject(key);
+    let animations = new ArrayList();
+    let animsJson = taskJson.getJsonArray("animations");
+    for (let i = 0; i<animsJson.size(); ++i) {
+      let animJson = animsJson.getJsonObject(i);
+      let key = animJson.getString("key");
       let clip = Assets.parseClip(animJson.getJsonArray("clip"));
       let ticksPerSecond = animJson.getInt("ticksPerSecond");
       ;
@@ -21401,7 +21429,7 @@ class Assets {
       ;
       let loop = animJson.getBoolean("loop");
       let triggers = animJson.containsKey("triggers")?Assets.parseClipAnimationTriggers(animJson.getJsonArray("triggers")):Collections.emptyList();
-      animations.put(MeshAnimationKey.of(key), MeshAnimation.create(ticksPerSecond, numTicks, loop).withClip(clip).plusTriggers(triggers));
+      animations.add(MeshAnimation.create(MeshAnimationKey.of(key), ticksPerSecond, numTicks, loop).withClip(clip).plusTriggers(triggers));
     }
     let res = MeshAnimationCollection.create(animations);
     return AssetGroup.of(id, res);
@@ -22179,7 +22207,7 @@ class TapClipAnimationCollections {
     if (entry.getVersion()==1) {
       let reader = TapBufferReader.create(entry);
       try {
-        let animations = new HashMap();
+        let animations = new ArrayList();
         let numAnims = reader.readInt();
         for (let i = 0; i<numAnims; ++i) {
           let key = reader.readString();
@@ -22192,7 +22220,7 @@ class TapClipAnimationCollections {
           let ticksPerSecond = 1000;
           let numTicks = FMath.trunc(duration*1000);
           let loop = reader.readBoolean();
-          let anim = MeshAnimation.create(ticksPerSecond, numTicks, loop).withClip(Clip.create(frames));
+          let anim = MeshAnimation.create(MeshAnimationKey.of(key), ticksPerSecond, numTicks, loop).withClip(Clip.create(frames));
           let numTriggerTimes = reader.readInt();
           for (let tt = 0; tt<numTriggerTimes; ++tt) {
             let t = reader.readFloat();
@@ -22204,7 +22232,7 @@ class TapClipAnimationCollections {
             }
             anim = anim.plusTrigger(MeshAnimationTrigger.multiple(tick, tTriggers));
           }
-          animations.put(MeshAnimationKey.of(key), anim);
+          animations.add(anim);
         }
         return AssetGroup.of(MeshAnimationCollectionId.of(entry.getId()), MeshAnimationCollection.create(animations));
       }
@@ -22231,13 +22259,8 @@ class TapMeshAnimationCollections {
     let buf = null;
     let bos = new ByteArrayOutputStream();
     try {
-      let animKeyStrs = new TreeSet();
-      for (let key of collection.getAnimations().keySet()) {
-        animKeyStrs.add(key.key());
-      }
       let armatures = new ArrayList();
-      for (let aKeyStr of animKeyStrs) {
-        let anim = collection.getAnimation(MeshAnimationKey.of(aKeyStr));
+      for (let anim of collection.getAnimations()) {
         let armature = anim.getPoseTrack().getArmature();
         if (armature.equals(Armature.EMPTY)||armatures.contains(armature)) {
           continue;
@@ -22255,9 +22278,8 @@ class TapMeshAnimationCollections {
         }
       }
       bos.write(TapBytes.intToBytesBigEndian(collection.getAnimations().size()));
-      for (let aKeyStr of animKeyStrs) {
-        let anim = collection.getAnimation(MeshAnimationKey.of(aKeyStr));
-        bos.write(TapBytes.stringToBytesBigEndian(aKeyStr));
+      for (let anim of collection.getAnimations()) {
+        bos.write(TapBytes.stringToBytesBigEndian(anim.getKey().key()));
         bos.write(TapBytes.intToBytesBigEndian(anim.getTicksPerSecond()));
         bos.write(TapBytes.intToBytesBigEndian(anim.getNumTicks()));
         bos.write(TapBytes.booleanToBytes(anim.isLoop()));
@@ -22267,16 +22289,11 @@ class TapMeshAnimationCollections {
         }
         let poseTrack = anim.getPoseTrack();
         let armatureIdx = poseTrack.getArmature().equals(Armature.EMPTY)?-1:armatures.indexOf(poseTrack.getArmature());
-        let channelsIdStrs = new TreeSet();
-        for (let nid of poseTrack.getChannels().keySet()) {
-          channelsIdStrs.add(nid.id());
-        }
         bos.write(TapBytes.intToBytesBigEndian(poseTrack.getTicksPerSecond()));
         bos.write(TapBytes.intToBytesBigEndian(armatureIdx));
         bos.write(TapBytes.intToBytesBigEndian(poseTrack.getChannels().size()));
-        for (let chIdStr of channelsIdStrs) {
-          let channel = poseTrack.getChannel(ArmatureNodeId.of(chIdStr));
-          bos.write(TapBytes.stringToBytesBigEndian(chIdStr));
+        for (let channel of poseTrack.getChannels()) {
+          bos.write(TapBytes.stringToBytesBigEndian(channel.getNodeId().id()));
           bos.write(TapBytes.intToBytesBigEndian(channel.getTicksPerSecond()));
           bos.write(TapBytes.intToBytesBigEndian(channel.getPositionKeys().size()));
           for (let kf of channel.getPositionKeys()) {
@@ -22340,13 +22357,13 @@ class TapMeshAnimationCollections {
           armatures.add(Armature.create(armatureNodes));
         }
         let numAnimations = reader.readInt();
-        let animations = new HashMap();
+        let animations = new ArrayList();
         for (let i = 0; i<numAnimations; ++i) {
           let key = MeshAnimationKey.of(reader.readString());
           let ticksPerSecond = reader.readInt();
           let numTicks = reader.readInt();
           let loop = reader.readBoolean();
-          let animation = MeshAnimation.create(ticksPerSecond, numTicks, loop);
+          let animation = MeshAnimation.create(key, ticksPerSecond, numTicks, loop);
           let numFrames = reader.readInt();
           let frames = new ArrayList();
           for (let f = 0; f<numFrames; ++f) {
@@ -22381,7 +22398,7 @@ class TapMeshAnimationCollections {
               let kfVal = Vec3.create(reader.readFloat(), reader.readFloat(), reader.readFloat());
               sclKeys.add(KeyFrame.create(kftick, kfVal));
             }
-            poseTrack = poseTrack.plusChannel(nodeId, ArmaturePoseTrackChannel.create(channelTps, posKeys, rotKeys, sclKeys));
+            poseTrack = poseTrack.plusChannel(ArmaturePoseTrackChannel.create(nodeId, channelTps, posKeys, rotKeys, sclKeys));
           }
           animation = animation.withPoseTrack(poseTrack);
           let numTriggerTicks = reader.readInt();
@@ -22394,7 +22411,7 @@ class TapMeshAnimationCollections {
             }
             animation = animation.plusTrigger(MeshAnimationTrigger.multiple(tick, tTriggers));
           }
-          animations.put(key, animation);
+          animations.add(animation);
         }
         return AssetGroup.of(MeshAnimationCollectionId.of(entry.getId()), MeshAnimationCollection.create(animations));
       }
@@ -31793,330 +31810,136 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class GamePad extends UiComponent {
-  leftJoystick;
-  rightJoystick;
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "GamePad";
-  }
-
-  guardInvariants() {
-  }
-
-  getLeftDir() {
-    return this.leftJoystick.getDir();
-  }
-
-  getRightDir() {
-    return this.rightJoystick.getDir();
-  }
-
-  init(container) {
-    this.leftJoystick.init(container);
-    this.rightJoystick.init(container);
-  }
-
-  move(dt) {
-    this.leftJoystick.move(dt);
-    this.rightJoystick.move(dt);
-  }
-
-  draw(painter) {
-    this.leftJoystick.draw(painter);
-    this.rightJoystick.draw(painter);
-  }
-
-  onContainerResize(size) {
-    this.leftJoystick.onContainerResize(size);
-    this.rightJoystick.onContainerResize(size);
-  }
-
-  onTouchStart(id, pos, size) {
-    this.leftJoystick.onTouchStart(id, pos, size);
-    this.rightJoystick.onTouchStart(id, pos, size);
-    return false;
-  }
-
-  onTouchMove(id, pos, size) {
-    this.leftJoystick.onTouchMove(id, pos, size);
-    this.rightJoystick.onTouchMove(id, pos, size);
-    return false;
-  }
-
-  onTouchEnd(id, pos, size, cancel) {
-    this.leftJoystick.onTouchEnd(id, pos, size, cancel);
-    this.rightJoystick.onTouchEnd(id, pos, size, cancel);
-    return false;
-  }
-
-  onKeyPressed(key) {
-    this.leftJoystick.onKeyPressed(key);
-    this.rightJoystick.onKeyPressed(key);
-    return false;
-  }
-
-  onKeyReleased(key) {
-    this.leftJoystick.onKeyReleased(key);
-    this.rightJoystick.onKeyReleased(key);
-    return false;
-  }
-
-  toString() {
-  }
-
-  static create(drivers) {
-    let res = new GamePad();
-    res.leftJoystick = Joystick.create().setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.leftBottom(25, 125, 100, 100), UiRegionFncs.leftBottom(10, 125, 80, 80))).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("W"), KeyCodeMatchers.upperCharacter("S"), KeyCodeMatchers.upperCharacter("A"), KeyCodeMatchers.upperCharacter("D"));
-    res.rightJoystick = Joystick.create().setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.rightBottom(125, 125, 100, 100), UiRegionFncs.rightBottom(90, 125, 80, 80))).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("I"), KeyCodeMatchers.upperCharacter("K"), KeyCodeMatchers.upperCharacter("J"), KeyCodeMatchers.upperCharacter("L"));
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.GamePad = GamePad;
-class FreeCameraController {
-  initCamera;
-  pos;
-  rotX;
-  rotY;
-  moveSpeed;
-  rotSpeed;
-  gamePad;
-  constructor() {
-  }
-
-  getClass() {
-    return "FreeCameraController";
-  }
-
-  guardInvariants() {
-  }
-
-  getPos() {
-    return this.pos;
-  }
-
-  getTarget() {
-    let rxMat = Mat33.rotX(this.rotX);
-    let ryMat = Mat33.rotY(this.rotY);
-    return ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
-  }
-
-  getCamera() {
-    let rxMat = Mat33.rotX(this.rotX);
-    let ryMat = Mat33.rotY(this.rotY);
-    let target = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
-    let up = ryMat.mul(rxMat.mul(Vec3.create(0, 1, 0)));
-    return this.initCamera.lookAt(this.pos, target, up);
-  }
-
-  move(dt) {
-    let moveDir = this.gamePad.getLeftDir();
-    let rotDir = this.gamePad.getRightDir();
-    let rxMat = Mat33.rotX(this.rotX);
-    let ryMat = Mat33.rotY(this.rotY);
-    let fwd = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).normalize().scale(moveDir.y()*this.moveSpeed*dt);
-    let right = ryMat.mul(rxMat.mul(Vec3.create(1, 0, 0))).normalize().scale(moveDir.x()*this.moveSpeed*dt);
-    this.pos = this.pos.add(fwd).add(right);
-    this.rotX = this.rotX+rotDir.y()*this.rotSpeed*dt;
-    if (this.rotX>FMath.PI/2) {
-      this.rotX = FMath.PI/2;
-    }
-    if (this.rotX<-FMath.PI/2) {
-      this.rotX = -FMath.PI/2;
-    }
-    this.rotY = this.rotY-rotDir.x()*this.rotSpeed*dt;
-    while (this.rotY>FMath.PI) {
-      this.rotY = this.rotY-2*FMath.PI;
-    }
-    while (this.rotY<-FMath.PI) {
-      this.rotY = this.rotY+2*FMath.PI;
-    }
-  }
-
-  setPersp(fovy, aspect, near, far) {
-    this.initCamera = this.initCamera.withPersp(fovy, aspect, near, far);
-  }
-
-  toString() {
-  }
-
-  static create(initCamera, gamePad, moveSpeed, rotSpeed) {
-    let res = new FreeCameraController();
-    res.initCamera = initCamera;
-    res.pos = initCamera.getPos();
-    let fwd = Vec3.create(-initCamera.getView().m20(), -initCamera.getView().m21(), -initCamera.getView().m22());
-    let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
-    res.rotX = FMath.asin(fwd.y());
-    res.rotY = fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y());
-    res.moveSpeed = moveSpeed;
-    res.rotSpeed = rotSpeed;
-    res.gamePad = gamePad;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FreeCameraController = FreeCameraController;
-class BoxMeshFactory {
-  constructor() {
-  }
-
-  getClass() {
-    return "BoxMeshFactory";
-  }
-
-  static rgbBox() {
-    if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&&arguments[3] instanceof Rgb) {
-      return BoxMeshFactory.rgbBox_4_Rgb_Rgb_Rgb_Rgb(arguments[0], arguments[1], arguments[2], arguments[3]);
-    }
-    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
-      return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static rgbBox_3_number_number_number(r, g, b) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static rgbaBox(c1, c2, c3, c4, a) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static fabricBox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.fabric(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelBox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelSkybox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, -1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22))).toMesh();
-    return res;
-  }
-
-  static modelBoxDeformed1() {
-    let en = Vec2.create(1, -1).normalize();
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelBoxDeformed2() {
-    let en = Vec2.create(-1, -1).normalize();
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.floatValues(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-}
-classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp10 extends TyracornScreen {
-  groundModel = null;
-  box1Model = null;
-  shadow1 = ShadowBufferId.of("shadow1");
-  time = 0;
-  inputs = InputCache.create();
+class AudioApp01 extends TyracornScreen {
+  static MUSIC_PLAYBACK_ID = PlaybackId.of("music");
   ui;
-  camera;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp10";
+    return "AudioApp01";
   }
 
   move(drivers, screenManager, dt) {
-    this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
-    let aspect = this.inputs.getSize2(InputCacheDisplayListener.DEFAULT_KEY, Size2.create(1, 1)).aspect();
-    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
-    this.camera.setPersp(fovy, aspect, 1.0, 50.0);
-    this.camera.move(dt);
-    this.ui.move(dt);
-    let t = Math.abs(Math.sin(this.time));
-    let dirLightColor = LightColor.create(Rgb.gray(0.5), Rgb.gray(0.5), Rgb.WHITE);
-    let dirLightDir = Vec3.create(FMath.sin(this.time/5), -1, FMath.cos(this.time/5)).normalize();
-    let dirLightPos = dirLightDir.scale(-5);
-    let dirLightShadowMap = ShadowMap.createDir(this.shadow1, dirLightPos, dirLightDir, 13, 20);
-    let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
-    let smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
-    this.renderSceneShaow(smapRndr, t);
-    smapRndr.end();
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(this.camera.getCamera(), dirLight));
-    this.renderScene(objRnderer, t);
-    objRnderer.end();
     gDriver.clearBuffers(BufferId.DEPTH);
     let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
     uiRenderer.render(this.ui);
     uiRenderer.end();
   }
 
   load(drivers, screenManager, properties) {
-    let assets = drivers.getDriver("AssetManager");
     let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
     res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/box-01.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/sounds.tap")));
     return res;
   }
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    let modelBox = MeshId.of("modelBox");
-    let modelBoxAnimated = MeshId.of("modelBox-animated");
-    assets.put(modelBox, BoxMeshFactory.modelBox());
-    assets.put(modelBoxAnimated, BoxMeshFactory.modelBox().plusMeshFrames(BoxMeshFactory.modelBoxDeformed1()).plusMeshFrames(BoxMeshFactory.modelBoxDeformed2()));
-    let boxDiffuse = TextureId.of("tex_box_01_d");
-    let boxSpecular = TextureId.of("tex_box_01_s");
-    assets.put(MaterialId.of("brass"), Material.BRASS);
-    assets.put(MaterialId.of("wood-box"), Material.BLACK.withShininess(50).plusTexture(TextureAttachment.diffuse(boxDiffuse)).plusTexture(TextureAttachment.specular(boxSpecular)));
-    assets.put(this.shadow1, ShadowBuffer.create(2048, 2048));
-    this.groundModel = Model.simple(modelBox, MaterialId.of("brass"));
-    this.box1Model = Model.simple(modelBoxAnimated, MaterialId.of("wood-box"));
+    Fonts.prepareScaledFonts(assets, Dut.set(12, 14, 20, 24, 26, 28));
+    let audio = drivers.getDriver("AudioDriver");
+    let mixer = audio.getMixer();
     this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
-    let gamePad = GamePad.create(drivers);
-    this.ui.addComponent(gamePad);
-    let cam = Camera.persp(FMath.toRadians(60.0), 1, 0.1, 1000.0).lookAt(Vec3.create(0.0, 1, 4), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0));
-    this.camera = FreeCameraController.create(cam, gamePad, 3, 1);
+    let uiTop = -100;
+    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Audio").setAlignment(TextAlignment.CENTER_TOP));
+    let musicVol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+65)).setText("0.3").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(musicVol);
+    let musicVolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+50, 30, 30)).setText("-").addOnClickAction(this.getChangeMusicVolumeAction(mixer, musicVol, -0.1));
+    this.ui.addComponent(musicVolDownBtn);
+    let musicVolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+50, 30, 30)).setText("+").addOnClickAction(this.getChangeMusicVolumeAction(mixer, musicVol, 0.1));
+    this.ui.addComponent(musicVolUpBtn);
+    let musicBtn = ToggleButton.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+50, 120, 30)).setText("Music");
+    musicBtn.addOnToggleAction(this.getToggleMusicAction(mixer, musicBtn, musicVol));
+    this.ui.addComponent(musicBtn);
+    let sound1Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+105)).setText("1.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(sound1Vol);
+    let sound1VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+90, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound1Vol, -0.1));
+    this.ui.addComponent(sound1VolDownBtn);
+    let sound1VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+90, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound1Vol, 0.1));
+    this.ui.addComponent(sound1VolUpBtn);
+    let sound1Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+90, 120, 30)).setText("Spell").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("spell1"), sound1Vol));
+    this.ui.addComponent(sound1Btn);
+    let sound2Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+145)).setText("1.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(sound2Vol);
+    let sound2VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+130, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound2Vol, -0.1));
+    this.ui.addComponent(sound2VolDownBtn);
+    let sound2VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+130, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound2Vol, 0.1));
+    this.ui.addComponent(sound2VolUpBtn);
+    let sound2Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+130, 120, 30)).setText("Magic").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("magic1"), sound2Vol));
+    this.ui.addComponent(sound2Btn);
+    let sound3Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+185)).setText("1.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(sound3Vol);
+    let sound3VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+170, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound3Vol, -0.1));
+    this.ui.addComponent(sound3VolDownBtn);
+    let sound3VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+170, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound3Vol, 0.1));
+    this.ui.addComponent(sound3VolUpBtn);
+    let sound3Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+170, 120, 30)).setText("Swing").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("swing1"), sound3Vol));
+    this.ui.addComponent(sound3Btn);
+    if (drivers.getPlatform().isExitable()) {
+      this.ui.addComponent(Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager)));
+    }
     this.ui.subscribe(drivers);
-    let dlist = InputCacheDisplayListener.create(this.inputs);
-    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
-    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
   }
 
   leave(drivers) {
+    drivers.getDriver("AudioDriver").getMixer().stop();
     this.ui.unsubscribe(drivers);
   }
 
-  renderScene(renderer, t) {
-    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1Model, Interpolation.create(0, 1, t), ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
+  getPlaySoundAction(mixer, soundId, volLabel) {
+    let res = (evtSource) => {
+      mixer.prepare(PlaybackId.of(Randoms.nextAlphabetic(10)), soundId).setVolume(Float.valueOf(volLabel.getText())).play();
+    };
+    return res;
   }
 
-  renderSceneShaow(renderer, t) {
-    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1Model, Interpolation.create(0, 1, t), ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
+  getChangeSoundVolumeAction(label, delta) {
+    let res = (evtSource) => {
+      let vol = Float.valueOf(label.getText());
+      vol = FMath.clamp(vol+delta, 0, 1);
+      label.setText(Formats.floatToFixedDecimals(vol, 1));
+    };
+    return res;
+  }
+
+  getChangeMusicVolumeAction(mixer, label, delta) {
+    let res = (evtSource) => {
+      let vol = Float.valueOf(label.getText());
+      vol = FMath.clamp(vol+delta, 0, 1);
+      label.setText(Formats.floatToFixedDecimals(vol, 1));
+      let control = mixer.getControlNonStrict(AudioApp01.MUSIC_PLAYBACK_ID);
+      if (control!=null) {
+        control.setVolume(vol);
+      }
+    };
+    return res;
+  }
+
+  getToggleMusicAction(mixer, button, volLabel) {
+    let res = (evtSource) => {
+      let control = mixer.getControlNonStrict(AudioApp01.MUSIC_PLAYBACK_ID);
+      if (control!=null) {
+        if (button.isToggledOn()) {
+          control.play();
+        }
+        else {
+          control.stop();
+        }
+      }
+      else if (button.isToggledOn()) {
+        mixer.prepare(AudioApp01.MUSIC_PLAYBACK_ID, SoundId.of("alexander-ehlers-great-mission")).setLoop(true).setVolume(Float.valueOf(volLabel.getText())).play();
+      }
+    };
+    return res;
   }
 
 }
-classRegistry.BasicApp10 = BasicApp10;
+classRegistry.AudioApp01 = AudioApp01;
 
 
 // -------------------------------------
@@ -32499,7 +32322,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp10());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new AudioApp01());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
