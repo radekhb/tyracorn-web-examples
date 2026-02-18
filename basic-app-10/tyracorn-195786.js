@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/rigid-body-app-03";
-const assetsDirName = "/assets-7c86fa";
+const basePath = "/tyracorn-web-examples/basic-app-10";
+const assetsDirName = "/assets-96ef60";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -14292,12 +14292,14 @@ class UiComponentStylePropertyKey {
   static HIGHLIGHTED_TEXT_FONT = UiComponentStylePropertyKey.of("highlightedTextFont");
   static SELECTED_TEXT_FONT = UiComponentStylePropertyKey.of("selectedTextFont");
   static OVERLAY_TEXT_FONT = UiComponentStylePropertyKey.of("overlayTextFont");
+  static OVERLAY_HIGHLIGHTED_TEXT_FONT = UiComponentStylePropertyKey.of("overlayHighlightedTextFont");
   static DISABLED_TEXT_FONT = UiComponentStylePropertyKey.of("disabledTextFont");
   static LABEL_TEXT_FONT = UiComponentStylePropertyKey.of("labelTextFont");
   static TEXT_COLOR = UiComponentStylePropertyKey.of("textColor");
   static HIGHLIGHTED_TEXT_COLOR = UiComponentStylePropertyKey.of("highlightedTextColor");
   static SELECTED_TEXT_COLOR = UiComponentStylePropertyKey.of("selectedTextColor");
   static OVERLAY_TEXT_COLOR = UiComponentStylePropertyKey.of("overlayTextColor");
+  static OVERLAY_HIGHLIGHTED_TEXT_COLOR = UiComponentStylePropertyKey.of("overlayHighlightesdTextColor");
   static DISABLED_TEXT_COLOR = UiComponentStylePropertyKey.of("disabledTextColor");
   static LABEL_TEXT_COLOR = UiComponentStylePropertyKey.of("labelTextColor");
   static BORDER_COLOR = UiComponentStylePropertyKey.of("borderColor");
@@ -14306,6 +14308,7 @@ class UiComponentStylePropertyKey {
   static HIGHLIGHTED_BACKGROUND_COLOR = UiComponentStylePropertyKey.of("highlightedBackgroundColor");
   static SELECTED_BACKGROUND_COLOR = UiComponentStylePropertyKey.of("selectedBackgroundColor");
   static OVERLAY_BACKGROUND_COLOR = UiComponentStylePropertyKey.of("overlayBackgroundColor");
+  static OVERLAY_HIGHLIGHTED_BACKGROUND_COLOR = UiComponentStylePropertyKey.of("overlayHighlightedBackgroundColor");
   static ITEM_HEIGHT = UiComponentStylePropertyKey.of("itemHeight");
   static OVERLAY_ITEM_HEIGHT = UiComponentStylePropertyKey.of("overlayItemHeight");
   mKey;
@@ -14595,8 +14598,10 @@ class DefaultUiStyler {
   borderColor = Rgba.create(0.365, 0.341, 0.314, 0.5);
   overlayBorderColor = Rgba.create(0.365, 0.341, 0.314, 0.5);
   backgroundColor = Rgba.create(0.482, 0.451, 0.420, 0.5);
+  highlightedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.1);
   selectedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.5);
   overlayBackgroundColor = Rgba.create(0.482, 0.451, 0.420, 1);
+  overlayHighlightedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.3);
   customStyles = Collections.emptyList();
   styles = null;
   constructor() {
@@ -14763,9 +14768,9 @@ class DefaultUiStyler {
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.L), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-l-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-l-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.XL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-xl-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-xl-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.JOYSTICK), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BASE_TEXTURE, TextureId.of("joystick-base"), UiComponentStylePropertyKey.TOP_TEXTURE, TextureId.of("joystick-top"))));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LIST_SELECT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.SELECTED_BACKGROUND_COLOR, this.selectedBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.SELECTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.SELECTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.ITEM_HEIGHT, 20)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LIST_SELECT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.HIGHLIGHTED_BACKGROUND_COLOR, this.highlightedBackgroundColor, UiComponentStylePropertyKey.SELECTED_BACKGROUND_COLOR, this.selectedBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.SELECTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.SELECTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.ITEM_HEIGHT, 20)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TEXT_FIELD), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.DROPDOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor, UiComponentStylePropertyKey.OVERLAY_BORDER_COLOR, this.overlayBorderColor, UiComponentStylePropertyKey.OVERLAY_BACKGROUND_COLOR, this.overlayBackgroundColor, UiComponentStylePropertyKey.OVERLAY_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_ITEM_HEIGHT, 20)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.DROPDOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_BORDER_COLOR, this.overlayBorderColor, UiComponentStylePropertyKey.OVERLAY_BACKGROUND_COLOR, this.overlayBackgroundColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_BACKGROUND_COLOR, this.overlayHighlightedBackgroundColor, UiComponentStylePropertyKey.OVERLAY_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_ITEM_HEIGHT, 20)));
     for (let customStyle of this.customStyles) {
       let newStyle = customStyle.getStyle();
       if (customStyle.getBaseKey()!=null) {
@@ -15014,6 +15019,10 @@ class StretchUiLayer {
   }
 
   guardInvariants() {
+  }
+
+  getSize() {
+    return this.size;
   }
 
   addComponent(component) {
@@ -17455,7 +17464,7 @@ class ListSelect extends UiComponent {
   trackedTouchStartPos = Vec2.ZERO;
   trackedTouchLastPos = Vec2.ZERO;
   trackedTouchStartScroll = 0;
-  trackedTouchStartItemIdx = 0;
+  trackedTouchStartItemIdx = -1;
   constructor() {
     super();
   }
@@ -17479,8 +17488,11 @@ class ListSelect extends UiComponent {
     let backroungColor = style.getRgba(UiComponentStylePropertyKey.BACKGROUND_COLOR);
     let borderColor = style.getRgba(UiComponentStylePropertyKey.BORDER_COLOR);
     let selectedBackroungColor = style.getRgba(UiComponentStylePropertyKey.SELECTED_BACKGROUND_COLOR);
+    let highlightedBackroungColor = style.getRgba(UiComponentStylePropertyKey.HIGHLIGHTED_BACKGROUND_COLOR);
     let textColor = style.getRgbaNonStrict(UiComponentStylePropertyKey.TEXT_COLOR);
     let textFont = style.getFontId(UiComponentStylePropertyKey.TEXT_FONT);
+    let highlightedTextColor = style.getRgbaNonStrict(UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR);
+    let highlightedTextFont = style.getFontId(UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT);
     let selectedTextColor = style.getRgbaNonStrict(UiComponentStylePropertyKey.SELECTED_TEXT_COLOR);
     let selectedTextFont = style.getFontId(UiComponentStylePropertyKey.SELECTED_TEXT_FONT);
     this.itemHeight = style.getFloat(UiComponentStylePropertyKey.ITEM_HEIGHT);
@@ -17500,8 +17512,11 @@ class ListSelect extends UiComponent {
       if (item.isSelected()) {
         painter.fillRect(itemRegion, selectedBackroungColor);
       }
-      let color = item.isSelected()?selectedTextColor:textColor;
-      let font = item.isSelected()?selectedTextFont:textFont;
+      else if (this.trackedTouchStartItemIdx==i) {
+        painter.fillRect(itemRegion, highlightedBackroungColor);
+      }
+      let color = item.isSelected()?selectedTextColor:(this.trackedTouchStartItemIdx==i?highlightedTextColor:textColor);
+      let font = item.isSelected()?selectedTextFont:(this.trackedTouchStartItemIdx==i?highlightedTextFont:textFont);
       let pos = Pos2.create(itemRegion.x()+5, itemRegion.centerY());
       if (color==null) {
         painter.drawText(item.getText(), font, pos, TextAlignment.LEFT_CENTER);
@@ -17562,6 +17577,10 @@ class ListSelect extends UiComponent {
     let dy = this.trackedTouchLastPos.y()-hy;
     this.trackedTouchLastPos = Vec2.create(hx, hy);
     this.setScroll(this.scroll+dy);
+    let itemIdx = FMath.trunc((hy+this.trackedTouchStartScroll)/this.itemHeight);
+    if (this.trackedTouchStartItemIdx!=itemIdx) {
+      this.trackedTouchStartItemIdx = -1;
+    }
     return false;
   }
 
@@ -17575,7 +17594,7 @@ class ListSelect extends UiComponent {
     }
     let hy = pos.y()-this.region.y();
     let itemIdx = FMath.trunc((hy+this.trackedTouchStartScroll)/this.itemHeight);
-    if (this.trackedTouchStartItemIdx==itemIdx) {
+    if (this.trackedTouchStartItemIdx!=-1&&this.trackedTouchStartItemIdx==itemIdx) {
       this.setSelectedAt(itemIdx, !this.items.get(itemIdx).isSelected());
     }
     this.container.requestFocus(this);
@@ -17780,7 +17799,7 @@ class DropdownListSelect extends UiComponent {
   trackedTouchStartPos = Vec2.ZERO;
   trackedTouchLastPos = Vec2.ZERO;
   trackedTouchStartScroll = 0;
-  trackedTouchStartItemIdx = 0;
+  trackedTouchStartItemIdx = -1;
   constructor() {
     super();
   }
@@ -17803,8 +17822,11 @@ class DropdownListSelect extends UiComponent {
     let style = this.container.getComponentStyle(this.parent.getStyleKey());
     let backroungColor = style.getRgba(UiComponentStylePropertyKey.OVERLAY_BACKGROUND_COLOR);
     let borderColor = style.getRgba(UiComponentStylePropertyKey.OVERLAY_BORDER_COLOR);
+    let highlightedBackroungColor = style.getRgba(UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_BACKGROUND_COLOR);
     let textColor = style.getRgbaNonStrict(UiComponentStylePropertyKey.OVERLAY_TEXT_COLOR);
     let textFont = style.getFontId(UiComponentStylePropertyKey.OVERLAY_TEXT_FONT);
+    let highlightedTextColor = style.getRgbaNonStrict(UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_COLOR);
+    let highlightedTextFont = style.getFontId(UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_FONT);
     this.itemHeight = style.getFloat(UiComponentStylePropertyKey.OVERLAY_ITEM_HEIGHT);
     if (backroungColor.a()>0) {
       painter.fillRect(this.region, backroungColor);
@@ -17819,12 +17841,17 @@ class DropdownListSelect extends UiComponent {
         continue;
       }
       painter.setClipRect(this.region.intersect(itemRegion));
+      if (this.trackedTouchStartItemIdx==i) {
+        painter.fillRect(itemRegion, highlightedBackroungColor);
+      }
+      let color = this.trackedTouchStartItemIdx==i?highlightedTextColor:textColor;
+      let font = this.trackedTouchStartItemIdx==i?highlightedTextFont:textFont;
       let pos = Pos2.create(itemRegion.x()+5, itemRegion.centerY());
-      if (textColor==null) {
+      if (color==null) {
         painter.drawText(item.getText(), textFont, pos, TextAlignment.LEFT_CENTER);
       }
       else {
-        painter.drawColorText(item.getText(), textFont, textColor, pos, TextAlignment.LEFT_CENTER);
+        painter.drawColorText(item.getText(), textFont, color, pos, TextAlignment.LEFT_CENTER);
       }
       painter.unsetClipRect();
     }
@@ -17896,6 +17923,10 @@ class DropdownListSelect extends UiComponent {
     let dy = this.trackedTouchLastPos.y()-hy;
     this.trackedTouchLastPos = Vec2.create(hx, hy);
     this.setScroll(this.scroll+dy);
+    let itemIdx = FMath.trunc((hy+this.trackedTouchStartScroll)/this.itemHeight);
+    if (this.trackedTouchStartItemIdx!=itemIdx) {
+      this.trackedTouchStartItemIdx = -1;
+    }
     return false;
   }
 
@@ -17909,7 +17940,7 @@ class DropdownListSelect extends UiComponent {
     }
     let hy = pos.y()-this.region.y();
     let itemIdx = FMath.trunc((hy+this.trackedTouchStartScroll)/this.itemHeight);
-    if (this.trackedTouchStartItemIdx==itemIdx) {
+    if (this.trackedTouchStartItemIdx!=-1&&this.trackedTouchStartItemIdx==itemIdx) {
       this.parent.setSelected(this.items.get(itemIdx));
       ;
       this.container.requestFocus(null);
@@ -18096,10 +18127,18 @@ class Dropdown extends UiComponent {
 
   onFocus() {
     this.focused = true;
-    let height = FMath.clamp(this.region.height()*5, 20, this.containerSize.height()-this.region.height()-10);
-    let y = FMath.min(this.region.y()+this.region.height(), this.containerSize.height()-5-height);
-    let dropRegion = this.container.getAbsoluteRegion(Rect2.create(this.region.x(), y, this.region.width(), height));
+    let style = this.container.getComponentStyle(this.styleKey);
+    let itemHeight = style.getFloat(UiComponentStylePropertyKey.OVERLAY_ITEM_HEIGHT);
     let layer = this.container.pushLayer();
+    let layerSize = layer.getSize();
+    let idealHeight = itemHeight*this.items.size();
+    let maxHeight = layerSize.height()*0.9;
+    let height = FMath.min(idealHeight, maxHeight);
+    let boxRegion = this.container.getAbsoluteRegion(this.region);
+    let maxY = layerSize.height()*0.95-height;
+    let idealY = boxRegion.y()+boxRegion.height();
+    let y = FMath.min(idealY, maxY);
+    let dropRegion = Rect2.create(boxRegion.x(), y, boxRegion.width(), height);
     let listSelect = DropdownListSelect.create(this, dropRegion);
     layer.addComponent(listSelect);
     this.container.requestFocus(listSelect);
@@ -31967,6 +32006,90 @@ class GamePad extends UiComponent {
 
 }
 classRegistry.GamePad = GamePad;
+class FreeCameraController {
+  initCamera;
+  pos;
+  rotX;
+  rotY;
+  moveSpeed;
+  rotSpeed;
+  gamePad;
+  constructor() {
+  }
+
+  getClass() {
+    return "FreeCameraController";
+  }
+
+  guardInvariants() {
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getTarget() {
+    let rxMat = Mat33.rotX(this.rotX);
+    let ryMat = Mat33.rotY(this.rotY);
+    return ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
+  }
+
+  getCamera() {
+    let rxMat = Mat33.rotX(this.rotX);
+    let ryMat = Mat33.rotY(this.rotY);
+    let target = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
+    let up = ryMat.mul(rxMat.mul(Vec3.create(0, 1, 0)));
+    return this.initCamera.lookAt(this.pos, target, up);
+  }
+
+  move(dt) {
+    let moveDir = this.gamePad.getLeftDir();
+    let rotDir = this.gamePad.getRightDir();
+    let rxMat = Mat33.rotX(this.rotX);
+    let ryMat = Mat33.rotY(this.rotY);
+    let fwd = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).normalize().scale(moveDir.y()*this.moveSpeed*dt);
+    let right = ryMat.mul(rxMat.mul(Vec3.create(1, 0, 0))).normalize().scale(moveDir.x()*this.moveSpeed*dt);
+    this.pos = this.pos.add(fwd).add(right);
+    this.rotX = this.rotX+rotDir.y()*this.rotSpeed*dt;
+    if (this.rotX>FMath.PI/2) {
+      this.rotX = FMath.PI/2;
+    }
+    if (this.rotX<-FMath.PI/2) {
+      this.rotX = -FMath.PI/2;
+    }
+    this.rotY = this.rotY-rotDir.x()*this.rotSpeed*dt;
+    while (this.rotY>FMath.PI) {
+      this.rotY = this.rotY-2*FMath.PI;
+    }
+    while (this.rotY<-FMath.PI) {
+      this.rotY = this.rotY+2*FMath.PI;
+    }
+  }
+
+  setPersp(fovy, aspect, near, far) {
+    this.initCamera = this.initCamera.withPersp(fovy, aspect, near, far);
+  }
+
+  toString() {
+  }
+
+  static create(initCamera, gamePad, moveSpeed, rotSpeed) {
+    let res = new FreeCameraController();
+    res.initCamera = initCamera;
+    res.pos = initCamera.getPos();
+    let fwd = Vec3.create(-initCamera.getView().m20(), -initCamera.getView().m21(), -initCamera.getView().m22());
+    let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
+    res.rotX = FMath.asin(fwd.y());
+    res.rotY = fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y());
+    res.moveSpeed = moveSpeed;
+    res.rotSpeed = rotSpeed;
+    res.gamePad = gamePad;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FreeCameraController = FreeCameraController;
 class BoxMeshFactory {
   constructor() {
   }
@@ -32031,180 +32154,75 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class FreeCameraBehavior extends Behavior {
-  moveDirInput = "moveDir";
-  rotDirInput = "rotDir";
-  moveSpeed = 3;
-  rotSpeed = 1;
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "FreeCameraBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  move(dt, inputs) {
-    let moveDir = inputs.getVec2(this.moveDirInput, Vec2.ZERO);
-    let rotDir = inputs.getVec2(this.rotDirInput, Vec2.ZERO);
-    let tc = this.actor().getComponent("TransformComponent");
-    let rot = tc.getRot();
-    if (!moveDir.equals(Vec2.ZERO)) {
-      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize().scale(moveDir.y()*this.moveSpeed*dt);
-      let right = rot.rotate(Vec3.create(1, 0, 0)).normalize().scale(moveDir.x()*this.moveSpeed*dt);
-      tc.move(fwd.add(right));
-    }
-    if (!rotDir.equals(Vec2.ZERO)) {
-      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize();
-      let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
-      let rotX = FMath.asin(fwd.y())+rotDir.y()*this.rotSpeed*dt;
-      let rotY = (fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y()))-rotDir.x()*this.rotSpeed*dt;
-      let rx = Quaternion.rot(1, 0, 0, rotX);
-      let ry = Quaternion.rot(0, 1, 0, rotY);
-      tc.setRot(ry.mul(rx));
-    }
-  }
-
-  static create() {
-    if (arguments.length===0) {
-      return FreeCameraBehavior.create_0();
-    }
-    else if (arguments.length===4&& typeof arguments[0]==="string"&& typeof arguments[1]==="string"&& typeof arguments[2]==="number"&& typeof arguments[3]==="number") {
-      return FreeCameraBehavior.create_4_string_string_number_number(arguments[0], arguments[1], arguments[2], arguments[3]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  static create_0() {
-    let res = new FreeCameraBehavior();
-    res.guardInvariants();
-    return res;
-  }
-
-  static create_4_string_string_number_number(moveDirInput, rotDirInput, moveSpeed, rotSpeed) {
-    let res = new FreeCameraBehavior();
-    res.moveDirInput = moveDirInput;
-    res.rotDirInput = rotDirInput;
-    res.moveSpeed = moveSpeed;
-    res.rotSpeed = rotSpeed;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FreeCameraBehavior = FreeCameraBehavior;
-class RigidBodyApp03 extends TyracornScreen {
+class BasicApp10 extends TyracornScreen {
+  groundModel = null;
+  box1Model = null;
+  shadow1 = ShadowBufferId.of("shadow1");
   time = 0;
-  world;
   inputs = InputCache.create();
   ui;
-  gamePad;
+  camera;
   constructor() {
     super();
   }
 
   getClass() {
-    return "RigidBodyApp03";
+    return "BasicApp10";
   }
 
   move(drivers, screenManager, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
+    let aspect = this.inputs.getSize2(InputCacheDisplayListener.DEFAULT_KEY, Size2.create(1, 1)).aspect();
+    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
+    this.camera.setPersp(fovy, aspect, 1.0, 50.0);
+    this.camera.move(dt);
+    this.ui.move(dt);
+    let t = Math.abs(Math.sin(this.time));
+    let dirLightColor = LightColor.create(Rgb.gray(0.5), Rgb.gray(0.5), Rgb.WHITE);
+    let dirLightDir = Vec3.create(FMath.sin(this.time/5), -1, FMath.cos(this.time/5)).normalize();
+    let dirLightPos = dirLightDir.scale(-5);
+    let dirLightShadowMap = ShadowMap.createDir(this.shadow1, dirLightPos, dirLightDir, 13, 20);
+    let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
+    let smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
+    this.renderSceneShaow(smapRndr, t);
+    smapRndr.end();
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    this.inputs.put("moveDir", this.gamePad.getLeftDir());
-    this.inputs.put("rotDir", this.gamePad.getRightDir());
-    this.world.move(dt, this.inputs);
-    this.world.render(RenderRequest.NORMAL);
+    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(this.camera.getCamera(), dirLight));
+    this.renderScene(objRnderer, t);
+    objRnderer.end();
     gDriver.clearBuffers(BufferId.DEPTH);
     let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
     uiRenderer.render(this.ui);
     uiRenderer.end();
   }
 
   load(drivers, screenManager, properties) {
-    let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
+    let res = new ArrayList();
     res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/primitives.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/box-01.tap")));
     return res;
   }
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(12, 20));
+    let modelBox = MeshId.of("modelBox");
+    let modelBoxAnimated = MeshId.of("modelBox-animated");
+    assets.put(modelBox, BoxMeshFactory.modelBox());
+    assets.put(modelBoxAnimated, BoxMeshFactory.modelBox().plusMeshFrames(BoxMeshFactory.modelBoxDeformed1()).plusMeshFrames(BoxMeshFactory.modelBoxDeformed2()));
+    let boxDiffuse = TextureId.of("tex_box_01_d");
+    let boxSpecular = TextureId.of("tex_box_01_s");
     assets.put(MaterialId.of("brass"), Material.BRASS);
-    assets.put(MaterialId.of("copper"), Material.COPPER);
-    assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
-    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("brass"));
-    let groundModelId = ModelId.of("ground");
-    assets.put(groundModelId, groundModel);
-    let sphereModelId = ModelId.of("sphere");
-    let boxModelId = ModelId.of("box");
-    let cylinderRoundModelId = ModelId.of("cylinder-round");
-    let halfSphereModelId = ModelId.of("half-sphere");
-    let boxModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
-    assets.put(boxModelId, boxModel);
-    const wallColMatId = PhysicalMaterialId.of("wall");
-    assets.put(wallColMatId, PhysicalMaterial.simple(0.6, 1.8, 1.8));
-    const objectColMatId = PhysicalMaterialId.of("object");
-    assets.put(objectColMatId, PhysicalMaterial.create(0.6, PhysicalMaterialCombineType.AVG, 18, 18, PhysicalMaterialCombineType.MAX));
-    this.world = RigidBodyWorld.create(drivers);
-    let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create().setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-30, -30, -30, 30, 30, 30)));
-    this.world.actors().add(ActorId.ROOT, worldActor);
-    let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create()).addComponent(SkyboxComponent.create().setModelId(ModelId.of("skybox-1")).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create().setAngularVelocity(Vec3.create(0, 0.1, 0)));
-    this.world.actors().add(ActorId.ROOT, skybox);
-    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create().move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(20, 1, 20)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 2, 22)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, ground);
-    let back = Actor.create("back").setName("back").addComponent(TransformComponent.create().move(Vec3.create(0, 0, -10))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(22, 1, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 7, 1)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, back);
-    let front = Actor.create("front").setName("front").addComponent(TransformComponent.create().move(Vec3.create(0, 0, 10))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(22, 1, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 7, 1)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, front);
-    let left = Actor.create("left").setName("left").addComponent(TransformComponent.create().move(Vec3.create(-10, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 22, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 22)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, left);
-    let right = Actor.create("right").setName("right").addComponent(TransformComponent.create().move(Vec3.create(10, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 22, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 22)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, right);
-    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create().lookAt(Vec3.create(2, 5, 5), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create().setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
-    this.world.actors().add(ActorId.ROOT, light);
-    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create().lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create().setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create("moveDir", "rotDir", 5, 1)).addComponent(CameraFovyComponent.create());
-    this.world.actors().add(ActorId.ROOT, camera);
+    assets.put(MaterialId.of("wood-box"), Material.BLACK.withShininess(50).plusTexture(TextureAttachment.diffuse(boxDiffuse)).plusTexture(TextureAttachment.specular(boxSpecular)));
+    assets.put(this.shadow1, ShadowBuffer.create(2048, 2048));
+    this.groundModel = Model.simple(modelBox, MaterialId.of("brass"));
+    this.box1Model = Model.simple(modelBoxAnimated, MaterialId.of("wood-box"));
     this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
-    this.gamePad = GamePad.create(drivers);
-    this.ui.addComponent(this.gamePad);
-    let addSphereAct = (evtSource) => {
-      let r = Randoms.nextFloat(0.5, 1.5);
-      let m = Randoms.nextFloat(1, 2);
-      let sphere = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(objectColMatId));
-      this.world.actors().add(ActorId.ROOT, sphere);
-    };
-    let sphereBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(20, 20, 120, 30)).setText("Sphere").addOnClickAction(addSphereAct);
-    this.ui.addComponent(sphereBtn);
-    let addBoxAct = (evtSource) => {
-      let box = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId));
-      this.world.actors().add(ActorId.ROOT, box);
-    };
-    let boxBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(20, 70, 120, 30)).setText("Box").addOnClickAction(addBoxAct);
-    this.ui.addComponent(boxBtn);
-    let addBoxStraightAct = (evtSource) => {
-      let box = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 12, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId));
-      this.world.actors().add(ActorId.ROOT, box);
-    };
-    let boxStraightBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(20, 120, 120, 30)).setText("Box Straight").addOnClickAction(addBoxStraightAct);
-    this.ui.addComponent(boxStraightBtn);
-    let addCapsuleAct = (evtSource) => {
-      let capsule = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(cylinderRoundModelId).setTransform(Mat44.rotX(FMath.PI/2).mul(Mat44.scale(1, 1, 1)))).addComponent(ModelComponent.create().setModelId(halfSphereModelId).setTransform(Mat44.trans(0, 1, 0).mul(Mat44.rotX(FMath.PI/2)))).addComponent(ModelComponent.create().setModelId(halfSphereModelId).setTransform(Mat44.trans(0, -1, 0).mul(Mat44.rotX(-FMath.PI/2)))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.CAPSULE).setRadius(1).setHeight(4).setMaterialId(objectColMatId));
-      this.world.actors().add(ActorId.ROOT, capsule);
-    };
-    let capsuleBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(20, 170, 120, 30)).setText("Capsule").addOnClickAction(addCapsuleAct);
-    this.ui.addComponent(capsuleBtn);
-    if (drivers.getPlatform().isExitable()) {
-      this.ui.addComponent(Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager)));
-    }
+    let gamePad = GamePad.create(drivers);
+    this.ui.addComponent(gamePad);
+    let cam = Camera.persp(FMath.toRadians(60.0), 1, 0.1, 1000.0).lookAt(Vec3.create(0.0, 1, 4), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0));
+    this.camera = FreeCameraController.create(cam, gamePad, 3, 1);
     this.ui.subscribe(drivers);
     let dlist = InputCacheDisplayListener.create(this.inputs);
     screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
@@ -32213,18 +32231,20 @@ class RigidBodyApp03 extends TyracornScreen {
 
   leave(drivers) {
     this.ui.unsubscribe(drivers);
-    this.world.destroy(drivers);
   }
 
-  getRandomVelocity() {
-    let vx = Randoms.nextFloat(0, 2)-1;
-    let vy = Randoms.nextFloat(0, 2)-1;
-    let vz = Randoms.nextFloat(0, 2)-1;
-    return Vec3.create(vx, vy, vz);
+  renderScene(renderer, t) {
+    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    renderer.render(this.box1Model, Interpolation.create(0, 1, t), ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
+  }
+
+  renderSceneShaow(renderer, t) {
+    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    renderer.render(this.box1Model, Interpolation.create(0, 1, t), ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
   }
 
 }
-classRegistry.RigidBodyApp03 = RigidBodyApp03;
+classRegistry.BasicApp10 = BasicApp10;
 
 
 // -------------------------------------
@@ -32607,7 +32627,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new RigidBodyApp03());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp10());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
