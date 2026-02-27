@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-16";
-const assetsDirName = "/assets-c50542";
+const basePath = "/tyracorn-web-examples/basic-app-13";
+const assetsDirName = "/assets-69625b";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -14285,6 +14285,8 @@ class UiComponentTrait {
   static HAMBURGER = UiComponentTrait.of("HAMBURGER");
   static CROSS = UiComponentTrait.of("CROSS");
   static TRANSPARENT = UiComponentTrait.of("TRANSPARENT");
+  static HEADER = UiComponentTrait.of("HEADER");
+  static FOOTER = UiComponentTrait.of("FOOTER");
   mTrait;
   constructor() {
   }
@@ -14636,11 +14638,13 @@ class DefaultUiStyler {
   smallTextFont = FontId.of("kenny-mini-12");
   extraSmallTextFont = FontId.of("kenny-mini-10");
   textColor = Rgba.create(0.863, 0.392, 0.078, 1);
+  buttonTextureIds = Dut.map("xs-up", TextureId.of("button-xs-up"), "xs-down", TextureId.of("button-xs-down"), "xs-disabled", TextureId.of("button-xs-disabled"), "s-up", TextureId.of("button-s-up"), "s-down", TextureId.of("button-s-down"), "s-disabled", TextureId.of("button-s-disabled"), "m-up", TextureId.of("button-m-up"), "m-down", TextureId.of("button-m-down"), "m-disabled", TextureId.of("button-m-disabled"), "l-up", TextureId.of("button-l-up"), "l-down", TextureId.of("button-l-down"), "l-disabled", TextureId.of("button-l-disabled"), "xl-up", TextureId.of("button-xl-up"), "xl-down", TextureId.of("button-xl-down"), "xl-disabled", TextureId.of("button-xl-disabled"), "hamburger-up", TextureId.of("button-hamburger-up"), "hamburger-down", TextureId.of("button-hamburger-down"), "hamburger-disabled", TextureId.of("button-hamburger-disabled"), "cross-up", TextureId.of("button-cross-up"), "cross-down", TextureId.of("button-cross-down"), "cross-disabled", TextureId.of("button-cross-disabled"));
   buttonLabelFont = FontId.of("kenny-mini-12");
   buttonLabelColor = Rgba.create(0.863, 0.392, 0.078, 1);
   disabledButtonLabelColor = Rgba.create(0.863*0.5, 0.392*0.5, 0.078*0.5, 1);
   selectItemTextFont = FontId.of("kenny-mini-14");
   selectItemTextColor = Rgba.create(0.863, 0.392, 0.078, 1);
+  selectItemHeight = 20;
   fieldValueFont = FontId.of("kenny-mini-14");
   fieldValueColor = Rgba.create(0.863, 0.392, 0.078, 1);
   fieldLabelFont = FontId.of("kenny-mini-10");
@@ -14757,6 +14761,13 @@ class DefaultUiStyler {
     return this;
   }
 
+  setButtonTextureIdPattern(pattern) {
+    Guard.notEmpty(pattern, "pattern cannot be empty");
+    this.buttonTextureIds = Dut.map("xs-up", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "up")), "xs-down", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "down")), "xs-disabled", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "disabled")), "s-up", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "up")), "s-down", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "down")), "s-disabled", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "disabled")), "m-up", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "up")), "m-down", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "down")), "m-disabled", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "disabled")), "l-up", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "up")), "l-down", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "down")), "l-disabled", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "disabled")), "xl-up", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "up")), "xl-down", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "down")), "xl-disabled", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "disabled")), "hamburger-up", TextureId.of(pattern.replace("${type}", "hamburger").replace("${state}", "up")), "hamburger-down", TextureId.of(pattern.replace("${type}", "hamburger").replace("${state}", "down")), "hamburger-disabled", TextureId.of(pattern.replace("${type}", "hamburger").replace("${state}", "disabled")), "cross-up", TextureId.of(pattern.replace("${type}", "cross").replace("${state}", "up")), "cross-down", TextureId.of(pattern.replace("${type}", "cross").replace("${state}", "down")), "cross-disabled", TextureId.of(pattern.replace("${type}", "cross").replace("${state}", "disabled")));
+    this.styles = null;
+    return this;
+  }
+
   setButtonLabelFont(buttonLabelFont) {
     Guard.notNull(buttonLabelFont, "buttonLabelFont cannot be null");
     this.buttonLabelFont = buttonLabelFont;
@@ -14774,6 +14785,41 @@ class DefaultUiStyler {
   setDisabledButtonLabelColor(disabledButtonLabelColor) {
     Guard.notNull(disabledButtonLabelColor, "disabledButtonLabelColor cannot be null");
     this.disabledButtonLabelColor = disabledButtonLabelColor;
+    this.styles = null;
+    return this;
+  }
+
+  setSelectItemTextFont(selectItemTextFont) {
+    Guard.notNull(selectItemTextFont, "selectItemTextFont cannot be null");
+    this.selectItemTextFont = selectItemTextFont;
+    this.styles = null;
+    return this;
+  }
+
+  setSelectItemTextColor(selectItemTextColor) {
+    Guard.notNull(selectItemTextColor, "selectItemTextColor cannot be null");
+    this.selectItemTextColor = selectItemTextColor;
+    this.styles = null;
+    return this;
+  }
+
+  setSelectItemHeight(selectItemHeight) {
+    Guard.positive(selectItemHeight, "selectItemHeight must be positive");
+    this.selectItemHeight = selectItemHeight;
+    this.styles = null;
+    return this;
+  }
+
+  setFieldLabelFont(fieldLabelFont) {
+    Guard.notNull(fieldLabelFont, "fieldLabelFont cannot be null");
+    this.fieldLabelFont = fieldLabelFont;
+    this.styles = null;
+    return this;
+  }
+
+  setFieldValueFont(fieldValueFont) {
+    Guard.notNull(fieldValueFont, "fieldValueFont cannot be null");
+    this.fieldValueFont = fieldValueFont;
     this.styles = null;
     return this;
   }
@@ -14803,14 +14849,14 @@ class DefaultUiStyler {
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.LABEL), this.styles.get(UiComponentStyleKey.plain(UiComponentType.LABEL).plusTrait(UiComponentTrait.M)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TAB_NAVBAR), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, Rgba.TRANSPARENT, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.navbarBackgroundColor, UiComponentStylePropertyKey.HIGHLIGHTED_BACKGROUND_COLOR, this.navbarHighlightedBackgroundColor, UiComponentStylePropertyKey.SELECTED_BACKGROUND_COLOR, this.navbarSelectedBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.navbarItemFont, UiComponentStylePropertyKey.TEXT_COLOR, this.navbarItemColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.navbarItemFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.navbarItemColor, UiComponentStylePropertyKey.SELECTED_TEXT_FONT, this.navbarItemFont, UiComponentStylePropertyKey.SELECTED_TEXT_COLOR, this.navbarItemColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TAB_CONTAINER), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, Rgba.TRANSPARENT, UiComponentStylePropertyKey.BACKGROUND_COLOR, Rgba.TRANSPARENT)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.XS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-xs-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-xs-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-xs-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.S), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-s-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-s-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-s-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.M), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-m-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-m-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-m-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.XS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("xs-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("xs-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("xs-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.S), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("s-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("s-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("s-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.M), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("m-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("m-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("m-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON), this.styles.get(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.M)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.L), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-l-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-l-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-l-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.XL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-xl-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-xl-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-xl-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.HAMBURGER), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-hamburger-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-hamburger-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-hamburger-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.CROSS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-cross-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-cross-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-cross-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.L), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("l-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("l-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("l-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.XL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("xl-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("xl-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("xl-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.HAMBURGER), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("hamburger-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("hamburger-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("hamburger-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.CROSS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("cross-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("cross-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("cross-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.XS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-xs-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-xs-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.S), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-s-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-s-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.M), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-m-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-m-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
@@ -14818,9 +14864,9 @@ class DefaultUiStyler {
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.L), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-l-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-l-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.XL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-xl-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-xl-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.JOYSTICK), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BASE_TEXTURE, TextureId.of("joystick-base"), UiComponentStylePropertyKey.TOP_TEXTURE, TextureId.of("joystick-top"))));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LIST_SELECT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.HIGHLIGHTED_BACKGROUND_COLOR, this.highlightedBackgroundColor, UiComponentStylePropertyKey.SELECTED_BACKGROUND_COLOR, this.selectedBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.SELECTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.SELECTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.ITEM_HEIGHT, 20)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LIST_SELECT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.HIGHLIGHTED_BACKGROUND_COLOR, this.highlightedBackgroundColor, UiComponentStylePropertyKey.SELECTED_BACKGROUND_COLOR, this.selectedBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.SELECTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.SELECTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.ITEM_HEIGHT, this.selectItemHeight)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TEXT_FIELD), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.DROPDOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_BORDER_COLOR, this.overlayBorderColor, UiComponentStylePropertyKey.OVERLAY_BACKGROUND_COLOR, this.overlayBackgroundColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_BACKGROUND_COLOR, this.overlayHighlightedBackgroundColor, UiComponentStylePropertyKey.OVERLAY_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_ITEM_HEIGHT, 20)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.DROPDOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_BORDER_COLOR, this.overlayBorderColor, UiComponentStylePropertyKey.OVERLAY_BACKGROUND_COLOR, this.overlayBackgroundColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_BACKGROUND_COLOR, this.overlayHighlightedBackgroundColor, UiComponentStylePropertyKey.OVERLAY_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_ITEM_HEIGHT, this.selectItemHeight)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.SLIDER), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UNIT_SIZE, 10, UiComponentStylePropertyKey.HANDLE_TEXTURE, TextureId.of("slider-handle"), UiComponentStylePropertyKey.TRACK_TEXTURE, TextureId.of("slider-track"))));
     for (let customStyle of this.customStyles) {
       let newStyle = customStyle.getStyle();
@@ -18210,6 +18256,7 @@ class Slider extends UiComponent {
       return false;
     }
     if (this.slideRegion.isInside(pos)) {
+      this.container.requestFocus(this);
       this.trackedTouch = id;
       let minX = this.slideRegion.x();
       let maxX = this.slideRegion.x()+this.slideRegion.width();
@@ -18483,6 +18530,7 @@ class TextField extends UiComponent {
   container;
   styleKey;
   labelText;
+  liveChange;
   readOnly;
   value;
   displayedValue;
@@ -18572,6 +18620,11 @@ class TextField extends UiComponent {
     return this;
   }
 
+  setLiveChange(liveChange) {
+    this.liveChange = liveChange;
+    return this;
+  }
+
   setReadOnly(readOnly) {
     this.readOnly = readOnly;
     return this;
@@ -18631,7 +18684,11 @@ class TextField extends UiComponent {
       if (key.isBackspace()) {
         if (this.cursorPos>0&&Strings.length(this.displayedValue)>0) {
           this.displayedValue = this.displayedValue.substring(0, this.cursorPos-1)+this.displayedValue.substring(this.cursorPos);
-          this.cursorPos = IMath.max(0, this.cursorPos-1);
+          let origCursorPos = this.cursorPos;
+          if (this.liveChange) {
+            this.setValue(this.displayedValue);
+          }
+          this.cursorPos = IMath.max(0, origCursorPos-1);
         }
       }
       else if (key.isArrowLeft()) {
@@ -18661,6 +18718,9 @@ class TextField extends UiComponent {
         }
         if (!k.isEmpty()) {
           this.displayedValue = this.constraint.fixEdit(this.displayedValue.substring(0, this.cursorPos)+k+this.displayedValue.substring(this.cursorPos));
+          if (this.liveChange) {
+            this.setValue(this.displayedValue);
+          }
           this.cursorPos = IMath.min(Strings.length(this.displayedValue), this.cursorPos+1);
         }
       }
@@ -18700,6 +18760,7 @@ class TextField extends UiComponent {
       this.cursorTime = 0;
       this.cursorShown = true;
       this.cursorPos = Strings.length(this.displayedValue);
+      return true;
     }
     return false;
   }
@@ -18732,6 +18793,7 @@ class TextField extends UiComponent {
     let res = new TextField();
     res.styleKey = UiComponentStyleKey.plain(UiComponentType.TEXT_FIELD);
     res.labelText = "";
+    res.liveChange = false;
     res.readOnly = false;
     res.value = "";
     res.displayedValue = "";
@@ -22814,7 +22876,7 @@ class TapPrefabs {
 
   static writePrefab(prefab, os) {
     try {
-      os.write(TapBytes.stringToBytesBigEndian(prefab.getId()));
+      os.write(TapBytes.stringToBytesBigEndian(prefab.getLocalId().id()));
       os.write(TapBytes.stringToBytesBigEndian(prefab.getName()));
       os.write(TapBytes.stringToBytesBigEndian(Jsons.stringListToJson(Dut.copyList(Dut.copySortedSet(prefab.getTags())))));
       os.write(TapBytes.intToBytesBigEndian(prefab.getComponents().size()));
@@ -22835,7 +22897,7 @@ class TapPrefabs {
   }
 
   static readPrefab(reader) {
-    let id = reader.readString();
+    let localId = reader.readString();
     let name = reader.readString();
     let tags = Jsons.toStringList(reader.readString());
     let numCmps = reader.readInt();
@@ -22853,11 +22915,11 @@ class TapPrefabs {
       let child = TapPrefabs.readPrefab(reader);
       children.add(child);
     }
-    return ActorPrefab.create(id, name).withTags(tags).withComponents(cmps).withChildren(children);
+    return ActorPrefab.create(ActorPrefabLocalId.of(localId), name).withTags(tags).withComponents(cmps).withChildren(children);
   }
 
   static readPrefabV1(reader) {
-    let id = reader.readString();
+    let localId = reader.readString();
     let name = reader.readString();
     let tags = Jsons.toStringList(reader.readString());
     let numCmps = reader.readInt();
@@ -22874,7 +22936,7 @@ class TapPrefabs {
       let child = TapPrefabs.readPrefabV1(reader);
       children.add(child);
     }
-    return ActorPrefab.create(id, name).withTags(tags).withComponents(cmps).withChildren(children);
+    return ActorPrefab.create(ActorPrefabLocalId.of(localId), name).withTags(tags).withComponents(cmps).withChildren(children);
   }
 
 }
@@ -24371,8 +24433,51 @@ class ActorPrefabId extends RefId {
 
 }
 classRegistry.ActorPrefabId = ActorPrefabId;
+class ActorPrefabLocalId {
+  mId;
+  constructor() {
+  }
+
+  getClass() {
+    return "ActorPrefabLocalId";
+  }
+
+  guardInvariants() {
+  }
+
+  id() {
+    return this.mId;
+  }
+
+  hashCode() {
+    return this.mId.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ActorPrefabLocalId)) {
+      return false;
+    }
+    let other = obj;
+    return other.mId.equals(this.mId);
+  }
+
+  toString() {
+  }
+
+  static of(id) {
+    let res = new ActorPrefabLocalId();
+    res.mId = id;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ActorPrefabLocalId = ActorPrefabLocalId;
 class ActorPrefab {
-  id;
+  localId;
   name;
   tags;
   components;
@@ -24387,8 +24492,8 @@ class ActorPrefab {
   guardInvariants() {
   }
 
-  getId() {
-    return this.id;
+  getLocalId() {
+    return this.localId;
   }
 
   getName() {
@@ -24413,7 +24518,7 @@ class ActorPrefab {
 
   withName(name) {
     let res = new ActorPrefab();
-    res.id = this.id;
+    res.localId = this.localId;
     res.name = name;
     res.tags = this.tags;
     res.components = this.components;
@@ -24424,7 +24529,7 @@ class ActorPrefab {
 
   withTags(tags) {
     let res = new ActorPrefab();
-    res.id = this.id;
+    res.localId = this.localId;
     res.name = this.name;
     res.tags = Dut.copyImmutableSet(tags);
     res.components = this.components;
@@ -24433,9 +24538,9 @@ class ActorPrefab {
     return res;
   }
 
-  withId(id) {
+  withLocalId(localId) {
     let res = new ActorPrefab();
-    res.id = id;
+    res.localId = localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = this.components;
@@ -24446,7 +24551,7 @@ class ActorPrefab {
 
   withComponents(components) {
     let res = new ActorPrefab();
-    res.id = this.id;
+    res.localId = this.localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = Dut.copyImmutableList(components);
@@ -24457,7 +24562,7 @@ class ActorPrefab {
 
   plusComponent(component) {
     let res = new ActorPrefab();
-    res.id = this.id;
+    res.localId = this.localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = Dut.immutableListPlusItem(this.components, component);
@@ -24468,7 +24573,7 @@ class ActorPrefab {
 
   replaceComponent(idx, component) {
     let res = new ActorPrefab();
-    res.id = this.id;
+    res.localId = this.localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = new ArrayList();
@@ -24483,7 +24588,7 @@ class ActorPrefab {
 
   minusComponent(idx) {
     let res = new ActorPrefab();
-    res.id = this.id;
+    res.localId = this.localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = new ArrayList();
@@ -24500,7 +24605,7 @@ class ActorPrefab {
 
   withChildren(children) {
     let res = new ActorPrefab();
-    res.id = this.id;
+    res.localId = this.localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = this.components;
@@ -24511,7 +24616,7 @@ class ActorPrefab {
 
   plusChild(child) {
     let res = new ActorPrefab();
-    res.id = this.id;
+    res.localId = this.localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = this.components;
@@ -24520,12 +24625,12 @@ class ActorPrefab {
     return res;
   }
 
-  isIdUsed(testedId) {
-    if (this.id.equals(testedId)) {
+  isLocalIdUsed(testedId) {
+    if (this.localId.equals(testedId)) {
       return true;
     }
     for (let child of this.children) {
-      if (child.isIdUsed(testedId)) {
+      if (child.isLocalIdUsed(testedId)) {
         return true;
       }
     }
@@ -24534,7 +24639,7 @@ class ActorPrefab {
 
   toLatestVersion() {
     let res = new ActorPrefab();
-    res.id = this.id;
+    res.localId = this.localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = new ArrayList();
@@ -24562,9 +24667,9 @@ class ActorPrefab {
   toString() {
   }
 
-  static create(id, name) {
+  static create(localId, name) {
     let res = new ActorPrefab();
-    res.id = id;
+    res.localId = localId;
     res.name = name;
     res.tags = Collections.emptySet();
     res.components = Collections.emptyList();
@@ -24762,6 +24867,10 @@ class Component {
       }
     }
     this.init();
+  }
+
+  setPrefabProperties(idMapping, properties) {
+    throw new Error("subclass needs to implement this if this is custom component that is created from prefab");
   }
 
   init() {
@@ -27675,7 +27784,7 @@ class ComponentPrefab {
     return this;
   }
 
-  toComponent() {
+  toComponent(idMapping) {
     if (this.type.equals(ComponentPrefabType.TRANSFORM)) {
       if (this.version==1) {
         return TransformComponent.create().setPos(Jsons.toVec3(this.properties.get("pos"))).setRot(Jsons.toQuaternion(this.properties.get("rot"))).setKey(this.key);
@@ -27846,7 +27955,8 @@ class ComponentPrefab {
       if (this.version==1) {
         let res = Reflections.createClass(this.properties.get("className"));
         res.setKey(this.key);
-        Reflections.callInstanceMethodIfExists(res, "setProperties", Jsons.toStringMap(this.properties.get("properties")));
+        let cmpProps = Jsons.toStringMap(this.properties.get("properties"));
+        res.setPrefabProperties(idMapping, cmpProps);
         return res;
       }
       else {
@@ -31458,33 +31568,34 @@ class RigidBodyWorldActorFactory {
   }
 
   constructRoot(prefab, pos, rot, rootId) {
-    let id = rootId==null?ActorId.of(this.idGenerator.generateId()):rootId;
+    let idMapping = this.buildIdMapping(prefab, rootId);
+    let id = idMapping.get(prefab.getLocalId());
     let actor = Actor.create(id).setName(prefab.getName()).addTags(prefab.getTags());
     for (let cp of prefab.getComponents()) {
-      actor.addComponent(cp.toComponent());
+      actor.addComponent(cp.toComponent(idMapping));
     }
     if (actor.hasComponent("TransformComponent")) {
       this.applyTransform(actor.getComponent("TransformComponent"), pos, rot);
     }
     this.actors.add(ActorId.ROOT, actor);
     for (let child of prefab.getChildren()) {
-      this.constructActor(id, child, pos, rot);
+      this.constructActor(idMapping, id, child, pos, rot);
     }
     return actor;
   }
 
-  constructActor(parentId, prefab, pos, rot) {
-    let id = ActorId.of(this.idGenerator.generateId());
+  constructActor(idMapping, parentId, prefab, pos, rot) {
+    let id = idMapping.get(prefab.getLocalId());
     let actor = Actor.create(id).setName(prefab.getName()).addTags(prefab.getTags());
     for (let cp of prefab.getComponents()) {
-      actor.addComponent(cp.toComponent());
+      actor.addComponent(cp.toComponent(idMapping));
     }
     if (actor.hasEffect(ComponentEffect.ABSOLUTE_COORDINATES)) {
       this.applyTransform(actor.getComponent("TransformComponent"), pos, rot);
     }
     this.actors.add(parentId, actor);
     for (let child of prefab.getChildren()) {
-      this.constructActor(id, child, pos, rot);
+      this.constructActor(idMapping, id, child, pos, rot);
     }
   }
 
@@ -31492,6 +31603,16 @@ class RigidBodyWorldActorFactory {
     let lprot = rot.rotate(tc.getPos());
     tc.setPos(lprot.add(pos));
     tc.setRot(rot.mul(tc.getRot()));
+  }
+
+  buildIdMapping(prefab, rootId) {
+    let id = rootId==null?ActorId.of(this.idGenerator.generateId()):rootId;
+    let res = new HashMap();
+    res.put(prefab.getLocalId(), id);
+    for (let child of prefab.getChildren()) {
+      res.putAll(this.buildIdMapping(child, null));
+    }
+    return res;
   }
 
   toString() {
@@ -31903,287 +32024,115 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class GamePad extends UiComponent {
-  leftJoystick;
-  rightJoystick;
+class CustomLabel extends UiComponent {
+  container;
+  text;
+  posFnc;
+  font;
+  alignment;
+  containerSize;
+  pos;
   constructor() {
     super();
   }
 
   getClass() {
-    return "GamePad";
+    return "CustomLabel";
   }
 
   guardInvariants() {
   }
 
-  getLeftDir() {
-    return this.leftJoystick.getDir();
-  }
-
-  getRightDir() {
-    return this.rightJoystick.getDir();
-  }
-
   init(container) {
-    this.leftJoystick.init(container);
-    this.rightJoystick.init(container);
+    this.container = container;
   }
 
   move(dt) {
-    this.leftJoystick.move(dt);
-    this.rightJoystick.move(dt);
   }
 
   draw(painter) {
-    this.leftJoystick.draw(painter);
-    this.rightJoystick.draw(painter);
+    let color = null;
+    painter.drawText(this.text, this.pos, this.alignment, this.font, color);
   }
 
   onContainerResize(size) {
-    this.leftJoystick.onContainerResize(size);
-    this.rightJoystick.onContainerResize(size);
+    this.containerSize = size;
+    this.pos = Functions.apply(this.posFnc, size);
   }
 
-  onTouchStart(id, pos, size) {
-    this.leftJoystick.onTouchStart(id, pos, size);
-    this.rightJoystick.onTouchStart(id, pos, size);
-    return false;
+  getText() {
+    return this.text;
   }
 
-  onTouchMove(id, pos, size) {
-    this.leftJoystick.onTouchMove(id, pos, size);
-    this.rightJoystick.onTouchMove(id, pos, size);
-    return false;
+  setText(text) {
+    Guard.notNull(text, "text cannot be null");
+    this.text = text;
+    return this;
   }
 
-  onTouchEnd(id, pos, size, cancel) {
-    this.leftJoystick.onTouchEnd(id, pos, size, cancel);
-    this.rightJoystick.onTouchEnd(id, pos, size, cancel);
-    return false;
+  getPosFnc() {
+    return this.posFnc;
   }
 
-  onKeyPressed(key) {
-    this.leftJoystick.onKeyPressed(key);
-    this.rightJoystick.onKeyPressed(key);
-    return false;
+  setPosFnc(posFnc) {
+    Guard.notNull(posFnc, "posFnc cannot be null");
+    this.posFnc = posFnc;
+    this.onContainerResize(this.containerSize);
+    return this;
   }
 
-  onKeyReleased(key) {
-    this.leftJoystick.onKeyReleased(key);
-    this.rightJoystick.onKeyReleased(key);
-    return false;
+  getFont() {
+    return this.font;
+  }
+
+  setFont(font) {
+    Guard.notNull(font, "font cannot be null");
+    this.font = font;
+    return this;
+  }
+
+  getAlignment() {
+    return this.alignment;
+  }
+
+  setAlignment(alignment) {
+    Guard.notNull(alignment, "alignment cannot be null");
+    this.alignment = alignment;
+    return this;
   }
 
   toString() {
   }
 
-  static create(drivers) {
-    let res = new GamePad();
-    res.leftJoystick = Joystick.create().setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.leftBottom(25, 125, 100, 100), UiRegionFncs.leftBottom(10, 125, 80, 80))).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("W"), KeyCodeMatchers.upperCharacter("S"), KeyCodeMatchers.upperCharacter("A"), KeyCodeMatchers.upperCharacter("D"));
-    res.rightJoystick = Joystick.create().setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.rightBottom(125, 125, 100, 100), UiRegionFncs.rightBottom(90, 125, 80, 80))).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("I"), KeyCodeMatchers.upperCharacter("K"), KeyCodeMatchers.upperCharacter("J"), KeyCodeMatchers.upperCharacter("L"));
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.GamePad = GamePad;
-class FreeCameraBehavior extends Behavior {
-  moveDirInput = "moveDir";
-  rotDirInput = "rotDir";
-  moveSpeed = 3;
-  rotSpeed = 1;
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "FreeCameraBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  move(dt, inputs) {
-    let moveDir = inputs.getVec2(this.moveDirInput, Vec2.ZERO);
-    let rotDir = inputs.getVec2(this.rotDirInput, Vec2.ZERO);
-    let tc = this.actor().getComponent("TransformComponent");
-    let rot = tc.getRot();
-    if (!moveDir.equals(Vec2.ZERO)) {
-      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize().scale(moveDir.y()*this.moveSpeed*dt);
-      let right = rot.rotate(Vec3.create(1, 0, 0)).normalize().scale(moveDir.x()*this.moveSpeed*dt);
-      tc.move(fwd.add(right));
-    }
-    if (!rotDir.equals(Vec2.ZERO)) {
-      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize();
-      let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
-      let rotX = FMath.asin(fwd.y())+rotDir.y()*this.rotSpeed*dt;
-      let rotY = (fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y()))-rotDir.x()*this.rotSpeed*dt;
-      let rx = Quaternion.rot(1, 0, 0, rotX);
-      let ry = Quaternion.rot(0, 1, 0, rotY);
-      tc.setRot(ry.mul(rx));
-    }
-  }
-
   static create() {
-    if (arguments.length===0) {
-      return FreeCameraBehavior.create_0();
-    }
-    else if (arguments.length===4&& typeof arguments[0]==="string"&& typeof arguments[1]==="string"&& typeof arguments[2]==="number"&& typeof arguments[3]==="number") {
-      return FreeCameraBehavior.create_4_string_string_number_number(arguments[0], arguments[1], arguments[2], arguments[3]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  static create_0() {
-    let res = new FreeCameraBehavior();
-    res.guardInvariants();
-    return res;
-  }
-
-  static create_4_string_string_number_number(moveDirInput, rotDirInput, moveSpeed, rotSpeed) {
-    let res = new FreeCameraBehavior();
-    res.moveDirInput = moveDirInput;
-    res.rotDirInput = rotDirInput;
-    res.moveSpeed = moveSpeed;
-    res.rotSpeed = rotSpeed;
+    let res = new CustomLabel();
+    res.text = "";
+    res.alignment = TextAlignment.CENTER;
+    res.posFnc = UiPosFncs.center();
+    res.font = FontId.DEFAULT;
+    res.containerSize = Size2.create(1, 1);
+    res.pos = Functions.apply(res.posFnc, res.containerSize);
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.FreeCameraBehavior = FreeCameraBehavior;
-class BoxMeshFactory {
-  constructor() {
-  }
-
-  getClass() {
-    return "BoxMeshFactory";
-  }
-
-  static rgbBox() {
-    if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&&arguments[3] instanceof Rgb) {
-      return BoxMeshFactory.rgbBox_4_Rgb_Rgb_Rgb_Rgb(arguments[0], arguments[1], arguments[2], arguments[3]);
-    }
-    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
-      return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static rgbBox_3_number_number_number(r, g, b) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static rgbaBox(c1, c2, c3, c4, a) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static fabricBox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.fabric(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelBox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelSkybox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, -1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22))).toMesh();
-    return res;
-  }
-
-  static modelBoxDeformed1() {
-    let en = Vec2.create(1, -1).normalize();
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelBoxDeformed2() {
-    let en = Vec2.create(-1, -1).normalize();
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.floatValues(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-}
-classRegistry.BoxMeshFactory = BoxMeshFactory;
-class PlayAnimationBehavior extends Behavior {
-  player;
-  model;
-  cooldown = 3;
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "PlayAnimationBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.model = this.actor().getComponent("ModelComponent");
-  }
-
-  move(dt, inputs) {
-    let step = this.player.move(dt);
-    this.model.setInterpolation(step.getInterpolation()).setPose(step.getPose());
-    if (step.isEnd()) {
-      this.cooldown = this.cooldown-dt;
-      if (this.cooldown<0) {
-        this.player.playFromStart(step.getKey());
-      }
-    }
-    else {
-      this.cooldown = 3;
-    }
-  }
-
-  static create(player) {
-    let res = new PlayAnimationBehavior();
-    res.player = player;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.PlayAnimationBehavior = PlayAnimationBehavior;
-class BasicApp16 extends TyracornScreen {
+classRegistry.CustomLabel = CustomLabel;
+class BasicApp13 extends TyracornScreen {
   time = 0;
-  world;
-  inputs = InputCache.create();
   ui;
-  gamePad;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp16";
+    return "BasicApp13";
   }
 
   move(drivers, screenManager, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    this.inputs.put("moveDir", this.gamePad.getLeftDir());
-    this.inputs.put("rotDir", this.gamePad.getRightDir());
-    this.world.move(dt, this.inputs);
-    this.world.render(RenderRequest.NORMAL);
-    gDriver.clearBuffers(BufferId.DEPTH);
     let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
     this.ui.move(dt);
     uiRenderer.render(this.ui);
@@ -32194,74 +32143,90 @@ class BasicApp16 extends TyracornScreen {
     let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
     res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/primitives.tap")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/characters/base-human.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/fonts-extra")));
     return res;
   }
 
   init(drivers, screenManager, properties) {
-    let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 28));
-    assets.put(MaterialId.of("brass"), Material.BRASS);
-    assets.put(MaterialId.of("copper"), Material.COPPER);
-    assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
-    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
-    let groundModelId = ModelId.of("ground");
-    assets.put(groundModelId, groundModel);
-    const wallColMatId = PhysicalMaterialId.of("wall");
-    assets.put(wallColMatId, PhysicalMaterial.simple(0.6, 1.8, 1.8));
-    this.world = RigidBodyWorld.create(drivers);
-    let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create().setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-30, -30, -30, 30, 30, 30)));
-    this.world.actors().add(ActorId.ROOT, worldActor);
-    let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create()).addComponent(SkyboxComponent.create().setModelId(ModelId.of("skybox-1")).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create().setAngularVelocity(Vec3.create(0, 0.1, 0)));
-    this.world.actors().add(ActorId.ROOT, skybox);
-    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create().move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(20, 1, 20)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 2, 22)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, ground);
-    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create().lookAt(Vec3.create(2, 5, 5), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create().setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
-    this.world.actors().add(ActorId.ROOT, light);
-    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create().lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create().setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create("moveDir", "rotDir", 5, 1)).addComponent(CameraFovyComponent.create());
-    this.world.actors().add(ActorId.ROOT, camera);
-    let animations = assets.get("MeshAnimationCollection", MeshAnimationCollectionId.of("base-human"));
-    let player = MeshAnimationPlayer.create(animations, animations.getAnimations().get(0).getKey());
-    let model = assets.get("Model", ModelId.of("base-human"));
-    let character = Actor.create("character").setName("character").addComponent(TransformComponent.create().move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create().setModelId(ModelId.of("base-human")).setPose(model.getArmature().getBasePose())).addComponent(PlayAnimationBehavior.create(player));
-    this.world.actors().add(ActorId.ROOT, character);
     this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
-    this.gamePad = GamePad.create(drivers);
-    this.ui.addComponent(this.gamePad);
-    let items = new ArrayList();
-    for (let anim of animations.getAnimations()) {
-      items.add(DropdownItem.create(anim.getKey().key(), anim.getKey().key()));
-    }
-    let animationDropdown = Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(20, 20, 100, 30)).setLabelText("Animation").addItems(items).setSelected(items.get(0)).addOnChangeAction((dd) => {
-  let dropdown = dd;
-  let value = dropdown.getSelected().getValue();
-  player.playFromStart(MeshAnimationKey.of(value));
-});
-    this.ui.addComponent(animationDropdown);
+    this.ui.subscribe(drivers);
+    let assets = drivers.getDriver("AssetManager");
+    let sizes = Dut.immutableList(12, 14, 16, 20, 24, 32, 48, 64, 72, 80);
+    Fonts.prepareScaledFonts(assets, Dut.copySet(sizes));
+    const fontIdBasess = Dut.immutableList("rubik-regular-", "rubik-bold-", "nobile-regular-", "kenny-blocks-", "kenny-future-", "kenny-future-square-", "kenny-bold-", "kenny-space-", "kenny-mini-", "kenny-thick-");
+    const label = CustomLabel.create().setText("Tyracorn").setFont(FontId.of("rubik-regular-32")).setPosFnc(UiPosFncs.center()).setAlignment(TextAlignment.CENTER);
+    const fontLabel = Label.create().setText("rubik-regular-32").setPosFnc(UiPosFncs.center(0, 160)).setAlignment(TextAlignment.CENTER_TOP);
+    let fontAct = (evtSource) => {
+      let oldFontId = label.getFont().id();
+      let oldSize = this.getFontSize(oldFontId);
+      let oldFontIdBase = this.getFontBase(oldFontId)+"-";
+      let newIdx = fontIdBasess.indexOf(oldFontIdBase)+1;
+      if (newIdx>=fontIdBasess.size()) {
+        newIdx = 0;
+      }
+      label.setFont(FontId.of(fontIdBasess.get(newIdx)+oldSize));
+      fontLabel.setText(fontIdBasess.get(newIdx)+oldSize);
+    };
+    const alignemnts = Dut.immutableList(TextAlignment.LEFT_TOP, TextAlignment.CENTER_TOP, TextAlignment.RIGHT_TOP, TextAlignment.LEFT_CENTER, TextAlignment.CENTER, TextAlignment.RIGHT_CENTER, TextAlignment.LEFT_BASE, TextAlignment.CENTER_BASE, TextAlignment.RIGHT_BASE, TextAlignment.LEFT_BOTTOM, TextAlignment.CENTER_BOTTOM, TextAlignment.RIGHT_BOTTOM);
+    let alignAct = (evtSource) => {
+      let idx = alignemnts.indexOf(label.getAlignment())+1;
+      if (idx>=alignemnts.size()) {
+        idx = 0;
+      }
+      label.setAlignment(alignemnts.get(idx));
+    };
+    const texts = Dut.immutableList("Tyracorn", "Hello World!!!", "I love you");
+    let textAct = (evtSource) => {
+      let idx = texts.indexOf(label.getText())+1;
+      if (idx>=texts.size()) {
+        idx = 0;
+      }
+      label.setText(texts.get(idx));
+    };
+    let sizeAct = (evtSource) => {
+      let oldFontId = label.getFont().id();
+      let oldSize = this.getFontSize(oldFontId);
+      let oldFontIdBase = this.getFontBase(oldFontId)+"-";
+      let newIdx = sizes.indexOf(oldSize)+1;
+      if (newIdx>=sizes.size()) {
+        newIdx = 0;
+      }
+      label.setFont(FontId.of(oldFontIdBase+sizes.get(newIdx)));
+      fontLabel.setText(oldFontIdBase+sizes.get(newIdx));
+    };
+    this.ui.addComponent(Panel.create().setRegionFnc(UiRegionFncs.center(5, 5)));
+    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(-130, 80, 120, 30)).setText("Font").addOnClickAction(fontAct));
+    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(10, 80, 120, 30)).setText("Alignment").addOnClickAction(alignAct));
+    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(-130, 120, 120, 30)).setText("Text").addOnClickAction(textAct));
+    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(10, 120, 120, 30)).setText("Size").addOnClickAction(sizeAct));
+    this.ui.addComponent(label);
+    this.ui.addComponent(fontLabel);
     if (drivers.getPlatform().isExitable()) {
       this.ui.addComponent(Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager)));
     }
-    this.ui.subscribe(drivers);
-    let dlist = InputCacheDisplayListener.create(this.inputs);
-    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
-    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
   }
 
   leave(drivers) {
     this.ui.unsubscribe(drivers);
-    this.world.destroy(drivers);
   }
 
-  getRandomVelocity() {
-    let vx = Randoms.nextFloat(0, 2)-1;
-    let vy = Randoms.nextFloat(0, 2)-1;
-    let vz = Randoms.nextFloat(0, 2)-1;
-    return Vec3.create(vx, vy, vz);
+  getFontBase(fontName) {
+    let parts = fontName.split("-");
+    let res = parts[0];
+    for (let i = 1; i<parts.length-1; ++i) {
+      res = res+"-"+parts[i];
+    }
+    return res;
+  }
+
+  getFontSize(fontName) {
+    let parts = fontName.split("-");
+    let resStr = parts[parts.length-1];
+    return Integer.parseInt(resStr);
   }
 
 }
-classRegistry.BasicApp16 = BasicApp16;
+classRegistry.BasicApp13 = BasicApp13;
 
 
 // -------------------------------------
@@ -32644,7 +32609,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp16());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp13());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

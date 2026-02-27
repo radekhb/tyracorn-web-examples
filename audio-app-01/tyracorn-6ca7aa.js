@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/ui-test-app";
-const assetsDirName = "/assets-16a053";
+const basePath = "/tyracorn-web-examples/audio-app-01";
+const assetsDirName = "/assets-cced3f";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -14285,6 +14285,8 @@ class UiComponentTrait {
   static HAMBURGER = UiComponentTrait.of("HAMBURGER");
   static CROSS = UiComponentTrait.of("CROSS");
   static TRANSPARENT = UiComponentTrait.of("TRANSPARENT");
+  static HEADER = UiComponentTrait.of("HEADER");
+  static FOOTER = UiComponentTrait.of("FOOTER");
   mTrait;
   constructor() {
   }
@@ -14636,11 +14638,13 @@ class DefaultUiStyler {
   smallTextFont = FontId.of("kenny-mini-12");
   extraSmallTextFont = FontId.of("kenny-mini-10");
   textColor = Rgba.create(0.863, 0.392, 0.078, 1);
+  buttonTextureIds = Dut.map("xs-up", TextureId.of("button-xs-up"), "xs-down", TextureId.of("button-xs-down"), "xs-disabled", TextureId.of("button-xs-disabled"), "s-up", TextureId.of("button-s-up"), "s-down", TextureId.of("button-s-down"), "s-disabled", TextureId.of("button-s-disabled"), "m-up", TextureId.of("button-m-up"), "m-down", TextureId.of("button-m-down"), "m-disabled", TextureId.of("button-m-disabled"), "l-up", TextureId.of("button-l-up"), "l-down", TextureId.of("button-l-down"), "l-disabled", TextureId.of("button-l-disabled"), "xl-up", TextureId.of("button-xl-up"), "xl-down", TextureId.of("button-xl-down"), "xl-disabled", TextureId.of("button-xl-disabled"), "hamburger-up", TextureId.of("button-hamburger-up"), "hamburger-down", TextureId.of("button-hamburger-down"), "hamburger-disabled", TextureId.of("button-hamburger-disabled"), "cross-up", TextureId.of("button-cross-up"), "cross-down", TextureId.of("button-cross-down"), "cross-disabled", TextureId.of("button-cross-disabled"));
   buttonLabelFont = FontId.of("kenny-mini-12");
   buttonLabelColor = Rgba.create(0.863, 0.392, 0.078, 1);
   disabledButtonLabelColor = Rgba.create(0.863*0.5, 0.392*0.5, 0.078*0.5, 1);
   selectItemTextFont = FontId.of("kenny-mini-14");
   selectItemTextColor = Rgba.create(0.863, 0.392, 0.078, 1);
+  selectItemHeight = 20;
   fieldValueFont = FontId.of("kenny-mini-14");
   fieldValueColor = Rgba.create(0.863, 0.392, 0.078, 1);
   fieldLabelFont = FontId.of("kenny-mini-10");
@@ -14757,6 +14761,13 @@ class DefaultUiStyler {
     return this;
   }
 
+  setButtonTextureIdPattern(pattern) {
+    Guard.notEmpty(pattern, "pattern cannot be empty");
+    this.buttonTextureIds = Dut.map("xs-up", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "up")), "xs-down", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "down")), "xs-disabled", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "disabled")), "s-up", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "up")), "s-down", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "down")), "s-disabled", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "disabled")), "m-up", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "up")), "m-down", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "down")), "m-disabled", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "disabled")), "l-up", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "up")), "l-down", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "down")), "l-disabled", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "disabled")), "xl-up", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "up")), "xl-down", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "down")), "xl-disabled", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "disabled")), "hamburger-up", TextureId.of(pattern.replace("${type}", "hamburger").replace("${state}", "up")), "hamburger-down", TextureId.of(pattern.replace("${type}", "hamburger").replace("${state}", "down")), "hamburger-disabled", TextureId.of(pattern.replace("${type}", "hamburger").replace("${state}", "disabled")), "cross-up", TextureId.of(pattern.replace("${type}", "cross").replace("${state}", "up")), "cross-down", TextureId.of(pattern.replace("${type}", "cross").replace("${state}", "down")), "cross-disabled", TextureId.of(pattern.replace("${type}", "cross").replace("${state}", "disabled")));
+    this.styles = null;
+    return this;
+  }
+
   setButtonLabelFont(buttonLabelFont) {
     Guard.notNull(buttonLabelFont, "buttonLabelFont cannot be null");
     this.buttonLabelFont = buttonLabelFont;
@@ -14774,6 +14785,41 @@ class DefaultUiStyler {
   setDisabledButtonLabelColor(disabledButtonLabelColor) {
     Guard.notNull(disabledButtonLabelColor, "disabledButtonLabelColor cannot be null");
     this.disabledButtonLabelColor = disabledButtonLabelColor;
+    this.styles = null;
+    return this;
+  }
+
+  setSelectItemTextFont(selectItemTextFont) {
+    Guard.notNull(selectItemTextFont, "selectItemTextFont cannot be null");
+    this.selectItemTextFont = selectItemTextFont;
+    this.styles = null;
+    return this;
+  }
+
+  setSelectItemTextColor(selectItemTextColor) {
+    Guard.notNull(selectItemTextColor, "selectItemTextColor cannot be null");
+    this.selectItemTextColor = selectItemTextColor;
+    this.styles = null;
+    return this;
+  }
+
+  setSelectItemHeight(selectItemHeight) {
+    Guard.positive(selectItemHeight, "selectItemHeight must be positive");
+    this.selectItemHeight = selectItemHeight;
+    this.styles = null;
+    return this;
+  }
+
+  setFieldLabelFont(fieldLabelFont) {
+    Guard.notNull(fieldLabelFont, "fieldLabelFont cannot be null");
+    this.fieldLabelFont = fieldLabelFont;
+    this.styles = null;
+    return this;
+  }
+
+  setFieldValueFont(fieldValueFont) {
+    Guard.notNull(fieldValueFont, "fieldValueFont cannot be null");
+    this.fieldValueFont = fieldValueFont;
     this.styles = null;
     return this;
   }
@@ -14803,14 +14849,14 @@ class DefaultUiStyler {
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.LABEL), this.styles.get(UiComponentStyleKey.plain(UiComponentType.LABEL).plusTrait(UiComponentTrait.M)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TAB_NAVBAR), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, Rgba.TRANSPARENT, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.navbarBackgroundColor, UiComponentStylePropertyKey.HIGHLIGHTED_BACKGROUND_COLOR, this.navbarHighlightedBackgroundColor, UiComponentStylePropertyKey.SELECTED_BACKGROUND_COLOR, this.navbarSelectedBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.navbarItemFont, UiComponentStylePropertyKey.TEXT_COLOR, this.navbarItemColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.navbarItemFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.navbarItemColor, UiComponentStylePropertyKey.SELECTED_TEXT_FONT, this.navbarItemFont, UiComponentStylePropertyKey.SELECTED_TEXT_COLOR, this.navbarItemColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TAB_CONTAINER), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, Rgba.TRANSPARENT, UiComponentStylePropertyKey.BACKGROUND_COLOR, Rgba.TRANSPARENT)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.XS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-xs-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-xs-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-xs-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.S), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-s-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-s-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-s-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.M), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-m-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-m-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-m-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.XS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("xs-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("xs-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("xs-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.S), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("s-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("s-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("s-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.M), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("m-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("m-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("m-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON), this.styles.get(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.M)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.L), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-l-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-l-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-l-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.XL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-xl-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-xl-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-xl-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.HAMBURGER), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-hamburger-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-hamburger-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-hamburger-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.CROSS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-cross-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-cross-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-cross-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.L), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("l-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("l-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("l-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.XL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("xl-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("xl-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("xl-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.HAMBURGER), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("hamburger-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("hamburger-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("hamburger-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.CROSS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("cross-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("cross-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("cross-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.XS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-xs-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-xs-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.S), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-s-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-s-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.M), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-m-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-m-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
@@ -14818,9 +14864,9 @@ class DefaultUiStyler {
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.L), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-l-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-l-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.XL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-xl-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-xl-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.JOYSTICK), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BASE_TEXTURE, TextureId.of("joystick-base"), UiComponentStylePropertyKey.TOP_TEXTURE, TextureId.of("joystick-top"))));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LIST_SELECT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.HIGHLIGHTED_BACKGROUND_COLOR, this.highlightedBackgroundColor, UiComponentStylePropertyKey.SELECTED_BACKGROUND_COLOR, this.selectedBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.SELECTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.SELECTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.ITEM_HEIGHT, 20)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LIST_SELECT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.HIGHLIGHTED_BACKGROUND_COLOR, this.highlightedBackgroundColor, UiComponentStylePropertyKey.SELECTED_BACKGROUND_COLOR, this.selectedBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.SELECTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.SELECTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.ITEM_HEIGHT, this.selectItemHeight)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TEXT_FIELD), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.DROPDOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_BORDER_COLOR, this.overlayBorderColor, UiComponentStylePropertyKey.OVERLAY_BACKGROUND_COLOR, this.overlayBackgroundColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_BACKGROUND_COLOR, this.overlayHighlightedBackgroundColor, UiComponentStylePropertyKey.OVERLAY_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_ITEM_HEIGHT, 20)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.DROPDOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_BORDER_COLOR, this.overlayBorderColor, UiComponentStylePropertyKey.OVERLAY_BACKGROUND_COLOR, this.overlayBackgroundColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_BACKGROUND_COLOR, this.overlayHighlightedBackgroundColor, UiComponentStylePropertyKey.OVERLAY_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_ITEM_HEIGHT, this.selectItemHeight)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.SLIDER), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UNIT_SIZE, 10, UiComponentStylePropertyKey.HANDLE_TEXTURE, TextureId.of("slider-handle"), UiComponentStylePropertyKey.TRACK_TEXTURE, TextureId.of("slider-track"))));
     for (let customStyle of this.customStyles) {
       let newStyle = customStyle.getStyle();
@@ -18210,6 +18256,7 @@ class Slider extends UiComponent {
       return false;
     }
     if (this.slideRegion.isInside(pos)) {
+      this.container.requestFocus(this);
       this.trackedTouch = id;
       let minX = this.slideRegion.x();
       let maxX = this.slideRegion.x()+this.slideRegion.width();
@@ -18483,6 +18530,7 @@ class TextField extends UiComponent {
   container;
   styleKey;
   labelText;
+  liveChange;
   readOnly;
   value;
   displayedValue;
@@ -18572,6 +18620,11 @@ class TextField extends UiComponent {
     return this;
   }
 
+  setLiveChange(liveChange) {
+    this.liveChange = liveChange;
+    return this;
+  }
+
   setReadOnly(readOnly) {
     this.readOnly = readOnly;
     return this;
@@ -18631,7 +18684,11 @@ class TextField extends UiComponent {
       if (key.isBackspace()) {
         if (this.cursorPos>0&&Strings.length(this.displayedValue)>0) {
           this.displayedValue = this.displayedValue.substring(0, this.cursorPos-1)+this.displayedValue.substring(this.cursorPos);
-          this.cursorPos = IMath.max(0, this.cursorPos-1);
+          let origCursorPos = this.cursorPos;
+          if (this.liveChange) {
+            this.setValue(this.displayedValue);
+          }
+          this.cursorPos = IMath.max(0, origCursorPos-1);
         }
       }
       else if (key.isArrowLeft()) {
@@ -18661,6 +18718,9 @@ class TextField extends UiComponent {
         }
         if (!k.isEmpty()) {
           this.displayedValue = this.constraint.fixEdit(this.displayedValue.substring(0, this.cursorPos)+k+this.displayedValue.substring(this.cursorPos));
+          if (this.liveChange) {
+            this.setValue(this.displayedValue);
+          }
           this.cursorPos = IMath.min(Strings.length(this.displayedValue), this.cursorPos+1);
         }
       }
@@ -18700,6 +18760,7 @@ class TextField extends UiComponent {
       this.cursorTime = 0;
       this.cursorShown = true;
       this.cursorPos = Strings.length(this.displayedValue);
+      return true;
     }
     return false;
   }
@@ -18732,6 +18793,7 @@ class TextField extends UiComponent {
     let res = new TextField();
     res.styleKey = UiComponentStyleKey.plain(UiComponentType.TEXT_FIELD);
     res.labelText = "";
+    res.liveChange = false;
     res.readOnly = false;
     res.value = "";
     res.displayedValue = "";
@@ -22814,7 +22876,7 @@ class TapPrefabs {
 
   static writePrefab(prefab, os) {
     try {
-      os.write(TapBytes.stringToBytesBigEndian(prefab.getId()));
+      os.write(TapBytes.stringToBytesBigEndian(prefab.getLocalId().id()));
       os.write(TapBytes.stringToBytesBigEndian(prefab.getName()));
       os.write(TapBytes.stringToBytesBigEndian(Jsons.stringListToJson(Dut.copyList(Dut.copySortedSet(prefab.getTags())))));
       os.write(TapBytes.intToBytesBigEndian(prefab.getComponents().size()));
@@ -22835,7 +22897,7 @@ class TapPrefabs {
   }
 
   static readPrefab(reader) {
-    let id = reader.readString();
+    let localId = reader.readString();
     let name = reader.readString();
     let tags = Jsons.toStringList(reader.readString());
     let numCmps = reader.readInt();
@@ -22853,11 +22915,11 @@ class TapPrefabs {
       let child = TapPrefabs.readPrefab(reader);
       children.add(child);
     }
-    return ActorPrefab.create(id, name).withTags(tags).withComponents(cmps).withChildren(children);
+    return ActorPrefab.create(ActorPrefabLocalId.of(localId), name).withTags(tags).withComponents(cmps).withChildren(children);
   }
 
   static readPrefabV1(reader) {
-    let id = reader.readString();
+    let localId = reader.readString();
     let name = reader.readString();
     let tags = Jsons.toStringList(reader.readString());
     let numCmps = reader.readInt();
@@ -22874,7 +22936,7 @@ class TapPrefabs {
       let child = TapPrefabs.readPrefabV1(reader);
       children.add(child);
     }
-    return ActorPrefab.create(id, name).withTags(tags).withComponents(cmps).withChildren(children);
+    return ActorPrefab.create(ActorPrefabLocalId.of(localId), name).withTags(tags).withComponents(cmps).withChildren(children);
   }
 
 }
@@ -24371,8 +24433,51 @@ class ActorPrefabId extends RefId {
 
 }
 classRegistry.ActorPrefabId = ActorPrefabId;
+class ActorPrefabLocalId {
+  mId;
+  constructor() {
+  }
+
+  getClass() {
+    return "ActorPrefabLocalId";
+  }
+
+  guardInvariants() {
+  }
+
+  id() {
+    return this.mId;
+  }
+
+  hashCode() {
+    return this.mId.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ActorPrefabLocalId)) {
+      return false;
+    }
+    let other = obj;
+    return other.mId.equals(this.mId);
+  }
+
+  toString() {
+  }
+
+  static of(id) {
+    let res = new ActorPrefabLocalId();
+    res.mId = id;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ActorPrefabLocalId = ActorPrefabLocalId;
 class ActorPrefab {
-  id;
+  localId;
   name;
   tags;
   components;
@@ -24387,8 +24492,8 @@ class ActorPrefab {
   guardInvariants() {
   }
 
-  getId() {
-    return this.id;
+  getLocalId() {
+    return this.localId;
   }
 
   getName() {
@@ -24413,7 +24518,7 @@ class ActorPrefab {
 
   withName(name) {
     let res = new ActorPrefab();
-    res.id = this.id;
+    res.localId = this.localId;
     res.name = name;
     res.tags = this.tags;
     res.components = this.components;
@@ -24424,7 +24529,7 @@ class ActorPrefab {
 
   withTags(tags) {
     let res = new ActorPrefab();
-    res.id = this.id;
+    res.localId = this.localId;
     res.name = this.name;
     res.tags = Dut.copyImmutableSet(tags);
     res.components = this.components;
@@ -24433,9 +24538,9 @@ class ActorPrefab {
     return res;
   }
 
-  withId(id) {
+  withLocalId(localId) {
     let res = new ActorPrefab();
-    res.id = id;
+    res.localId = localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = this.components;
@@ -24446,7 +24551,7 @@ class ActorPrefab {
 
   withComponents(components) {
     let res = new ActorPrefab();
-    res.id = this.id;
+    res.localId = this.localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = Dut.copyImmutableList(components);
@@ -24457,7 +24562,7 @@ class ActorPrefab {
 
   plusComponent(component) {
     let res = new ActorPrefab();
-    res.id = this.id;
+    res.localId = this.localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = Dut.immutableListPlusItem(this.components, component);
@@ -24468,7 +24573,7 @@ class ActorPrefab {
 
   replaceComponent(idx, component) {
     let res = new ActorPrefab();
-    res.id = this.id;
+    res.localId = this.localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = new ArrayList();
@@ -24483,7 +24588,7 @@ class ActorPrefab {
 
   minusComponent(idx) {
     let res = new ActorPrefab();
-    res.id = this.id;
+    res.localId = this.localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = new ArrayList();
@@ -24500,7 +24605,7 @@ class ActorPrefab {
 
   withChildren(children) {
     let res = new ActorPrefab();
-    res.id = this.id;
+    res.localId = this.localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = this.components;
@@ -24511,7 +24616,7 @@ class ActorPrefab {
 
   plusChild(child) {
     let res = new ActorPrefab();
-    res.id = this.id;
+    res.localId = this.localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = this.components;
@@ -24520,12 +24625,12 @@ class ActorPrefab {
     return res;
   }
 
-  isIdUsed(testedId) {
-    if (this.id.equals(testedId)) {
+  isLocalIdUsed(testedId) {
+    if (this.localId.equals(testedId)) {
       return true;
     }
     for (let child of this.children) {
-      if (child.isIdUsed(testedId)) {
+      if (child.isLocalIdUsed(testedId)) {
         return true;
       }
     }
@@ -24534,7 +24639,7 @@ class ActorPrefab {
 
   toLatestVersion() {
     let res = new ActorPrefab();
-    res.id = this.id;
+    res.localId = this.localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = new ArrayList();
@@ -24562,9 +24667,9 @@ class ActorPrefab {
   toString() {
   }
 
-  static create(id, name) {
+  static create(localId, name) {
     let res = new ActorPrefab();
-    res.id = id;
+    res.localId = localId;
     res.name = name;
     res.tags = Collections.emptySet();
     res.components = Collections.emptyList();
@@ -24762,6 +24867,10 @@ class Component {
       }
     }
     this.init();
+  }
+
+  setPrefabProperties(idMapping, properties) {
+    throw new Error("subclass needs to implement this if this is custom component that is created from prefab");
   }
 
   init() {
@@ -27675,7 +27784,7 @@ class ComponentPrefab {
     return this;
   }
 
-  toComponent() {
+  toComponent(idMapping) {
     if (this.type.equals(ComponentPrefabType.TRANSFORM)) {
       if (this.version==1) {
         return TransformComponent.create().setPos(Jsons.toVec3(this.properties.get("pos"))).setRot(Jsons.toQuaternion(this.properties.get("rot"))).setKey(this.key);
@@ -27846,7 +27955,8 @@ class ComponentPrefab {
       if (this.version==1) {
         let res = Reflections.createClass(this.properties.get("className"));
         res.setKey(this.key);
-        Reflections.callInstanceMethodIfExists(res, "setProperties", Jsons.toStringMap(this.properties.get("properties")));
+        let cmpProps = Jsons.toStringMap(this.properties.get("properties"));
+        res.setPrefabProperties(idMapping, cmpProps);
         return res;
       }
       else {
@@ -31458,33 +31568,34 @@ class RigidBodyWorldActorFactory {
   }
 
   constructRoot(prefab, pos, rot, rootId) {
-    let id = rootId==null?ActorId.of(this.idGenerator.generateId()):rootId;
+    let idMapping = this.buildIdMapping(prefab, rootId);
+    let id = idMapping.get(prefab.getLocalId());
     let actor = Actor.create(id).setName(prefab.getName()).addTags(prefab.getTags());
     for (let cp of prefab.getComponents()) {
-      actor.addComponent(cp.toComponent());
+      actor.addComponent(cp.toComponent(idMapping));
     }
     if (actor.hasComponent("TransformComponent")) {
       this.applyTransform(actor.getComponent("TransformComponent"), pos, rot);
     }
     this.actors.add(ActorId.ROOT, actor);
     for (let child of prefab.getChildren()) {
-      this.constructActor(id, child, pos, rot);
+      this.constructActor(idMapping, id, child, pos, rot);
     }
     return actor;
   }
 
-  constructActor(parentId, prefab, pos, rot) {
-    let id = ActorId.of(this.idGenerator.generateId());
+  constructActor(idMapping, parentId, prefab, pos, rot) {
+    let id = idMapping.get(prefab.getLocalId());
     let actor = Actor.create(id).setName(prefab.getName()).addTags(prefab.getTags());
     for (let cp of prefab.getComponents()) {
-      actor.addComponent(cp.toComponent());
+      actor.addComponent(cp.toComponent(idMapping));
     }
     if (actor.hasEffect(ComponentEffect.ABSOLUTE_COORDINATES)) {
       this.applyTransform(actor.getComponent("TransformComponent"), pos, rot);
     }
     this.actors.add(parentId, actor);
     for (let child of prefab.getChildren()) {
-      this.constructActor(id, child, pos, rot);
+      this.constructActor(idMapping, id, child, pos, rot);
     }
   }
 
@@ -31492,6 +31603,16 @@ class RigidBodyWorldActorFactory {
     let lprot = rot.rotate(tc.getPos());
     tc.setPos(lprot.add(pos));
     tc.setRot(rot.mul(tc.getRot()));
+  }
+
+  buildIdMapping(prefab, rootId) {
+    let id = rootId==null?ActorId.of(this.idGenerator.generateId()):rootId;
+    let res = new HashMap();
+    res.put(prefab.getLocalId(), id);
+    for (let child of prefab.getChildren()) {
+      res.putAll(this.buildIdMapping(child, null));
+    }
+    return res;
   }
 
   toString() {
@@ -31903,22 +32024,23 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class UiTestApp extends TyracornScreen {
+class AudioApp01 extends TyracornScreen {
+  static MUSIC_PLAYBACK_ID = PlaybackId.of("music");
   ui;
   constructor() {
     super();
   }
 
   getClass() {
-    return "UiTestApp";
+    return "AudioApp01";
   }
 
   move(drivers, screenManager, dt) {
     let gDriver = drivers.getDriver("GraphicsDriver");
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    this.ui.move(dt);
     gDriver.clearBuffers(BufferId.DEPTH);
     let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
     uiRenderer.render(this.ui);
     uiRenderer.end();
   }
@@ -31927,138 +32049,111 @@ class UiTestApp extends TyracornScreen {
     let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
     res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/sounds.tap")));
     return res;
   }
 
   init(drivers, screenManager, properties) {
-    let platform = drivers.getPlatform();
     let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 28));
-    this.ui = StretchUi.create(UiSizeFncs.scale(0.7));
-    let tabs = TabContainer.create().setRegionFnc(UiRegionFncs.fullFromTop(50));
-    this.ui.addComponent(tabs);
-    let navbar = TabNavbar.create().setTabContainer(tabs).setRegionFnc(UiRegionFncs.fullTop(50)).addTextTabLink("Labels").addTextTabLink("Buttons").addTextTabLink("Selects").addTextTabLink("Inputs");
-    this.ui.addComponent(navbar);
-    let labelsTab = Tab.create();
-    tabs.addTab(labelsTab);
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Example of H1 text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.H2).setPosFnc(UiPosFncs.leftTop(10, 50)).setText("Example of H2 text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.H3).setPosFnc(UiPosFncs.leftTop(10, 90)).setText("Example of H3 text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.XL).setPosFnc(UiPosFncs.leftTop(10, 130)).setText("Example of extra-large regular text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.L).setPosFnc(UiPosFncs.leftTop(10, 160)).setText("Example of large regular text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 190)).setText("Example of regular text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.S).setPosFnc(UiPosFncs.leftTop(10, 220)).setText("Example of small regular text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.XS).setPosFnc(UiPosFncs.leftTop(10, 250)).setText("Example of extra-small regular text").setAlignment(TextAlignment.LEFT_TOP));
-    let butonsTab = Tab.create();
-    tabs.addTab(butonsTab);
-    butonsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Regular buttons").setAlignment(TextAlignment.LEFT_TOP));
-    butonsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 40)).setText("Press by Q, H, G or Ctrl + E").setAlignment(TextAlignment.LEFT_TOP));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 20, 20)).addTrait(UiComponentTrait.XS).setText("XS").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).addOnClickAction((evt) => {
-  platform.logInfo("XS button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(40, 70, 20, 20)).addTrait(UiComponentTrait.HAMBURGER).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("H")).addOnClickAction((evt) => {
-  platform.logInfo("Hamburger button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(70, 70, 20, 20)).addTrait(UiComponentTrait.CROSS).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("G")).addOnClickAction((evt) => {
-  platform.logInfo("Cross button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 100, 50, 20)).addTrait(UiComponentTrait.S).setText("Small").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).addOnClickAction((evt) => {
-  platform.logInfo("S button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 130, 100, 20)).setText("Medium").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).addOnClickAction((evt) => {
-  platform.logInfo("M button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 160, 150, 20)).addTrait(UiComponentTrait.L).setText("Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.control(), KeyCodeMatchers.upperCharacter("E"))).addOnClickAction((evt) => {
-  platform.logInfo("L button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 190, 200, 20)).addTrait(UiComponentTrait.XL).setText("Extra Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.control(), KeyCodeMatchers.upperCharacter("E"))).addOnClickAction((evt) => {
-  platform.logInfo("XL button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 220, 100, 20)).setText("Disabled").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).setDisabled(true).addOnClickAction((evt) => {
-  platform.logInfo("Disabled button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(120, 220, 20, 20)).addTrait(UiComponentTrait.HAMBURGER).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("H")).setDisabled(true).addOnClickAction((evt) => {
-  platform.logInfo("Disabled hamburger button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(150, 220, 20, 20)).addTrait(UiComponentTrait.CROSS).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("G")).setDisabled(true).addOnClickAction((evt) => {
-  platform.logInfo("Disabled cross button - click");
-}));
-    butonsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(230, 10)).setText("Toggle buttons").setAlignment(TextAlignment.LEFT_TOP));
-    butonsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(230, 40)).setText("Toggle by Z or Shift + X").setAlignment(TextAlignment.LEFT_TOP));
-    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 70, 20, 20)).addTrait(UiComponentTrait.XS).setText("XS").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Z")).addOnToggleAction((evt) => {
-  platform.logInfo("XS toggle button - toggled");
-}));
-    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 100, 50, 20)).addTrait(UiComponentTrait.S).setText("Small").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Z")).addOnToggleAction((evt) => {
-  platform.logInfo("S toggle button - toggled");
-}));
-    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 130, 100, 20)).setText("Medium").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Z")).addOnToggleAction((evt) => {
-  platform.logInfo("M toggle button - toggled");
-}));
-    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 160, 150, 20)).addTrait(UiComponentTrait.L).setText("Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.shift(), KeyCodeMatchers.upperCharacter("X"))).addOnToggleAction((evt) => {
-  platform.logInfo("L toggle button - toggled");
-}));
-    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 190, 200, 20)).addTrait(UiComponentTrait.XL).setText("Extra Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.shift(), KeyCodeMatchers.upperCharacter("X"))).addOnToggleAction((evt) => {
-  platform.logInfo("XL toggle button - toggled");
-}));
-    butonsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(450, 10)).setText("Joystick").setAlignment(TextAlignment.LEFT_TOP));
-    butonsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(450, 40)).setText("Control by arrows or WSAD").setAlignment(TextAlignment.LEFT_TOP));
-    butonsTab.addComponent(Joystick.create().setRegionFnc(UiRegionFncs.leftTop(450, 70, 80, 80)).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD()));
-    let selectsTab = Tab.create();
-    tabs.addTab(selectsTab);
-    selectsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Few items").setAlignment(TextAlignment.LEFT_TOP));
-    selectsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 40)).setText("No srolling").setAlignment(TextAlignment.LEFT_TOP));
-    selectsTab.addComponent(ListSelect.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 200, 100)).addOnSelectAction((src) => {
-  platform.logInfo("Small list: "+(src).getSelectedIndexes().toString());
-}).addItem(ListSelectItem.create("item1", "Item 1")).addItem(ListSelectItem.create("item2", "Item 2")).addItem(ListSelectItem.create("item3", "Item 3 - string that is long enough to be clipped")));
-    selectsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(230, 10)).setText("Scrolling").setAlignment(TextAlignment.LEFT_TOP));
-    selectsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(230, 40)).setText("Necessary to scroll").setAlignment(TextAlignment.LEFT_TOP));
-    selectsTab.addComponent(ListSelect.create().setRegionFnc(UiRegionFncs.leftTop(230, 70, 200, 100)).addOnSelectAction((src) => {
-  platform.logInfo("Big list: "+(src).getSelectedIndexes().toString());
-}).addItem(ListSelectItem.create("item1", "Item 1")).addItem(ListSelectItem.create("item2", "Item 2")).addItem(ListSelectItem.create("item3", "Item 3")).addItem(ListSelectItem.create("item4", "Item 4")).addItem(ListSelectItem.create("item5", "Item 5")).addItem(ListSelectItem.create("item6", "Item 6")).addItem(ListSelectItem.create("item7", "Item 7")).addItem(ListSelectItem.create("item8", "Item 8")).addItem(ListSelectItem.create("item9", "Item 9")).addItem(ListSelectItem.create("item10", "Item 10")).addItem(ListSelectItem.create("item11", "Item 11")).addItem(ListSelectItem.create("item12", "Item 12")).addItem(ListSelectItem.create("item13", "Item 13")).addItem(ListSelectItem.create("item14", "Item 14")).addItem(ListSelectItem.create("item15", "Item 15")).addItem(ListSelectItem.create("item16", "Item 16")).addItem(ListSelectItem.create("item17", "Item 17")).addItem(ListSelectItem.create("item18", "Item 18")).addItem(ListSelectItem.create("item19", "Item 19")).addItem(ListSelectItem.create("item20", "Item 20")).addItem(ListSelectItem.create("item21", "Item 21")).addItem(ListSelectItem.create("item22", "Item 22")).addItem(ListSelectItem.create("item23", "Item 23")).addItem(ListSelectItem.create("item24", "Item 24")).addItem(ListSelectItem.create("item25", "Item 25")).addItem(ListSelectItem.create("item26", "Item 26")).addItem(ListSelectItem.create("item27", "Item 27")).addItem(ListSelectItem.create("item28", "Item 28")).addItem(ListSelectItem.create("item29", "Item 29")).addItem(ListSelectItem.create("item30", "Item 30")));
-    selectsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(450, 10)).setText("Dropdown").setAlignment(TextAlignment.LEFT_TOP));
-    selectsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(450, 40)).setText("Select item from dropdown").setAlignment(TextAlignment.LEFT_TOP));
-    selectsTab.addComponent(Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(450, 70, 100, 30)).setLabelText("Small tiems").setSelected(DropdownItem.create("", "")).addItem(DropdownItem.create("item1", "Item 1")).addItem(DropdownItem.create("item2", "Item 2")).addItem(DropdownItem.create("item3", "Item 3 - string that is long enough to be clipped")).addOnChangeAction((src) => {
-  platform.logInfo("Dropdown changed: "+(src).getSelected().getText());
-}));
-    selectsTab.addComponent(Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(450, 110, 100, 30)).setLabelText("Many tiems").setSelected(DropdownItem.create("", "")).addItem(DropdownItem.create("item1", "Item 1")).addItem(DropdownItem.create("item2", "Item 2")).addItem(DropdownItem.create("item3", "Item 3")).addItem(DropdownItem.create("item4", "Item 4")).addItem(DropdownItem.create("item5", "Item 5")).addItem(DropdownItem.create("item6", "Item 6")).addItem(DropdownItem.create("item7", "Item 7")).addItem(DropdownItem.create("item8", "Item 8")).addItem(DropdownItem.create("item9", "Item 9")).addItem(DropdownItem.create("item10", "Item 10")).addItem(DropdownItem.create("item11", "Item 11")).addItem(DropdownItem.create("item12", "Item 12")).addItem(DropdownItem.create("item13", "Item 13")).addItem(DropdownItem.create("item14", "Item 14")).addItem(DropdownItem.create("item15", "Item 15")).addItem(DropdownItem.create("item16", "Item 16")).addItem(DropdownItem.create("item17", "Item 17")).addItem(DropdownItem.create("item18", "Item 18")).addItem(DropdownItem.create("item19", "Item 19")).addItem(DropdownItem.create("item20", "Item 20")).addOnChangeAction((src) => {
-  platform.logInfo("Dropdown changed: "+(src).getSelected().getText());
-}));
-    let inputsTab = Tab.create();
-    tabs.addTab(inputsTab);
-    inputsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Text fields").setAlignment(TextAlignment.LEFT_TOP));
-    inputsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 40)).setText("Input text, integers, and floats").setAlignment(TextAlignment.LEFT_TOP));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 100, 30)).setLabelText("Text").setValue("Hello").setConstraint(TextFieldFreeConstraint.create(10)).addOnChangeAction((src) => {
-  platform.logInfo("Text field changed: "+(src).getValue());
-}));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 110, 100, 30)).setLabelText("Integer").setValue("0").setConstraint(TextFieldIntegerConstraint.create(true, 8)).addOnChangeAction((src) => {
-  platform.logInfo("Integer field changed: "+(src).getValue());
-}));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 150, 100, 30)).setLabelText("Not negative Integer").setValue("0").setConstraint(TextFieldIntegerConstraint.create(false, 8)).addOnChangeAction((src) => {
-  platform.logInfo("Not negative Integer field changed: "+(src).getValue());
-}));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 190, 100, 30)).setLabelText("Float").setValue("0.0").setConstraint(TextFieldFloatConstraint.create(true, 8)).addOnChangeAction((src) => {
-  platform.logInfo("Float field changed: "+(src).getValue());
-}));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 230, 100, 30)).setLabelText("Not negative Float").setValue("0.0").setConstraint(TextFieldFloatConstraint.create(false, 8)).addOnChangeAction((src) => {
-  platform.logInfo("Not negative Float field changed: "+(src).getValue());
-}));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(120, 70, 100, 30)).setLabelText("Read Only").setValue("Can't change").setReadOnly(true));
-    inputsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(230, 10)).setText("Sliders").setAlignment(TextAlignment.LEFT_TOP));
-    inputsTab.addComponent(Slider.create().setRegionFnc(UiRegionFncs.leftTop(230, 70, 200, 30)).setMin(0).setMax(100).setStep(1).setValue(20).addOnChangeAction((src) => {
-  platform.logInfo("Slider 1 changed: "+(src).getValue());
-}));
-    inputsTab.addComponent(Slider.create().setRegionFnc(UiRegionFncs.leftTop(230, 110, 200, 30)).setMin(-1).setMax(1).setStep(0.25).setValue(0).addOnChangeAction((src) => {
-  platform.logInfo("Slider 2 changed: "+(src).getValue());
-}));
+    Fonts.prepareScaledFonts(assets, Dut.set(12, 14, 20, 24, 26, 28));
+    let audio = drivers.getDriver("AudioDriver");
+    let mixer = audio.getMixer();
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
+    let uiTop = -100;
+    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Audio").setAlignment(TextAlignment.CENTER_TOP));
+    let musicVol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+65)).setText("0.3").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(musicVol);
+    let musicVolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+50, 30, 30)).setText("-").addOnClickAction(this.getChangeMusicVolumeAction(mixer, musicVol, -0.1));
+    this.ui.addComponent(musicVolDownBtn);
+    let musicVolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+50, 30, 30)).setText("+").addOnClickAction(this.getChangeMusicVolumeAction(mixer, musicVol, 0.1));
+    this.ui.addComponent(musicVolUpBtn);
+    let musicBtn = ToggleButton.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+50, 120, 30)).setText("Music");
+    musicBtn.addOnToggleAction(this.getToggleMusicAction(mixer, musicBtn, musicVol));
+    this.ui.addComponent(musicBtn);
+    let sound1Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+105)).setText("1.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(sound1Vol);
+    let sound1VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+90, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound1Vol, -0.1));
+    this.ui.addComponent(sound1VolDownBtn);
+    let sound1VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+90, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound1Vol, 0.1));
+    this.ui.addComponent(sound1VolUpBtn);
+    let sound1Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+90, 120, 30)).setText("Spell").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("spell1"), sound1Vol));
+    this.ui.addComponent(sound1Btn);
+    let sound2Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+145)).setText("1.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(sound2Vol);
+    let sound2VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+130, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound2Vol, -0.1));
+    this.ui.addComponent(sound2VolDownBtn);
+    let sound2VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+130, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound2Vol, 0.1));
+    this.ui.addComponent(sound2VolUpBtn);
+    let sound2Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+130, 120, 30)).setText("Magic").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("magic1"), sound2Vol));
+    this.ui.addComponent(sound2Btn);
+    let sound3Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+185)).setText("1.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(sound3Vol);
+    let sound3VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+170, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound3Vol, -0.1));
+    this.ui.addComponent(sound3VolDownBtn);
+    let sound3VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+170, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound3Vol, 0.1));
+    this.ui.addComponent(sound3VolUpBtn);
+    let sound3Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+170, 120, 30)).setText("Swing").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("swing1"), sound3Vol));
+    this.ui.addComponent(sound3Btn);
+    if (drivers.getPlatform().isExitable()) {
+      this.ui.addComponent(Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager)));
+    }
     this.ui.subscribe(drivers);
   }
 
   leave(drivers) {
+    drivers.getDriver("AudioDriver").getMixer().stop();
     this.ui.unsubscribe(drivers);
   }
 
+  getPlaySoundAction(mixer, soundId, volLabel) {
+    let res = (evtSource) => {
+      mixer.prepare(PlaybackId.of(Randoms.nextAlphabetic(10)), soundId).setVolume(Float.valueOf(volLabel.getText())).play();
+    };
+    return res;
+  }
+
+  getChangeSoundVolumeAction(label, delta) {
+    let res = (evtSource) => {
+      let vol = Float.valueOf(label.getText());
+      vol = FMath.clamp(vol+delta, 0, 1);
+      label.setText(Formats.floatToFixedDecimals(vol, 1));
+    };
+    return res;
+  }
+
+  getChangeMusicVolumeAction(mixer, label, delta) {
+    let res = (evtSource) => {
+      let vol = Float.valueOf(label.getText());
+      vol = FMath.clamp(vol+delta, 0, 1);
+      label.setText(Formats.floatToFixedDecimals(vol, 1));
+      let control = mixer.getControlNonStrict(AudioApp01.MUSIC_PLAYBACK_ID);
+      if (control!=null) {
+        control.setVolume(vol);
+      }
+    };
+    return res;
+  }
+
+  getToggleMusicAction(mixer, button, volLabel) {
+    let res = (evtSource) => {
+      let control = mixer.getControlNonStrict(AudioApp01.MUSIC_PLAYBACK_ID);
+      if (control!=null) {
+        if (button.isToggledOn()) {
+          control.play();
+        }
+        else {
+          control.stop();
+        }
+      }
+      else if (button.isToggledOn()) {
+        mixer.prepare(AudioApp01.MUSIC_PLAYBACK_ID, SoundId.of("alexander-ehlers-great-mission")).setLoop(true).setVolume(Float.valueOf(volLabel.getText())).play();
+      }
+    };
+    return res;
+  }
+
 }
-classRegistry.UiTestApp = UiTestApp;
+classRegistry.AudioApp01 = AudioApp01;
 
 
 // -------------------------------------
@@ -32441,7 +32536,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new UiTestApp());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new AudioApp01());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
