@@ -7,9 +7,9 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/rigid-body-app-06";
-const assetsDirName = "/assets-399329";
-const localStoragePrefix = "app.";
+const basePath = "/tyracorn-web-examples/onthebox";
+const assetsDirName = "/assets-ee7c85";
+const localStoragePrefix = "onthebox.";
 let mouseDown = false;
 let mouseLastDragX = 0;
 let mouseLastDragY = 0;
@@ -1600,9 +1600,10 @@ class Reflections {
      * This method looks for no arguments constructor or no arguments static method called create.
      *
      * @param {String} className class name
+     * @param {Objec} param parameter to pass into a constructor
      * @return {Object} created instance
      */
-    static createClass(className) {
+    static createClass(className, param) {
         const parts = className.split('.');
         const pureClassName = parts[parts.length - 1];
         const clazz = classRegistry[pureClassName];
@@ -1610,9 +1611,9 @@ class Reflections {
             throw new Error("class not found: " + className + " (i.e. " + pureClassName + ")");
         }
         if (typeof clazz.create === 'function') {
-            return clazz.create();
+            return clazz.create(param);
         }
-        return new clazz();
+        return new clazz(param);
     }
 
     /**
@@ -7733,6 +7734,18 @@ class Vec3 {
     return this.mX*this.mX+this.mY*this.mY+this.mZ*this.mZ;
   }
 
+  withX(x) {
+    return Vec3.create(x, this.mY, this.mZ);
+  }
+
+  withY(y) {
+    return Vec3.create(this.mX, y, this.mZ);
+  }
+
+  withZ(z) {
+    return Vec3.create(this.mX, this.mY, z);
+  }
+
   normalize() {
     let m = this.mag();
     return Vec3.create(this.mX/m, this.mY/m, this.mZ/m);
@@ -9311,6 +9324,210 @@ class Aabb3 {
 
 }
 classRegistry.Aabb3 = Aabb3;
+const createEulerAngUnit = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const EulerAngUnit = Object.freeze({
+  DEGREE: createEulerAngUnit("DEGREE"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+const createEulerAngOrder = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const EulerAngOrder = Object.freeze({
+  ROLL_PITCH_YAW: createEulerAngOrder("ROLL_PITCH_YAW"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class EulerAng {
+  static ZERO = EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 0, 0);
+  unit;
+  order;
+  roll;
+  pitch;
+  yaw;
+  constructor() {
+  }
+
+  getClass() {
+    return "EulerAng";
+  }
+
+  guardInvariants() {
+  }
+
+  getUnit() {
+    return this.unit;
+  }
+
+  getOrder() {
+    return this.order;
+  }
+
+  getRoll() {
+    return this.roll;
+  }
+
+  getPitch() {
+    return this.pitch;
+  }
+
+  getYaw() {
+    return this.yaw;
+  }
+
+  toQuaternion() {
+    if (EulerAngUnit.DEGREE.equals(this.unit)&&EulerAngOrder.ROLL_PITCH_YAW.equals(this.order)) {
+      let cy = FMath.cos(this.yaw*FMath.PI/180*0.5);
+      let sy = FMath.sin(this.yaw*FMath.PI/180*0.5);
+      let cp = FMath.cos(this.pitch*FMath.PI/180*0.5);
+      let sp = FMath.sin(this.pitch*FMath.PI/180*0.5);
+      let cr = FMath.cos(this.roll*FMath.PI/180*0.5);
+      let sr = FMath.sin(this.roll*FMath.PI/180*0.5);
+      let res = Quaternion.create(cr*cp*cy+sr*sp*sy, sr*cp*cy-cr*sp*sy, cr*sp*cy+sr*cp*sy, cr*cp*sy-sr*sp*cy);
+      return res.normalize();
+    }
+    else {
+      throw new Error("unsuppoted unit and order combination: "+this.unit+", "+this.order);
+    }
+  }
+
+  hashCode() {
+    return this.roll+13*this.pitch+17*this.yaw;
+  }
+
+  equals(obj) {
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof EulerAng)) {
+      return false;
+    }
+    let ob = obj;
+    return ob.roll==this.roll&&ob.pitch==this.pitch&&ob.yaw==this.yaw;
+  }
+
+  toString() {
+  }
+
+  static create(unit, order, roll, pitch, yaw) {
+    let res = new EulerAng();
+    res.unit = unit;
+    res.order = order;
+    res.roll = roll;
+    res.yaw = yaw;
+    res.pitch = pitch;
+    res.guardInvariants();
+    return res;
+  }
+
+  static fromQuaternion(unit, order, q) {
+    if (EulerAngUnit.DEGREE.equals(unit)&&EulerAngOrder.ROLL_PITCH_YAW.equals(order)) {
+      let sinr_cosp = 2*(q.a()*q.b()+q.c()*q.d());
+      let cosr_cosp = 1-2*(q.b()*q.b()+q.c()*q.c());
+      let rollRad = FMath.atan2(sinr_cosp, cosr_cosp);
+      let sinp = 2*(q.a()*q.c()-q.d()*q.b());
+      let pitchRad = 0;
+      if (FMath.abs(sinp)>=1) {
+        pitchRad = sinp>0?(FMath.PI/2):(-FMath.PI/2);
+      }
+      else {
+        pitchRad = FMath.asin(sinp);
+      }
+      let siny_cosp = 2*(q.a()*q.d()+q.b()*q.c());
+      let cosy_cosp = 1-2*(q.c()*q.c()+q.d()*q.d());
+      let yawRad = FMath.atan2(siny_cosp, cosy_cosp);
+      return EulerAng.create(unit, order, rollRad*180/FMath.PI, pitchRad*180/FMath.PI, yawRad*180/FMath.PI);
+    }
+    else {
+      throw new Error("unsuppoted unit and order combination: "+unit+", "+order);
+    }
+  }
+
+}
+classRegistry.EulerAng = EulerAng;
 class Quaternion {
   static ZERO_ROT = Quaternion.create(1, 0, 0, 0);
   mA;
@@ -14287,6 +14504,7 @@ class UiComponentTrait {
   static TRANSPARENT = UiComponentTrait.of("TRANSPARENT");
   static HEADER = UiComponentTrait.of("HEADER");
   static FOOTER = UiComponentTrait.of("FOOTER");
+  static ERROR = UiComponentTrait.of("ERROR");
   mTrait;
   constructor() {
   }
@@ -14639,23 +14857,28 @@ class DefaultUiStyler {
   extraSmallTextFont = FontId.of("kenny-mini-10");
   textColor = Rgba.create(0.863, 0.392, 0.078, 1);
   buttonTextureIds = Dut.map("xs-up", TextureId.of("button-xs-up"), "xs-down", TextureId.of("button-xs-down"), "xs-disabled", TextureId.of("button-xs-disabled"), "s-up", TextureId.of("button-s-up"), "s-down", TextureId.of("button-s-down"), "s-disabled", TextureId.of("button-s-disabled"), "m-up", TextureId.of("button-m-up"), "m-down", TextureId.of("button-m-down"), "m-disabled", TextureId.of("button-m-disabled"), "l-up", TextureId.of("button-l-up"), "l-down", TextureId.of("button-l-down"), "l-disabled", TextureId.of("button-l-disabled"), "xl-up", TextureId.of("button-xl-up"), "xl-down", TextureId.of("button-xl-down"), "xl-disabled", TextureId.of("button-xl-disabled"), "hamburger-up", TextureId.of("button-hamburger-up"), "hamburger-down", TextureId.of("button-hamburger-down"), "hamburger-disabled", TextureId.of("button-hamburger-disabled"), "cross-up", TextureId.of("button-cross-up"), "cross-down", TextureId.of("button-cross-down"), "cross-disabled", TextureId.of("button-cross-disabled"));
+  toggleButtonTextureIds = Dut.map("xs-up", TextureId.of("button-xs-up"), "xs-down", TextureId.of("button-xs-down"), "xs-disabled", TextureId.of("button-xs-disabled"), "s-up", TextureId.of("button-s-up"), "s-down", TextureId.of("button-s-down"), "s-disabled", TextureId.of("button-s-disabled"), "m-up", TextureId.of("button-m-up"), "m-down", TextureId.of("button-m-down"), "m-disabled", TextureId.of("button-m-disabled"), "l-up", TextureId.of("button-l-up"), "l-down", TextureId.of("button-l-down"), "l-disabled", TextureId.of("button-l-disabled"), "xl-up", TextureId.of("button-xl-up"), "xl-down", TextureId.of("button-xl-down"), "xl-disabled", TextureId.of("button-xl-disabled"));
+  panelBorderColor = Rgba.create(0.365, 0.341, 0.314, 0.5);
+  panelBackgroundColor = Rgba.create(0.482, 0.451, 0.420, 0.5);
   buttonLabelFont = FontId.of("kenny-mini-12");
   buttonLabelColor = Rgba.create(0.863, 0.392, 0.078, 1);
   disabledButtonLabelColor = Rgba.create(0.863*0.5, 0.392*0.5, 0.078*0.5, 1);
-  selectItemTextFont = FontId.of("kenny-mini-14");
-  selectItemTextColor = Rgba.create(0.863, 0.392, 0.078, 1);
-  selectItemHeight = 20;
+  fieldBorderColor = Rgba.create(0.365, 0.341, 0.314, 0.5);
+  fieldBackgroundColor = Rgba.create(0.482, 0.451, 0.420, 0.5);
   fieldValueFont = FontId.of("kenny-mini-14");
   fieldValueColor = Rgba.create(0.863, 0.392, 0.078, 1);
   fieldLabelFont = FontId.of("kenny-mini-10");
   fieldLabelColor = Rgba.create(0.863, 0.392, 0.078, 1);
-  borderColor = Rgba.create(0.365, 0.341, 0.314, 0.5);
-  overlayBorderColor = Rgba.create(0.365, 0.341, 0.314, 0.5);
-  backgroundColor = Rgba.create(0.482, 0.451, 0.420, 0.5);
-  highlightedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.1);
-  selectedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.5);
-  overlayBackgroundColor = Rgba.create(0.482, 0.451, 0.420, 1);
-  overlayHighlightedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.3);
+  selectBorderColor = Rgba.create(0.365, 0.341, 0.314, 0.5);
+  selectBackgroundColor = Rgba.create(0.482, 0.451, 0.420, 0.5);
+  selectHighlightedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.1);
+  selectSelectedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.5);
+  selectItemTextFont = FontId.of("kenny-mini-14");
+  selectItemTextColor = Rgba.create(0.863, 0.392, 0.078, 1);
+  selectItemHeight = 20;
+  dropdownOverlayBorderColor = Rgba.create(0.365, 0.341, 0.314, 0.5);
+  dropdownOverlayBackgroundColor = Rgba.create(0.482, 0.451, 0.420, 1);
+  dropdownOverlayHighlightedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.3);
   customStyles = Collections.emptyList();
   styles = null;
   constructor() {
@@ -14761,9 +14984,30 @@ class DefaultUiStyler {
     return this;
   }
 
+  setPanelBackgroundColor(panelBackgroundColor) {
+    Guard.notNull(panelBackgroundColor, "panelBackgroundColor cannot be null");
+    this.panelBackgroundColor = panelBackgroundColor;
+    this.styles = null;
+    return this;
+  }
+
+  setPanelBorderColor(panelBorderColor) {
+    Guard.notNull(panelBorderColor, "panelBorderColor cannot be null");
+    this.panelBorderColor = panelBorderColor;
+    this.styles = null;
+    return this;
+  }
+
   setButtonTextureIdPattern(pattern) {
     Guard.notEmpty(pattern, "pattern cannot be empty");
     this.buttonTextureIds = Dut.map("xs-up", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "up")), "xs-down", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "down")), "xs-disabled", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "disabled")), "s-up", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "up")), "s-down", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "down")), "s-disabled", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "disabled")), "m-up", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "up")), "m-down", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "down")), "m-disabled", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "disabled")), "l-up", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "up")), "l-down", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "down")), "l-disabled", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "disabled")), "xl-up", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "up")), "xl-down", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "down")), "xl-disabled", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "disabled")), "hamburger-up", TextureId.of(pattern.replace("${type}", "hamburger").replace("${state}", "up")), "hamburger-down", TextureId.of(pattern.replace("${type}", "hamburger").replace("${state}", "down")), "hamburger-disabled", TextureId.of(pattern.replace("${type}", "hamburger").replace("${state}", "disabled")), "cross-up", TextureId.of(pattern.replace("${type}", "cross").replace("${state}", "up")), "cross-down", TextureId.of(pattern.replace("${type}", "cross").replace("${state}", "down")), "cross-disabled", TextureId.of(pattern.replace("${type}", "cross").replace("${state}", "disabled")));
+    this.styles = null;
+    return this;
+  }
+
+  setToggleButtonTextureIdPattern(pattern) {
+    Guard.notEmpty(pattern, "pattern cannot be empty");
+    this.toggleButtonTextureIds = Dut.map("xs-up", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "up")), "xs-down", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "down")), "xs-disabled-up", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "disabled-up")), "xs-disabled-down", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "disabled-down")), "s-up", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "up")), "s-down", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "down")), "s-disabled-up", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "disabled-up")), "s-disabled-down", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "disabled-down")), "m-up", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "up")), "m-down", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "down")), "m-disabled-up", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "disabled-up")), "m-disabled-down", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "disabled-down")), "l-up", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "up")), "l-down", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "down")), "l-disabled-up", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "disabled-up")), "l-disabled-down", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "disabled-down")), "xl-up", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "up")), "xl-down", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "down")), "xl-disabled-up", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "disabled-up")), "xl-disabled-down", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "disabled-down")));
     this.styles = null;
     return this;
   }
@@ -14810,6 +15054,20 @@ class DefaultUiStyler {
     return this;
   }
 
+  setFieldBorderColor(fieldBorderColor) {
+    Guard.notNull(fieldBorderColor, "fieldBorderColor cannot be null");
+    this.fieldBorderColor = fieldBorderColor;
+    this.styles = null;
+    return this;
+  }
+
+  setFieldBackgroundColor(fieldBackgroundColor) {
+    Guard.notNull(fieldBackgroundColor, "fieldBackgroundColor cannot be null");
+    this.fieldBackgroundColor = fieldBackgroundColor;
+    this.styles = null;
+    return this;
+  }
+
   setFieldLabelFont(fieldLabelFont) {
     Guard.notNull(fieldLabelFont, "fieldLabelFont cannot be null");
     this.fieldLabelFont = fieldLabelFont;
@@ -14817,9 +15075,23 @@ class DefaultUiStyler {
     return this;
   }
 
+  setFieldLabelColor(fieldLabelColor) {
+    Guard.notNull(fieldLabelColor, "fieldLabelColor cannot be null");
+    this.fieldLabelColor = fieldLabelColor;
+    this.styles = null;
+    return this;
+  }
+
   setFieldValueFont(fieldValueFont) {
     Guard.notNull(fieldValueFont, "fieldValueFont cannot be null");
     this.fieldValueFont = fieldValueFont;
+    this.styles = null;
+    return this;
+  }
+
+  setFieldValueColor(fieldValueColor) {
+    Guard.notNull(fieldValueColor, "fieldValueColor cannot be null");
+    this.fieldValueColor = fieldValueColor;
     this.styles = null;
     return this;
   }
@@ -14836,7 +15108,7 @@ class DefaultUiStyler {
       return ;
     }
     this.styles = new HashMap();
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.PANEL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.PANEL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.panelBorderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.panelBackgroundColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.PANEL).plusTrait(UiComponentTrait.TRANSPARENT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, Rgba.TRANSPARENT, UiComponentStylePropertyKey.BACKGROUND_COLOR, Rgba.TRANSPARENT)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.LABEL).plusTrait(UiComponentTrait.H1), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.TEXT_FONT, this.h1Font, UiComponentStylePropertyKey.TEXT_COLOR, this.h1Color)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.LABEL).plusTrait(UiComponentTrait.H2), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.TEXT_FONT, this.h2Font, UiComponentStylePropertyKey.TEXT_COLOR, this.h2Color)));
@@ -14857,16 +15129,16 @@ class DefaultUiStyler {
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.XL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("xl-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("xl-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("xl-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.HAMBURGER), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("hamburger-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("hamburger-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("hamburger-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.CROSS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("cross-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("cross-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("cross-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.XS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-xs-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-xs-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.S), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-s-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-s-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.M), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-m-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-m-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.XS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, this.toggleButtonTextureIds.get("xs-up"), UiComponentStylePropertyKey.ON_TEXTURE, this.toggleButtonTextureIds.get("xs-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.S), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, this.toggleButtonTextureIds.get("s-up"), UiComponentStylePropertyKey.ON_TEXTURE, this.toggleButtonTextureIds.get("xs-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.M), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, this.toggleButtonTextureIds.get("m-up"), UiComponentStylePropertyKey.ON_TEXTURE, this.toggleButtonTextureIds.get("m-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON), this.styles.get(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.M)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.L), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-l-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-l-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.XL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-xl-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-xl-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.L), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, this.toggleButtonTextureIds.get("l-up"), UiComponentStylePropertyKey.ON_TEXTURE, this.toggleButtonTextureIds.get("l-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.XL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, this.toggleButtonTextureIds.get("xl-up"), UiComponentStylePropertyKey.ON_TEXTURE, this.toggleButtonTextureIds.get("xl-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.JOYSTICK), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BASE_TEXTURE, TextureId.of("joystick-base"), UiComponentStylePropertyKey.TOP_TEXTURE, TextureId.of("joystick-top"))));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LIST_SELECT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.HIGHLIGHTED_BACKGROUND_COLOR, this.highlightedBackgroundColor, UiComponentStylePropertyKey.SELECTED_BACKGROUND_COLOR, this.selectedBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.SELECTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.SELECTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.ITEM_HEIGHT, this.selectItemHeight)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TEXT_FIELD), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.DROPDOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_BORDER_COLOR, this.overlayBorderColor, UiComponentStylePropertyKey.OVERLAY_BACKGROUND_COLOR, this.overlayBackgroundColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_BACKGROUND_COLOR, this.overlayHighlightedBackgroundColor, UiComponentStylePropertyKey.OVERLAY_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_ITEM_HEIGHT, this.selectItemHeight)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LIST_SELECT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.selectBorderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.selectBackgroundColor, UiComponentStylePropertyKey.HIGHLIGHTED_BACKGROUND_COLOR, this.selectHighlightedBackgroundColor, UiComponentStylePropertyKey.SELECTED_BACKGROUND_COLOR, this.selectSelectedBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.SELECTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.SELECTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.ITEM_HEIGHT, this.selectItemHeight)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TEXT_FIELD), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.fieldBorderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.fieldBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.DROPDOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.fieldBorderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.fieldBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor, UiComponentStylePropertyKey.OVERLAY_BORDER_COLOR, this.dropdownOverlayBorderColor, UiComponentStylePropertyKey.OVERLAY_BACKGROUND_COLOR, this.dropdownOverlayBackgroundColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_BACKGROUND_COLOR, this.dropdownOverlayHighlightedBackgroundColor, UiComponentStylePropertyKey.OVERLAY_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_ITEM_HEIGHT, this.selectItemHeight)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.SLIDER), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UNIT_SIZE, 10, UiComponentStylePropertyKey.HANDLE_TEXTURE, TextureId.of("slider-handle"), UiComponentStylePropertyKey.TRACK_TEXTURE, TextureId.of("slider-track"))));
     for (let customStyle of this.customStyles) {
       let newStyle = customStyle.getStyle();
@@ -14916,7 +15188,7 @@ class UiPainters {
       cursorX = cursorX-fontData.getTextWidth(text);
     }
     else {
-      throw new Error("unsupprted horizontal alignment: "+alignment.getHorizontal());
+      throw new Error("unsupported horizontal alignment: "+alignment.getHorizontal());
     }
     if (alignment.getVertical().equals(TextAlignmentVertical.TOP)) {
     }
@@ -14930,7 +15202,7 @@ class UiPainters {
       cursorY = cursorY-fontData.getSize();
     }
     else {
-      throw new Error("unsupprted vertical alignment: "+alignment.getVertical());
+      throw new Error("unsupported vertical alignment: "+alignment.getVertical());
     }
     while (parser.hasNext()) {
       let ch = parser.readCharacter();
@@ -15601,6 +15873,10 @@ class Button extends UiComponent {
     this.container = container;
   }
 
+  isFocusable() {
+    return true;
+  }
+
   move(dt) {
   }
 
@@ -15628,6 +15904,7 @@ class Button extends UiComponent {
     if (inside) {
       this.trackedTouch = id;
       this.downTouch = true;
+      this.container.requestFocus(this);
     }
     return inside;
   }
@@ -17473,7 +17750,7 @@ class ListSelect extends UiComponent {
       if (item.isSelected()) {
         painter.fillRect(itemRegion, selectedBackroungColor);
       }
-      else if (this.trackedTouchStartItemIdx==i) {
+      else if (this.trackedTouchId!=null&&this.trackedTouchStartItemIdx==i) {
         painter.fillRect(itemRegion, highlightedBackroungColor);
       }
       let color = item.isSelected()?selectedTextColor:(this.trackedTouchStartItemIdx==i?highlightedTextColor:textColor);
@@ -17669,6 +17946,7 @@ class ListSelect extends UiComponent {
   clearItems() {
     let before = this.getSelectedIndexes();
     this.items = new ArrayList();
+    this.scroll = 0;
     if (!before.isEmpty()) {
       for (let action of this.onSelectActions) {
         Functions.runUiEventAction(action, this);
@@ -18128,6 +18406,7 @@ class Dropdown extends UiComponent {
     this.trackedTouch = null;
     if (this.region.isInside(pos)&&!cancel) {
       this.container.requestFocus(this);
+      return true;
     }
     return false;
   }
@@ -18540,7 +18819,6 @@ class TextField extends UiComponent {
   region;
   trackedTouch = null;
   focused = false;
-  error = false;
   cursor = "_";
   cursorPos = 0;
   cursorShown = false;
@@ -18669,6 +18947,7 @@ class TextField extends UiComponent {
 
   onFocusLost() {
     this.focused = false;
+    this.setValue(this.displayedValue);
     this.displayedValue = this.value;
   }
 
@@ -18699,15 +18978,12 @@ class TextField extends UiComponent {
       }
       else if (key.isEnter()) {
         if (this.focused) {
-          this.error = false;
-          this.setValue(this.displayedValue);
           this.container.requestFocus(null);
         }
       }
       else if (key.isEscape()) {
         if (this.focused) {
           this.displayedValue = this.value;
-          this.error = false;
           this.container.requestFocus(null);
         }
       }
@@ -22882,7 +23158,7 @@ class TapPrefabs {
       os.write(TapBytes.intToBytesBigEndian(prefab.getComponents().size()));
       for (let cp of prefab.getComponents()) {
         os.write(TapBytes.stringToBytesBigEndian(cp.getType().name()));
-        os.write(TapBytes.stringToBytesBigEndian(cp.getKey()));
+        os.write(TapBytes.stringToBytesBigEndian(cp.getKey().key()));
         os.write(TapBytes.intToBytesBigEndian(cp.getVersion()));
         os.write(TapBytes.stringToBytesBigEndian(Jsons.stringMapToJson(cp.getProperties())));
       }
@@ -22905,9 +23181,12 @@ class TapPrefabs {
     for (let i = 0; i<numCmps; ++i) {
       let cmpType = ComponentPrefabType.valueOf(reader.readString());
       let key = reader.readString();
+      if (Strings.isEmpty(key)) {
+        key = "auto-key-"+i;
+      }
       let cmpVersion = reader.readInt();
       let cmpProps = Jsons.toStringMap(reader.readString());
-      cmps.add(ComponentPrefab.create(cmpType, key, cmpVersion, cmpProps));
+      cmps.add(ComponentPrefab.create(cmpType, ComponentKey.of(key), cmpVersion, cmpProps));
     }
     let numChildren = reader.readInt();
     let children = new ArrayList();
@@ -22928,7 +23207,7 @@ class TapPrefabs {
       let cmpType = ComponentPrefabType.valueOf(reader.readString());
       let cmpVersion = reader.readInt();
       let cmpProps = Jsons.toStringMap(reader.readString());
-      cmps.add(ComponentPrefab.create(cmpType, "", cmpVersion, cmpProps));
+      cmps.add(ComponentPrefab.create(cmpType, ComponentKey.of("auto-key-"+i), cmpVersion, cmpProps));
     }
     let numChildren = reader.readInt();
     let children = new ArrayList();
@@ -22962,10 +23241,10 @@ class TapScenes {
         bos.write(TapBytes.floatToBytesBigEndian(obj.getPos().x()));
         bos.write(TapBytes.floatToBytesBigEndian(obj.getPos().y()));
         bos.write(TapBytes.floatToBytesBigEndian(obj.getPos().z()));
-        bos.write(TapBytes.floatToBytesBigEndian(obj.getRot().a()));
-        bos.write(TapBytes.floatToBytesBigEndian(obj.getRot().b()));
-        bos.write(TapBytes.floatToBytesBigEndian(obj.getRot().c()));
-        bos.write(TapBytes.floatToBytesBigEndian(obj.getRot().d()));
+        bos.write(TapBytes.floatToBytesBigEndian(obj.getRotQuaternion().a()));
+        bos.write(TapBytes.floatToBytesBigEndian(obj.getRotQuaternion().b()));
+        bos.write(TapBytes.floatToBytesBigEndian(obj.getRotQuaternion().c()));
+        bos.write(TapBytes.floatToBytesBigEndian(obj.getRotQuaternion().d()));
       }
       buf = bos.toByteArray();
     }
@@ -23938,6 +24217,7 @@ class Actor {
   listeners = new HashSet();
   tags = new HashSet();
   immutableComponents = Collections.unmodifiableList(this.components);
+  componentKeys = new HashSet();
   mWorld;
   hash = Randoms.nextInt(0, 10000000);
   constructor() {
@@ -24020,7 +24300,7 @@ class Actor {
   getComponentByKey(clazz, key) {
     for (let i = 0; i<this.components.size(); ++i) {
       let comp = this.components.get(i);
-      if (comp.getKey().equals(key)) {
+      if (comp.key().equals(key)) {
         return comp;
       }
     }
@@ -24030,7 +24310,7 @@ class Actor {
   getComponentByKeyNonStrict(clazz, key) {
     for (let i = 0; i<this.components.size(); ++i) {
       let comp = this.components.get(i);
-      if (comp.getKey().equals(key)) {
+      if (comp.key().equals(key)) {
         return comp;
       }
     }
@@ -24038,7 +24318,11 @@ class Actor {
   }
 
   addComponent(component) {
+    if (this.componentKeys.contains(component.key())) {
+      throw new Error("component already contains key: "+component.key());
+    }
     this.components.add(component);
+    this.componentKeys.add(component.key());
     if (this.mWorld!=null) {
       component.registerActor(this);
     }
@@ -24054,6 +24338,7 @@ class Actor {
     }
     component.onRemove();
     this.components.remove(component);
+    this.componentKeys.remove(component.key());
     for (let list of this.listeners) {
       list.onComponentRemoved(this, component);
     }
@@ -24512,6 +24797,26 @@ class ActorPrefab {
     return this.components;
   }
 
+  getComponentByKey(key) {
+    for (let i = 0; i<this.components.size(); ++i) {
+      let comp = this.components.get(i);
+      if (comp.getKey().equals(key)) {
+        return comp;
+      }
+    }
+    throw new Error("key doesn't exists: "+key);
+  }
+
+  getComponentByKeyNonStrict(key) {
+    for (let i = 0; i<this.components.size(); ++i) {
+      let comp = this.components.get(i);
+      if (comp.getKey().equals(key)) {
+        return comp;
+      }
+    }
+    return null;
+  }
+
   getChildren() {
     return this.children;
   }
@@ -24571,14 +24876,14 @@ class ActorPrefab {
     return res;
   }
 
-  replaceComponent(idx, component) {
+  replaceComponent(key, component) {
     let res = new ActorPrefab();
     res.localId = this.localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = new ArrayList();
     for (let i = 0; i<this.components.size(); ++i) {
-      res.components.add(i==idx?component:this.components.get(i));
+      res.components.add(this.components.get(i).getKey().equals(key)?component:this.components.get(i));
     }
     res.components = Collections.unmodifiableList(res.components);
     res.children = this.children;
@@ -24586,16 +24891,17 @@ class ActorPrefab {
     return res;
   }
 
-  minusComponent(idx) {
+  minusComponent(key) {
     let res = new ActorPrefab();
     res.localId = this.localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = new ArrayList();
     for (let i = 0; i<this.components.size(); ++i) {
-      if (i!=idx) {
-        res.components.add(this.components.get(i));
+      if (this.components.get(i).getKey().equals(key)) {
+        continue;
       }
+      res.components.add(this.components.get(i));
     }
     res.components = Collections.unmodifiableList(res.components);
     res.children = this.children;
@@ -24846,11 +25152,92 @@ class ComponentFeature {
 
 }
 classRegistry.ComponentFeature = ComponentFeature;
+class ComponentKey {
+  static TRANSFORM = ComponentKey.of("TRANSFORM");
+  static RIGID_BODY = ComponentKey.of("RIGID_BODY");
+  static CAMERA = ComponentKey.of("CAMERA");
+  static CAMERA_FOVY = ComponentKey.of("CAMERA_FOVY");
+  static WORLD = ComponentKey.of("WORLD");
+  static SKYBOX = ComponentKey.of("SKYBOX");
+  static LIFETIME = ComponentKey.of("LIFETIME");
+  static AUTO_ROTATE = ComponentKey.of("AUTO_ROTATE");
+  static REMOVE_ON_OUTSPACE = ComponentKey.of("REMOVE_ON_OUTSPACE");
+  static LIGHT_1 = ComponentKey.of("LIGHT_1");
+  static LIGHT_2 = ComponentKey.of("LIGHT_2");
+  static LIGHT_3 = ComponentKey.of("LIGHT_3");
+  static MODEL_1 = ComponentKey.of("MODEL_1");
+  static MODEL_2 = ComponentKey.of("MODEL_2");
+  static MODEL_3 = ComponentKey.of("MODEL_3");
+  static BODY_COLLIDER = ComponentKey.of("BODY_COLLIDER");
+  static COLLIDER_1 = ComponentKey.of("COLLIDER_1");
+  static COLLIDER_2 = ComponentKey.of("COLLIDER_2");
+  static COLLIDER_3 = ComponentKey.of("COLLIDER_3");
+  static COLLIDER_4 = ComponentKey.of("COLLIDER_4");
+  static COLLIDER_5 = ComponentKey.of("COLLIDER_5");
+  static PUNCH_1_COLLIDER = ComponentKey.of("PUNCH_1_COLLIDER");
+  static SPRING_1 = ComponentKey.of("SPRING_1");
+  static SPRING_2 = ComponentKey.of("SPRING_2");
+  static SPRING_3 = ComponentKey.of("SPRING_3");
+  static JOINT_1 = ComponentKey.of("JOINT_1");
+  static JOINT_2 = ComponentKey.of("JOINT_2");
+  static JOINT_3 = ComponentKey.of("JOINT_3");
+  static JOINT_4 = ComponentKey.of("JOINT_4");
+  mKey;
+  constructor() {
+  }
+
+  getClass() {
+    return "ComponentKey";
+  }
+
+  guardInvariants() {
+  }
+
+  key() {
+    return this.mKey;
+  }
+
+  hashCode() {
+    return this.mKey.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ComponentKey)) {
+      return false;
+    }
+    let other = obj;
+    return other.mKey.equals(this.mKey);
+  }
+
+  toString() {
+  }
+
+  static of(key) {
+    let res = new ComponentKey();
+    res.mKey = key;
+    res.guardInvariants();
+    return res;
+  }
+
+  static random() {
+    let res = new ComponentKey();
+    res.mKey = Randoms.nextAlphabetic(4);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ComponentKey = ComponentKey;
 class Component {
   mActor = null;
-  mKey = "";
+  mKey;
   hash = Randoms.nextInt(0, 10000000);
-  constructor() {
+  constructor(key) {
+    this.mKey = key;
+    Guard.notNull(this.mKey, "key must be defined");
   }
 
   getClass() {
@@ -24860,12 +25247,6 @@ class Component {
   registerActor(actor) {
     Guard.beNull(this.mActor, "component can be added to the actor only once");
     this.mActor = actor;
-    if (Strings.isNotEmpty(this.mKey)) {
-      let compByKey = actor.getComponentByKeyNonStrict("Component", this.mKey);
-      if (compByKey!=null&&!compByKey.equals(this)) {
-        throw new Error("component key is duplicated: "+this.mKey);
-      }
-    }
     this.init();
   }
 
@@ -24902,23 +25283,12 @@ class Component {
     return this.mActor;
   }
 
-  world() {
-    return this.mActor.world();
-  }
-
-  getKey() {
+  key() {
     return this.mKey;
   }
 
-  setKey(key) {
-    Guard.notNull(key, "key cannot be null");
-    if (this.mActor!=null&&Strings.isNotEmpty(key)) {
-      if (this.mActor.getComponentByKeyNonStrict("Component", key)!=null) {
-        throw new Error("component key is duplicated: "+key);
-      }
-    }
-    this.mKey = key;
-    return this;
+  world() {
+    return this.mActor.world();
   }
 
   broadcastDomainUpdate(domain, upward, downward) {
@@ -24944,8 +25314,8 @@ class Component {
 }
 classRegistry.Component = Component;
 class Behavior extends Component {
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -24968,8 +25338,8 @@ class TransformComponent extends Component {
   globalMatInv = null;
   localAabb = null;
   globalAabb = null;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -25203,8 +25573,8 @@ class TransformComponent extends Component {
   toString() {
   }
 
-  static create() {
-    return new TransformComponent();
+  static create(key) {
+    return new TransformComponent(key);
   }
 
 }
@@ -25212,8 +25582,8 @@ classRegistry.TransformComponent = TransformComponent;
 class AutoRotateComponent extends Behavior {
   angularVelocity = Vec3.ZERO;
   transform;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -25244,8 +25614,8 @@ class AutoRotateComponent extends Behavior {
   toString() {
   }
 
-  static create() {
-    let res = new AutoRotateComponent();
+  static create(key) {
+    let res = new AutoRotateComponent(key);
     res.guardInvariants();
     return res;
   }
@@ -25264,8 +25634,8 @@ class ModelComponent extends Component {
   transformComp;
   globalMat = null;
   localAabb = null;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -25405,8 +25775,8 @@ class ModelComponent extends Component {
   toString() {
   }
 
-  static create() {
-    let res = new ModelComponent();
+  static create(key) {
+    let res = new ModelComponent(key);
     res.modelId = ModelId.of("empty");
     res.transform = Mat44.IDENTITY;
     res.interpolation = Interpolation.ZERO;
@@ -25422,8 +25792,8 @@ class LightComponent extends Component {
   type;
   shadow;
   color;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -25500,8 +25870,8 @@ class LightComponent extends Component {
   toString() {
   }
 
-  static create() {
-    let res = new LightComponent();
+  static create(key) {
+    let res = new LightComponent(key);
     res.enabled = true;
     res.type = LightType.DIRECTIONAL;
     res.shadow = false;
@@ -25527,8 +25897,8 @@ class CameraComponent extends Component {
   skyboxCameraCache = null;
   transformComp;
   tcGlobalMatCache = Mat44.IDENTITY;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -25688,8 +26058,8 @@ class CameraComponent extends Component {
   toString() {
   }
 
-  static create() {
-    let res = new CameraComponent();
+  static create(key) {
+    let res = new CameraComponent(key);
     res.type = CameraType.PERSPECTIVE;
     res.fovy = FMath.toRadians(60);
     res.aspect = 1;
@@ -25709,8 +26079,8 @@ class CameraFovyComponent extends Behavior {
   fovyPortrait = FMath.toRadians(90);
   displaySize = Size2.create(1, 1);
   camera;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -25765,8 +26135,8 @@ class CameraFovyComponent extends Behavior {
     return this;
   }
 
-  static create() {
-    let res = new CameraFovyComponent();
+  static create(key) {
+    let res = new CameraFovyComponent(key);
     res.guardInvariants();
     return res;
   }
@@ -25779,8 +26149,8 @@ class SkyboxComponent extends Component {
   visible = true;
   transformComp;
   globalMat = null;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -25864,8 +26234,8 @@ class SkyboxComponent extends Component {
   toString() {
   }
 
-  static create() {
-    let res = new SkyboxComponent();
+  static create(key) {
+    let res = new SkyboxComponent(key);
     res.modelId = ModelId.of("empty");
     res.transform = Mat44.IDENTITY;
     res.guardInvariants();
@@ -25880,8 +26250,8 @@ class WorldComponent extends Behavior {
   angularDrag = 0.5;
   boundary = Aabb3.create(-1000, -1000, -1000, 1000, 1000, 1000);
   action;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -25963,8 +26333,8 @@ class WorldComponent extends Behavior {
     };
   }
 
-  static create() {
-    let res = new WorldComponent();
+  static create(key) {
+    let res = new WorldComponent(key);
     res.gravity = Vec3.create(0, -9.81, 0);
     res.drag = 0.5;
     res.angularDrag = 0.5;
@@ -25995,8 +26365,8 @@ class ColliderComponent extends Component {
   globalMat = null;
   volume = null;
   localAabb = null;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -26281,8 +26651,8 @@ class ColliderComponent extends Component {
   toString() {
   }
 
-  static create() {
-    let res = new ColliderComponent();
+  static create(key) {
+    let res = new ColliderComponent(key);
     res.layer = CollisionLayer.OBJECT;
     res.materialId = PhysicalMaterialId.of("default");
     res.shape = ColliderShape.SPHERE;
@@ -26310,8 +26680,8 @@ class RigidBodyComponent extends Component {
   forceAccum = Vec3.ZERO;
   torqueAccum = Vec3.ZERO;
   transform;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -26581,8 +26951,8 @@ class RigidBodyComponent extends Component {
   toString() {
   }
 
-  static create() {
-    let res = new RigidBodyComponent();
+  static create(key) {
+    let res = new RigidBodyComponent(key);
     res.guardInvariants();
     return res;
   }
@@ -26646,8 +27016,8 @@ class BallSocketJointComponent extends Behavior {
   collisionExclusions;
   initDone = false;
   config;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -26753,8 +27123,8 @@ class BallSocketJointComponent extends Behavior {
   toString() {
   }
 
-  static create() {
-    let res = new BallSocketJointComponent();
+  static create(key) {
+    let res = new BallSocketJointComponent(key);
     res.guardInvariants();
     return res;
   }
@@ -26827,8 +27197,8 @@ class HingeJointComponent extends Behavior {
   localPosB;
   localAxisB;
   q0Conjs = Collections.emptyList();
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -26954,8 +27324,8 @@ class HingeJointComponent extends Behavior {
   toString() {
   }
 
-  static create() {
-    let res = new HingeJointComponent();
+  static create(key) {
+    let res = new HingeJointComponent(key);
     res.guardInvariants();
     return res;
   }
@@ -27034,8 +27404,8 @@ class PrismaticJointComponent extends Behavior {
   localPosB;
   localDirB;
   q0;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -27146,8 +27516,8 @@ class PrismaticJointComponent extends Behavior {
   toString() {
   }
 
-  static create() {
-    let res = new PrismaticJointComponent();
+  static create(key) {
+    let res = new PrismaticJointComponent(key);
     res.guardInvariants();
     return res;
   }
@@ -27240,8 +27610,8 @@ class FixedJointComponent extends Behavior {
   localPosA;
   localPosB;
   q0;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -27374,8 +27744,8 @@ class FixedJointComponent extends Behavior {
   toString() {
   }
 
-  static create() {
-    let res = new FixedJointComponent();
+  static create(key) {
+    let res = new FixedJointComponent(key);
     res.guardInvariants();
     return res;
   }
@@ -27389,8 +27759,8 @@ class FixedJointComponent extends Behavior {
 }
 classRegistry.FixedJointComponent = FixedJointComponent;
 class RemoveOnOutspaceComponent extends Component {
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -27406,8 +27776,8 @@ class RemoveOnOutspaceComponent extends Component {
     }
   }
 
-  static create() {
-    let res = new RemoveOnOutspaceComponent();
+  static create(key) {
+    let res = new RemoveOnOutspaceComponent(key);
     res.guardInvariants();
     return res;
   }
@@ -27417,8 +27787,8 @@ classRegistry.RemoveOnOutspaceComponent = RemoveOnOutspaceComponent;
 class LifetimeComponent extends Behavior {
   active;
   remaining;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -27476,8 +27846,8 @@ class LifetimeComponent extends Behavior {
     return this;
   }
 
-  static create() {
-    let res = new LifetimeComponent();
+  static create(key) {
+    let res = new LifetimeComponent(key);
     res.active = true;
     res.remaining = 1;
     res.guardInvariants();
@@ -27486,6 +27856,338 @@ class LifetimeComponent extends Behavior {
 
 }
 classRegistry.LifetimeComponent = LifetimeComponent;
+const createRpGeneratorShape = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const RpGeneratorShape = Object.freeze({
+  SPHERE: createRpGeneratorShape("SPHERE"),
+  BOX: createRpGeneratorShape("BOX"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class RpGeneratorComponent extends Component {
+  static FEATURES = Dut.immutableSet(ComponentFeature.AABB_PRODUCER);
+  active = true;
+  weight = 1;
+  groups = Collections.emptySet();
+  shape = RpGeneratorShape.SPHERE;
+  pos = Vec3.ZERO;
+  rot = Quaternion.ZERO_ROT;
+  radius = 1;
+  ex = 0.5;
+  ey = 0.5;
+  ez = 0.5;
+  localMat = Mat44.IDENTITY;
+  transformComp;
+  globalMat = null;
+  localAabb = null;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "RpGeneratorComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transformComp = this.actor().getComponent("TransformComponent");
+  }
+
+  getFeatures() {
+    return RpGeneratorComponent.FEATURES;
+  }
+
+  onDomainEvent(domain, propagationType) {
+    if (domain.equals(ActorDomain.TRANSFORM)) {
+      this.globalMat = null;
+    }
+    return false;
+  }
+
+  isActive() {
+    return this.active;
+  }
+
+  setActive(active) {
+    this.active = active;
+    return this;
+  }
+
+  getWeight() {
+    return this.weight;
+  }
+
+  setWeight(weight) {
+    this.weight = weight;
+    return this;
+  }
+
+  getGroups() {
+    return this.groups;
+  }
+
+  setGroups(groups) {
+    Guard.notEmptyStringCollection(groups, "groups cannot have an empty string");
+    this.groups = Dut.copyImmutableSet(groups);
+    return this;
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  setPos() {
+    if (arguments.length===1&&arguments[0] instanceof Vec3) {
+      return this.setPos_1_Vec3(arguments[0]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return this.setPos_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  setPos_1_Vec3(pos) {
+    this.pos = pos;
+    this.localMat = null;
+    this.globalMat = null;
+    this.localAabb = null;
+    return this;
+  }
+
+  setPos_3_number_number_number(x, y, z) {
+    return this.setPos(Vec3.create(x, y, z));
+  }
+
+  getRot() {
+    return this.rot;
+  }
+
+  setRot(rot) {
+    this.rot = rot;
+    this.localMat = null;
+    this.globalMat = null;
+    this.localAabb = null;
+    return this;
+  }
+
+  getShape() {
+    return this.shape;
+  }
+
+  setShape(shape) {
+    this.shape = shape;
+    this.localAabb = null;
+    return this;
+  }
+
+  getRadius() {
+    return this.radius;
+  }
+
+  setRadius(radius) {
+    this.radius = radius;
+    this.localAabb = null;
+    return this;
+  }
+
+  getSize() {
+    return Vec3.create(this.ex*2, this.ey*2, this.ez*2);
+  }
+
+  setSize() {
+    if (arguments.length===1&&arguments[0] instanceof Vec3) {
+      return this.setSize_1_Vec3(arguments[0]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return this.setSize_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  setSize_1_Vec3(size) {
+    this.ex = size.x()/2;
+    this.ey = size.y()/2;
+    this.ez = size.z()/2;
+    this.localAabb = null;
+    return this;
+  }
+
+  setSize_3_number_number_number(sx, sy, sz) {
+    return this.setSize(Vec3.create(sx, sy, sz));
+  }
+
+  nextPoint() {
+    this.syncCache();
+    if (this.shape.equals(RpGeneratorShape.SPHERE)) {
+      let r = Randoms.nextFloat(0, this.radius);
+      let nx = Randoms.nextFloat(0, 1)-1;
+      let ny = Randoms.nextFloat(0, 1)-1;
+      let nz = Randoms.nextFloat(0, 1)-1;
+      let mag = FMath.sqrt(nx*nx+ny*ny+nz*nz);
+      nx = nx/mag;
+      ny = ny/mag;
+      nz = nz/mag;
+      return this.globalMat.mul(nx*this.radius, ny*this.radius, nz*this.radius);
+    }
+    else if (this.shape.equals(RpGeneratorShape.BOX)) {
+      let x = Randoms.nextFloat(0, 2*this.ex)-this.ex;
+      let y = Randoms.nextFloat(0, 2*this.ey)-this.ey;
+      let z = Randoms.nextFloat(0, 2*this.ez)-this.ez;
+      return this.globalMat.mul(x, y, z);
+    }
+    else {
+      throw new Error("unsupported shape: "+this.shape);
+    }
+  }
+
+  getLocalAabb() {
+    this.syncCache();
+    return this.localAabb;
+  }
+
+  getGlobalMat() {
+    this.syncCache();
+    return this.globalMat;
+  }
+
+  syncCache() {
+    if (this.localMat==null) {
+      if (this.pos.equals(Vec3.ZERO)&&this.rot.equals(Quaternion.ZERO_ROT)) {
+        this.localMat = Mat44.IDENTITY;
+        this.globalMat = this.transformComp.getGlobalMat();
+      }
+      else {
+        this.localMat = Mat44.transofm(this.pos, this.rot);
+        this.globalMat = this.transformComp.getGlobalMat().mul(this.localMat);
+      }
+    }
+    if (this.globalMat==null) {
+      this.globalMat = this.transformComp.getGlobalMat().mul(this.localMat);
+    }
+    if (this.localAabb==null) {
+      let baseAabb = null;
+      if (this.shape.equals(RpGeneratorShape.SPHERE)) {
+        baseAabb = Aabb3.create(-this.radius, -this.radius, -this.radius, this.radius, this.radius, this.radius);
+      }
+      else if (this.shape.equals(RpGeneratorShape.BOX)) {
+        baseAabb = Aabb3.create(-this.ex, -this.ey, -this.ez, this.ex, this.ey, this.ez);
+      }
+      else {
+        throw new Error("unsupported shape: "+this.shape);
+      }
+      this.localAabb = this.localMat.equals(Mat44.IDENTITY)?baseAabb:baseAabb.transform(this.localMat);
+    }
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new RpGeneratorComponent(key);
+    res.shape = RpGeneratorShape.SPHERE;
+    res.pos = Vec3.ZERO;
+    res.rot = Quaternion.ZERO_ROT;
+    res.radius = 1;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.RpGeneratorComponent = RpGeneratorComponent;
+const createComponentPrefabRotType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const ComponentPrefabRotType = Object.freeze({
+  QUATERNION: createComponentPrefabRotType("QUATERNION"),
+  EULER_ANG: createComponentPrefabRotType("EULER_ANG"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
 const createComponentPrefabType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -27662,6 +28364,109 @@ class ComponentPrefab {
     }
   }
 
+  getEulerAng() {
+    if (arguments.length===1&& typeof arguments[0]==="string") {
+      return this.getEulerAng_1_string(arguments[0]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="string"&&arguments[1] instanceof EulerAng) {
+      return this.getEulerAng_2_string_EulerAng(arguments[0], arguments[1]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  getEulerAng_1_string(key) {
+    return Jsons.toEulerAng(this.properties.get(key));
+  }
+
+  getEulerAng_2_string_EulerAng(key, def) {
+    if (this.properties.containsKey(key)) {
+      return Jsons.toEulerAng(this.properties.get(key));
+    }
+    else {
+      return def;
+    }
+  }
+
+  getRotQuaternion() {
+    if (arguments.length===1&& typeof arguments[0]==="string") {
+      return this.getRotQuaternion_1_string(arguments[0]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="string"&&arguments[1] instanceof Quaternion) {
+      return this.getRotQuaternion_2_string_Quaternion(arguments[0], arguments[1]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  getRotQuaternion_1_string(key) {
+    let rotType = ComponentPrefabRotType.valueOf(this.properties.getOrDefault(key+".type", ComponentPrefabRotType.QUATERNION.name()));
+    if (rotType.equals(ComponentPrefabRotType.QUATERNION)) {
+      return this.getQuaternion(key);
+    }
+    else if (rotType.equals(ComponentPrefabRotType.EULER_ANG)) {
+      return this.getEulerAng(key).toQuaternion();
+    }
+    else {
+      throw new Error("unsupported rotation type: "+rotType);
+    }
+  }
+
+  getRotQuaternion_2_string_Quaternion(key, def) {
+    let rotType = ComponentPrefabRotType.valueOf(this.properties.getOrDefault(key+".type", ComponentPrefabRotType.QUATERNION.name()));
+    if (rotType.equals(ComponentPrefabRotType.QUATERNION)) {
+      return this.getQuaternion(key, def);
+    }
+    else if (rotType.equals(ComponentPrefabRotType.EULER_ANG)) {
+      let ea = this.getEulerAng(key, null);
+      return ea==null?def:ea.toQuaternion();
+    }
+    else {
+      throw new Error("unsupported rotation type: "+rotType);
+    }
+  }
+
+  getRotEulerAng() {
+    if (arguments.length===1&& typeof arguments[0]==="string") {
+      return this.getRotEulerAng_1_string(arguments[0]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="string"&&arguments[1] instanceof EulerAng) {
+      return this.getRotEulerAng_2_string_EulerAng(arguments[0], arguments[1]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  getRotEulerAng_1_string(key) {
+    let rotType = ComponentPrefabRotType.valueOf(this.properties.getOrDefault(key+".type", ComponentPrefabRotType.QUATERNION.name()));
+    if (rotType.equals(ComponentPrefabRotType.QUATERNION)) {
+      return EulerAng.fromQuaternion(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, this.getQuaternion(key));
+    }
+    else if (rotType.equals(ComponentPrefabRotType.EULER_ANG)) {
+      return this.getEulerAng(key);
+    }
+    else {
+      throw new Error("unsupported rotation type: "+rotType);
+    }
+  }
+
+  getRotEulerAng_2_string_EulerAng(key, def) {
+    let rotType = ComponentPrefabRotType.valueOf(this.properties.getOrDefault(key+".type", ComponentPrefabRotType.QUATERNION.name()));
+    if (rotType.equals(ComponentPrefabRotType.QUATERNION)) {
+      let quat = this.getQuaternion(key, null);
+      return quat==null?def:EulerAng.fromQuaternion(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, quat);
+    }
+    else if (rotType.equals(ComponentPrefabRotType.EULER_ANG)) {
+      return this.getEulerAng(key, def);
+    }
+    else {
+      throw new Error("unsupported rotation type: "+rotType);
+    }
+  }
+
   getAabb3(key) {
     return Jsons.toAabb3(this.properties.get(key));
   }
@@ -27721,6 +28526,33 @@ class ComponentPrefab {
     return res;
   }
 
+  withRotProperties(key, val) {
+    let strVal = null;
+    let strType = null;
+    if (val instanceof Quaternion) {
+      strVal = Jsons.toJson(val);
+      strType = ComponentPrefabRotType.QUATERNION.name();
+    }
+    else if (val instanceof EulerAng) {
+      strVal = Jsons.toJson(val);
+      strType = ComponentPrefabRotType.EULER_ANG.name();
+    }
+    else {
+      throw new Error("unsupported value type, implement me: "+val);
+    }
+    let res = new ComponentPrefab();
+    res.type = this.type;
+    res.version = this.version;
+    res.key = this.key;
+    res.properties = new HashMap();
+    res.properties.putAll(this.properties);
+    res.properties.put(key, strVal);
+    res.properties.put(key+".type", strType);
+    res.properties = Collections.unmodifiableMap(res.properties);
+    res.guardInvariants();
+    return res;
+  }
+
   withProperty(key, val) {
     let strVal = null;
     if (val instanceof Boolean) {
@@ -27773,13 +28605,13 @@ class ComponentPrefab {
 
   toLatestVersion() {
     if (this.type.equals(ComponentPrefabType.SPHERE_COLLIDER)&&this.version==1) {
-      return ComponentPrefab.sphereCollider(true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getQuaternion("rot", Quaternion.ZERO_ROT), this.getFloat("radius")).withKey(this.key);
+      return ComponentPrefab.sphereCollider(this.key, true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getRotQuaternion("rot", Quaternion.ZERO_ROT), this.getFloat("radius"));
     }
     if (this.type.equals(ComponentPrefabType.BOX_COLLIDER)&&this.version==1) {
-      return ComponentPrefab.boxCollider(true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getQuaternion("rot", Quaternion.ZERO_ROT), this.getVec3("size")).withKey(this.key);
+      return ComponentPrefab.boxCollider(this.key, true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getRotQuaternion("rot", Quaternion.ZERO_ROT), this.getVec3("size"));
     }
     if (this.type.equals(ComponentPrefabType.CAPSULE_COLLIDER)&&this.version==1) {
-      return ComponentPrefab.capsuleCollider(true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getQuaternion("rot", Quaternion.ZERO_ROT), this.getFloat("height"), this.getFloat("radius")).withKey(this.key);
+      return ComponentPrefab.capsuleCollider(this.key, true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getRotQuaternion("rot", Quaternion.ZERO_ROT), this.getFloat("height"), this.getFloat("radius"));
     }
     return this;
   }
@@ -27787,7 +28619,7 @@ class ComponentPrefab {
   toComponent(idMapping) {
     if (this.type.equals(ComponentPrefabType.TRANSFORM)) {
       if (this.version==1) {
-        return TransformComponent.create().setPos(Jsons.toVec3(this.properties.get("pos"))).setRot(Jsons.toQuaternion(this.properties.get("rot"))).setKey(this.key);
+        return TransformComponent.create(this.key).setPos(this.getVec3("pos")).setRot(this.getRotQuaternion("rot"));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27795,7 +28627,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.RIGID_BODY)) {
       if (this.version==1) {
-        return RigidBodyComponent.create().setKinematic(Formats.parseBoolean(this.properties.get("kinematic"))).setRotationLock(Formats.parseBoolean(this.properties.get("rotationLock"))).setMass(Formats.parseFloat(this.properties.get("mass"))).setDamp(Formats.parseFloat(this.properties.get("damp"))).setAngularDamp(Formats.parseFloat(this.properties.get("angularDamp"))).setVelocity(this.properties.containsKey("velocity")?Jsons.toVec3(this.properties.get("velocity")):Vec3.ZERO).setAngularVelocity(this.properties.containsKey("angularVelocity")?Jsons.toVec3(this.properties.get("angularVelocity")):Vec3.ZERO).setKey(this.key);
+        return RigidBodyComponent.create(this.key).setKinematic(Formats.parseBoolean(this.properties.get("kinematic"))).setRotationLock(Formats.parseBoolean(this.properties.get("rotationLock"))).setMass(Formats.parseFloat(this.properties.get("mass"))).setDamp(Formats.parseFloat(this.properties.get("damp"))).setAngularDamp(Formats.parseFloat(this.properties.get("angularDamp"))).setVelocity(this.properties.containsKey("velocity")?Jsons.toVec3(this.properties.get("velocity")):Vec3.ZERO).setAngularVelocity(this.properties.containsKey("angularVelocity")?Jsons.toVec3(this.properties.get("angularVelocity")):Vec3.ZERO);
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27806,11 +28638,11 @@ class ComponentPrefab {
         let trans = Mat44.IDENTITY;
         let scale = this.getVec3("scale");
         trans = Mat44.scale(scale.x(), scale.y(), scale.z()).mul(trans);
-        let rot = this.getQuaternion("rot");
+        let rot = this.getRotQuaternion("rot");
         trans = Mat44.rot(rot).mul(trans);
         let pos = this.getVec3("pos");
         trans = Mat44.trans(pos).mul(trans);
-        return ModelComponent.create().setModelId(ModelId.of(this.properties.get("modelId"))).setTransform(trans).setInterpolation(this.getInterpolation("interpolation", Interpolation.create(0, 0, 0))).setVisible(Formats.parseBoolean(this.properties.get("visible"))).setCastShadows(Formats.parseBoolean(this.properties.get("castShadows"))).setReceiveShadows(Formats.parseBoolean(this.properties.get("receiveShadows"))).setKey(this.key);
+        return ModelComponent.create(this.key).setModelId(ModelId.of(this.properties.get("modelId"))).setTransform(trans).setInterpolation(this.getInterpolation("interpolation", Interpolation.ZERO)).setVisible(this.getBoolean("visible")).setCastShadows(this.getBoolean("castShadows")).setReceiveShadows(this.getBoolean("receiveShadows"));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27819,13 +28651,13 @@ class ComponentPrefab {
     else if (this.type.equals(ComponentPrefabType.SPHERE_COLLIDER)) {
       if (this.version==1) {
         let pos = this.getVec3("pos", Vec3.ZERO);
-        let rot = this.getQuaternion("rot", Quaternion.ZERO_ROT);
-        return ColliderComponent.create().setShape(ColliderShape.SPHERE).setActive(true).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setRadius(Formats.parseFloat(this.properties.get("radius"))).setKey(this.key);
+        let rot = this.getRotQuaternion("rot", Quaternion.ZERO_ROT);
+        return ColliderComponent.create(this.key).setShape(ColliderShape.SPHERE).setActive(true).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setRadius(Formats.parseFloat(this.properties.get("radius")));
       }
       else if (this.version==2) {
         let pos = this.getVec3("pos", Vec3.ZERO);
-        let rot = this.getQuaternion("rot", Quaternion.ZERO_ROT);
-        return ColliderComponent.create().setShape(ColliderShape.SPHERE).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setRadius(Formats.parseFloat(this.properties.get("radius"))).setKey(this.key);
+        let rot = this.getRotQuaternion("rot", Quaternion.ZERO_ROT);
+        return ColliderComponent.create(this.key).setShape(ColliderShape.SPHERE).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setRadius(Formats.parseFloat(this.properties.get("radius")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27834,13 +28666,13 @@ class ComponentPrefab {
     else if (this.type.equals(ComponentPrefabType.BOX_COLLIDER)) {
       if (this.version==1) {
         let pos = this.getVec3("pos", Vec3.ZERO);
-        let rot = this.getQuaternion("rot", Quaternion.ZERO_ROT);
-        return ColliderComponent.create().setShape(ColliderShape.BOX).setActive(true).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setSize(Jsons.toVec3(this.properties.get("size"))).setKey(this.key);
+        let rot = this.getRotQuaternion("rot", Quaternion.ZERO_ROT);
+        return ColliderComponent.create(this.key).setShape(ColliderShape.BOX).setActive(true).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setSize(Jsons.toVec3(this.properties.get("size")));
       }
       else if (this.version==2) {
         let pos = this.getVec3("pos", Vec3.ZERO);
-        let rot = this.getQuaternion("rot", Quaternion.ZERO_ROT);
-        return ColliderComponent.create().setShape(ColliderShape.BOX).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setSize(Jsons.toVec3(this.properties.get("size"))).setKey(this.key);
+        let rot = this.getRotQuaternion("rot", Quaternion.ZERO_ROT);
+        return ColliderComponent.create(this.key).setShape(ColliderShape.BOX).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setSize(Jsons.toVec3(this.properties.get("size")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27849,13 +28681,13 @@ class ComponentPrefab {
     else if (this.type.equals(ComponentPrefabType.CAPSULE_COLLIDER)) {
       if (this.version==1) {
         let pos = this.getVec3("pos", Vec3.ZERO);
-        let rot = this.getQuaternion("rot", Quaternion.ZERO_ROT);
-        return ColliderComponent.create().setShape(ColliderShape.CAPSULE).setActive(true).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setHeight(Formats.parseFloat(this.properties.get("height"))).setRadius(Formats.parseFloat(this.properties.get("radius"))).setKey(this.key);
+        let rot = this.getRotQuaternion("rot", Quaternion.ZERO_ROT);
+        return ColliderComponent.create(this.key).setShape(ColliderShape.CAPSULE).setActive(true).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setHeight(Formats.parseFloat(this.properties.get("height"))).setRadius(Formats.parseFloat(this.properties.get("radius")));
       }
       else if (this.version==2) {
         let pos = this.getVec3("pos", Vec3.ZERO);
-        let rot = this.getQuaternion("rot", Quaternion.ZERO_ROT);
-        return ColliderComponent.create().setShape(ColliderShape.CAPSULE).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setHeight(Formats.parseFloat(this.properties.get("height"))).setRadius(Formats.parseFloat(this.properties.get("radius"))).setKey(this.key);
+        let rot = this.getRotQuaternion("rot", Quaternion.ZERO_ROT);
+        return ColliderComponent.create(this.key).setShape(ColliderShape.CAPSULE).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setHeight(Formats.parseFloat(this.properties.get("height"))).setRadius(Formats.parseFloat(this.properties.get("radius")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27863,7 +28695,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.DIR_LIGHT)) {
       if (this.version==1) {
-        return LightComponent.create().setType(LightType.DIRECTIONAL).setEnabled(Formats.parseBoolean(this.properties.get("enabled"))).setShadow(Formats.parseBoolean(this.properties.get("shadow"))).setAmbient(Jsons.toRgb(this.properties.get("ambient"))).setDiffuse(Jsons.toRgb(this.properties.get("diffuse"))).setSpecular(Jsons.toRgb(this.properties.get("specular"))).setKey(this.key);
+        return LightComponent.create(this.key).setType(LightType.DIRECTIONAL).setEnabled(Formats.parseBoolean(this.properties.get("enabled"))).setShadow(Formats.parseBoolean(this.properties.get("shadow"))).setAmbient(Jsons.toRgb(this.properties.get("ambient"))).setDiffuse(Jsons.toRgb(this.properties.get("diffuse"))).setSpecular(Jsons.toRgb(this.properties.get("specular")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27871,10 +28703,10 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.PERSPECTIVE_CAMERA)) {
       if (this.version==1) {
-        return CameraComponent.create().setType(CameraType.PERSPECTIVE).setFovy(Formats.parseFloat(this.properties.get("fovy"))).setAspect(Formats.parseFloat(this.properties.get("aspect"))).setNear(Formats.parseFloat(this.properties.get("near"))).setFar(Formats.parseFloat(this.properties.get("far"))).setKey(this.key);
+        return CameraComponent.create(this.key).setType(CameraType.PERSPECTIVE).setFovy(Formats.parseFloat(this.properties.get("fovy"))).setAspect(Formats.parseFloat(this.properties.get("aspect"))).setNear(Formats.parseFloat(this.properties.get("near"))).setFar(Formats.parseFloat(this.properties.get("far")));
       }
       else if (this.version==2) {
-        return CameraComponent.create().setType(CameraType.PERSPECTIVE).setFovy(Formats.parseFloat(this.properties.get("fovy"))).setAspect(Formats.parseFloat(this.properties.get("aspect"))).setNear(Formats.parseFloat(this.properties.get("near"))).setFar(Formats.parseFloat(this.properties.get("far"))).setSkyboxNear(Formats.parseFloat(this.properties.get("skyboxNear"))).setSkyboxFar(Formats.parseFloat(this.properties.get("skyboxFar"))).setKey(this.key);
+        return CameraComponent.create(this.key).setType(CameraType.PERSPECTIVE).setFovy(Formats.parseFloat(this.properties.get("fovy"))).setAspect(Formats.parseFloat(this.properties.get("aspect"))).setNear(Formats.parseFloat(this.properties.get("near"))).setFar(Formats.parseFloat(this.properties.get("far"))).setSkyboxNear(Formats.parseFloat(this.properties.get("skyboxNear"))).setSkyboxFar(Formats.parseFloat(this.properties.get("skyboxFar")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27882,7 +28714,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.PERSPECTIVE_CAMERA_FOVY)) {
       if (this.version==1) {
-        return CameraFovyComponent.create().setDisplaySizeInputKey(this.properties.get("displaySizeInputKey")).setFovyLandscape(this.getFloat("fovyLandscape")).setFovyPortrait(this.getFloat("fovyPortrait")).setKey(this.key);
+        return CameraFovyComponent.create(this.key).setDisplaySizeInputKey(this.properties.get("displaySizeInputKey")).setFovyLandscape(this.getFloat("fovyLandscape")).setFovyPortrait(this.getFloat("fovyPortrait"));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27893,11 +28725,11 @@ class ComponentPrefab {
         let trans = Mat44.IDENTITY;
         let scale = this.getVec3("scale");
         trans = Mat44.scale(scale.x(), scale.y(), scale.z()).mul(trans);
-        let rot = this.getQuaternion("rot");
+        let rot = this.getRotQuaternion("rot");
         trans = Mat44.rot(rot).mul(trans);
         let pos = this.getVec3("pos");
         trans = Mat44.trans(pos).mul(trans);
-        return SkyboxComponent.create().setModelId(ModelId.of(this.properties.get("modelId"))).setTransform(trans).setVisible(Formats.parseBoolean(this.properties.get("visible"))).setKey(this.key);
+        return SkyboxComponent.create(this.key).setModelId(ModelId.of(this.properties.get("modelId"))).setTransform(trans).setVisible(Formats.parseBoolean(this.properties.get("visible")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27905,7 +28737,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.WORLD)) {
       if (this.version==1) {
-        return WorldComponent.create().setGravity(Jsons.toVec3(this.properties.get("gravity"))).setDrag(Formats.parseFloat(this.properties.get("drag"))).setAngularDrag(Formats.parseFloat(this.properties.get("angularDrag"))).setBoundary(Jsons.toAabb3(this.properties.get("boundary"))).setKey(this.key);
+        return WorldComponent.create(this.key).setGravity(Jsons.toVec3(this.properties.get("gravity"))).setDrag(Formats.parseFloat(this.properties.get("drag"))).setAngularDrag(Formats.parseFloat(this.properties.get("angularDrag"))).setBoundary(Jsons.toAabb3(this.properties.get("boundary")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27913,7 +28745,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.AUTO_ROTATE)) {
       if (this.version==1) {
-        return AutoRotateComponent.create().setAngularVelocity(Jsons.toVec3(this.properties.get("angularVelocity"))).setKey(this.key);
+        return AutoRotateComponent.create(this.key).setAngularVelocity(Jsons.toVec3(this.properties.get("angularVelocity")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27921,7 +28753,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.LIFETIME)) {
       if (this.version==1) {
-        return LifetimeComponent.create().setActive(this.getBoolean("active")).setRemaining(this.getFloat("remaining"), this.getFloat("random")).setKey(this.key);
+        return LifetimeComponent.create(this.key).setActive(this.getBoolean("active")).setRemaining(this.getFloat("remaining"), this.getFloat("random"));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27929,7 +28761,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.REMOVE_ON_OUTSPACE)) {
       if (this.version==1) {
-        return RemoveOnOutspaceComponent.create().setKey(this.key);
+        return RemoveOnOutspaceComponent.create(this.key);
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27937,7 +28769,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.POI)) {
       if (this.version==1) {
-        return PoiComponent.create().setPos(this.getVec3("pos")).setKey(this.key);
+        return PoiComponent.create(this.key).setPos(this.getVec3("pos"));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27945,7 +28777,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.RP_GENERATOR)) {
       if (this.version==1) {
-        return RpGeneratorComponent.create().setActive(this.getBoolean("active")).setWeight(this.getFloat("weight")).setGroups(Dut.copySet(Jsons.toStringList(this.getString("groups")))).setShape(RpGeneratorShape.valueOf(this.getString("shape"))).setPos(this.getVec3("pos")).setRot(this.getQuaternion("rot")).setRadius(this.getFloat("radius")).setSize(this.getVec3("size")).setKey(this.key);
+        return RpGeneratorComponent.create(this.key).setActive(this.getBoolean("active")).setWeight(this.getFloat("weight")).setGroups(Dut.copySet(Jsons.toStringList(this.getString("groups")))).setShape(RpGeneratorShape.valueOf(this.getString("shape"))).setPos(this.getVec3("pos")).setRot(this.getRotQuaternion("rot")).setRadius(this.getFloat("radius")).setSize(this.getVec3("size"));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27953,8 +28785,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.SCRIPT)) {
       if (this.version==1) {
-        let res = Reflections.createClass(this.properties.get("className"));
-        res.setKey(this.key);
+        let res = Reflections.createClass(this.properties.get("className"), this.key);
         let cmpProps = Jsons.toStringMap(this.properties.get("properties"));
         res.setPrefabProperties(idMapping, cmpProps);
         return res;
@@ -27989,170 +28820,170 @@ class ComponentPrefab {
     return res;
   }
 
-  static transform(pos, rot) {
+  static transform(key, pos, rot) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.TRANSFORM;
-    res.key = "";
+    res.key = key;
     res.version = 1;
-    res.properties = Dut.immutableMap("pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot));
+    res.properties = Dut.immutableMap("pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name());
     res.guardInvariants();
     return res;
   }
 
-  static rigidBody(kinematic, rotationLock, mass, damp, angularDamp) {
+  static rigidBody(key, kinematic, rotationLock, mass, damp, angularDamp) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.RIGID_BODY;
-    res.key = "";
+    res.key = key;
     res.version = 1;
     res.properties = Dut.immutableMap("kinematic", String.valueOf(kinematic), "rotationLock", String.valueOf(rotationLock), "mass", String.valueOf(mass), "damp", String.valueOf(damp), "angularDamp", String.valueOf(angularDamp));
     res.guardInvariants();
     return res;
   }
 
-  static model(modelId, pos, rot, scale, visible, castShadows, receiveShadows) {
+  static model(key, modelId, pos, rot, scale, visible, castShadows, receiveShadows) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.MODEL;
-    res.key = "";
+    res.key = key;
     res.version = 1;
-    res.properties = Dut.immutableMap("modelId", modelId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "scale", Jsons.toJson(scale), "visible", String.valueOf(visible), "castShadows", String.valueOf(castShadows), "receiveShadows", String.valueOf(receiveShadows), "interpolation", Jsons.toJson(Interpolation.create(0, 0, 0)));
+    res.properties = Dut.immutableMap("modelId", modelId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "scale", Jsons.toJson(scale), "visible", String.valueOf(visible), "castShadows", String.valueOf(castShadows), "receiveShadows", String.valueOf(receiveShadows), "interpolation", Jsons.toJson(Interpolation.create(0, 0, 0)));
     res.guardInvariants();
     return res;
   }
 
-  static sphereCollider(active, trigger, layer, materialId, pos, rot, radius) {
+  static sphereCollider(key, active, trigger, layer, materialId, pos, rot, radius) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.SPHERE_COLLIDER;
-    res.key = "";
+    res.key = key;
     res.version = 2;
-    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "radius", String.valueOf(radius));
+    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "radius", String.valueOf(radius));
     res.guardInvariants();
     return res;
   }
 
-  static boxCollider(active, trigger, layer, materialId, pos, rot, size) {
+  static boxCollider(key, active, trigger, layer, materialId, pos, rot, size) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.BOX_COLLIDER;
-    res.key = "";
+    res.key = key;
     res.version = 2;
-    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "size", Jsons.toJson(size));
+    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "size", Jsons.toJson(size));
     res.guardInvariants();
     return res;
   }
 
-  static capsuleCollider(active, trigger, layer, materialId, pos, rot, height, radius) {
+  static capsuleCollider(key, active, trigger, layer, materialId, pos, rot, height, radius) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.CAPSULE_COLLIDER;
-    res.key = "";
+    res.key = key;
     res.version = 2;
-    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "height", String.valueOf(height), "radius", String.valueOf(radius));
+    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "height", String.valueOf(height), "radius", String.valueOf(radius));
     res.guardInvariants();
     return res;
   }
 
-  static dirLight(enabled, shadow, ambient, diffuse, specular) {
+  static dirLight(key, enabled, shadow, ambient, diffuse, specular) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.DIR_LIGHT;
-    res.key = "";
+    res.key = key;
     res.version = 1;
     res.properties = Dut.immutableMap("enabled", String.valueOf(enabled), "shadow", String.valueOf(shadow), "ambient", Jsons.toJson(ambient), "diffuse", Jsons.toJson(diffuse), "specular", Jsons.toJson(specular));
     res.guardInvariants();
     return res;
   }
 
-  static perspectiveCamera(fovy, aspect, near, far, skyboxNear, skyboxFar) {
+  static perspectiveCamera(key, fovy, aspect, near, far, skyboxNear, skyboxFar) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.PERSPECTIVE_CAMERA;
-    res.key = "";
+    res.key = key;
     res.version = 2;
     res.properties = Dut.immutableMap("fovy", String.valueOf(fovy), "aspect", String.valueOf(aspect), "near", String.valueOf(near), "far", String.valueOf(far), "skyboxNear", String.valueOf(skyboxNear), "skyboxFar", String.valueOf(skyboxFar));
     res.guardInvariants();
     return res;
   }
 
-  static perspectiveCameraFovy(displaySizeInputKey, fovyLandscape, fovyPortrait) {
+  static perspectiveCameraFovy(key, displaySizeInputKey, fovyLandscape, fovyPortrait) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.PERSPECTIVE_CAMERA_FOVY;
-    res.key = "";
+    res.key = key;
     res.version = 1;
     res.properties = Dut.immutableMap("displaySizeInputKey", displaySizeInputKey, "fovyLandscape", String.valueOf(fovyLandscape), "fovyPortrait", String.valueOf(fovyPortrait));
     res.guardInvariants();
     return res;
   }
 
-  static skybox(modelId, pos, rot, scale, visible) {
+  static skybox(key, modelId, pos, rot, scale, visible) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.SKYBOX;
-    res.key = "";
+    res.key = key;
     res.version = 1;
-    res.properties = Dut.immutableMap("modelId", modelId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "scale", Jsons.toJson(scale), "visible", String.valueOf(visible));
+    res.properties = Dut.immutableMap("modelId", modelId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "scale", Jsons.toJson(scale), "visible", String.valueOf(visible));
     res.guardInvariants();
     return res;
   }
 
-  static world(gravity, drag, angularDrag, boundary) {
+  static world(key, gravity, drag, angularDrag, boundary) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.WORLD;
-    res.key = "";
+    res.key = key;
     res.version = 1;
     res.properties = Dut.immutableMap("gravity", Jsons.toJson(gravity), "drag", String.valueOf(drag), "angularDrag", String.valueOf(angularDrag), "boundary", Jsons.toJson(boundary));
     res.guardInvariants();
     return res;
   }
 
-  static autoRotate(angularVelocity) {
+  static autoRotate(key, angularVelocity) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.AUTO_ROTATE;
-    res.key = "";
+    res.key = key;
     res.version = 1;
     res.properties = Dut.immutableMap("angularVelocity", Jsons.toJson(angularVelocity));
     res.guardInvariants();
     return res;
   }
 
-  static lifetime(active, remaining, random) {
+  static lifetime(key, active, remaining, random) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.LIFETIME;
-    res.key = "";
+    res.key = key;
     res.version = 1;
     res.properties = Dut.immutableMap("active", String.valueOf(active), "remaining", String.valueOf(remaining), "random", String.valueOf(random));
     res.guardInvariants();
     return res;
   }
 
-  static removeOnOutspace() {
+  static removeOnOutspace(key) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.REMOVE_ON_OUTSPACE;
-    res.key = "";
+    res.key = key;
     res.version = 1;
     res.properties = Collections.emptyMap();
     res.guardInvariants();
     return res;
   }
 
-  static poi(pos) {
+  static poi(key, pos) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.POI;
-    res.key = "";
+    res.key = key;
     res.version = 1;
     res.properties = Dut.immutableMap("pos", Jsons.toJson(pos));
     res.guardInvariants();
     return res;
   }
 
-  static rpGenerator(active, weight, groups, shape, pos, rot, radius, size) {
+  static rpGenerator(key, active, weight, groups, shape, pos, rot, radius, size) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.RP_GENERATOR;
-    res.key = "";
+    res.key = key;
     res.version = 1;
-    res.properties = Dut.immutableMap("active", String.valueOf(active), "weight", String.valueOf(weight), "groups", Jsons.stringListToJson(Dut.copyImmutableList(Dut.copySortedSet(groups))), "shape", shape.name(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "radius", String.valueOf(radius), "size", Jsons.toJson(size));
+    res.properties = Dut.immutableMap("active", String.valueOf(active), "weight", String.valueOf(weight), "groups", Jsons.stringListToJson(Dut.copyImmutableList(Dut.copySortedSet(groups))), "shape", shape.name(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "radius", String.valueOf(radius), "size", Jsons.toJson(size));
     res.guardInvariants();
     return res;
   }
 
-  static script(className, properties) {
+  static script(key, className, properties) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.SCRIPT;
-    res.key = "";
+    res.key = key;
     res.version = 1;
     res.properties = Dut.immutableMap("className", className, "properties", Jsons.stringMapToJson(properties));
     res.guardInvariants();
@@ -31777,7 +32608,8 @@ class SceneObject {
   prefabId;
   actorId;
   pos;
-  rot;
+  rotQuaternion;
+  rotEulerAng;
   constructor() {
   }
 
@@ -31804,8 +32636,12 @@ class SceneObject {
     return this.pos;
   }
 
-  getRot() {
-    return this.rot;
+  getRotQuaternion() {
+    return this.rotQuaternion;
+  }
+
+  getRotEulerAng() {
+    return this.rotEulerAng;
   }
 
   withName(name) {
@@ -31814,7 +32650,8 @@ class SceneObject {
     res.prefabId = this.prefabId;
     res.actorId = this.actorId;
     res.pos = this.pos;
-    res.rot = this.rot;
+    res.rotQuaternion = this.rotQuaternion;
+    res.rotEulerAng = this.rotEulerAng;
     res.guardInvariants();
     return res;
   }
@@ -31825,7 +32662,8 @@ class SceneObject {
     res.prefabId = prefabId;
     res.actorId = this.actorId;
     res.pos = this.pos;
-    res.rot = this.rot;
+    res.rotQuaternion = this.rotQuaternion;
+    res.rotEulerAng = this.rotEulerAng;
     res.guardInvariants();
     return res;
   }
@@ -31836,7 +32674,8 @@ class SceneObject {
     res.prefabId = this.prefabId;
     res.actorId = actorId;
     res.pos = this.pos;
-    res.rot = this.rot;
+    res.rotQuaternion = this.rotQuaternion;
+    res.rotEulerAng = this.rotEulerAng;
     res.guardInvariants();
     return res;
   }
@@ -31847,18 +32686,44 @@ class SceneObject {
     res.prefabId = this.prefabId;
     res.actorId = this.actorId;
     res.pos = pos;
-    res.rot = this.rot;
+    res.rotQuaternion = this.rotQuaternion;
+    res.rotEulerAng = this.rotEulerAng;
     res.guardInvariants();
     return res;
   }
 
-  withRot(rot) {
+  withRot() {
+    if (arguments.length===1&&arguments[0] instanceof Quaternion) {
+      return this.withRot_1_Quaternion(arguments[0]);
+    }
+    else if (arguments.length===1&&arguments[0] instanceof EulerAng) {
+      return this.withRot_1_EulerAng(arguments[0]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  withRot_1_Quaternion(rot) {
     let res = new SceneObject();
     res.name = this.name;
     res.prefabId = this.prefabId;
     res.actorId = this.actorId;
     res.pos = this.pos;
-    res.rot = rot;
+    res.rotQuaternion = rot;
+    res.rotEulerAng = EulerAng.fromQuaternion(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, rot);
+    res.guardInvariants();
+    return res;
+  }
+
+  withRot_1_EulerAng(rot) {
+    let res = new SceneObject();
+    res.name = this.name;
+    res.prefabId = this.prefabId;
+    res.actorId = this.actorId;
+    res.pos = this.pos;
+    res.rotQuaternion = rot.toQuaternion();
+    res.rotEulerAng = rot;
     res.guardInvariants();
     return res;
   }
@@ -31880,7 +32745,8 @@ class SceneObject {
     res.prefabId = prefabId;
     res.actorId = null;
     res.pos = Vec3.ZERO;
-    res.rot = Quaternion.ZERO_ROT;
+    res.rotQuaternion = Quaternion.ZERO_ROT;
+    res.rotEulerAng = EulerAng.ZERO;
     res.guardInvariants();
     return res;
   }
@@ -31902,6 +32768,10 @@ class Scene {
 
   getName() {
     return this.name;
+  }
+
+  getObject(idx) {
+    return this.objects.get(idx);
   }
 
   getObjects() {
@@ -31976,7 +32846,7 @@ class Scene {
   loadToWorld(world, assets) {
     for (let so of this.objects) {
       let prefab = assets.get("ActorPrefab", so.getPrefabId());
-      world.constructActor(CreateActorRequest.create(prefab, so.getActorId(), so.getPos(), so.getRot()));
+      world.constructActor(CreateActorRequest.create(prefab, so.getActorId(), so.getPos(), so.getRotQuaternion()));
     }
     return this;
   }
@@ -32024,202 +32894,503 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class BoxMeshFactory {
-  constructor() {
-  }
-
-  getClass() {
-    return "BoxMeshFactory";
-  }
-
-  static rgbBox() {
-    if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&&arguments[3] instanceof Rgb) {
-      return BoxMeshFactory.rgbBox_4_Rgb_Rgb_Rgb_Rgb(arguments[0], arguments[1], arguments[2], arguments[3]);
-    }
-    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
-      return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static rgbBox_3_number_number_number(r, g, b) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static rgbaBox(c1, c2, c3, c4, a) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static fabricBox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.fabric(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelBox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelSkybox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, -1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22))).toMesh();
-    return res;
-  }
-
-  static modelBoxDeformed1() {
-    let en = Vec2.create(1, -1).normalize();
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelBoxDeformed2() {
-    let en = Vec2.create(-1, -1).normalize();
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.floatValues(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-}
-classRegistry.BoxMeshFactory = BoxMeshFactory;
-class UiPlayStyles {
-  static ARROW_UP = UiComponentTrait.of("ARROW_UP");
-  static ARROW_DOWN = UiComponentTrait.of("ARROW_DOWN");
-  static ARROW_LEFT = UiComponentTrait.of("ARROW_LEFT");
-  static ARROW_RIGHT = UiComponentTrait.of("ARROW_RIGHT");
-  static BRAKE = UiComponentTrait.of("BRAKE");
-  static PUNCH = UiComponentTrait.of("PUNCH");
-  static WALK_RUN = UiComponentTrait.of("WALK_RUN");
-  constructor() {
-  }
-
-  getClass() {
-    return "UiPlayStyles";
-  }
-
-  static createPlayStyler() {
-    let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
-    let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
-    let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
-    let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
-    return DefaultUiStyler.create().addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(UiPlayStyles.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(UiPlayStyles.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(UiPlayStyles.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(UiPlayStyles.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(UiPlayStyles.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(UiPlayStyles.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(UiPlayStyles.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
-  }
-
-}
-classRegistry.UiPlayStyles = UiPlayStyles;
-class CharacterController extends UiComponent {
-  joystick;
-  runButton;
-  punchButton;
-  constructor() {
+class AboutScreen extends TyracornScreen {
+  appProperties;
+  ui;
+  constructor(appProperties) {
     super();
+    this.appProperties = appProperties;
+    this.guardInvariants();
   }
 
   getClass() {
-    return "CharacterController";
+    return "AboutScreen";
   }
 
   guardInvariants() {
   }
 
-  getDir() {
-    return this.joystick.getDir();
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
   }
 
-  isRun() {
-    return this.runButton.isToggledOn();
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/sprites.tap")));
+    return res;
   }
 
-  isPunch() {
-    return this.punchButton.isDown();
+  init(drivers, screenManager, properties) {
+    let uis = this.appProperties.uis();
+    this.ui = StretchUi.create(uis.uiSizeFnc()).setStyler(uis.styler());
+    this.ui.addComponent(uis.tiledBg());
+    let panel916 = uis.panel916();
+    this.ui.addComponent(panel916);
+    panel916.addComponent(uis.baseScreenBg());
+    panel916.addComponent(uis.squareImage("tyracorn", 3, 2));
+    panel916.addComponent(uis.titleLabel("Credits", 5));
+    panel916.addComponent(uis.normalLabel("https://quaternius.com", 6));
+    panel916.addComponent(uis.normalLabel("https://www.kenney.nl", 7));
+    panel916.addComponent(uis.normalLabel("Juhani Junkala", 8));
+    panel916.addComponent(uis.mediumBtn("Back", 9, false, UiEventActions.showScreen(screenManager, new MenuScreen(this.appProperties))));
+    this.ui.subscribe(drivers);
   }
 
-  init(container) {
-    this.joystick.init(container);
-    this.runButton.init(container);
-    this.punchButton.init(container);
+  leave(drivers) {
+    drivers.getDriver("AudioDriver").getMixer().stop();
+    this.ui.unsubscribe(drivers);
   }
 
-  move(dt) {
-    this.joystick.move(dt);
-    this.runButton.move(dt);
-    this.punchButton.move(dt);
+}
+classRegistry.AboutScreen = AboutScreen;
+class AppProperties {
+  mSettings;
+  mUis;
+  mGameSlots;
+  mRankingManager;
+  constructor() {
   }
 
-  draw(painter) {
-    this.joystick.draw(painter);
-    this.runButton.draw(painter);
-    this.punchButton.draw(painter);
+  getClass() {
+    return "AppProperties";
   }
 
-  onContainerResize(size) {
-    this.joystick.onContainerResize(size);
-    this.runButton.onContainerResize(size);
-    this.punchButton.onContainerResize(size);
+  guardInvariants() {
   }
 
-  onTouchStart(id, pos, size) {
-    this.joystick.onTouchStart(id, pos, size);
-    this.runButton.onTouchStart(id, pos, size);
-    this.punchButton.onTouchStart(id, pos, size);
-    return false;
+  settings() {
+    return this.mSettings;
   }
 
-  onTouchMove(id, pos, size) {
-    this.joystick.onTouchMove(id, pos, size);
-    this.runButton.onTouchMove(id, pos, size);
-    this.punchButton.onTouchMove(id, pos, size);
-    return false;
+  uis() {
+    return this.mUis;
   }
 
-  onKeyPressed(key) {
-    this.joystick.onKeyPressed(key);
-    this.runButton.onKeyPressed(key);
-    this.punchButton.onKeyPressed(key);
-    return false;
+  gameSlots() {
+    return this.mGameSlots;
   }
 
-  onKeyReleased(key) {
-    this.joystick.onKeyReleased(key);
-    this.runButton.onKeyReleased(key);
-    this.punchButton.onKeyReleased(key);
-    return false;
-  }
-
-  onTouchEnd(id, pos, size, cancel) {
-    this.joystick.onTouchEnd(id, pos, size, cancel);
-    this.runButton.onTouchEnd(id, pos, size, cancel);
-    this.punchButton.onTouchEnd(id, pos, size, cancel);
-    return false;
+  rankingManager() {
+    return this.mRankingManager;
   }
 
   toString() {
   }
 
-  static create(drivers) {
-    Guard.beTrue(drivers.isDriverAvailable("TouchDriver"), "touch driver is not available");
-    let res = new CharacterController();
-    res.joystick = Joystick.create().setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.leftBottom(25, 125, 100, 100), UiRegionFncs.leftBottom(10, 125, 80, 80))).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD());
-    res.runButton = ToggleButton.create().addTrait(UiPlayStyles.WALK_RUN).setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.rightBottom(150, 75, 50, 50), UiRegionFncs.rightBottom(140, 75, 40, 40))).setKeyCodeMatcher(KeyCodeMatchers.shift());
-    res.punchButton = Button.create().addTrait(UiPlayStyles.PUNCH).setRegionFnc(UiRegionFncs.landscapePortrait(UiRegionFncs.rightBottom(85, 85, 60, 60), UiRegionFncs.rightBottom(75, 85, 50, 50))).setKeyCodeMatcher(KeyCodeMatchers.control());
+  static create(settings, uis, gameSlots, rankingManager) {
+    let res = new AppProperties();
+    res.mSettings = settings;
+    res.mUis = uis;
+    res.mGameSlots = Dut.copyImmutableList(gameSlots);
+    res.mRankingManager = rankingManager;
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.CharacterController = CharacterController;
+classRegistry.AppProperties = AppProperties;
+class GameScreen extends TyracornScreen {
+  static BOX_ACTOR_ID = ActorId.of("box");
+  static CAMERA_ACTOR_ID = ActorId.of("camera");
+  static PLAYER_ACTOR_ID = ActorId.of("player");
+  static GAME_STATE_ACTOR_ID = ActorId.of("game-state");
+  static BLOOD_ACTOR_PREFAB_ID = ActorPrefabId.of("blood");
+  static COIN_ACTOR_PREFAB_ID = ActorPrefabId.of("item-coin");
+  static HEART_ACTOR_PREFAB_ID = ActorPrefabId.of("item-heart");
+  appProperties;
+  gameSlot;
+  world;
+  controller;
+  gameState;
+  inputs = InputCache.create();
+  ui;
+  levelLabel;
+  scoreLabel;
+  healthPanel;
+  playerHealth;
+  gameEndPanel;
+  paused = false;
+  constructor(appProperties, gameSlot) {
+    super();
+    this.appProperties = appProperties;
+    this.gameSlot = gameSlot;
+    this.guardInvariants();
+  }
+
+  getClass() {
+    return "GameScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    if (this.paused&&this.ui.getNumLayers()==1) {
+      let uis = this.appProperties.uis();
+      this.ui.pushLayer();
+      this.ui.addComponent(Panel.create().addTrait(Uis.LAYER_SEPARATOR_TRAIT).setRegionFnc(UiRegionFncs.full()));
+      let panel916 = uis.panel916();
+      this.ui.addComponent(panel916);
+      panel916.addComponent(uis.bgBlockPanel(5, 3, false, true));
+      panel916.addComponent(uis.titleLabel("Game Paused", 5));
+      panel916.addComponent(uis.mediumBtn("Resume", 6, false, (evtSource) => {
+  this.paused = false;
+  this.ui.popLayer();
+}));
+      panel916.addComponent(uis.mediumBtn("Main Menu", 7, false, UiEventActions.showScreen(screenManager, new MenuScreen(this.appProperties))));
+    }
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    if (!this.paused) {
+      this.world.move(dt, this.inputs);
+    }
+    this.world.render(RenderRequest.NORMAL);
+    if (this.gameState.isFinished()&&this.gameEndPanel==null) {
+      let ranking = this.gameState.getRanking();
+      let uis = this.appProperties.uis();
+      this.appProperties.rankingManager().putRanking(ranking);
+      if (this.gameState.isGameOver()) {
+        this.gameEndPanel = uis.panel916();
+        let gameOverSprite = ScallingImageView.create(drivers.getDriver("AssetProvider")).setRegionFnc(uis.slotRegionFnc(6)).show(TextureId.of("game-over"), 0.3, 1.5, 1);
+        this.gameEndPanel.addComponent(gameOverSprite);
+        let continueAct = UiEventActions.showScreen(screenManager, new RankingsScreen(this.appProperties));
+        this.gameEndPanel.addComponent(DelayedComponent.create(uis.mediumBtn("Continue", 8, false, continueAct), 1));
+      }
+      else if (this.gameState.isVictory()) {
+        this.gameEndPanel = uis.panel916();
+        let heartSprite = ScallingImageView.create(drivers.getDriver("AssetProvider")).setRegionFnc(uis.slotRegionFnc(5)).show(TextureId.of("heart"), 0.3, 5, 1);
+        this.gameEndPanel.addComponent(heartSprite);
+        let victorySprite = ScallingImageView.create(drivers.getDriver("AssetProvider")).setRegionFnc(uis.slotRegionFnc(6)).show(TextureId.of("victory"), 0.3, 1.5, 1);
+        this.gameEndPanel.addComponent(DelayedComponent.create(victorySprite, 1));
+        let continueAct = UiEventActions.showScreen(screenManager, new RankingsScreen(this.appProperties));
+        this.gameEndPanel.addComponent(DelayedComponent.create(uis.mediumBtn("Let's call it a day", 8, false, continueAct), 2));
+      }
+      else {
+        throw new Error("unknown game state: "+this.gameState.getState());
+      }
+      this.ui.addComponent(this.gameEndPanel);
+    }
+    this.levelLabel.setText(this.gameState.getLevelName());
+    this.scoreLabel.setText("Score: "+this.gameState.getScore());
+    this.healthPanel.setHealth(this.playerHealth.getMaxHealth(), this.playerHealth.getHealth());
+    gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/sprites.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/physical-materials.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/box-basic.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/skybox.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/characters")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/items.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:default.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:prefabs.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:scenes.tap")));
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    const assets = drivers.getDriver("AssetManager");
+    this.world = RigidBodyWorld.create(drivers).setCollisionLayerMatrix(CollisionLayers.getMatrix());
+    assets.get("Scene", SceneId.of("scene-1")).emptyWorld(this.world).loadToWorld(this.world, assets);
+    let tyracornPrefab = assets.get("ActorPrefab", ActorPrefabId.of("tyracorn"));
+    let tyracorn = this.world.constructActor(CreateActorRequest.create(tyracornPrefab, GameScreen.PLAYER_ACTOR_ID, Vec3.ZERO, Quaternion.ZERO_ROT));
+    this.playerHealth = tyracorn.getComponent("HealthScript");
+    this.gameState = GameStateBehavior.create(ComponentKey.random(), this.gameSlot);
+    let gameStateActor = Actor.create(GameScreen.GAME_STATE_ACTOR_ID).addComponent(this.gameState).addComponent(AudioBehavior.create(ComponentKey.random(), this.appProperties.settings()));
+    this.world.actors().add(ActorId.ROOT, gameStateActor);
+    let uis = this.appProperties.uis();
+    this.ui = StretchUi.create(uis.uiSizeFnc()).setStyler(uis.styler());
+    let panel916 = uis.panel916();
+    this.ui.addComponent(panel916);
+    this.levelLabel = Label.create().setAlignment(TextAlignment.LEFT_TOP).setPosFnc(UiPosFncs.leftTop(30, 10));
+    panel916.addComponent(this.levelLabel);
+    this.healthPanel = HealthPanel.create().setRegionFnc(UiRegionFncs.leftTop(30, 70, 150, 40));
+    panel916.addComponent(this.healthPanel);
+    panel916.addComponent(ImageView.create().setTexture("healthbar").setRegionFnc(UiRegionFncs.leftTop(25, 65, 160, 50)));
+    this.scoreLabel = Label.create().setAlignment(TextAlignment.CENTER_TOP).setPosFnc(UiPosFncs.centerTop(10));
+    panel916.addComponent(this.scoreLabel);
+    this.controller = GameController.create(this.inputs);
+    this.ui.addComponent(this.controller);
+    this.ui.addComponent(uis.pauseBtn((evtSource) => {
+  this.paused = true;
+}));
+    this.ui.subscribe(drivers);
+    let dlist = InputCacheDisplayListener.create(this.inputs);
+    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
+    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+    this.world.destroy(drivers);
+  }
+
+  pause(drivers) {
+    this.paused = true;
+  }
+
+}
+classRegistry.GameScreen = GameScreen;
+class GameSelectScreen extends TyracornScreen {
+  appProperties;
+  ui = null;
+  constructor(appProperties) {
+    super();
+    this.appProperties = appProperties;
+    this.guardInvariants();
+  }
+
+  getClass() {
+    return "GameSelectScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/sprites.tap")));
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    const sm = screenManager;
+    const gameSlot = this.appProperties.gameSlots().get(0);
+    const gsd = gameSlot.isGameSaved()?gameSlot.loadGame():GameStatusData.of(0, 0, 100, 100, 5);
+    let uis = this.appProperties.uis();
+    this.ui = StretchUi.create(uis.uiSizeFnc()).setStyler(uis.styler());
+    this.ui.addComponent(uis.tiledBg());
+    let panel916 = uis.panel916();
+    this.ui.addComponent(panel916);
+    panel916.addComponent(uis.baseScreenBg());
+    panel916.addComponent(uis.titleLabel("Start Game", 5));
+    let loadGameAction = (evtSource) => {
+      gameSlot.saveGame(gsd.decreaseAvailableLoads());
+      sm.showScreen(new GameScreen(this.appProperties, gameSlot));
+    };
+    let loadDisabled = gsd.getLevel()==0||gsd.getAvailableLoads()==0;
+    let remLoads = loadDisabled?"-":(""+gsd.getAvailableLoads());
+    panel916.addComponent(uis.mediumBtn("Load Game ("+remLoads+")", 6, loadDisabled, loadGameAction));
+    let newGameAction = (evtSource) => {
+      let gslot = this.appProperties.gameSlots().get(0);
+      gslot.saveGame(GameStatusData.of(0, 0, 100, 100, 5));
+      sm.showScreen(new GameScreen(this.appProperties, gslot));
+    };
+    panel916.addComponent(uis.mediumBtn("New Game", 7, false, newGameAction));
+    panel916.addComponent(uis.mediumBtn("Back", 9, false, UiEventActions.showScreen(screenManager, new MenuScreen(this.appProperties))));
+    this.ui.subscribe(drivers);
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+  }
+
+}
+classRegistry.GameSelectScreen = GameSelectScreen;
+class MenuScreen extends TyracornScreen {
+  appProperties;
+  ui = null;
+  constructor(appProperties) {
+    super();
+    this.appProperties = appProperties;
+  }
+
+  getClass() {
+    return "MenuScreen";
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/sprites.tap")));
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    Uis.prepareScaledFonts(drivers);
+    if (this.appProperties==null) {
+      let storage = drivers.getDriver("LocalDataStorage");
+      let settingsProps = LocalDataConfigProperties.create(storage, LocalDataKey.of("settings.properties")).withDefaults(Dut.map(PropertyKey.of("audio.sound.enabled"), "true", PropertyKey.of("audio.sound.volume"), "1"));
+      let settings = ConfigPropertiesSettings.create(settingsProps);
+      let gameSlot1 = LocalDataGameSlot.create(storage, LocalDataKey.of("gameSlot1.json"));
+      let rankingMan = LocalDataRankingManager.create(storage, LocalDataKey.of("rankings.json"), 6);
+      let uis = Uis.create(settings, rankingMan);
+      this.appProperties = AppProperties.create(settings, uis, Dut.list(gameSlot1), rankingMan);
+    }
+    let uis = this.appProperties.uis();
+    this.ui = StretchUi.create(uis.uiSizeFnc()).setStyler(uis.styler());
+    this.ui.addComponent(uis.tiledBg());
+    let panel916 = uis.panel916();
+    this.ui.addComponent(panel916);
+    panel916.addComponent(uis.titleScreenBg());
+    panel916.addComponent(uis.mediumBtn("Play", 6, false, UiEventActions.showScreen(screenManager, new GameSelectScreen(this.appProperties))));
+    panel916.addComponent(uis.mediumBtn("Rankings", 7, false, UiEventActions.showScreen(screenManager, new RankingsScreen(this.appProperties))));
+    panel916.addComponent(uis.mediumBtn("Settings", 8, false, UiEventActions.showScreen(screenManager, new SettingsScreen(this.appProperties))));
+    panel916.addComponent(uis.mediumBtn("About", 9, false, UiEventActions.showScreen(screenManager, new AboutScreen(this.appProperties))));
+    if (drivers.getPlatform().isExitable()) {
+      panel916.addComponent(uis.mediumBtn("Exit", 11, false, UiEventActions.exitApp(screenManager)));
+    }
+    this.ui.subscribe(drivers);
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+  }
+
+}
+classRegistry.MenuScreen = MenuScreen;
+class RankingsScreen extends TyracornScreen {
+  appProperties;
+  ui;
+  constructor(appProperties) {
+    super();
+    this.appProperties = appProperties;
+    this.guardInvariants();
+  }
+
+  getClass() {
+    return "RankingsScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/sprites.tap")));
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    let rankingManager = this.appProperties.rankingManager();
+    let uis = this.appProperties.uis();
+    this.ui = StretchUi.create(uis.uiSizeFnc()).setStyler(uis.styler());
+    this.ui.addComponent(uis.tiledBg());
+    let panel916 = uis.panel916();
+    this.ui.addComponent(panel916);
+    panel916.addComponent(uis.baseScreenBg());
+    panel916.addComponent(uis.titleLabel("Rankings", 1));
+    panel916.addComponent(uis.titleLabel("Games Played: "+rankingManager.getNumGamesPlayed(), 2));
+    panel916.addComponent(uis.rankings(3));
+    panel916.addComponent(uis.mediumBtn("Back", 10, false, UiEventActions.showScreen(screenManager, new MenuScreen(this.appProperties))));
+    this.ui.subscribe(drivers);
+  }
+
+  leave(drivers) {
+    drivers.getDriver("AudioDriver").getMixer().stop();
+    this.ui.unsubscribe(drivers);
+  }
+
+}
+classRegistry.RankingsScreen = RankingsScreen;
+class SettingsScreen extends TyracornScreen {
+  appProperties;
+  ui;
+  constructor(appProperties) {
+    super();
+    this.appProperties = appProperties;
+    this.guardInvariants();
+  }
+
+  getClass() {
+    return "SettingsScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/sprites.tap")));
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    let uis = this.appProperties.uis();
+    this.ui = StretchUi.create(uis.uiSizeFnc()).setStyler(uis.styler());
+    this.ui.addComponent(uis.tiledBg());
+    let panel916 = uis.panel916();
+    this.ui.addComponent(panel916);
+    panel916.addComponent(uis.baseScreenBg());
+    panel916.addComponent(uis.titleLabel("Settings", 5));
+    panel916.addComponent(uis.soundControl("Sound", 7));
+    panel916.addComponent(uis.mediumBtn("Back", 9, false, UiEventActions.showScreen(screenManager, new MenuScreen(this.appProperties))));
+    this.ui.subscribe(drivers);
+  }
+
+  leave(drivers) {
+    drivers.getDriver("AudioDriver").getMixer().stop();
+    this.ui.unsubscribe(drivers);
+  }
+
+}
+classRegistry.SettingsScreen = SettingsScreen;
 class CameraTrackBehavior extends Behavior {
   targetId;
   offset;
   up;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -32237,25 +33408,25 @@ class CameraTrackBehavior extends Behavior {
   }
 
   static create() {
-    if (arguments.length===0) {
-      return CameraTrackBehavior.create_0();
+    if (arguments.length===1&&arguments[0] instanceof ComponentKey) {
+      return CameraTrackBehavior.create_1_ComponentKey(arguments[0]);
     }
-    else if (arguments.length===3&&arguments[0] instanceof ActorId&&arguments[1] instanceof Vec3&&arguments[2] instanceof Vec3) {
-      return CameraTrackBehavior.create_3_ActorId_Vec3_Vec3(arguments[0], arguments[1], arguments[2]);
+    else if (arguments.length===4&&arguments[0] instanceof ComponentKey&&arguments[1] instanceof ActorId&&arguments[2] instanceof Vec3&&arguments[3] instanceof Vec3) {
+      return CameraTrackBehavior.create_4_ComponentKey_ActorId_Vec3_Vec3(arguments[0], arguments[1], arguments[2], arguments[3]);
     }
     else {
       throw new Error("ambiguous overload");
     }
   }
 
-  static create_0() {
-    let res = new CameraTrackBehavior();
+  static create_1_ComponentKey(key) {
+    let res = new CameraTrackBehavior(key);
     res.guardInvariants();
     return res;
   }
 
-  static create_3_ActorId_Vec3_Vec3(targetId, offset, up) {
-    let res = new CameraTrackBehavior();
+  static create_4_ComponentKey_ActorId_Vec3_Vec3(key, targetId, offset, up) {
+    let res = new CameraTrackBehavior(key);
     res.targetId = targetId;
     res.offset = offset;
     res.up = up;
@@ -32265,35 +33436,206 @@ class CameraTrackBehavior extends Behavior {
 
 }
 classRegistry.CameraTrackBehavior = CameraTrackBehavior;
-class PlayerCharacterInput {
-  dt;
-  dir;
-  punch;
-  run;
+class GameController extends UiComponent {
+  inputs;
+  joystick;
+  punchBtn;
   constructor() {
+    super();
   }
 
   getClass() {
-    return "PlayerCharacterInput";
+    return "GameController";
   }
 
   guardInvariants() {
   }
 
-  getDt() {
-    return this.dt;
+  init(container) {
+    this.joystick.init(container);
+    this.punchBtn.init(container);
   }
 
-  getDir() {
-    return this.dir;
+  move(dt) {
+    this.joystick.move(dt);
+    this.punchBtn.move(dt);
+    this.inputs.put("dir", this.joystick.getDir());
+    this.inputs.put("punch", this.punchBtn.isDown());
   }
 
-  isPunch() {
-    return this.punch;
+  draw(painter) {
+    this.joystick.draw(painter);
+    this.punchBtn.draw(painter);
   }
 
-  isRun() {
-    return this.run;
+  onContainerResize(size) {
+    this.joystick.onContainerResize(size);
+    this.punchBtn.onContainerResize(size);
+  }
+
+  onTouchStart(id, pos, size) {
+    if (this.joystick.onTouchStart(id, pos, size)) {
+      return true;
+    }
+    return this.punchBtn.onTouchStart(id, pos, size);
+  }
+
+  onTouchMove(id, pos, size) {
+    if (this.joystick.onTouchMove(id, pos, size)) {
+      return true;
+    }
+    return this.punchBtn.onTouchMove(id, pos, size);
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    if (this.joystick.onTouchEnd(id, pos, size, cancel)) {
+      return true;
+    }
+    return this.punchBtn.onTouchEnd(id, pos, size, cancel);
+  }
+
+  onKeyPressed(key) {
+    this.joystick.onKeyPressed(key);
+    this.punchBtn.onKeyPressed(key);
+    return false;
+  }
+
+  onKeyReleased(key) {
+    this.joystick.onKeyReleased(key);
+    this.punchBtn.onKeyReleased(key);
+    return false;
+  }
+
+  toString() {
+  }
+
+  static create(inputs) {
+    let res = new GameController();
+    res.inputs = inputs;
+    res.joystick = Joystick.create().setRegionFnc(UiRegionFncs.leftBottom(70, 320, 250, 250)).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD());
+    res.punchBtn = Button.create().addTrait(Uis.PUNCH_TRAIT).setRegionFnc(UiRegionFncs.rightBottom(200, 200, 130, 130)).setKeyCodeMatcher(KeyCodeMatchers.control());
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.GameController = GameController;
+class AudioBehavior extends Behavior {
+  settings;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "AudioBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  isSoundEnabled() {
+    return this.settings.isSoundEnabled();
+  }
+
+  getVolume() {
+    return this.settings.getSoundVolume();
+  }
+
+  playSound(soundId) {
+    if (this.settings.isSoundEnabled()) {
+      this.world().audio().prepare(PlaybackId.of(Randoms.nextAlphabetic(6)), soundId).setVolume(this.settings.getSoundVolume()).setLoop(false).play();
+    }
+    return this;
+  }
+
+  static create(key, settings) {
+    let res = new AudioBehavior(key);
+    res.settings = settings;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.AudioBehavior = AudioBehavior;
+class CollisionLayers {
+  static WALL = CollisionLayer.WALL;
+  static PLAYER_BODY = CollisionLayer.of("PLAYER_BODY");
+  static PLAYER_PUNCH = CollisionLayer.of("PLAYER_PUNCH");
+  static ENEMY_BODY = CollisionLayer.of("ENEMY_BODY");
+  static ENEMY_PUNCH = CollisionLayer.of("ENEMY_PUNCH");
+  static ENEMY_BULLET = CollisionLayer.of("ENEMY_BULLET");
+  static PRINCESS_BODY = CollisionLayer.of("PRINCESS_BODY");
+  static PRINCESS_ENVELOPE = CollisionLayer.of("PRINCESS_ENVELOPE");
+  static BLOOD_BODY = CollisionLayer.of("BLOOD_BODY");
+  static ITEM_BODY = CollisionLayer.of("ITEM_BODY");
+  static ITEM_PICKUP = CollisionLayer.of("ITEM_PICKUP");
+  constructor() {
+  }
+
+  getClass() {
+    return "CollisionLayers";
+  }
+
+  static getMatrix() {
+    return CollisionLayerMatrix.create().withDef(false).withValue(CollisionLayers.WALL, CollisionLayers.PLAYER_BODY, true).withValue(CollisionLayers.WALL, CollisionLayers.ENEMY_BODY, true).withValue(CollisionLayers.WALL, CollisionLayers.PRINCESS_BODY, true).withValue(CollisionLayers.WALL, CollisionLayers.BLOOD_BODY, true).withValue(CollisionLayers.WALL, CollisionLayers.ITEM_BODY, true).withValue(CollisionLayers.PLAYER_BODY, CollisionLayers.ENEMY_BODY, true).withValue(CollisionLayers.PLAYER_PUNCH, CollisionLayers.ENEMY_BODY, true).withValue(CollisionLayers.PLAYER_BODY, CollisionLayers.ENEMY_PUNCH, true).withValue(CollisionLayers.PLAYER_BODY, CollisionLayers.ENEMY_BULLET, true).withValue(CollisionLayers.PLAYER_BODY, CollisionLayers.ITEM_PICKUP, true).withValue(CollisionLayers.ENEMY_BODY, CollisionLayers.ENEMY_BODY, true).withValue(CollisionLayers.PRINCESS_BODY, CollisionLayers.ENEMY_BODY, true).withValue(CollisionLayers.PRINCESS_BODY, CollisionLayers.PLAYER_BODY, true).withValue(CollisionLayers.PRINCESS_BODY, CollisionLayers.PLAYER_PUNCH, true).withValue(CollisionLayers.PRINCESS_ENVELOPE, CollisionLayers.PLAYER_BODY, true);
+  }
+
+}
+classRegistry.CollisionLayers = CollisionLayers;
+class EnemyWave {
+  enemies;
+  constructor() {
+  }
+
+  getClass() {
+    return "EnemyWave";
+  }
+
+  guardInvariants() {
+  }
+
+  getEnemies() {
+    return this.enemies;
+  }
+
+  getToSpawn(tStart, tEnd) {
+    let res = null;
+    for (let t of this.enemies.keySet()) {
+      if (t>=tStart&&t<tEnd) {
+        if (res==null) {
+          res = new ArrayList();
+        }
+        res.addAll(this.enemies.get(t));
+      }
+    }
+    if (res==null) {
+      res = Collections.emptyList();
+    }
+    return res;
+  }
+
+  isAfterSpawnAll(t) {
+    let lastKey = 0;
+    for (let kt of this.enemies.keySet()) {
+      lastKey = FMath.max(kt, lastKey);
+    }
+    return t>lastKey;
+  }
+
+  putLine(t, ...enemies) {
+    if (Array.isArray(enemies)&&enemies.length===1&&Array.isArray(enemies[0])) {
+      enemies = enemies[0];
+    }
+    let enms = Dut.copyMap(this.enemies);
+    let elist = new ArrayList();
+    for (let enm of enemies) {
+      elist.add(ActorPrefabId.of(enm));
+    }
+    enms.put(t, Collections.unmodifiableList(elist));
+    let res = new EnemyWave();
+    res.enemies = Collections.unmodifiableMap(enms);
+    res.guardInvariants();
+    return res;
   }
 
   hashCode() {
@@ -32307,217 +33649,1122 @@ class PlayerCharacterInput {
   toString() {
   }
 
-  static create(dt, dir, punch, run) {
-    let res = new PlayerCharacterInput();
-    res.dt = dt;
-    res.dir = dir;
-    res.punch = punch;
-    res.run = run;
+  static singleLine(t, ...enemies) {
+    if (Array.isArray(enemies)&&enemies.length===1&&Array.isArray(enemies[0])) {
+      enemies = enemies[0];
+    }
+    let res = new EnemyWave();
+    let elist = new ArrayList();
+    for (let enm of enemies) {
+      elist.add(ActorPrefabId.of(enm));
+    }
+    res.enemies = Dut.immutableMap(t, Collections.unmodifiableList(elist));
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.PlayerCharacterInput = PlayerCharacterInput;
-class PunchableBehavior extends Behavior {
-  static FEATURES = Dut.immutableSet(ComponentFeature.create("HITTABLE"));
-  hit = false;
-  hitPos;
-  hitDir;
-  hitImpact;
-  impactMultiplier = 5;
+classRegistry.EnemyWave = EnemyWave;
+class GameActors {
+  static HIT_EVENT_TYPE = ActorEventType.create("HIT");
   constructor() {
-    super();
   }
 
   getClass() {
-    return "PunchableBehavior";
+    return "GameActors";
+  }
+
+  static rootHasActorWithTag(actors, tag) {
+    for (let act of actors.children(ActorId.ROOT)) {
+      if (act.hasTag(tag)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  static findAllByTag(actors, tag) {
+    const res = new ArrayList();
+    let act = (actor) => {
+      if (actor.hasTag(tag)) {
+        res.add(actor);
+      }
+    };
+    actors.forEach(ActorId.ROOT, act);
+    return res;
+  }
+
+  static findByUniqueName(actors, name) {
+    let res = GameActors.findByUniqueNameNonStrict(actors, ActorId.ROOT, name);
+    if (res==null) {
+      throw new Error("actor with the given name doesn't exists: "+name);
+    }
+    return res;
+  }
+
+  static findByNameUniqueNonStrict(actors, name) {
+    return GameActors.findByUniqueNameNonStrict(actors, ActorId.ROOT, name);
+  }
+
+  static findByUniqueNameNonStrict(actors, root, name) {
+    let res = null;
+    let self = actors.get(root);
+    if (self.getName().equals(name)) {
+      res = self;
+    }
+    for (let ch of actors.children(root)) {
+      let chres = GameActors.findByUniqueNameNonStrict(actors, ch.getId(), name);
+      if (chres!=null) {
+        if (res!=null) {
+          throw new Error("actor name is ambiguous: "+name);
+        }
+        res = chres;
+      }
+    }
+    return res;
+  }
+
+  static getCollider(actor, layer) {
+    for (let cmp of actor.getComponents()) {
+      if (!(cmp instanceof ColliderComponent)) {
+        continue;
+      }
+      let collider = cmp;
+      if (collider.getLayer().equals(layer)) {
+        return collider;
+      }
+    }
+    throw new Error("unable to find collider: "+actor.getId()+", "+layer);
+  }
+
+}
+classRegistry.GameActors = GameActors;
+class GameProgress {
+  level;
+  wave;
+  constructor() {
+  }
+
+  getClass() {
+    return "GameProgress";
   }
 
   guardInvariants() {
   }
 
-  getFeatures() {
-    return PunchableBehavior.FEATURES;
+  getLevel() {
+    return this.level;
   }
 
-  move(dt, inputs) {
-    if (!this.hit) {
-      return ;
+  getWave() {
+    return this.wave;
+  }
+
+  getCurrentLevel() {
+    return Levels.level(this.level);
+  }
+
+  getCurrentLevelName() {
+    return this.getCurrentLevel().getName();
+  }
+
+  getCurrentWave() {
+    return this.getCurrentLevel().getWaves().get(this.wave);
+  }
+
+  toNextState() {
+    this.wave = this.wave+1;
+    if (Levels.level(this.level).getWaves().size()>this.wave) {
+      return GameProgressTransitionType.WAVE;
     }
-    this.hit = false;
-    let rb = this.actor().getComponent("RigidBodyComponent");
-    rb.applyForce(this.hitPos, this.hitDir.scale(this.hitImpact*this.impactMultiplier));
+    this.level = this.level+1;
+    this.wave = 0;
+    return GameProgressTransitionType.LEVEL;
   }
 
-  onHit(pos, dir, impact) {
-    this.hitPos = pos;
-    this.hitDir = dir;
-    this.hitImpact = impact;
-    this.hit = true;
+  toString() {
   }
 
-  static create() {
-    let res = new PunchableBehavior();
+  static newGame() {
+    let res = new GameProgress();
+    res.level = 0;
+    res.wave = 0;
+    res.guardInvariants();
+    return res;
+  }
+
+  static atLevel(level) {
+    let res = new GameProgress();
+    res.level = level;
+    res.wave = 0;
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.PunchableBehavior = PunchableBehavior;
-class BreakableSphereBehavior extends Behavior {
-  static FEATURES = Dut.immutableSet(ComponentFeature.create("HITTABLE"));
-  numPieces = 10;
-  radiusFactor = 0.3;
-  sphereModelId;
-  hit = false;
-  hitDir;
-  hitImpact;
-  childMaterialId = PhysicalMaterialId.of("object");
-  constructor() {
-    super();
+classRegistry.GameProgress = GameProgress;
+const createGameProgressTransitionType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const GameProgressTransitionType = Object.freeze({
+  WAVE: createGameProgressTransitionType("WAVE"),
+  LEVEL: createGameProgressTransitionType("LEVEL"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+const createGameState = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const GameState = Object.freeze({
+  PLAYING: createGameState("PLAYING"),
+  GAME_OVER: createGameState("GAME_OVER"),
+  VICTORY: createGameState("VICTORY"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class GameStateBehavior extends Behavior {
+  gameSlot;
+  progress;
+  enemySpawns = null;
+  waveTime = 0;
+  state = GameState.PLAYING;
+  score = 0;
+  player;
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
-    return "BreakableSphereBehavior";
+    return "GameStateBehavior";
   }
 
   guardInvariants() {
   }
 
-  getFeatures() {
-    return BreakableSphereBehavior.FEATURES;
+  init() {
+    let statusData = this.gameSlot.loadGame();
+    this.player = this.world().actors().get(GameScreen.PLAYER_ACTOR_ID);
+    let health = this.player.getComponent("HealthScript");
+    this.progress = GameProgress.atLevel(statusData.getLevel());
+    this.score = statusData.getScore();
+    health.setProperties(statusData.getMaxHealth(), statusData.getHealth());
+    this.enemySpawns = GameActors.findAllByTag(this.world().actors(), "enemy-spawn");
+    this.waveTime = 0;
+    this.state = GameState.PLAYING;
   }
 
   move(dt, inputs) {
-    if (!this.hit) {
-      return ;
+    let health = this.player.getComponent("HealthScript");
+    if (health.isDeath()) {
+      this.toGameOver();
     }
-    this.world().actors().remove(this.actor().getId());
-    let tc = this.actor().getComponent("TransformComponent");
-    let rb = this.actor().getComponent("RigidBodyComponent");
-    let collider = this.actor().getComponent("ColliderComponent");
-    let r = this.radiusFactor*collider.getRadius();
-    let m = Math.max(0.2, rb.getMass()/this.numPieces);
-    for (let i = 0; i<this.numPieces; ++i) {
-      let posRandom = Vec3.create(Randoms.nextFloat(0, r)-r/2, Randoms.nextFloat(0, r)-r/2, Randoms.nextFloat(0, r)-r/2);
-      let velRand = Vec3.create(Randoms.nextFloat(0, this.hitImpact)-this.hitImpact/2, Randoms.nextFloat(0, this.hitImpact)-this.hitImpact/2, Randoms.nextFloat(0, this.hitImpact)-this.hitImpact/2);
-      let sphere = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create().setPos(tc.getPos().add(posRandom))).addComponent(ModelComponent.create().setModelId(this.sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m).setVelocity(this.hitDir.scale(this.hitImpact).add(velRand))).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(this.childMaterialId)).addComponent(LifetimeComponent.create().setRemaining(10, 3));
-      this.world().actors().add(ActorId.ROOT, sphere);
+    if (this.state.equals(GameState.PLAYING)) {
+      let waveTimeBefore = this.waveTime;
+      this.waveTime = this.waveTime+dt;
+      let wave = this.progress.getCurrentWave();
+      let justSpawned = false;
+      for (let id of wave.getToSpawn(waveTimeBefore, this.waveTime)) {
+        this.spawnEnemy(id);
+        justSpawned = true;
+      }
+      if (!justSpawned&&wave.isAfterSpawnAll(this.waveTime)&&!this.npcExists()) {
+        let tt = this.progress.toNextState();
+        this.waveTime = 0;
+        if (tt.equals(GameProgressTransitionType.LEVEL)) {
+          let before = this.gameSlot.loadGame();
+          let toSave = GameStatusData.of(this.progress.getLevel(), this.score, health.getMaxHealth(), health.getHealth(), before.getAvailableLoads());
+          this.gameSlot.saveGame(toSave);
+        }
+      }
     }
   }
 
-  onHit(pos, dir, impact) {
-    this.hitDir = dir;
-    this.hitImpact = impact;
-    this.hit = true;
+  getState() {
+    return this.state;
   }
 
-  setSphereModelId(sphereModelId) {
-    this.sphereModelId = sphereModelId;
+  isControllable() {
+    if (this.state.equals(GameState.PLAYING)) {
+      return true;
+    }
+    return false;
+  }
+
+  isFinished() {
+    if (this.state.equals(GameState.GAME_OVER)||this.state.equals(GameState.VICTORY)) {
+      return true;
+    }
+    return false;
+  }
+
+  isGameOver() {
+    return this.state.equals(GameState.GAME_OVER);
+  }
+
+  isVictory() {
+    return this.state.equals(GameState.VICTORY);
+  }
+
+  toGameOver() {
+    if (this.state.equals(GameState.GAME_OVER)) {
+      return this;
+    }
+    this.actor().getComponent("AudioBehavior").playSound(SoundId.of("game-over"));
+    this.sendEvent(GameScreen.CAMERA_ACTOR_ID, CameraShakeEvent.TYPE, CameraShakeEvent.create(0.2, 1));
+    this.state = GameState.GAME_OVER;
+    this.gameSlot.clear();
     return this;
   }
 
-  static create() {
-    let res = new BreakableSphereBehavior();
+  toVictory() {
+    if (this.state.equals(GameState.VICTORY)) {
+      return this;
+    }
+    this.actor().getComponent("AudioBehavior").playSound(SoundId.of("game-victory"));
+    this.state = GameState.VICTORY;
+    this.gameSlot.clear();
+    return this;
+  }
+
+  getLevelName() {
+    return this.progress.getCurrentLevelName();
+  }
+
+  getScore() {
+    return this.score;
+  }
+
+  incrementScore() {
+    this.score = this.score+1;
+    return this;
+  }
+
+  getRanking() {
+    Guard.beTrue(this.isFinished(), "game must be finished to be able get ranking");
+    let hs = this.player.getComponent("HealthScript");
+    let dt = hs.getDeathType();
+    if (this.isVictory()) {
+      dt = AttackerType.OTHER;
+    }
+    return Ranking.of(this.isVictory(), dt, this.progress.getLevel(), this.score);
+  }
+
+  npcExists() {
+    return GameActors.rootHasActorWithTag(this.world().actors(), "npc");
+  }
+
+  spawnEnemy(id) {
+    let spawn = this.enemySpawns.get(Randoms.nextInt(0, this.enemySpawns.size()));
+    let localPos = Vec3.create(Randoms.nextFloat(0, 1)-0.5, 0, Randoms.nextFloat(0, 1)-0.5);
+    let rpGen = spawn.getComponentByKey("RpGeneratorComponent", ComponentKey.of("enemy-spawn"));
+    let pos = rpGen.nextPoint();
+    let rot = Quaternion.rotY(Randoms.nextFloat(0, 2*FMath.PI));
+    let fp = this.world().assets().get("ActorPrefab", id);
+    let fact = this.world().constructActor(CreateActorRequest.create(fp, null, pos, rot));
+    let done = false;
+    while (!done) {
+      done = true;
+      for (let comp of fact.getComponents()) {
+        if (!(comp instanceof ColliderComponent)) {
+          continue;
+        }
+        let cc = comp;
+        if (!cc.getLayer().equals(CollisionLayers.ENEMY_BODY)) {
+          continue;
+        }
+        while (!this.world().collisions().withCollider(cc).isEmpty()) {
+          spawn = this.enemySpawns.get(Randoms.nextInt(0, this.enemySpawns.size()));
+          rpGen = spawn.getComponentByKey("RpGeneratorComponent", ComponentKey.of("enemy-spawn"));
+          localPos = Vec3.create(Randoms.nextFloat(0, 1)-0.5, 0, Randoms.nextFloat(0, 1)-0.5);
+          pos = rpGen.nextPoint();
+          fact.getComponent("TransformComponent").setPos(pos);
+          done = false;
+          break;
+        }
+      }
+    }
+  }
+
+  static create(key, gameSlot) {
+    let res = new GameStateBehavior(key);
+    res.gameSlot = gameSlot;
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.BreakableSphereBehavior = BreakableSphereBehavior;
-class PlayerCharacterBehavior extends Behavior {
-  static FEATURES = Dut.immutableSet(ComponentFeature.create("HITTABLE"));
-  static JOYSTICK_SENSITIVITY = 1e-5;
-  static FWD = Vec3.create(0, 0, -1);
-  transform;
-  model;
-  rigidBody;
-  groundedColliderKey = "body-collider";
-  groundedCollider;
-  punchColliderKey = "punch-collider";
-  punchCollider;
-  animationPlayer;
-  state;
-  grounded = false;
-  groundedBefore = false;
-  walkForce = 40;
-  runForce = 80;
-  airForce = 10;
-  groundedMaxYDiff = 0.5;
-  groundFriction = 10;
-  airFriction = 5;
-  turnSpeed = 4*FMath.PI;
-  punchImpact = 7;
-  turn = 0;
+classRegistry.GameStateBehavior = GameStateBehavior;
+class Level {
+  name;
+  waves;
   constructor() {
-    super();
-    let idle = MeshAnimation.create(MeshAnimationKey.of("idle"), 30, 60, true).withClip(Clip.simple(0, 1, 0));
-    let walk = MeshAnimation.create(MeshAnimationKey.of("walk"), 30, 30, true).withClip(Clip.simple(2, 3, 4, 5, 6, 2));
-    let run = MeshAnimation.create(MeshAnimationKey.of("run"), 30, 30, true).withClip(Clip.simple(7, 8, 9, 10, 11, 12, 13, 7));
-    let punch = MeshAnimation.create(MeshAnimationKey.of("punch"), 30, 15, false).withClip(Clip.simple(14, 15, 16, 17, 18)).plusTrigger(13, "punch");
-    let hit = MeshAnimation.create(MeshAnimationKey.of("hit"), 30, 10, false).withClip(Clip.simple(19, 20, 19));
-    this.animationPlayer = MeshAnimationPlayer.create(MeshAnimationCollection.empty().plusAnimation(idle).plusAnimation(walk).plusAnimation(run).plusAnimation(punch).plusAnimation(hit), MeshAnimationKey.of("idle"));
-    this.state = this.stateIdle.bind(this);
   }
 
   getClass() {
-    return "PlayerCharacterBehavior";
+    return "Level";
   }
 
   guardInvariants() {
   }
 
-  getFeatures() {
-    return PlayerCharacterBehavior.FEATURES;
+  getName() {
+    return this.name;
+  }
+
+  getWaves() {
+    return this.waves;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(name, ...waves) {
+    if (Array.isArray(waves)&&waves.length===1&&Array.isArray(waves[0])) {
+      waves = waves[0];
+    }
+    let res = new Level();
+    res.name = name;
+    res.waves = Dut.immutableList(waves);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.Level = Level;
+class Levels {
+  static MUSHROOM = "enemy-mushroom";
+  static PIG = "enemy-pig";
+  static YETI = "enemy-yeti";
+  static DEER = "enemy-deer";
+  static CRAB = "enemy-crab";
+  static CYCLOPS = "enemy-cyclops";
+  static DEMON = "enemy-demon";
+  static PRINCESS = "princess";
+  static LEVEL_1 = Level.create("Level 1", EnemyWave.singleLine(3, Levels.MUSHROOM));
+  static LEVEL_2 = Level.create("Level 2", EnemyWave.singleLine(3, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM));
+  static LEVEL_3 = Level.create("Level 3", EnemyWave.singleLine(3, Levels.MUSHROOM, Levels.MUSHROOM, Levels.PIG).putLine(6, Levels.PIG, Levels.PIG, Levels.MUSHROOM, Levels.MUSHROOM));
+  static LEVEL_4 = Level.create("Level 4", EnemyWave.singleLine(3, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM).putLine(6, Levels.MUSHROOM, Levels.MUSHROOM, Levels.PIG, Levels.PIG, Levels.PIG));
+  static LEVEL_5 = Level.create("Level 5", EnemyWave.singleLine(3, Levels.YETI, Levels.YETI, Levels.YETI, Levels.MUSHROOM, Levels.MUSHROOM).putLine(6, Levels.PIG, Levels.PIG));
+  static LEVEL_6 = Level.create("Level 6", EnemyWave.singleLine(3, Levels.MUSHROOM, Levels.MUSHROOM, Levels.PIG, Levels.PIG, Levels.YETI, Levels.YETI).putLine(6, Levels.YETI, Levels.YETI, Levels.PIG, Levels.PIG, Levels.PIG).putLine(9, Levels.PIG, Levels.PIG, Levels.PIG));
+  static LEVEL_7 = Level.create("Level 7", EnemyWave.singleLine(3, Levels.PIG, Levels.PIG, Levels.YETI, Levels.YETI, Levels.YETI, Levels.YETI).putLine(6, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM).putLine(9, Levels.PIG, Levels.PIG, Levels.YETI, Levels.YETI, Levels.YETI));
+  static LEVEL_8 = Level.create("Level 8", EnemyWave.singleLine(3, Levels.PIG, Levels.PIG, Levels.PIG, Levels.PIG, Levels.PIG, Levels.PIG).putLine(6, Levels.PIG, Levels.PIG, Levels.PIG, Levels.PIG).putLine(12, Levels.YETI, Levels.YETI, Levels.YETI, Levels.YETI, Levels.YETI));
+  static LEVEL_9 = Level.create("Level 9", EnemyWave.singleLine(3, Levels.MUSHROOM, Levels.PIG, Levels.PIG, Levels.PIG, Levels.PIG, Levels.YETI, Levels.YETI).putLine(6, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM).putLine(9, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM));
+  static LEVEL_10 = Level.create("Level 10", EnemyWave.singleLine(3, Levels.CYCLOPS));
+  static LEVEL_11 = Level.create("Level 11", EnemyWave.singleLine(3, Levels.PIG, Levels.PIG, Levels.PIG, Levels.PIG, Levels.YETI, Levels.YETI, Levels.YETI).putLine(6, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM).putLine(9, Levels.MUSHROOM, Levels.MUSHROOM, Levels.YETI, Levels.YETI).putLine(15, Levels.PIG, Levels.PIG, Levels.MUSHROOM, Levels.DEER));
+  static LEVEL_12 = Level.create("Level 12", EnemyWave.singleLine(3, Levels.DEER, Levels.DEER, Levels.DEER, Levels.YETI, Levels.YETI, Levels.YETI).putLine(6, Levels.PIG, Levels.PIG, Levels.PIG, Levels.PIG).putLine(7, Levels.PIG, Levels.PIG, Levels.PIG, Levels.PIG, Levels.YETI, Levels.YETI));
+  static LEVEL_13 = Level.create("Level 13", EnemyWave.singleLine(3, Levels.MUSHROOM, Levels.MUSHROOM, Levels.PIG, Levels.PIG, Levels.PIG, Levels.YETI, Levels.YETI, Levels.DEER).putLine(6, Levels.PIG, Levels.PIG, Levels.PIG, Levels.PIG, Levels.DEER, Levels.DEER));
+  static LEVEL_14 = Level.create("Level 14", EnemyWave.singleLine(3, Levels.YETI, Levels.YETI, Levels.YETI, Levels.CRAB).putLine(6, Levels.CRAB, Levels.CRAB, Levels.CRAB, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM));
+  static LEVEL_15 = Level.create("Level 15", EnemyWave.singleLine(3, Levels.CRAB, Levels.CRAB, Levels.CRAB, Levels.CRAB).putLine(6, Levels.CRAB, Levels.CRAB, Levels.DEER, Levels.DEER, Levels.DEER).putLine(9, Levels.YETI, Levels.YETI, Levels.DEER, Levels.DEER));
+  static LEVEL_16 = Level.create("Level 16", EnemyWave.singleLine(3, Levels.DEER, Levels.DEER, Levels.DEER, Levels.DEER, Levels.YETI, Levels.YETI).putLine(6, Levels.CRAB, Levels.CRAB, Levels.DEER, Levels.DEER, Levels.DEER).putLine(9, Levels.YETI, Levels.YETI, Levels.MUSHROOM, Levels.MUSHROOM).putLine(12, Levels.MUSHROOM, Levels.MUSHROOM, Levels.CRAB, Levels.CRAB));
+  static LEVEL_17 = Level.create("Level 17", EnemyWave.singleLine(3, Levels.DEER, Levels.DEER, Levels.DEER, Levels.DEER, Levels.YETI, Levels.YETI).putLine(6, Levels.CYCLOPS).putLine(9, Levels.CRAB, Levels.CRAB, Levels.CRAB));
+  static LEVEL_18 = Level.create("Level 18", EnemyWave.singleLine(3, Levels.YETI, Levels.YETI).putLine(6, Levels.CYCLOPS).putLine(9, Levels.CRAB, Levels.CRAB).putLine(12, Levels.MUSHROOM, Levels.MUSHROOM).putLine(15, Levels.DEER, Levels.DEER).putLine(18, Levels.CRAB, Levels.CRAB).putLine(21, Levels.YETI, Levels.YETI));
+  static LEVEL_19 = Level.create("Level 19", EnemyWave.singleLine(3, Levels.CYCLOPS, Levels.DEER, Levels.CRAB, Levels.CRAB).putLine(6, Levels.DEER, Levels.DEER, Levels.DEER, Levels.CRAB).putLine(12, Levels.CRAB, Levels.CRAB, Levels.CYCLOPS));
+  static LEVEL_20 = Level.create("Level 20", EnemyWave.singleLine(3, Levels.DEMON));
+  static LEVEL_FINAL = Level.create("Final", EnemyWave.singleLine(3, Levels.PRINCESS));
+  static LEVELS = Dut.immutableList(Levels.LEVEL_1, Levels.LEVEL_2, Levels.LEVEL_3, Levels.LEVEL_4, Levels.LEVEL_5, Levels.LEVEL_6, Levels.LEVEL_7, Levels.LEVEL_8, Levels.LEVEL_9, Levels.LEVEL_10, Levels.LEVEL_11, Levels.LEVEL_12, Levels.LEVEL_13, Levels.LEVEL_14, Levels.LEVEL_15, Levels.LEVEL_16, Levels.LEVEL_17, Levels.LEVEL_18, Levels.LEVEL_19, Levels.LEVEL_20, Levels.LEVEL_FINAL);
+  constructor() {
+  }
+
+  getClass() {
+    return "Levels";
+  }
+
+  static level(idx) {
+    idx = Math.min(idx, Levels.LEVELS.size()-1);
+    return Levels.LEVELS.get(idx);
+  }
+
+  static getNumLevels() {
+    return Levels.LEVELS.size();
+  }
+
+}
+classRegistry.Levels = Levels;
+class GameStatusData {
+  level;
+  score;
+  maxHealth;
+  health;
+  availableLoads;
+  constructor() {
+  }
+
+  getClass() {
+    return "GameStatusData";
+  }
+
+  guardInvariants() {
+  }
+
+  getLevel() {
+    return this.level;
+  }
+
+  getScore() {
+    return this.score;
+  }
+
+  getMaxHealth() {
+    return this.maxHealth;
+  }
+
+  getHealth() {
+    return this.health;
+  }
+
+  getAvailableLoads() {
+    return this.availableLoads;
+  }
+
+  decreaseAvailableLoads() {
+    return GameStatusData.of(this.level, this.score, this.maxHealth, this.health, this.availableLoads-1);
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static of(level, score, maxHealth, health, availableLoads) {
+    let res = new GameStatusData();
+    res.level = level;
+    res.score = score;
+    res.maxHealth = maxHealth;
+    res.health = health;
+    res.availableLoads = availableLoads;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.GameStatusData = GameStatusData;
+class LocalDataGameSlot {
+  static DOC_TYPE = "On The Box - game status";
+  storage;
+  key;
+  constructor() {
+  }
+
+  getClass() {
+    return "LocalDataGameSlot";
+  }
+
+  guardInvariants() {
+  }
+
+  saveGame(data) {
+    let jsonObj = JsonObject.empty().withString("docType", LocalDataGameSlot.DOC_TYPE).withInt("schemaVersion", 1).withInt("level", data.getLevel()).withInt("score", data.getScore()).withFloat("maxHealth", data.getMaxHealth()).withFloat("health", data.getHealth()).withInt("availableLoads", data.getAvailableLoads());
+    let str = JsonObjects.toJson(jsonObj);
+    this.storage.saveString(this.key, str);
+  }
+
+  clear() {
+    this.storage.delete(this.key);
+  }
+
+  isGameSaved() {
+    if (!this.storage.exists(this.key)) {
+      return false;
+    }
+    let str = this.storage.loadString(this.key);
+    let jsonObj = JsonObjects.parse(str);
+    let docType = jsonObj.getString("docType");
+    let schemaVersion = jsonObj.getInt("schemaVersion");
+    if (!docType.equals(LocalDataGameSlot.DOC_TYPE)) {
+      return false;
+    }
+    if (schemaVersion!=1) {
+      return false;
+    }
+    return true;
+  }
+
+  loadGame() {
+    if (!this.storage.exists(this.key)) {
+      throw new Error("file doesn't exists");
+    }
+    let str = this.storage.loadString(this.key);
+    let jsonObj = JsonObjects.parse(str);
+    let docType = jsonObj.getString("docType");
+    let schemaVersion = jsonObj.getInt("schemaVersion");
+    if (!docType.equals(LocalDataGameSlot.DOC_TYPE)) {
+      throw new Error("header doesn't match");
+    }
+    if (schemaVersion==1) {
+      let level = jsonObj.getInt("level");
+      let score = jsonObj.getInt("score");
+      let maxHealth = jsonObj.getFloat("maxHealth");
+      let health = jsonObj.getFloat("health");
+      let availableLoads = jsonObj.getInt("availableLoads");
+      return GameStatusData.of(level, score, maxHealth, health, availableLoads);
+    }
+    else {
+      throw new Error("unsupported version: "+schemaVersion);
+    }
+  }
+
+  static create(storage, key) {
+    let res = new LocalDataGameSlot();
+    res.storage = storage;
+    res.key = key;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.LocalDataGameSlot = LocalDataGameSlot;
+class LocalDataRankingManager {
+  static DOC_TYPE = "On The Box - rankings";
+  storage;
+  key;
+  numRankingSlots;
+  numGamesPlayed;
+  bestGames;
+  latestGame;
+  highlighted = -1;
+  constructor() {
+  }
+
+  getClass() {
+    return "LocalDataRankingManager";
+  }
+
+  guardInvariants() {
+  }
+
+  putRanking(ranking) {
+    this.ensureLoaded();
+    let place = -1;
+    let newBestGames = new ArrayList();
+    for (let i = 0; i<this.bestGames.size()&&newBestGames.size()<this.numRankingSlots-1; ++i) {
+      let orig = this.bestGames.get(i);
+      if (place==-1&&this.isBetter(orig, ranking)) {
+        place = i;
+        newBestGames.add(ranking);
+        if (newBestGames.size()<this.numRankingSlots-1) {
+          newBestGames.add(orig);
+        }
+      }
+      else {
+        newBestGames.add(orig);
+      }
+    }
+    if (place==-1&&newBestGames.size()<this.numRankingSlots-1) {
+      place = newBestGames.size();
+      newBestGames.add(ranking);
+    }
+    this.bestGames = Collections.unmodifiableList(newBestGames);
+    this.latestGame = ranking;
+    this.highlighted = place!=-1?place:this.numRankingSlots-1;
+    this.numGamesPlayed = this.numGamesPlayed+1;
+    this.save();
+  }
+
+  getNumGamesPlayed() {
+    this.ensureLoaded();
+    return this.numGamesPlayed;
+  }
+
+  getRankings() {
+    this.ensureLoaded();
+    let res = new ArrayList();
+    for (let i = 0; i<this.bestGames.size(); ++i) {
+      res.add(PositionedRanking.of(""+(i+1), this.bestGames.get(i)));
+    }
+    while (res.size()<this.numRankingSlots-1) {
+      res.add(PositionedRanking.of("", Ranking.empty()));
+    }
+    while (res.size()>this.numRankingSlots-1) {
+      res.remove(res.size()-1);
+    }
+    res.add(PositionedRanking.of("", this.latestGame==null?Ranking.empty():this.latestGame));
+    return res;
+  }
+
+  getNumRankingSlots() {
+    return this.numRankingSlots;
+  }
+
+  getHighlighted() {
+    this.ensureLoaded();
+    return this.highlighted;
+  }
+
+  save() {
+    let bestGamesJson = JsonArray.empty();
+    for (let i = 0; i<this.bestGames.size(); ++i) {
+      bestGamesJson = bestGamesJson.plusObject(this.gameToJson(this.bestGames.get(i)));
+    }
+    let jsonObj = JsonObject.empty().withString("docType", LocalDataRankingManager.DOC_TYPE).withInt("schemaVersion", 1).withInt("numGamesPlayed", this.numGamesPlayed).withInt("highlighted", this.highlighted).withArray("bestGames", bestGamesJson).withObject("latestGame", this.gameToJson(this.latestGame));
+    let str = JsonObjects.toJson(jsonObj);
+    this.storage.saveString(this.key, str);
+  }
+
+  ensureLoaded() {
+    if (this.bestGames!=null&&this.latestGame!=null) {
+      return ;
+    }
+    if (!this.storage.exists(this.key)) {
+      this.numGamesPlayed = 0;
+      this.bestGames = new ArrayList();
+      this.latestGame = null;
+      this.highlighted = -1;
+      return ;
+    }
+    let str = this.storage.loadString(this.key);
+    let jsonObj = JsonObjects.parse(str);
+    let docType = jsonObj.getString("docType");
+    let schemaVersion = jsonObj.getInt("schemaVersion");
+    if (!docType.equals(LocalDataRankingManager.DOC_TYPE)) {
+      this.numGamesPlayed = 0;
+      this.bestGames = new ArrayList();
+      this.latestGame = null;
+      this.highlighted = -1;
+      return ;
+    }
+    if (schemaVersion==1) {
+      this.numGamesPlayed = jsonObj.getInt("numGamesPlayed");
+      this.highlighted = jsonObj.getInt("highlighted");
+      this.bestGames = new ArrayList();
+      let bestGamesJson = jsonObj.getJsonArray("bestGames");
+      for (let i = 0; i<bestGamesJson.size(); ++i) {
+        this.bestGames.add(this.jsonToGame(bestGamesJson.getJsonObject(i)));
+      }
+      this.latestGame = this.jsonToGame(jsonObj.getJsonObject("latestGame"));
+    }
+    else {
+      throw new Error("unsupported schema version");
+    }
+  }
+
+  jsonToGame(json) {
+    let princessSaved = json.getBoolean("princessSaved");
+    let deathType = AttackerType.valueOf(json.getString("deathType"));
+    let level = json.getInt("level");
+    let score = json.getInt("score");
+    return Ranking.of(princessSaved, deathType, level, score);
+  }
+
+  gameToJson(ranking) {
+    let res = JsonObject.empty().withBoolean("princessSaved", ranking.isPrincessSaved()).withString("deathType", ranking.getDeathType().name()).withInt("level", ranking.getLevel()).withInt("score", ranking.getScore());
+    return res;
+  }
+
+  isBetter(baseline, tested) {
+    if (tested.getLevel()>baseline.getLevel()) {
+      return true;
+    }
+    if (tested.getLevel()<baseline.getLevel()) {
+      return false;
+    }
+    if (tested.isPrincessSaved()&&!baseline.isPrincessSaved()) {
+      return true;
+    }
+    if (!tested.isPrincessSaved()&&baseline.isPrincessSaved()) {
+      return false;
+    }
+    return tested.getScore()>baseline.getScore();
+  }
+
+  static create(storage, key, numRankingSlots) {
+    let res = new LocalDataRankingManager();
+    res.storage = storage;
+    res.key = key;
+    res.numRankingSlots = numRankingSlots;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.LocalDataRankingManager = LocalDataRankingManager;
+class PositionedRanking {
+  position;
+  ranking;
+  constructor() {
+  }
+
+  getClass() {
+    return "PositionedRanking";
+  }
+
+  guardInvariants() {
+  }
+
+  getPosition() {
+    return this.position;
+  }
+
+  getRanking() {
+    return this.ranking;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static of(position, ranking) {
+    let res = new PositionedRanking();
+    res.position = position;
+    res.ranking = ranking;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.PositionedRanking = PositionedRanking;
+class Ranking {
+  princessSaved;
+  deathType;
+  level;
+  score;
+  constructor() {
+  }
+
+  getClass() {
+    return "Ranking";
+  }
+
+  guardInvariants() {
+  }
+
+  isPrincessSaved() {
+    return this.princessSaved;
+  }
+
+  getDeathType() {
+    return this.deathType;
+  }
+
+  getLevel() {
+    return this.level;
+  }
+
+  getScore() {
+    return this.score;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static of(princessSaved, deathType, level, score) {
+    let res = new Ranking();
+    res.princessSaved = princessSaved;
+    res.deathType = deathType;
+    res.level = level;
+    res.score = score;
+    res.guardInvariants();
+    return res;
+  }
+
+  static empty() {
+    let res = new Ranking();
+    res.princessSaved = false;
+    res.deathType = AttackerType.OTHER;
+    res.level = -1;
+    res.score = 0;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.Ranking = Ranking;
+class CameraMoveBehavior extends Behavior {
+  targetId = GameScreen.PLAYER_ACTOR_ID;
+  offset = Vec3.create(0, 13, 15);
+  up = Vec3.create(0, 1, 0);
+  posK = 0.01;
+  lookK = 0.03;
+  shakeMag = 0;
+  shakeRem = 0;
+  shakeDrop = 0;
+  transform;
+  cameraPos = null;
+  cameraTarget = null;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "CameraMoveBehavior";
+  }
+
+  guardInvariants() {
   }
 
   init() {
     this.transform = this.actor().getComponent("TransformComponent");
-    this.model = this.actor().getComponent("ModelComponent");
-    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-    this.groundedCollider = this.actor().getComponentByKey("ColliderComponent", this.groundedColliderKey);
-    this.punchCollider = this.actor().getComponentByKey("ColliderComponent", this.punchColliderKey);
+  }
+
+  onEvent(type, event) {
+    if (!type.equals(CameraShakeEvent.TYPE)) {
+      return ;
+    }
+    let shake = event;
+    this.shakeRem = FMath.max(this.shakeRem, shake.getDuration());
+    this.shakeMag = FMath.max(this.shakeMag, shake.getMagnitude());
+    this.shakeDrop = this.shakeMag/this.shakeRem;
+  }
+
+  lateMove(dt, inputs) {
+    if (this.cameraPos==null) {
+      this.cameraPos = this.transform.toGlobal(Vec3.ZERO);
+    }
+    if (this.cameraTarget==null) {
+      this.cameraTarget = this.transform.toGlobal(Vec3.BACKWARD);
+    }
+    let newPos = this.cameraPos;
+    let newTarget = this.cameraTarget;
+    if (this.world().actors().exists(this.targetId)) {
+      let targetPos = this.world().actors().get(this.targetId).getComponent("TransformComponent").toGlobal(Vec3.ZERO);
+      let newFinalPos = targetPos.add(this.offset);
+      newPos = Vec3.interpolate(this.cameraPos, newFinalPos, this.posK);
+      let projectedTarget = Geometry3.projectToLine(this.cameraPos, this.cameraTarget.subAndNormalize(this.cameraPos), targetPos);
+      newTarget = Vec3.interpolate(projectedTarget, targetPos, this.lookK);
+    }
+    let posShake = Vec3.ZERO;
+    let targetShake = Vec3.ZERO;
+    if (this.shakeMag>0&&this.shakeRem>0) {
+      let rand1 = Vec3.create(Randoms.nextFloat(0, 2)-1, Randoms.nextFloat(0, 2)-1, 0).normalize().scale(this.shakeMag);
+      let rand2 = Vec3.create(Randoms.nextFloat(0, 2)-1, Randoms.nextFloat(0, 2)-1, 0).normalize().scale(this.shakeMag);
+      posShake = this.transform.toGlobalRot(rand1);
+      targetShake = this.transform.toGlobalRot(rand2);
+      this.shakeMag = FMath.max(0, this.shakeMag-this.shakeDrop*dt);
+      this.shakeRem = FMath.max(0, this.shakeRem-dt);
+    }
+    this.transform.lookAt(newPos.add(posShake), newTarget.add(targetShake), this.up);
+    this.cameraPos = newPos;
+    this.cameraTarget = newTarget;
+  }
+
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  static create(key) {
+    let res = new CameraMoveBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CameraMoveBehavior = CameraMoveBehavior;
+class CameraShakeEvent {
+  static TYPE = ActorEventType.create("CAMERA_SHAKE");
+  magnitude;
+  duration;
+  constructor() {
+  }
+
+  getClass() {
+    return "CameraShakeEvent";
+  }
+
+  guardInvariants() {
+  }
+
+  getMagnitude() {
+    return this.magnitude;
+  }
+
+  getDuration() {
+    return this.duration;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(magnitude, duration) {
+    let res = new CameraShakeEvent();
+    res.magnitude = magnitude;
+    res.duration = duration;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CameraShakeEvent = CameraShakeEvent;
+class GameObjectScript extends Behavior {
+  grounded = false;
+  groundedBefore = false;
+  groundedEpsion = 0.5;
+  groundedCollider;
+  transform;
+  audioBehavior;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "GameObjectScript";
+  }
+
+  onEvent(type, event) {
+    super.onEvent(type, event);
+    if (type.equals(ActorEventType.OUTSPACE)) {
+      let health = this.actor().getComponentNonStrict("HealthScript");
+      if (health!=null) {
+        health.kill(AttackerType.FALL);
+      }
+      this.world().actors().remove(this.actor().getId());
+    }
   }
 
   move(dt, inputs) {
     this.updateGrounded();
-    let friction = this.grounded?this.groundFriction:this.airFriction;
-    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*this.rigidBody.getMass()*this.rigidBody.getVelocity().x(), 0, -friction*this.rigidBody.getMass()*this.rigidBody.getVelocity().z()));
-    let dir = inputs.getVec2("dir", Vec2.ZERO);
-    let run = inputs.getBoolean("run", false);
-    let punch = inputs.getBoolean("punch", false);
-    let input = PlayerCharacterInput.create(dt, dir, punch, run);
-    this.state(input);
-    let step = this.animationPlayer.move(dt);
-    if (step.getTriggers().contains("punch")) {
-      for (let cmp of this.actor().getComponents()) {
-        let punchWorld = this.punchCollider.toGlobal(Vec3.ZERO);
-        let punchDir = this.punchCollider.toGlobal(PlayerCharacterBehavior.FWD).subAndNormalize(punchWorld);
-        let hits = this.world().collisions().withCollider(this.punchCollider);
-        for (let hitCollider of hits) {
-          let hitAct = hitCollider.actor();
-          for (let tgtCmp of hitAct.getComponents()) {
-            if (tgtCmp.hasFeature(ComponentFeature.create("HITTABLE"))) {
-              (tgtCmp).onHit(punchWorld, punchDir, this.punchImpact);
-            }
-          }
-        }
-      }
+  }
+
+  playSound(soundId) {
+    if (this.audioBehavior==null) {
+      this.audioBehavior = this.world().actors().get(GameScreen.GAME_STATE_ACTOR_ID).getComponent("AudioBehavior");
     }
-    this.model.setInterpolation(step.getInterpolation());
-    this.transform.setRot(Quaternion.rotY(this.turn));
-    if (!this.grounded&&this.groundedBefore&&this.rigidBody.getVelocity().y()>0) {
-      this.rigidBody.setVelocity(Vec3.create(this.rigidBody.getVelocity().x(), 0, this.rigidBody.getVelocity().y()));
-    }
-    if (this.grounded&&step.getKey().equals(MeshAnimationKey.of("idle"))) {
-      this.rigidBody.clearAccums();
-      this.rigidBody.setVelocity(Vec3.ZERO);
-      this.rigidBody.setAngularVelocity(Vec3.ZERO);
-    }
+    this.audioBehavior.playSound(soundId);
+  }
+
+  playRandomSound(soundIds) {
+    let idx = Randoms.nextInt(0, soundIds.size());
+    this.playSound(soundIds.get(idx));
+  }
+
+  isGrounded() {
+    return this.grounded;
+  }
+
+  isGroundedBefore() {
+    return this.groundedBefore;
   }
 
   updateGrounded() {
+    if (this.transform==null) {
+      this.transform = this.actor().getComponent("TransformComponent");
+    }
+    if (this.groundedCollider==null) {
+      for (let comp of this.actor().getComponents()) {
+        if (comp instanceof ColliderComponent) {
+          let cc = comp;
+          if (cc.getLayer().id().endsWith("_BODY")) {
+            this.groundedCollider = cc;
+            break;
+          }
+        }
+      }
+      if (this.groundedCollider==null) {
+        return ;
+      }
+    }
     this.groundedBefore = this.grounded;
     let pos = this.transform.getPos();
     let bestGroundPoint = Vec3.create(pos.x(), pos.y()+2, pos.z());
@@ -32531,7 +34778,7 @@ class PlayerCharacterBehavior extends Behavior {
         }
       }
     }
-    if (bestGroundPoint.y()<pos.y()+this.groundedMaxYDiff) {
+    if (bestGroundPoint.y()<pos.y()+this.groundedEpsion) {
       this.grounded = true;
     }
     else {
@@ -32539,117 +34786,1808 @@ class PlayerCharacterBehavior extends Behavior {
     }
   }
 
-  stateIdle(input) {
-    this.animationPlayer.play(MeshAnimationKey.of("idle"));
-    if (input.isPunch()) {
-      this.state = this.statePunch.bind(this);
+}
+classRegistry.GameObjectScript = GameObjectScript;
+const createAttackerType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
     }
-    else if (input.getDir().mag()>=PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
-      this.state = input.isRun()?this.stateRun.bind(this):this.stateWalk.bind(this);
+  };
+};
+const AttackerType = Object.freeze({
+  MUSHROOM: createAttackerType("MUSHROOM"),
+  PIG: createAttackerType("PIG"),
+  YETI: createAttackerType("YETI"),
+  DEER: createAttackerType("DEER"),
+  CRAB: createAttackerType("CRAB"),
+  CYCLOPS: createAttackerType("CYCLOPS"),
+  DEMON: createAttackerType("DEMON"),
+  FALL: createAttackerType("FALL"),
+  PLAYER: createAttackerType("PLAYER"),
+  OTHER: createAttackerType("OTHER"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
     }
-    return null;
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class BlinkScript extends Behavior {
+  normalId;
+  blinkId;
+  model;
+  blinking = false;
+  currentStateTime = 0;
+  blinkTime = 0;
+  constructor(key) {
+    super(key);
   }
 
-  stateWalk(input) {
-    this.animationPlayer.play(MeshAnimationKey.of("walk"));
-    if (input.isPunch()) {
-      this.state = this.statePunch.bind(this);
-    }
-    else if (input.getDir().mag()<PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
-      this.state = this.stateIdle.bind(this);
-    }
-    else if (input.isRun()) {
-      this.state = this.stateRun.bind(this);
-    }
-    else {
-      let dir = input.getDir().normalize();
-      let moveMag = this.grounded?this.walkForce:this.airForce;
-      this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x(), 0, -dir.y()).scale(moveMag*this.rigidBody.getMass()));
-      let targetTurn = -FMath.atan2(dir.x(), dir.y());
-      let maxdTurn = input.getDt()*this.turnSpeed;
-      if (FMath.abs(this.turn-targetTurn)<=maxdTurn) {
-        this.turn = targetTurn;
-      }
-      else if (targetTurn>this.turn) {
-        if (targetTurn-this.turn<this.turn-targetTurn+FMath.PI*2) {
-          this.turn = this.turn+maxdTurn;
-          if (this.turn>FMath.PI) {
-            this.turn = this.turn-2*FMath.PI;
-          }
+  getClass() {
+    return "BlinkScript";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.model = this.actor().getComponent("ModelComponent");
+    this.normalId = this.model.getModelId();
+    this.blinkId = ModelId.of(this.normalId.id()+"-white");
+  }
+
+  move(dt, inputs) {
+    if (this.blinking) {
+      this.currentStateTime = this.currentStateTime+dt;
+      if (this.currentStateTime>this.blinkTime) {
+        let currId = this.model.getModelId();
+        if (currId.equals(this.normalId)) {
+          this.model.setModelId(this.blinkId);
         }
         else {
-          this.turn = this.turn-maxdTurn;
-          if (this.turn<-FMath.PI) {
-            this.turn = this.turn+2*FMath.PI;
-          }
+          this.model.setModelId(this.normalId);
+        }
+      }
+    }
+    else {
+      this.model.setModelId(this.normalId);
+    }
+  }
+
+  startBlinking(blinkTime) {
+    this.blinking = true;
+    this.currentStateTime = 0;
+    this.blinkTime = blinkTime;
+    return this;
+  }
+
+  stopBlinking() {
+    this.blinking = false;
+    return this;
+  }
+
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  static create(key) {
+    let res = new BlinkScript(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.BlinkScript = BlinkScript;
+class BloodOnHitScript extends Behavior {
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "BloodOnHitScript";
+  }
+
+  guardInvariants() {
+  }
+
+  onEvent(type, event) {
+    super.onEvent(type, event);
+    if (type.equals(GameActors.HIT_EVENT_TYPE)) {
+      let hit = event;
+      let prefab = this.world().assets().get("ActorPrefab", GameScreen.BLOOD_ACTOR_PREFAB_ID);
+      for (let i = 0; i<10; ++i) {
+        let velRand = Vec3.create(Randoms.nextFloat(0, 2*hit.getImpact())-hit.getImpact(), Randoms.nextFloat(0, 2*hit.getImpact())-hit.getImpact(), Randoms.nextFloat(0, 2*hit.getImpact())-hit.getImpact());
+        let bloodActor = this.world().constructActor(CreateActorRequest.create(prefab, null, hit.getPos(), Quaternion.ZERO_ROT));
+        let rb = bloodActor.getComponent("RigidBodyComponent");
+        rb.setVelocity(hit.getDir().scale(hit.getImpact()*0.1).addScaled(velRand, 0.1));
+      }
+    }
+  }
+
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  static create(key) {
+    let res = new BloodOnHitScript(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.BloodOnHitScript = BloodOnHitScript;
+class BloodScript extends Behavior {
+  rigidBody;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "BloodScript";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
+  }
+
+  move(dt, inputs) {
+  }
+
+  lateMove(dt, inputs) {
+    if (this.rigidBody.isKinematic()) {
+      return ;
+    }
+    for (let cmp of this.actor().getComponents()) {
+      if (!(cmp instanceof ColliderComponent)) {
+        continue;
+      }
+      let collider = cmp;
+      let cols = this.world().collisions().withCollider(collider);
+      if (!cols.isEmpty()) {
+        this.rigidBody.setVelocity(Vec3.ZERO);
+        this.rigidBody.setAngularVelocity(Vec3.ZERO);
+        this.rigidBody.setKinematic(true);
+        return ;
+      }
+    }
+  }
+
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  static create(key) {
+    let res = new BloodScript(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.BloodScript = BloodScript;
+class Characters {
+  constructor() {
+  }
+
+  getClass() {
+    return "Characters";
+  }
+
+  static turn(targetTurn, turn, maxDeltaTurn) {
+    if (targetTurn>turn) {
+      if (FMath.abs(turn-targetTurn)<=maxDeltaTurn) {
+        turn = targetTurn;
+      }
+      else if (targetTurn-turn<turn-targetTurn+FMath.PI*2) {
+        turn = turn+maxDeltaTurn;
+        if (turn>FMath.PI) {
+          turn = turn-2*FMath.PI;
         }
       }
       else {
-        if (this.turn-targetTurn<targetTurn-this.turn+FMath.PI*2) {
-          this.turn = this.turn-maxdTurn;
-          if (this.turn<-FMath.PI) {
-            this.turn = this.turn+2*FMath.PI;
-          }
+        turn = turn-maxDeltaTurn;
+        if (turn<-FMath.PI) {
+          turn = turn+2*FMath.PI;
+        }
+      }
+    }
+    else {
+      if (FMath.abs(turn-targetTurn)<=maxDeltaTurn) {
+        turn = targetTurn;
+      }
+      else if (turn-targetTurn<targetTurn-turn+FMath.PI*2) {
+        turn = turn-maxDeltaTurn;
+        if (turn<-FMath.PI) {
+          turn = turn+2*FMath.PI;
+        }
+      }
+      else {
+        turn = turn+maxDeltaTurn;
+        if (turn>FMath.PI) {
+          turn = turn-2*FMath.PI;
+        }
+      }
+    }
+    return turn;
+  }
+
+  static getRandomTargetPoint(actors) {
+    let box = actors.get(GameScreen.BOX_ACTOR_ID);
+    let localPos = Vec3.create(Randoms.nextFloat(0, 0.9)-0.45, 0, Randoms.nextFloat(0, 0.9)-0.45);
+    let mc = box.getComponent("ModelComponent");
+    let pos = mc.toGlobal(localPos);
+    return Vec3.create(pos.x(), 0, pos.z());
+  }
+
+  static getPlayerPosSafe(actors) {
+    if (!actors.exists(GameScreen.PLAYER_ACTOR_ID)) {
+      return Characters.getRandomTargetPoint(actors);
+    }
+    return actors.get(GameScreen.PLAYER_ACTOR_ID).getComponent("TransformComponent").getPos();
+  }
+
+}
+classRegistry.Characters = Characters;
+class CrabScript extends GameObjectScript {
+  static HIT_SOUNDS = Dut.immutableList(SoundId.of("hit-1"), SoundId.of("hit-2"));
+  static DEATH_SOUNDS = Dut.immutableList(SoundId.of("death-monster-1"), SoundId.of("death-monster-2"));
+  static FIRE_SOUNDS = Dut.immutableList(SoundId.of("fire-laser-1"), SoundId.of("fire-laser-2"));
+  transform;
+  rigidBody;
+  health;
+  moveForce = 320;
+  airControlForce = 0;
+  airFriction = 3;
+  groundFriction = 70;
+  turn = 0;
+  turnSpeed = 2*FMath.PI;
+  bulletId = ActorPrefabId.of("enemy-bullet-1");
+  attackProbability = 0.4;
+  state = CrabState.REST;
+  stateRemainingTime = 0;
+  targetPos = Vec3.ZERO;
+  restBaseTimesSpan = 2;
+  restRandomTimeSpan = 2;
+  distError = 0.5;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "CrabScript";
+  }
+
+  guardInvariants() {
+  }
+
+  onEvent(type, event) {
+    super.onEvent(type, event);
+    if (type.equals(GameActors.HIT_EVENT_TYPE)) {
+      let hit = event;
+      this.playRandomSound(CrabScript.HIT_SOUNDS);
+      this.actor().getComponent("RigidBodyComponent").applyImpulse(hit.getPos(), hit.getDir().scale(hit.getImpact()));
+    }
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
+    this.health = this.actor().getComponent("HealthScript");
+    this.state = CrabState.REST;
+    this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+  }
+
+  move(dt, inputs) {
+    super.move(dt, inputs);
+    this.stateRemainingTime = this.stateRemainingTime-dt;
+    if (!this.health.isAlive()&&!this.state.equals(CrabState.DYING)) {
+      this.state = CrabState.DYING;
+      this.stateRemainingTime = 2;
+      this.playRandomSound(CrabScript.DEATH_SOUNDS);
+    }
+    if (this.state.equals(CrabState.REST)) {
+      if (this.stateRemainingTime<=0) {
+        let rand = Randoms.nextFloat(0, 1);
+        if (rand<this.attackProbability) {
+          this.state = CrabState.READY_TO_ATTACK;
+          this.stateRemainingTime = 1.5;
+          this.targetPos = Characters.getPlayerPosSafe(this.world().actors());
         }
         else {
-          this.turn = this.turn+maxdTurn;
-          if (this.turn>FMath.PI) {
-            this.turn = this.turn-2*FMath.PI;
+          this.targetPos = Characters.getRandomTargetPoint(this.world().actors());
+          this.state = CrabState.MOVE;
+        }
+      }
+    }
+    else if (this.state.equals(CrabState.MOVE)) {
+      let pos = this.transform.getPos();
+      let dist = this.targetPos.dist(pos);
+      if (dist<=this.distError) {
+        this.state = CrabState.REST;
+        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+      }
+      else {
+        let dir = this.targetPos.subAndNormalize(pos);
+        let targetTurn = FMath.atan2(dir.x(), dir.z());
+        let maxdTurn = dt*this.turnSpeed;
+        this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
+        let force = this.isGrounded()?this.moveForce:this.airControlForce;
+        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x()*force, 0, dir.z()*force));
+      }
+    }
+    else if (this.state.equals(CrabState.READY_TO_ATTACK)) {
+      let pos = this.transform.getPos();
+      let dir = this.targetPos.subAndNormalize(pos);
+      let targetTurn = FMath.atan2(dir.x(), dir.z());
+      let maxdTurn = dt*this.turnSpeed;
+      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
+      if (this.stateRemainingTime<=0) {
+        this.state = CrabState.ATTACK;
+        this.stateRemainingTime = 1;
+      }
+    }
+    else if (this.state.equals(CrabState.ATTACK)) {
+      this.playRandomSound(CrabScript.FIRE_SOUNDS);
+      this.state = CrabState.REST;
+      this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+      let bulletPrefab = this.world().assets().get("ActorPrefab", this.bulletId);
+      let pos = this.transform.getPos().add(0, 0.9, 0);
+      let bullet1 = this.world().constructActor(CreateActorRequest.create(bulletPrefab, null, pos, this.transform.getRot()));
+      let bullet2 = this.world().constructActor(CreateActorRequest.create(bulletPrefab, null, pos, this.transform.getRot().mul(Quaternion.rotY(FMath.PI/8).normalize())));
+      let bullet3 = this.world().constructActor(CreateActorRequest.create(bulletPrefab, null, pos, this.transform.getRot().mul(Quaternion.rotY(-FMath.PI/8).normalize())));
+      bullet1.getComponent("BulletScript").setAttackerType(AttackerType.CRAB);
+      bullet2.getComponent("BulletScript").setAttackerType(AttackerType.CRAB);
+      bullet3.getComponent("BulletScript").setAttackerType(AttackerType.CRAB);
+    }
+    let vx = this.rigidBody.getVelocity().x();
+    let vz = this.rigidBody.getVelocity().z();
+    let friction = this.isGrounded()?this.groundFriction:this.airFriction;
+    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
+    this.transform.setRot(Quaternion.rotY(this.turn));
+  }
+
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  static create(key) {
+    let res = new CrabScript(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CrabScript = CrabScript;
+const createCrabState = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const CrabState = Object.freeze({
+  REST: createCrabState("REST"),
+  MOVE: createCrabState("MOVE"),
+  READY_TO_ATTACK: createCrabState("READY_TO_ATTACK"),
+  ATTACK: createCrabState("ATTACK"),
+  DYING: createCrabState("DYING"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class CyclopsScript extends GameObjectScript {
+  static HIT_SOUNDS = Dut.immutableList(SoundId.of("hit-1"), SoundId.of("hit-2"));
+  static DEATH_SOUNDS = Dut.immutableList(SoundId.of("death-monster-2"), SoundId.of("death-monster-3"));
+  transform;
+  blink;
+  rigidBody;
+  health;
+  moveForce = 360;
+  airControlForce = 0;
+  airFriction = 3;
+  groundFriction = 100;
+  turn = 0;
+  turnSpeed = 2*FMath.PI;
+  attackImpact = 45;
+  state = CyclopsState.REST;
+  stateRemainingTime = 0;
+  targetPos = Vec3.ZERO;
+  restBaseTimesSpan = 0.5;
+  restRandomTimeSpan = 3;
+  distError = 0.5;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "CyclopsScript";
+  }
+
+  guardInvariants() {
+  }
+
+  onEvent(type, event) {
+    super.onEvent(type, event);
+    if (type.equals(GameActors.HIT_EVENT_TYPE)) {
+      let hit = event;
+      this.playRandomSound(CyclopsScript.HIT_SOUNDS);
+      this.actor().getComponent("RigidBodyComponent").applyImpulse(hit.getPos(), hit.getDir().scale(hit.getImpact()));
+      if (this.state.equals(CyclopsState.REST)||this.state.equals(CyclopsState.MOVE)||this.state.equals(CyclopsState.READY_TO_ATTACK)) {
+        this.state = CyclopsState.REST;
+        this.stateRemainingTime = 0.3;
+        this.blink.stopBlinking();
+      }
+    }
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.blink = this.actor().getComponent("BlinkScript");
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
+    this.health = this.actor().getComponent("HealthScript");
+    this.state = CyclopsState.REST;
+    this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+  }
+
+  move(dt, inputs) {
+    super.move(dt, inputs);
+    this.stateRemainingTime = this.stateRemainingTime-dt;
+    if (!this.health.isAlive()&&!this.state.equals(CyclopsState.DYING)) {
+      this.playRandomSound(CyclopsScript.DEATH_SOUNDS);
+      this.state = CyclopsState.DYING;
+      this.stateRemainingTime = 2;
+    }
+    if (this.transform.getPos().y()<-20) {
+      let dest = Characters.getRandomTargetPoint(this.world().actors()).add(0, 5, 0);
+      this.transform.setPos(dest);
+      this.rigidBody.setVelocity(Vec3.ZERO);
+      this.state = CyclopsState.REST;
+      this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+    }
+    if (this.state.equals(CyclopsState.REST)) {
+      if (this.stateRemainingTime<=0) {
+        let pos = this.transform.getPos();
+        let playerPos = Characters.getPlayerPosSafe(this.world().actors());
+        if (playerPos!=null&&playerPos.dist(pos)<7) {
+          this.state = CyclopsState.READY_TO_ATTACK;
+          this.stateRemainingTime = 0.8;
+          this.blink.startBlinking(0.3);
+          this.targetPos = playerPos;
+        }
+        else {
+          this.targetPos = Characters.getRandomTargetPoint(this.world().actors());
+          this.state = CyclopsState.MOVE;
+        }
+      }
+    }
+    else if (this.state.equals(CyclopsState.MOVE)) {
+      let pos = this.transform.getPos();
+      let dist = this.targetPos.dist(pos);
+      if (dist<=this.distError) {
+        this.state = CyclopsState.REST;
+        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+      }
+      else {
+        let dir = this.targetPos.subAndNormalize(pos);
+        let targetTurn = FMath.atan2(dir.x(), dir.z());
+        let maxdTurn = dt*this.turnSpeed;
+        this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
+        let force = this.isGrounded()?this.moveForce:this.airControlForce;
+        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x()*force, 0, dir.z()*force));
+      }
+    }
+    else if (this.state.equals(CyclopsState.READY_TO_ATTACK)) {
+      let pos = this.transform.getPos();
+      let dir = this.targetPos.subAndNormalize(pos);
+      let targetTurn = FMath.atan2(dir.x(), dir.z());
+      let maxdTurn = dt*this.turnSpeed;
+      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
+      if (this.stateRemainingTime<=0) {
+        this.blink.stopBlinking();
+        this.state = CyclopsState.ATTACK;
+        this.stateRemainingTime = 1;
+        if (this.isGrounded()) {
+          this.rigidBody.applyImpulse(this.transform.getPos(), Vec3.create(dir.x()*240, 15, dir.z()*240));
+        }
+      }
+    }
+    else if (this.state.equals(CyclopsState.ATTACK)) {
+      let collider = GameActors.getCollider(this.actor(), CollisionLayers.ENEMY_PUNCH);
+      let attackPos = collider.toGlobal(Vec3.ZERO);
+      let attackDir = collider.toGlobal(Vec3.FORWARD).subAndNormalize(attackPos);
+      let hits = this.world().collisions().withCollider(collider);
+      for (let hitCollider of hits) {
+        let hitAct = hitCollider.actor();
+        let hitEvt = HitEvent.create(attackPos, attackDir, this.attackImpact, AttackerType.CYCLOPS);
+        hitAct.broadcastEvent(GameActors.HIT_EVENT_TYPE, hitEvt);
+      }
+      if (!hits.isEmpty()||this.stateRemainingTime<=0) {
+        this.state = CyclopsState.REST;
+        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+      }
+    }
+    let vx = this.rigidBody.getVelocity().x();
+    let vz = this.rigidBody.getVelocity().z();
+    let friction = this.isGrounded()?this.groundFriction:this.airFriction;
+    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
+    this.transform.setRot(Quaternion.rotY(this.turn));
+  }
+
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  static create(key) {
+    let res = new CyclopsScript(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CyclopsScript = CyclopsScript;
+const createCyclopsState = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const CyclopsState = Object.freeze({
+  REST: createCyclopsState("REST"),
+  MOVE: createCyclopsState("MOVE"),
+  READY_TO_ATTACK: createCyclopsState("READY_TO_ATTACK"),
+  ATTACK: createCyclopsState("ATTACK"),
+  DYING: createCyclopsState("DYING"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class DeerScript extends GameObjectScript {
+  static HIT_SOUNDS = Dut.immutableList(SoundId.of("hit-1"), SoundId.of("hit-2"));
+  static DEATH_SOUNDS = Dut.immutableList(SoundId.of("death-monster-1"), SoundId.of("death-monster-2"));
+  transform;
+  blink;
+  rigidBody;
+  health;
+  moveForce = 480;
+  airControlForce = 0;
+  airFriction = 3;
+  groundFriction = 100;
+  turn = 0;
+  turnSpeed = 2*FMath.PI;
+  attackImpact = 30;
+  state = DeerState.REST;
+  stateRemainingTime = 0;
+  targetPos = Vec3.ZERO;
+  restBaseTimesSpan = 1;
+  restRandomTimeSpan = 1;
+  distError = 0.5;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "DeerScript";
+  }
+
+  guardInvariants() {
+  }
+
+  onEvent(type, event) {
+    super.onEvent(type, event);
+    if (type.equals(GameActors.HIT_EVENT_TYPE)) {
+      let hit = event;
+      this.playRandomSound(DeerScript.HIT_SOUNDS);
+      this.actor().getComponent("RigidBodyComponent").applyImpulse(hit.getPos(), hit.getDir().scale(hit.getImpact()));
+      if (this.state.equals(DeerState.REST)||this.state.equals(DeerState.MOVE)||this.state.equals(DeerState.READY_TO_ATTACK)) {
+        this.state = DeerState.REST;
+        this.stateRemainingTime = 0.3;
+        this.blink.stopBlinking();
+      }
+    }
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.blink = this.actor().getComponent("BlinkScript");
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
+    this.health = this.actor().getComponent("HealthScript");
+    this.state = DeerState.REST;
+    this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+  }
+
+  move(dt, inputs) {
+    super.move(dt, inputs);
+    this.stateRemainingTime = this.stateRemainingTime-dt;
+    if (!this.health.isAlive()&&!this.state.equals(DeerState.DYING)) {
+      this.state = DeerState.DYING;
+      this.stateRemainingTime = 2;
+      this.playRandomSound(DeerScript.DEATH_SOUNDS);
+    }
+    if (this.state.equals(DeerState.REST)) {
+      if (this.stateRemainingTime<=0) {
+        let pos = this.transform.getPos();
+        let playerPos = Characters.getPlayerPosSafe(this.world().actors());
+        if (playerPos!=null&&playerPos.dist(pos)<7) {
+          this.state = DeerState.READY_TO_ATTACK;
+          this.stateRemainingTime = 1.5;
+          this.blink.startBlinking(0.3);
+          this.targetPos = playerPos;
+        }
+        else {
+          this.targetPos = Characters.getRandomTargetPoint(this.world().actors());
+          this.state = DeerState.MOVE;
+        }
+      }
+    }
+    else if (this.state.equals(DeerState.MOVE)) {
+      let pos = this.transform.getPos();
+      let dist = this.targetPos.dist(pos);
+      if (dist<=this.distError) {
+        this.state = DeerState.REST;
+        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+      }
+      else {
+        let dir = this.targetPos.subAndNormalize(pos);
+        let targetTurn = FMath.atan2(dir.x(), dir.z());
+        let maxdTurn = dt*this.turnSpeed;
+        this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
+        let force = this.isGrounded()?this.moveForce:this.airControlForce;
+        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x()*force, 0, dir.z()*force));
+      }
+    }
+    else if (this.state.equals(DeerState.READY_TO_ATTACK)) {
+      let pos = this.transform.getPos();
+      let dir = this.targetPos.subAndNormalize(pos);
+      let targetTurn = FMath.atan2(dir.x(), dir.z());
+      let maxdTurn = dt*this.turnSpeed;
+      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
+      if (this.stateRemainingTime<=0) {
+        this.blink.stopBlinking();
+        this.state = DeerState.ATTACK;
+        this.stateRemainingTime = 1;
+        if (this.isGrounded()) {
+          this.rigidBody.applyImpulse(this.transform.getPos(), Vec3.create(dir.x()*120, 15, dir.z()*120));
+        }
+      }
+    }
+    else if (this.state.equals(DeerState.ATTACK)) {
+      let collider = GameActors.getCollider(this.actor(), CollisionLayers.ENEMY_PUNCH);
+      let attackPos = collider.toGlobal(Vec3.ZERO);
+      let attackDir = collider.toGlobal(Vec3.FORWARD).subAndNormalize(attackPos);
+      let hits = this.world().collisions().withCollider(collider);
+      for (let hitCollider of hits) {
+        let hitAct = hitCollider.actor();
+        let hitEvt = HitEvent.create(attackPos, attackDir, this.attackImpact, AttackerType.DEER);
+        hitAct.broadcastEvent(GameActors.HIT_EVENT_TYPE, hitEvt);
+      }
+      if (!hits.isEmpty()||this.stateRemainingTime<=0) {
+        this.state = DeerState.REST;
+        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+      }
+    }
+    let vx = this.rigidBody.getVelocity().x();
+    let vz = this.rigidBody.getVelocity().z();
+    let friction = this.isGrounded()?this.groundFriction:this.airFriction;
+    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
+    this.transform.setRot(Quaternion.rotY(this.turn));
+  }
+
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  static create(key) {
+    let res = new DeerScript(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.DeerScript = DeerScript;
+const createDeerState = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const DeerState = Object.freeze({
+  REST: createDeerState("REST"),
+  MOVE: createDeerState("MOVE"),
+  READY_TO_ATTACK: createDeerState("READY_TO_ATTACK"),
+  ATTACK: createDeerState("ATTACK"),
+  DYING: createDeerState("DYING"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class DemonScript extends GameObjectScript {
+  static HIT_SOUNDS = Dut.immutableList(SoundId.of("hit-1"), SoundId.of("hit-2"));
+  static DEATH_SOUNDS = Dut.immutableList(SoundId.of("death-monster-2"), SoundId.of("death-monster-3"));
+  static FIRE_SOUNDS = Dut.immutableList(SoundId.of("fire-laser-1"), SoundId.of("fire-laser-2"));
+  transform;
+  blink;
+  rigidBody;
+  health;
+  moveForce = 600;
+  airControlForce = 0;
+  airFriction = 3;
+  groundFriction = 100;
+  turn = 0;
+  turnSpeed = 2*FMath.PI;
+  bulletId = ActorPrefabId.of("enemy-bullet-1");
+  attackImpact = 55;
+  state = DemonState.REST;
+  stateRemainingTime = 0;
+  targetPos = Vec3.ZERO;
+  restBaseTimesSpan = 0.5;
+  restRandomTimeSpan = 3;
+  distError = 0.5;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "DemonScript";
+  }
+
+  guardInvariants() {
+  }
+
+  onEvent(type, event) {
+    super.onEvent(type, event);
+    if (type.equals(GameActors.HIT_EVENT_TYPE)) {
+      let hit = event;
+      this.playRandomSound(DemonScript.HIT_SOUNDS);
+      this.actor().getComponent("RigidBodyComponent").applyImpulse(hit.getPos(), hit.getDir().scale(hit.getImpact()));
+      if (this.state.equals(DemonState.REST)||this.state.equals(DemonState.MOVE)||this.state.equals(DemonState.READY_TO_ATTACK)||this.state.equals(DemonState.READY_TO_FIRE)) {
+        this.blink.stopBlinking();
+        let rand = Randoms.nextFloat(0, 1);
+        if (rand<0.5) {
+          this.state = DemonState.READY_TO_FIRE;
+          this.stateRemainingTime = 0.5;
+          this.targetPos = Characters.getPlayerPosSafe(this.world().actors());
+        }
+        else {
+          this.state = DemonState.REST;
+          this.stateRemainingTime = 0.2;
+        }
+      }
+    }
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.blink = this.actor().getComponent("BlinkScript");
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
+    this.health = this.actor().getComponent("HealthScript");
+    this.state = DemonState.REST;
+    this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+  }
+
+  move(dt, inputs) {
+    super.move(dt, inputs);
+    this.stateRemainingTime = this.stateRemainingTime-dt;
+    if (!this.health.isAlive()&&!this.state.equals(DemonState.DYING)) {
+      this.playRandomSound(DemonScript.DEATH_SOUNDS);
+      this.state = DemonState.DYING;
+      this.stateRemainingTime = 2;
+    }
+    if (this.transform.getPos().y()<-20) {
+      let dest = Characters.getRandomTargetPoint(this.world().actors()).add(0, 5, 0);
+      this.transform.setPos(dest);
+      this.rigidBody.setVelocity(Vec3.ZERO);
+      this.state = DemonState.REST;
+      this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+    }
+    if (this.state.equals(DemonState.REST)) {
+      if (this.stateRemainingTime<=0) {
+        let pos = this.transform.getPos();
+        let playerPos = Characters.getPlayerPosSafe(this.world().actors());
+        if (playerPos!=null&&playerPos.dist(pos)<7) {
+          this.state = DemonState.READY_TO_ATTACK;
+          this.stateRemainingTime = 0.8;
+          this.blink.startBlinking(0.3);
+          this.targetPos = playerPos;
+        }
+        else {
+          let rand = Randoms.nextFloat(0, 1);
+          if (rand<0.5) {
+            this.state = DemonState.READY_TO_FIRE;
+            this.stateRemainingTime = 1;
+            this.targetPos = Characters.getPlayerPosSafe(this.world().actors());
+          }
+          else {
+            this.targetPos = Characters.getRandomTargetPoint(this.world().actors());
+            this.state = DemonState.MOVE;
           }
         }
       }
+    }
+    else if (this.state.equals(DemonState.MOVE)) {
+      let pos = this.transform.getPos();
+      let dist = this.targetPos.dist(pos);
+      if (dist<=this.distError) {
+        this.state = DemonState.REST;
+        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+      }
+      else {
+        let dir = this.targetPos.subAndNormalize(pos);
+        let targetTurn = FMath.atan2(dir.x(), dir.z());
+        let maxdTurn = dt*this.turnSpeed;
+        this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
+        let force = this.isGrounded()?this.moveForce:this.airControlForce;
+        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x()*force, 0, dir.z()*force));
+      }
+    }
+    else if (this.state.equals(DemonState.READY_TO_ATTACK)) {
+      let pos = this.transform.getPos();
+      let dir = this.targetPos.subAndNormalize(pos);
+      let targetTurn = FMath.atan2(dir.x(), dir.z());
+      let maxdTurn = dt*this.turnSpeed;
+      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
+      if (this.stateRemainingTime<=0) {
+        this.blink.stopBlinking();
+        this.state = DemonState.ATTACK;
+        this.stateRemainingTime = 1;
+        if (this.isGrounded()) {
+          this.rigidBody.applyImpulse(this.transform.getPos(), Vec3.create(dir.x()*300, 15, dir.z()*300));
+        }
+      }
+    }
+    else if (this.state.equals(DemonState.ATTACK)) {
+      let collider = GameActors.getCollider(this.actor(), CollisionLayers.ENEMY_PUNCH);
+      let attackPos = collider.toGlobal(Vec3.ZERO);
+      let attackDir = collider.toGlobal(Vec3.FORWARD).subAndNormalize(attackPos);
+      let hits = this.world().collisions().withCollider(collider);
+      for (let hitCollider of hits) {
+        let hitAct = hitCollider.actor();
+        let hitEvt = HitEvent.create(attackPos, attackDir, this.attackImpact, AttackerType.DEMON);
+        hitAct.broadcastEvent(GameActors.HIT_EVENT_TYPE, hitEvt);
+      }
+      if (!hits.isEmpty()||this.stateRemainingTime<=0) {
+        this.state = DemonState.REST;
+        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+      }
+    }
+    else if (this.state.equals(DemonState.READY_TO_FIRE)) {
+      let pos = this.transform.getPos();
+      let dir = this.targetPos.subAndNormalize(pos);
+      let targetTurn = FMath.atan2(dir.x(), dir.z());
+      let maxdTurn = dt*this.turnSpeed;
+      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
+      if (this.stateRemainingTime<=0) {
+        this.state = DemonState.FIRE;
+        this.stateRemainingTime = 1;
+      }
+    }
+    else if (this.state.equals(DemonState.FIRE)) {
+      this.playRandomSound(DemonScript.FIRE_SOUNDS);
+      this.state = DemonState.REST;
+      this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+      let bulletPrefab = this.world().assets().get("ActorPrefab", this.bulletId);
+      let pos = this.transform.getPos().add(0, 0.9, 0);
+      let bullet1 = this.world().constructActor(CreateActorRequest.create(bulletPrefab, null, pos, this.transform.getRot()));
+      let bullet2 = this.world().constructActor(CreateActorRequest.create(bulletPrefab, null, pos, this.transform.getRot().mul(Quaternion.rotY(FMath.PI/8).normalize())));
+      let bullet3 = this.world().constructActor(CreateActorRequest.create(bulletPrefab, null, pos, this.transform.getRot().mul(Quaternion.rotY(-FMath.PI/8).normalize())));
+      bullet1.getComponent("BulletScript").setAttackerType(AttackerType.DEMON);
+      bullet2.getComponent("BulletScript").setAttackerType(AttackerType.DEMON);
+      bullet3.getComponent("BulletScript").setAttackerType(AttackerType.DEMON);
+    }
+    let vx = this.rigidBody.getVelocity().x();
+    let vz = this.rigidBody.getVelocity().z();
+    let friction = this.isGrounded()?this.groundFriction:this.airFriction;
+    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
+    this.transform.setRot(Quaternion.rotY(this.turn));
+  }
+
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  static create(key) {
+    let res = new DemonScript(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.DemonScript = DemonScript;
+const createDemonState = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const DemonState = Object.freeze({
+  REST: createDemonState("REST"),
+  MOVE: createDemonState("MOVE"),
+  READY_TO_ATTACK: createDemonState("READY_TO_ATTACK"),
+  ATTACK: createDemonState("ATTACK"),
+  READY_TO_FIRE: createDemonState("READY_TO_FIRE"),
+  FIRE: createDemonState("FIRE"),
+  DYING: createDemonState("DYING"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class HealthScript extends Behavior {
+  maxHealth = 100;
+  health = 100;
+  deathType = null;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "HealthScript";
+  }
+
+  guardInvariants() {
+  }
+
+  isAlive() {
+    return this.health>0;
+  }
+
+  isDeath() {
+    return this.health<=0;
+  }
+
+  getMaxHealth() {
+    return this.maxHealth;
+  }
+
+  getHealth() {
+    return this.health;
+  }
+
+  getDeathType() {
+    return this.deathType;
+  }
+
+  onEvent(type, event) {
+    super.onEvent(type, event);
+    if (type.equals(GameActors.HIT_EVENT_TYPE)) {
+      let hit = event;
+      this.health = FMath.max(0, this.health-hit.getImpact());
+      if (this.isDeath()) {
+        this.deathType = hit.getAttackerType();
+      }
+    }
+  }
+
+  kill(attackerType) {
+    this.health = 0;
+    this.deathType = attackerType;
+    return this;
+  }
+
+  increaseHealth(d) {
+    Guard.notNegative(d, "d cannot be negative");
+    this.health = FMath.min(this.maxHealth, this.health+d);
+    if (this.isAlive()) {
+      this.deathType = null;
+    }
+    return this;
+  }
+
+  setPrefabProperties(idMapping, properties) {
+    this.maxHealth = Float.valueOf(properties.getOrDefault("maxHealth", "100"));
+    this.health = Float.valueOf(properties.getOrDefault("health", "100"));
+  }
+
+  setProperties(maxHealth, health) {
+    this.maxHealth = maxHealth;
+    this.health = health;
+    return this;
+  }
+
+  static create(key) {
+    let res = new HealthScript(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.HealthScript = HealthScript;
+class ItemsOnDeathScript extends Behavior {
+  coins = Collections.emptyList();
+  hearts = Collections.emptyList();
+  health;
+  done = false;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "ItemsOnDeathScript";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.health = this.actor().getComponent("HealthScript");
+  }
+
+  move(dt, inputs) {
+    if (this.done||this.health.getHealth()>0) {
+      return ;
+    }
+    let tc = this.actor().getComponent("TransformComponent");
+    let pos = tc.getPos().add(0, 1, 0);
+    for (let p of this.coins) {
+      let rval = Randoms.nextFloat(0, 1);
+      if (rval>p) {
+        continue;
+      }
+      let prefab = this.world().assets().get("ActorPrefab", GameScreen.COIN_ACTOR_PREFAB_ID);
+      for (let i = 0; i<1; ++i) {
+        let velRand = Vec3.create(Randoms.nextFloat(0, 5)-2.5, Randoms.nextFloat(4, 5), Randoms.nextFloat(0, 5)-2.5);
+        let itemActor = this.world().constructActor(CreateActorRequest.create(prefab, null, pos, Quaternion.ZERO_ROT));
+        let rb = itemActor.getComponent("RigidBodyComponent");
+        rb.setVelocity(velRand);
+      }
+    }
+    for (let p of this.hearts) {
+      let rval = Randoms.nextFloat(0, 1);
+      if (rval>p) {
+        continue;
+      }
+      let prefab = this.world().assets().get("ActorPrefab", GameScreen.HEART_ACTOR_PREFAB_ID);
+      for (let i = 0; i<1; ++i) {
+        let velRand = Vec3.create(Randoms.nextFloat(0, 5)-2.5, Randoms.nextFloat(4, 5), Randoms.nextFloat(0, 5)-2.5);
+        let itemActor = this.world().constructActor(CreateActorRequest.create(prefab, null, pos, Quaternion.ZERO_ROT));
+        let rb = itemActor.getComponent("RigidBodyComponent");
+        rb.setVelocity(velRand);
+      }
+    }
+    this.done = true;
+  }
+
+  setPrefabProperties(idMapping, properties) {
+    if (properties.containsKey("coins")) {
+      let str = properties.get("coins");
+      this.coins = Collections.unmodifiableList(Jsons.toFloatList(str));
+    }
+    else {
+      this.coins = Collections.emptyList();
+    }
+    if (properties.containsKey("hearts")) {
+      let str = properties.get("hearts");
+      this.hearts = Collections.unmodifiableList(Jsons.toFloatList(str));
+    }
+    else {
+      this.hearts = Collections.emptyList();
+    }
+  }
+
+  static create(key) {
+    let res = new ItemsOnDeathScript(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ItemsOnDeathScript = ItemsOnDeathScript;
+class MushroomScript extends GameObjectScript {
+  static HIT_SOUNDS = Dut.immutableList(SoundId.of("hit-1"), SoundId.of("hit-2"));
+  static DEATH_SOUNDS = Dut.immutableList(SoundId.of("death-monster-1"), SoundId.of("death-monster-2"));
+  static FWD = Vec3.create(0, 0, 1);
+  transform;
+  blink;
+  rigidBody;
+  health;
+  moveForce = 240;
+  airControlForce = 0;
+  airFriction = 3;
+  groundFriction = 50;
+  turn = 0;
+  turnSpeed = 2*FMath.PI;
+  attackImpact = 20;
+  state = MushroomState.REST;
+  stateRemainingTime = 0;
+  targetPos = Vec3.ZERO;
+  restBaseTimesSpan = 2;
+  restRandomTimeSpan = 3;
+  distError = 0.5;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "MushroomScript";
+  }
+
+  guardInvariants() {
+  }
+
+  onEvent(type, event) {
+    super.onEvent(type, event);
+    if (type.equals(GameActors.HIT_EVENT_TYPE)) {
+      let hit = event;
+      this.playRandomSound(MushroomScript.HIT_SOUNDS);
+      this.actor().getComponent("RigidBodyComponent").applyImpulse(hit.getPos(), hit.getDir().scale(hit.getImpact()));
+      if (this.state.equals(MushroomState.REST)||this.state.equals(MushroomState.MOVE)||this.state.equals(MushroomState.READY_TO_ATTACK)) {
+        this.state = MushroomState.REST;
+        this.stateRemainingTime = 0.3;
+        this.blink.stopBlinking();
+      }
+    }
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.blink = this.actor().getComponent("BlinkScript");
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
+    this.health = this.actor().getComponent("HealthScript");
+    this.state = MushroomState.REST;
+    this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+  }
+
+  move(dt, inputs) {
+    super.move(dt, inputs);
+    this.stateRemainingTime = this.stateRemainingTime-dt;
+    if (!this.health.isAlive()&&!this.state.equals(MushroomState.DYING)) {
+      this.state = MushroomState.DYING;
+      this.stateRemainingTime = 2;
+      this.playRandomSound(MushroomScript.DEATH_SOUNDS);
+    }
+    if (this.state.equals(MushroomState.REST)) {
+      if (this.stateRemainingTime<=0) {
+        let pos = this.transform.getPos();
+        let playerPos = Characters.getPlayerPosSafe(this.world().actors());
+        if (playerPos!=null&&playerPos.dist(pos)<7) {
+          this.state = MushroomState.READY_TO_ATTACK;
+          this.stateRemainingTime = 2;
+          this.blink.startBlinking(0.3);
+          this.targetPos = playerPos;
+        }
+        else {
+          this.targetPos = Characters.getRandomTargetPoint(this.world().actors());
+          this.state = MushroomState.MOVE;
+        }
+      }
+    }
+    else if (this.state.equals(MushroomState.MOVE)) {
+      let pos = this.transform.getPos();
+      let dist = this.targetPos.dist(pos);
+      if (dist<=this.distError) {
+        this.state = MushroomState.REST;
+        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+      }
+      else {
+        let dir = this.targetPos.subAndNormalize(pos);
+        let targetTurn = FMath.atan2(dir.x(), dir.z());
+        let maxdTurn = dt*this.turnSpeed;
+        this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
+        let force = this.isGrounded()?this.moveForce:this.airControlForce;
+        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x()*force, 0, dir.z()*force));
+      }
+    }
+    else if (this.state.equals(MushroomState.READY_TO_ATTACK)) {
+      let pos = this.transform.getPos();
+      let dir = this.targetPos.subAndNormalize(pos);
+      let targetTurn = FMath.atan2(dir.x(), dir.z());
+      let maxdTurn = dt*this.turnSpeed;
+      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
+      if (this.stateRemainingTime<=0) {
+        this.blink.stopBlinking();
+        this.state = MushroomState.ATTACK;
+        this.stateRemainingTime = 1;
+        if (this.isGrounded()) {
+          this.rigidBody.applyImpulse(this.transform.getPos(), Vec3.create(dir.x()*60, 7, dir.z()*60));
+        }
+      }
+    }
+    else if (this.state.equals(MushroomState.ATTACK)) {
+      let collider = GameActors.getCollider(this.actor(), CollisionLayers.ENEMY_PUNCH);
+      let attackPos = collider.toGlobal(Vec3.ZERO);
+      let attackDir = collider.toGlobal(MushroomScript.FWD).subAndNormalize(attackPos);
+      let hits = this.world().collisions().withCollider(collider);
+      for (let hitCollider of hits) {
+        let hitAct = hitCollider.actor();
+        let hitEvt = HitEvent.create(attackPos, attackDir, this.attackImpact, AttackerType.MUSHROOM);
+        hitAct.broadcastEvent(GameActors.HIT_EVENT_TYPE, hitEvt);
+      }
+      if (!hits.isEmpty()||this.stateRemainingTime<=0) {
+        this.state = MushroomState.REST;
+        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+      }
+    }
+    let vx = this.rigidBody.getVelocity().x();
+    let vz = this.rigidBody.getVelocity().z();
+    let friction = this.isGrounded()?this.groundFriction:this.airFriction;
+    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
+    this.transform.setRot(Quaternion.rotY(this.turn));
+  }
+
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  static create(key) {
+    let res = new MushroomScript(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.MushroomScript = MushroomScript;
+const createMushroomState = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const MushroomState = Object.freeze({
+  REST: createMushroomState("REST"),
+  MOVE: createMushroomState("MOVE"),
+  READY_TO_ATTACK: createMushroomState("READY_TO_ATTACK"),
+  ATTACK: createMushroomState("ATTACK"),
+  DYING: createMushroomState("DYING"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class PigScript extends GameObjectScript {
+  static HIT_SOUNDS = Dut.immutableList(SoundId.of("hit-1"), SoundId.of("hit-2"));
+  static DEATH_SOUNDS = Dut.immutableList(SoundId.of("death-monster-1"), SoundId.of("death-monster-2"));
+  static FIRE_SOUNDS = Dut.immutableList(SoundId.of("fire-laser-1"), SoundId.of("fire-laser-2"));
+  transform;
+  rigidBody;
+  health;
+  moveForce = 240;
+  airControlForce = 0;
+  airFriction = 3;
+  groundFriction = 50;
+  turn = 0;
+  turnSpeed = 2*FMath.PI;
+  bulletId = ActorPrefabId.of("enemy-bullet-1");
+  attachProbability = 0.3;
+  state = PigState.REST;
+  stateRemainingTime = 0;
+  targetPos = Vec3.ZERO;
+  restBaseTimesSpan = 2;
+  restRandomTimeSpan = 3;
+  distError = 0.5;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "PigScript";
+  }
+
+  guardInvariants() {
+  }
+
+  onEvent(type, event) {
+    super.onEvent(type, event);
+    if (type.equals(GameActors.HIT_EVENT_TYPE)) {
+      let hit = event;
+      this.playRandomSound(PigScript.HIT_SOUNDS);
+      this.actor().getComponent("RigidBodyComponent").applyImpulse(hit.getPos(), hit.getDir().scale(hit.getImpact()));
+    }
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
+    this.health = this.actor().getComponent("HealthScript");
+    this.state = PigState.REST;
+    this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+  }
+
+  move(dt, inputs) {
+    super.move(dt, inputs);
+    this.stateRemainingTime = this.stateRemainingTime-dt;
+    if (!this.health.isAlive()&&!this.state.equals(PigState.DYING)) {
+      this.state = PigState.DYING;
+      this.stateRemainingTime = 2;
+      this.playRandomSound(PigScript.DEATH_SOUNDS);
+    }
+    if (this.state.equals(PigState.REST)) {
+      if (this.stateRemainingTime<=0) {
+        let rand = Randoms.nextFloat(0, 1);
+        if (rand<this.attachProbability) {
+          this.state = PigState.READY_TO_ATTACK;
+          this.stateRemainingTime = 2;
+          this.targetPos = Characters.getPlayerPosSafe(this.world().actors());
+        }
+        else {
+          this.targetPos = Characters.getRandomTargetPoint(this.world().actors());
+          this.state = PigState.MOVE;
+        }
+      }
+    }
+    else if (this.state.equals(PigState.MOVE)) {
+      let pos = this.transform.getPos();
+      let dist = this.targetPos.dist(pos);
+      if (dist<=this.distError) {
+        this.state = PigState.REST;
+        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+      }
+      else {
+        let dir = this.targetPos.subAndNormalize(pos);
+        let targetTurn = FMath.atan2(dir.x(), dir.z());
+        let maxdTurn = dt*this.turnSpeed;
+        this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
+        let force = this.isGrounded()?this.moveForce:this.airControlForce;
+        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x()*force, 0, dir.z()*force));
+      }
+    }
+    else if (this.state.equals(PigState.READY_TO_ATTACK)) {
+      let pos = this.transform.getPos();
+      let dir = this.targetPos.subAndNormalize(pos);
+      let targetTurn = FMath.atan2(dir.x(), dir.z());
+      let maxdTurn = dt*this.turnSpeed;
+      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
+      if (this.stateRemainingTime<=0) {
+        this.state = PigState.ATTACK;
+        this.stateRemainingTime = 1;
+      }
+    }
+    else if (this.state.equals(PigState.ATTACK)) {
+      this.playRandomSound(PigScript.FIRE_SOUNDS);
+      this.state = PigState.REST;
+      this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+      let bulletPrefab = this.world().assets().get("ActorPrefab", this.bulletId);
+      let pos = this.transform.getPos().add(0, 0.9, 0);
+      let bullet = this.world().constructActor(CreateActorRequest.create(bulletPrefab, null, pos, this.transform.getRot()));
+      bullet.getComponent("BulletScript").setAttackerType(AttackerType.PIG);
+    }
+    let vx = this.rigidBody.getVelocity().x();
+    let vz = this.rigidBody.getVelocity().z();
+    let friction = this.isGrounded()?this.groundFriction:this.airFriction;
+    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
+    this.transform.setRot(Quaternion.rotY(this.turn));
+  }
+
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  static create(key) {
+    let res = new PigScript(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.PigScript = PigScript;
+const createPigState = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const PigState = Object.freeze({
+  REST: createPigState("REST"),
+  MOVE: createPigState("MOVE"),
+  READY_TO_ATTACK: createPigState("READY_TO_ATTACK"),
+  ATTACK: createPigState("ATTACK"),
+  DYING: createPigState("DYING"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class PlayerInput {
+  dt;
+  controllable;
+  dir;
+  punch;
+  ground;
+  constructor() {
+  }
+
+  getClass() {
+    return "PlayerInput";
+  }
+
+  guardInvariants() {
+  }
+
+  getDt() {
+    return this.dt;
+  }
+
+  isControllable() {
+    return this.controllable;
+  }
+
+  getDir() {
+    return this.dir;
+  }
+
+  isPunch() {
+    return this.punch;
+  }
+
+  isGround() {
+    return this.ground;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(dt, controllable, dir, punch, ground) {
+    let res = new PlayerInput();
+    res.controllable = controllable;
+    res.dt = dt;
+    res.dir = dir;
+    res.punch = punch;
+    res.ground = ground;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.PlayerInput = PlayerInput;
+class PlayerScript extends GameObjectScript {
+  static PUNCH_SOUNDS = Dut.immutableList(SoundId.of("punch-1"), SoundId.of("punch-2"), SoundId.of("punch-3"));
+  static HIT_SOUNDS = Dut.immutableList(SoundId.of("hit-1"), SoundId.of("hit-2"));
+  static DEATH_SOUNDS = Dut.immutableList(SoundId.of("death-human-1"));
+  static JOYSTICK_SENSITIVITY = 1e-5;
+  transform;
+  model;
+  rigidBody;
+  health;
+  animationPlayer;
+  state;
+  runForce = 1000;
+  airControlForce = 7;
+  airFriction = 3;
+  groundFriction = 200;
+  turnSpeed = 4*FMath.PI;
+  punchImpact = 50;
+  turn = 0;
+  dying = false;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "PlayerScript";
+  }
+
+  guardInvariants() {
+  }
+
+  onEvent(type, event) {
+    super.onEvent(type, event);
+    if (type.equals(GameActors.HIT_EVENT_TYPE)) {
+      let hit = event;
+      this.playRandomSound(PlayerScript.HIT_SOUNDS);
+      this.actor().getComponent("RigidBodyComponent").applyImpulse(hit.getPos(), hit.getDir().scale(hit.getImpact()));
+      this.state = this.stateHit.bind(this);
+      this.sendEvent(GameScreen.CAMERA_ACTOR_ID, CameraShakeEvent.TYPE, CameraShakeEvent.create(0.15, 0.2));
+    }
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.model = this.actor().getComponent("ModelComponent");
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
+    this.health = this.actor().getComponent("HealthScript");
+    let animCol = this.world().assets().get("MeshAnimationCollection", MeshAnimationCollectionId.of("tyracorn"));
+    this.animationPlayer = MeshAnimationPlayer.create(animCol, MeshAnimationKey.of("idle"));
+    this.state = this.stateIdle.bind(this);
+    this.turn = 0;
+  }
+
+  move(dt, inputs) {
+    super.move(dt, inputs);
+    if (!this.dying&&!this.health.isAlive()) {
+      this.playRandomSound(PlayerScript.DEATH_SOUNDS);
+      this.dying = true;
+    }
+    let gameState = this.world().actors().get(GameScreen.GAME_STATE_ACTOR_ID).getComponent("GameStateBehavior");
+    let dir = inputs.getVec2("dir", Vec2.ZERO);
+    let punch = inputs.getBoolean("punch", false);
+    let input = PlayerInput.create(dt, gameState.isControllable(), dir, punch, this.isGrounded());
+    this.state(input);
+    let step = this.animationPlayer.move(dt);
+    if (step.hasTrigger("punch-sound")) {
+      this.playRandomSound(PlayerScript.PUNCH_SOUNDS);
+    }
+    if (step.hasTrigger("punch")) {
+      let collider = GameActors.getCollider(this.actor(), CollisionLayers.PLAYER_PUNCH);
+      let punchWorld = collider.toGlobal(Vec3.ZERO);
+      let punchDir = collider.toGlobal(Vec3.FORWARD).subAndNormalize(punchWorld);
+      let hits = this.world().collisions().withCollider(collider);
+      let hit = false;
+      for (let hitCollider of hits) {
+        let hitAct = hitCollider.actor();
+        let hitEvt = HitEvent.create(punchWorld, punchDir, this.punchImpact, AttackerType.PLAYER);
+        hitAct.broadcastEvent(GameActors.HIT_EVENT_TYPE, hitEvt);
+      }
+      if (hit) {
+        this.sendEvent(GameScreen.CAMERA_ACTOR_ID, CameraShakeEvent.TYPE, CameraShakeEvent.create(0.1, 0.15));
+      }
+    }
+    let vx = this.rigidBody.getVelocity().x();
+    let vz = this.rigidBody.getVelocity().z();
+    let friction = this.isGrounded()?this.groundFriction:this.airFriction;
+    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
+    this.model.setInterpolation(step.getInterpolation());
+    this.transform.setRot(Quaternion.rotY(this.turn));
+  }
+
+  stateIdle(input) {
+    this.animationPlayer.play(MeshAnimationKey.of("idle"));
+    if (!input.isControllable()) {
+      return null;
+    }
+    if (input.isPunch()) {
+      this.state = this.statePunch.bind(this);
+    }
+    else if (input.getDir().mag()>=PlayerScript.JOYSTICK_SENSITIVITY) {
+      this.state = this.stateRun.bind(this);
     }
     return null;
   }
 
   stateRun(input) {
     this.animationPlayer.play(MeshAnimationKey.of("run"));
+    if (!input.isControllable()) {
+      this.state = this.stateIdle.bind(this);
+    }
     if (input.isPunch()) {
       this.state = this.statePunch.bind(this);
     }
-    else if (input.getDir().mag()<PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
+    else if (input.getDir().mag()<PlayerScript.JOYSTICK_SENSITIVITY) {
       this.state = this.stateIdle.bind(this);
-    }
-    else if (!input.isRun()) {
-      this.state = this.stateWalk.bind(this);
     }
     else {
       let dir = input.getDir().normalize();
-      let moveMag = this.grounded?this.runForce:this.airForce;
-      this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x(), 0, -dir.y()).scale(moveMag*this.rigidBody.getMass()));
-      let targetTurn = -FMath.atan2(dir.x(), dir.y());
+      let force = input.isGround()?this.runForce:this.airControlForce;
+      this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x()*force, 0, -dir.y()*force));
+      let targetTurn = FMath.atan2(dir.x(), -dir.y());
       let maxdTurn = input.getDt()*this.turnSpeed;
-      if (FMath.abs(this.turn-targetTurn)<=maxdTurn) {
-        this.turn = targetTurn;
-      }
-      else if (targetTurn>this.turn) {
-        if (targetTurn-this.turn<this.turn-targetTurn+FMath.PI*2) {
-          this.turn = this.turn+maxdTurn;
-          if (this.turn>FMath.PI) {
-            this.turn = this.turn-2*FMath.PI;
-          }
-        }
-        else {
-          this.turn = this.turn-maxdTurn;
-          if (this.turn<-FMath.PI) {
-            this.turn = this.turn+2*FMath.PI;
-          }
-        }
-      }
-      else {
-        if (this.turn-targetTurn<targetTurn-this.turn+FMath.PI*2) {
-          this.turn = this.turn-maxdTurn;
-          if (this.turn<-FMath.PI) {
-            this.turn = this.turn+2*FMath.PI;
-          }
-        }
-        else {
-          this.turn = this.turn+maxdTurn;
-          if (this.turn>FMath.PI) {
-            this.turn = this.turn-2*FMath.PI;
-          }
-        }
-      }
+      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
     }
     return null;
   }
@@ -32657,11 +36595,39 @@ class PlayerCharacterBehavior extends Behavior {
   statePunch(input) {
     this.animationPlayer.play(MeshAnimationKey.of("punch"));
     if (this.animationPlayer.isEnd()) {
-      if (input.isPunch()) {
+      if (!input.isControllable()) {
+        this.state = this.stateIdle.bind(this);
+      }
+      else if (input.isPunch()) {
         this.animationPlayer.playFromStart(MeshAnimationKey.of("punch"));
       }
-      else if (input.getDir().mag()>=PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
-        this.state = input.isRun()?this.stateRun.bind(this):this.stateWalk.bind(this);
+      else if (input.getDir().mag()>=PlayerScript.JOYSTICK_SENSITIVITY) {
+        this.state = this.stateRun.bind(this);
+      }
+      else {
+        this.state = this.stateIdle.bind(this);
+      }
+    }
+    if (input.isControllable()&&input.getDir().mag()>PlayerScript.JOYSTICK_SENSITIVITY) {
+      let dir = input.getDir().normalize();
+      let targetTurn = FMath.atan2(dir.x(), -dir.y());
+      let maxdTurn = input.getDt()*this.turnSpeed;
+      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
+    }
+    return null;
+  }
+
+  stateHit(input) {
+    this.animationPlayer.play(MeshAnimationKey.of("hit"));
+    if (this.animationPlayer.isEnd()) {
+      if (!input.isControllable()) {
+        this.state = this.stateIdle.bind(this);
+      }
+      else if (input.isPunch()) {
+        this.animationPlayer.playFromStart(MeshAnimationKey.of("punch"));
+      }
+      else if (input.getDir().mag()>=PlayerScript.JOYSTICK_SENSITIVITY) {
+        this.state = this.stateRun.bind(this);
       }
       else {
         this.state = this.stateIdle.bind(this);
@@ -32670,164 +36636,1138 @@ class PlayerCharacterBehavior extends Behavior {
     return null;
   }
 
-  static create() {
-    let res = new PlayerCharacterBehavior();
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  static create(key) {
+    let res = new PlayerScript(key);
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.PlayerCharacterBehavior = PlayerCharacterBehavior;
-class RigidBodyApp06 extends TyracornScreen {
-  time = 0;
-  world;
-  inputs = InputCache.create();
-  ui;
-  controller;
+classRegistry.PlayerScript = PlayerScript;
+class PrincessScript extends GameObjectScript {
+  transform;
+  model;
+  rigidBody;
+  animationPlayer;
+  airFriction = 3;
+  groundFriction = 200;
+  gameState;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "PrincessScript";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.model = this.actor().getComponent("ModelComponent");
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
+    let animCol = this.world().assets().get("MeshAnimationCollection", MeshAnimationCollectionId.of("kimono-female"));
+    this.animationPlayer = MeshAnimationPlayer.create(animCol, MeshAnimationKey.of("idle"));
+    this.gameState = this.world().actors().get(GameScreen.GAME_STATE_ACTOR_ID).getComponent("GameStateBehavior");
+  }
+
+  move(dt, inputs) {
+    super.move(dt, inputs);
+    let step = this.animationPlayer.move(dt);
+    let vx = this.rigidBody.getVelocity().x();
+    let vz = this.rigidBody.getVelocity().z();
+    let friction = this.isGrounded()?this.groundFriction:this.airFriction;
+    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
+    this.model.setInterpolation(step.getInterpolation());
+    this.transform.setRot(Quaternion.rotY(0));
+  }
+
+  lateMove(dt, inputs) {
+    for (let cmp of this.actor().getComponents()) {
+      if (!(cmp instanceof ColliderComponent)) {
+        continue;
+      }
+      let collider = cmp;
+      if (collider.getLayer().equals(CollisionLayers.PRINCESS_ENVELOPE)) {
+        let cols = this.world().collisions().withCollider(collider);
+        if (!cols.isEmpty()) {
+          this.gameState.toVictory();
+          return ;
+        }
+      }
+    }
+  }
+
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  static create(key) {
+    let res = new PrincessScript(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.PrincessScript = PrincessScript;
+class ShrinkOnDeathScript extends Behavior {
+  health;
+  duration = 2;
+  baseMat;
+  dyingTime = 0;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "ShrinkOnDeathScript";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.health = this.actor().getComponent("HealthScript");
+  }
+
+  move(dt, inputs) {
+    if (this.health.isDeath()) {
+      if (this.baseMat==null) {
+        this.baseMat = this.actor().getComponent("ModelComponent").getTransform();
+        this.dyingTime = 0;
+      }
+      else {
+        this.dyingTime = this.dyingTime+dt;
+        let rem = this.duration-this.dyingTime;
+        let scale = FMath.max(rem/this.duration, 0.1);
+        this.actor().getComponent("ModelComponent").setTransform(Mat44.scale(1, scale, 1).mul(this.baseMat));
+        if (rem<=0) {
+          this.world().actors().remove(this.actor().getId());
+        }
+      }
+    }
+  }
+
+  setPrefabProperties(idMapping, properties) {
+    this.duration = Float.valueOf(properties.getOrDefault("duration", "2"));
+  }
+
+  static create(key) {
+    let res = new ShrinkOnDeathScript(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ShrinkOnDeathScript = ShrinkOnDeathScript;
+class YetiScript extends GameObjectScript {
+  static HIT_SOUNDS = Dut.immutableList(SoundId.of("hit-1"), SoundId.of("hit-2"));
+  static DEATH_SOUNDS = Dut.immutableList(SoundId.of("death-monster-2"), SoundId.of("death-monster-3"));
+  transform;
+  blink;
+  rigidBody;
+  health;
+  moveForce = 180;
+  airControlForce = 0;
+  airFriction = 3;
+  groundFriction = 50;
+  turn = 0;
+  turnSpeed = 2*FMath.PI;
+  attackImpact = 30;
+  state = YetiState.REST;
+  stateRemainingTime = 0;
+  targetPos = Vec3.ZERO;
+  restBaseTimesSpan = 2;
+  restRandomTimeSpan = 3;
+  distError = 0.5;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "YetiScript";
+  }
+
+  guardInvariants() {
+  }
+
+  onEvent(type, event) {
+    super.onEvent(type, event);
+    if (type.equals(GameActors.HIT_EVENT_TYPE)) {
+      let hit = event;
+      this.playRandomSound(YetiScript.HIT_SOUNDS);
+      this.actor().getComponent("RigidBodyComponent").applyImpulse(hit.getPos(), hit.getDir().scale(hit.getImpact()));
+      if (this.state.equals(YetiState.REST)||this.state.equals(YetiState.MOVE)||this.state.equals(YetiState.READY_TO_ATTACK)) {
+        this.state = YetiState.REST;
+        this.stateRemainingTime = 0.3;
+        this.blink.stopBlinking();
+      }
+    }
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.blink = this.actor().getComponent("BlinkScript");
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
+    this.health = this.actor().getComponent("HealthScript");
+    this.state = YetiState.REST;
+    this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+  }
+
+  move(dt, inputs) {
+    super.move(dt, inputs);
+    this.stateRemainingTime = this.stateRemainingTime-dt;
+    if (!this.health.isAlive()&&!this.state.equals(YetiState.DYING)) {
+      this.playRandomSound(YetiScript.DEATH_SOUNDS);
+      this.state = YetiState.DYING;
+      this.stateRemainingTime = 2;
+    }
+    if (this.state.equals(YetiState.REST)) {
+      if (this.stateRemainingTime<=0) {
+        let pos = this.transform.getPos();
+        let playerPos = Characters.getPlayerPosSafe(this.world().actors());
+        if (playerPos!=null&&playerPos.dist(pos)<7) {
+          this.state = YetiState.READY_TO_ATTACK;
+          this.stateRemainingTime = 2;
+          this.blink.startBlinking(0.3);
+          this.targetPos = playerPos;
+        }
+        else {
+          this.targetPos = Characters.getRandomTargetPoint(this.world().actors());
+          this.state = YetiState.MOVE;
+        }
+      }
+    }
+    else if (this.state.equals(YetiState.MOVE)) {
+      let pos = this.transform.getPos();
+      let dist = this.targetPos.dist(pos);
+      if (dist<=this.distError) {
+        this.state = YetiState.REST;
+        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+      }
+      else {
+        let dir = this.targetPos.subAndNormalize(pos);
+        let targetTurn = FMath.atan2(dir.x(), dir.z());
+        let maxdTurn = dt*this.turnSpeed;
+        this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
+        let force = this.isGrounded()?this.moveForce:this.airControlForce;
+        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x()*force, 0, dir.z()*force));
+      }
+    }
+    else if (this.state.equals(YetiState.READY_TO_ATTACK)) {
+      let pos = this.transform.getPos();
+      let dir = this.targetPos.subAndNormalize(pos);
+      let targetTurn = FMath.atan2(dir.x(), dir.z());
+      let maxdTurn = dt*this.turnSpeed;
+      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
+      if (this.stateRemainingTime<=0) {
+        this.blink.stopBlinking();
+        this.state = YetiState.ATTACK;
+        this.stateRemainingTime = 1;
+        if (this.isGrounded()) {
+          this.rigidBody.applyImpulse(this.transform.getPos(), Vec3.create(dir.x()*120, 7, dir.z()*120));
+        }
+      }
+    }
+    else if (this.state.equals(YetiState.ATTACK)) {
+      let collider = GameActors.getCollider(this.actor(), CollisionLayers.ENEMY_PUNCH);
+      let attackPos = collider.toGlobal(Vec3.ZERO);
+      let attackDir = collider.toGlobal(Vec3.FORWARD).subAndNormalize(attackPos);
+      let hits = this.world().collisions().withCollider(collider);
+      for (let hitCollider of hits) {
+        let hitAct = hitCollider.actor();
+        let hitEvt = HitEvent.create(attackPos, attackDir, this.attackImpact, AttackerType.YETI);
+        hitAct.broadcastEvent(GameActors.HIT_EVENT_TYPE, hitEvt);
+      }
+      if (!hits.isEmpty()||this.stateRemainingTime<=0) {
+        this.state = YetiState.REST;
+        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
+      }
+    }
+    let vx = this.rigidBody.getVelocity().x();
+    let vz = this.rigidBody.getVelocity().z();
+    let friction = this.isGrounded()?this.groundFriction:this.airFriction;
+    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
+    this.transform.setRot(Quaternion.rotY(this.turn));
+  }
+
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  static create(key) {
+    let res = new YetiScript(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.YetiScript = YetiScript;
+const createYetiState = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const YetiState = Object.freeze({
+  REST: createYetiState("REST"),
+  MOVE: createYetiState("MOVE"),
+  READY_TO_ATTACK: createYetiState("READY_TO_ATTACK"),
+  ATTACK: createYetiState("ATTACK"),
+  DYING: createYetiState("DYING"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class BulletScript extends Behavior {
+  transform;
+  lifeTime = 1;
+  speed = 1;
+  impact = 12;
+  dir;
+  attackerType = AttackerType.OTHER;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "BulletScript";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+  }
+
+  move(dt, inputs) {
+    if (this.dir==null) {
+      let zero = this.transform.toGlobal(Vec3.ZERO);
+      let fwd = this.transform.toGlobal(Vec3.FORWARD);
+      this.dir = fwd.subAndNormalize(zero);
+    }
+    this.transform.move(this.dir.scale(dt*this.speed));
+    this.lifeTime = this.lifeTime-dt;
+    if (this.lifeTime<=0) {
+      this.world().actors().remove(this.actor().getId());
+    }
+    for (let comp of this.actor().getComponents()) {
+      if (!(comp instanceof ColliderComponent)) {
+        continue;
+      }
+      let collider = comp;
+      let hits = this.world().collisions().withCollider(collider);
+      for (let hitCollider of hits) {
+        let hitAct = hitCollider.actor();
+        let hitEvt = HitEvent.create(this.transform.getPos(), this.dir, this.impact, this.attackerType);
+        hitAct.broadcastEvent(GameActors.HIT_EVENT_TYPE, hitEvt);
+      }
+      if (!hits.isEmpty()) {
+        this.world().actors().remove(this.actor().getId());
+        return ;
+      }
+    }
+  }
+
+  setPrefabProperties(idMapping, properties) {
+    this.lifeTime = Float.valueOf(properties.getOrDefault("lifeTime", "1"));
+    this.speed = Float.valueOf(properties.getOrDefault("speed", "1"));
+    this.impact = Float.valueOf(properties.getOrDefault("impact", "12"));
+    this.attackerType = AttackerType.valueOf(properties.getOrDefault("attackerType", AttackerType.OTHER.name()));
+  }
+
+  setAttackerType(attackerType) {
+    this.attackerType = attackerType;
+    return this;
+  }
+
+  static create(key) {
+    let res = new BulletScript(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.BulletScript = BulletScript;
+class HitEvent {
+  pos;
+  dir;
+  impact;
+  attackerType;
+  constructor() {
+  }
+
+  getClass() {
+    return "HitEvent";
+  }
+
+  guardInvariants() {
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getDir() {
+    return this.dir;
+  }
+
+  getImpact() {
+    return this.impact;
+  }
+
+  getAttackerType() {
+    return this.attackerType;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(pos, dir, impact, attackerType) {
+    let res = new HitEvent();
+    res.pos = pos;
+    res.dir = dir;
+    res.impact = impact;
+    res.attackerType = attackerType;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.HitEvent = HitEvent;
+class CoinScript extends GameObjectScript {
+  static PICKUP_SOUNDS = Dut.immutableList(SoundId.of("coin-pickup-1"), SoundId.of("coin-pickup-2"));
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "CoinScript";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt, inputs) {
+    for (let comp of this.actor().getComponents()) {
+      if (!(comp instanceof ColliderComponent)) {
+        continue;
+      }
+      let collider = comp;
+      if (!collider.getLayer().equals(CollisionLayers.ITEM_PICKUP)) {
+        continue;
+      }
+      let hits = this.world().collisions().withCollider(collider);
+      if (!hits.isEmpty()) {
+        this.playRandomSound(CoinScript.PICKUP_SOUNDS);
+        this.world().actors().get(GameScreen.GAME_STATE_ACTOR_ID).getComponent("GameStateBehavior").incrementScore();
+        this.world().actors().remove(this.actor().getId());
+        return ;
+      }
+    }
+  }
+
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  static create(key) {
+    let res = new CoinScript(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CoinScript = CoinScript;
+class HeartScript extends GameObjectScript {
+  static PICKUP_SOUNDS = Dut.immutableList(SoundId.of("coin-pickup-1"), SoundId.of("coin-pickup-2"));
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "HeartScript";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt, inputs) {
+    for (let comp of this.actor().getComponents()) {
+      if (!(comp instanceof ColliderComponent)) {
+        continue;
+      }
+      let collider = comp;
+      if (!collider.getLayer().equals(CollisionLayers.ITEM_PICKUP)) {
+        continue;
+      }
+      let hits = this.world().collisions().withCollider(collider);
+      if (!hits.isEmpty()) {
+        this.playRandomSound(HeartScript.PICKUP_SOUNDS);
+        this.world().actors().get(GameScreen.PLAYER_ACTOR_ID).getComponent("HealthScript").increaseHealth(10);
+        this.world().actors().remove(this.actor().getId());
+        return ;
+      }
+    }
+  }
+
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  static create(key) {
+    let res = new HeartScript(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.HeartScript = HeartScript;
+class ConfigPropertiesSettings {
+  static SOUND_ENABLED_KEY = PropertyKey.of("audio.sound.enabled");
+  static SOUND_VOLUME_KEY = PropertyKey.of("audio.sound.volume");
+  static MUSIC_ENABLED_KEY = PropertyKey.of("audio.music.enabled");
+  static MUSIC_VOLUME_KEY = PropertyKey.of("audio.music.volume");
+  properties;
+  constructor() {
+  }
+
+  getClass() {
+    return "ConfigPropertiesSettings";
+  }
+
+  guardInvariants() {
+  }
+
+  isSoundEnabled() {
+    return this.properties.getBoolean(ConfigPropertiesSettings.SOUND_ENABLED_KEY, true);
+  }
+
+  setSoundEnabled(soundEnabled) {
+    this.properties.put(ConfigPropertiesSettings.SOUND_ENABLED_KEY, soundEnabled);
+  }
+
+  getSoundVolume() {
+    return this.properties.getFloat(ConfigPropertiesSettings.SOUND_VOLUME_KEY, 1);
+  }
+
+  setSoundVolume(soundVolume) {
+    this.properties.put(ConfigPropertiesSettings.SOUND_VOLUME_KEY, soundVolume);
+  }
+
+  isMusicEnabled() {
+    return this.properties.getBoolean(ConfigPropertiesSettings.MUSIC_ENABLED_KEY, true);
+  }
+
+  setMusicEnabled(musicEnabled) {
+    this.properties.put(ConfigPropertiesSettings.MUSIC_ENABLED_KEY, musicEnabled);
+  }
+
+  getMusicVolume() {
+    return this.properties.getFloat(ConfigPropertiesSettings.MUSIC_VOLUME_KEY, 1);
+  }
+
+  setMusicVolume(musicVolume) {
+    this.properties.put(ConfigPropertiesSettings.MUSIC_VOLUME_KEY, musicVolume);
+  }
+
+  static create(properties) {
+    let res = new ConfigPropertiesSettings();
+    res.properties = properties;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ConfigPropertiesSettings = ConfigPropertiesSettings;
+class DelayedComponent extends UiComponent {
+  component;
+  delay;
+  time;
   constructor() {
     super();
   }
 
   getClass() {
-    return "RigidBodyApp06";
+    return "DelayedComponent";
   }
 
-  move(drivers, screenManager, dt) {
+  guardInvariants() {
+  }
+
+  init(container) {
+    this.component.init(container);
+  }
+
+  move(dt) {
     this.time = this.time+dt;
-    let gDriver = drivers.getDriver("GraphicsDriver");
-    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    this.inputs.put("dir", this.controller.getDir());
-    this.inputs.put("run", this.controller.isRun());
-    this.inputs.put("punch", this.controller.isPunch());
-    this.world.move(dt, this.inputs);
-    this.world.render(RenderRequest.NORMAL);
-    gDriver.clearBuffers(BufferId.DEPTH);
-    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
-    uiRenderer.render(this.ui);
-    uiRenderer.end();
+    if (this.time<this.delay) {
+      return ;
+    }
+    this.component.move(dt);
   }
 
-  load(drivers, screenManager, properties) {
-    let res = new ArrayList();
-    let assets = drivers.getDriver("AssetManager");
-    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/primitives.tap")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/characters/tyracorn.tap")));
+  draw(painter) {
+    if (this.time<this.delay) {
+      return ;
+    }
+    this.component.draw(painter);
+  }
+
+  onContainerResize(size) {
+    this.component.onContainerResize(size);
+  }
+
+  onKeyPressed(key) {
+    if (this.time<this.delay) {
+      return false;
+    }
+    return this.component.onKeyPressed(key);
+  }
+
+  onKeyReleased(key) {
+    if (this.time<this.delay) {
+      return false;
+    }
+    return this.component.onKeyReleased(key);
+  }
+
+  onTouchStart(id, pos, size) {
+    if (this.time<this.delay) {
+      return false;
+    }
+    return this.component.onTouchStart(id, pos, size);
+  }
+
+  onTouchMove(id, pos, size) {
+    if (this.time<this.delay) {
+      return false;
+    }
+    return this.component.onTouchMove(id, pos, size);
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    if (this.time<this.delay) {
+      return false;
+    }
+    return this.component.onTouchEnd(id, pos, size, cancel);
+  }
+
+  toString() {
+  }
+
+  static create(component, delay) {
+    let res = new DelayedComponent();
+    res.component = component;
+    res.delay = delay;
+    res.guardInvariants();
     return res;
   }
 
-  init(drivers, screenManager, properties) {
-    let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(12, 20));
-    assets.put(MaterialId.of("brass"), Material.BRASS);
-    assets.put(MaterialId.of("copper"), Material.COPPER);
-    const sphereModelId = ModelId.of("sphere");
-    const skyboxModelId = ModelId.of("skybox-1");
-    assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
-    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("brass"));
-    const groundModelId = ModelId.of("ground");
-    assets.put(groundModelId, groundModel);
-    let sphereModel = assets.get("Model", ModelId.of("sphere"));
-    let boxModel = Model.simple(MeshId.of("modelBox"), sphereModel.getParts().get(0).getMaterial());
-    const boxModelId = ModelId.of("box");
-    assets.put(boxModelId, boxModel);
-    const characterModelId = ModelId.of("tyracorn");
-    const wallColMatId = PhysicalMaterialId.of("wall");
-    assets.put(wallColMatId, PhysicalMaterial.simple(0.6, 1.8, 1.8));
-    const objectColMatId = PhysicalMaterialId.of("object");
-    assets.put(objectColMatId, PhysicalMaterial.create(0.6, PhysicalMaterialCombineType.AVG, 18, 18, PhysicalMaterialCombineType.MAX));
-    const charColMatId = PhysicalMaterialId.of("character");
-    assets.put(charColMatId, PhysicalMaterial.create(0, PhysicalMaterialCombineType.MIN, 0, 0, PhysicalMaterialCombineType.MIN));
-    this.world = RigidBodyWorld.create(drivers);
-    let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create().setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-300, -30, -300, 300, 30, 300)));
-    this.world.actors().add(ActorId.ROOT, worldActor);
-    let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create()).addComponent(SkyboxComponent.create().setModelId(skyboxModelId).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create().setAngularVelocity(Vec3.create(0, 0.1, 0)));
-    this.world.actors().add(ActorId.ROOT, skybox);
-    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create().move(Vec3.create(10, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(40, 1, 30)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 2, 32)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, ground);
-    let back = Actor.create("back").setName("back").addComponent(TransformComponent.create().move(Vec3.create(10, 0, -15))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(42, 1, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 7, 1)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, back);
-    let front = Actor.create("front").setName("front").addComponent(TransformComponent.create().move(Vec3.create(10, 0, 15))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(42, 1, 3)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 3, 1)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, front);
-    let left = Actor.create("left").setName("left").addComponent(TransformComponent.create().move(Vec3.create(-10, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 32, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 32)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, left);
-    let right = Actor.create("right").setName("right").addComponent(TransformComponent.create().move(Vec3.create(30, 0, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 32, 7)))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 32)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, right);
-    let slope1 = Actor.create("slope-1").setName("slope-1").addComponent(TransformComponent.create().move(Vec3.create(8, 2, 5)).rotate(FMath.PI/4, Vec3.create(0, 0, 1))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(7, 1, 6))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(7, 1, 6)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, slope1);
-    let slope2 = Actor.create("slope-2").setName("slope-2").addComponent(TransformComponent.create().move(Vec3.create(20, 2, 5)).rotate(-FMath.PI/4, Vec3.create(0, 0, 1))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(7, 1, 6))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(7, 1, 6)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, slope2);
-    let bridge = Actor.create("bridge").setName("bridge").addComponent(TransformComponent.create().move(Vec3.create(14, 4.25, 5))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(7.5, 1, 6))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(7.5, 1, 6)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, bridge);
-    let stair = Actor.create("stair").setName("stair").addComponent(TransformComponent.create().move(Vec3.create(-2, -0.1, 3)).rotate(-FMath.PI/3, Vec3.create(0, 1, 0))).addComponent(ModelComponent.create().setModelId(groundModelId).setTransform(Mat44.scale(3, 1, 3))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(3, 1, 3)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, stair);
-    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create().lookAt(Vec3.create(2, 5, 4), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create().setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
-    this.world.actors().add(ActorId.ROOT, light);
-    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create().lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create().setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create()).addComponent(CameraTrackBehavior.create(ActorId.of("character"), Vec3.create(0, 10, 8), Vec3.create(0, 0, -1)));
-    this.world.actors().add(ActorId.ROOT, camera);
-    let character = Actor.create("character").setName("character").addComponent(TransformComponent.create().move(Vec3.create(0, 5, 0))).addComponent(ModelComponent.create().setModelId(characterModelId).setTransform(Mat44.rotY(FMath.PI))).addComponent(RigidBodyComponent.create().setMass(20).setRotationLock(true).setKinematic(false)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setPos(Vec3.create(0, 1.5, 0)).setShape(ColliderShape.CAPSULE).setRadius(0.7).setHeight(3).setMaterialId(charColMatId).setKey("body-collider")).addComponent(ColliderComponent.create().setTrigger(true).setActive(false).setLayer(CollisionLayer.OBJECT).setPos(Vec3.create(0.3, 1.7, -1.6)).setShape(ColliderShape.SPHERE).setRadius(0.1).setKey("punch-collider")).addComponent(PlayerCharacterBehavior.create());
-    this.world.actors().add(ActorId.ROOT, character);
-    let sphere1 = Actor.create("sphere-1").setName("sphere-1").addComponent(TransformComponent.create().move(Vec3.create(-3, 4, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(0.5).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, sphere1);
-    let sphere2 = Actor.create("sphere-2").setName("sphere-2").addComponent(TransformComponent.create().move(Vec3.create(-3, 3.2, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setRadius(0.5).setSize(Vec3.create(1, 1, 1)).setMaterialId(objectColMatId)).addComponent(PunchableBehavior.create()).addComponent(BallSocketJointComponent.create().setJoint("sphere-1", "sphere-2", Vec3.create(-3, 3.6, 0)));
-    this.world.actors().add(ActorId.ROOT, sphere2);
-    let sphere3 = Actor.create("sphere-3").setName("sphere-3").addComponent(TransformComponent.create().move(Vec3.create(-3, 2.4, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setRadius(0.5).setSize(Vec3.create(1, 1, 1)).setMaterialId(objectColMatId)).addComponent(PunchableBehavior.create()).addComponent(BallSocketJointComponent.create().setJoint("sphere-2", "sphere-3", Vec3.create(-3, 2.7, 0)));
-    this.world.actors().add(ActorId.ROOT, sphere3);
-    let sphere4 = Actor.create("sphere-4").setName("sphere-4").addComponent(TransformComponent.create().move(Vec3.create(-3, 1.6, 0))).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setRadius(0.5).setSize(Vec3.create(1, 1, 1)).setMaterialId(objectColMatId)).addComponent(PunchableBehavior.create()).addComponent(BallSocketJointComponent.create().setJoint("sphere-3", "sphere-4", Vec3.create(-3, 1.8, 0)));
-    this.world.actors().add(ActorId.ROOT, sphere4);
-    let fixedBase = Actor.create("fixed-base").setName("fixed-base").addComponent(TransformComponent.create().move(Vec3.create(-1, 2, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(1, 4, 1))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 4, 1)).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, fixedBase);
-    let fixedBlock = Actor.create("fixed-block").setName("fixed-block").addComponent(TransformComponent.create().move(Vec3.create(-3, 3, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(4, 2, 0.5))).addComponent(RigidBodyComponent.create().setMass(1)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(4, 2, 0.5)).setMaterialId(objectColMatId)).addComponent(FixedJointComponent.create().setJoint("fixed-base", "fixed-block"));
-    this.world.actors().add(ActorId.ROOT, fixedBlock);
-    let hingeBase = Actor.create("hinge-base").setName("hinge-base").addComponent(TransformComponent.create().move(Vec3.create(9, 2, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(1, 4, 1))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 4, 1)).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, hingeBase);
-    let hingeBlock = Actor.create("hinge-block").setName("hinge-block").addComponent(TransformComponent.create().move(Vec3.create(9, 3, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.trans(-2, 0, 0).mul(Mat44.scale(4, 2, 0.5)))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(10)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(4, 2, 0.5)).setPos(Vec3.create(-2, 0, 0)).setMaterialId(objectColMatId)).addComponent(HingeJointComponent.create().setJoint("hinge-base", "hinge-block", Vec3.create(9, 3, -8), Vec3.UP));
-    this.world.actors().add(ActorId.ROOT, hingeBlock);
-    let prismaticBase = Actor.create("prismatic-base").setName("prismatic-base").addComponent(TransformComponent.create().move(Vec3.create(20, 4, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(10, 0.5, 0.5))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(10, 0.5, 0.5)).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, prismaticBase);
-    let prismaticEnds = Actor.create("prismatic-ends").setName("prismatic-ends").addComponent(TransformComponent.create().move(Vec3.create(20, 4, -8))).addComponent(RigidBodyComponent.create().setKinematic(true)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setPos(Vec3.create(-5.125, 0, 0)).setSize(Vec3.create(0.25, 0.5, 0.5)).setMaterialId(objectColMatId)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setPos(Vec3.create(5.125, 0, 0)).setSize(Vec3.create(0.25, 0.5, 0.5)).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, prismaticEnds);
-    let prismaticBlock = Actor.create("prismatic-block").setName("prismatic-block").addComponent(TransformComponent.create().move(Vec3.create(20, 3, -8))).addComponent(ModelComponent.create().setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(10)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId)).addComponent(PrismaticJointComponent.create().setJoint("prismatic-base", "prismatic-block", Vec3.create(20, 4, -8), Vec3.RIGHT));
-    this.world.actors().add(ActorId.ROOT, prismaticBlock);
-    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(UiPlayStyles.createPlayStyler());
-    let addObjectAct = (evetSource) => {
-      let r = Randoms.nextFloat(1, 3);
-      let m = Randoms.nextFloat(1, 2);
-      let id1 = Randoms.nextAlphabetic(32);
-      let id2 = Randoms.nextAlphabetic(32);
-      let sphereObj1 = Actor.create(id1).addComponent(TransformComponent.create().move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(objectColMatId)).addComponent(BreakableSphereBehavior.create().setSphereModelId(sphereModelId));
-      this.world.actors().add(ActorId.ROOT, sphereObj1);
-      let sphereObj2 = Actor.create(id2).addComponent(TransformComponent.create().move(Vec3.create(0, 8, r))).addComponent(RemoveOnOutspaceComponent.create()).addComponent(ModelComponent.create().setModelId(sphereModelId).setTransform(Mat44.scale(r/2))).addComponent(RigidBodyComponent.create().setKinematic(false).setMass(m/10)).addComponent(ColliderComponent.create().setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r/2).setMaterialId(objectColMatId)).addComponent(BreakableSphereBehavior.create().setSphereModelId(sphereModelId)).addComponent(FixedJointComponent.create().setJoint(id1, id2));
-      this.world.actors().add(sphereObj1.getId(), sphereObj2);
-    };
-    let objectBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(20, 20, 120, 30)).setText("Object").addOnClickAction(addObjectAct);
-    this.ui.addComponent(objectBtn);
-    this.controller = CharacterController.create(drivers);
-    this.ui.addComponent(this.controller);
-    if (drivers.getPlatform().isExitable()) {
-      this.ui.addComponent(Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager)));
+}
+classRegistry.DelayedComponent = DelayedComponent;
+class HealthPanel extends UiComponent {
+  borderColor;
+  bgColor;
+  healthBarColor;
+  healthFont;
+  maxHealth = 100;
+  health = 100;
+  regionFnc;
+  containerSize;
+  region;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "HealthPanel";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt) {
+  }
+
+  draw(painter) {
+    if (this.bgColor.a()>0) {
+      painter.fillRect(this.region, this.bgColor);
+      let hreg = Rect2.create(this.region.x(), this.region.y(), this.region.width()*(this.health/this.maxHealth), this.region.height());
+      painter.fillRect(hreg, this.healthBarColor);
     }
-    this.ui.subscribe(drivers);
-    let dlist = InputCacheDisplayListener.create(this.inputs);
-    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
-    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
+    let p1 = Vec2.create(this.region.x(), this.region.y());
+    let p2 = Vec2.create(this.region.x()+this.region.width(), this.region.y());
+    let p3 = Vec2.create(this.region.x()+this.region.width(), this.region.y()+this.region.height());
+    let p4 = Vec2.create(this.region.x(), this.region.y()+this.region.height());
+    if (this.borderColor.a()>0) {
+      painter.drawLine(p1, p2, this.borderColor);
+      painter.drawLine(p2, p3, this.borderColor);
+      painter.drawLine(p3, p4, this.borderColor);
+      painter.drawLine(p4, p1, this.borderColor);
+    }
   }
 
-  leave(drivers) {
-    this.ui.unsubscribe(drivers);
-    this.world.destroy(drivers);
+  onContainerResize(size) {
+    this.containerSize = size;
+    this.region = Functions.apply(this.regionFnc, size);
   }
 
-  getRandomVelocity() {
-    let vx = Randoms.nextFloat(0, 2)-1;
-    let vy = Randoms.nextFloat(0, 2)-1;
-    let vz = Randoms.nextFloat(0, 2)-1;
-    return Vec3.create(vx, vy, vz);
+  setBorderColor(borderColor) {
+    Guard.notNull(borderColor, "borderColor cannot be null");
+    this.borderColor = borderColor;
+    return this;
+  }
+
+  setBgColor(bgColor) {
+    Guard.notNull(bgColor, "bgColor cannot be null");
+    this.bgColor = bgColor;
+    return this;
+  }
+
+  setRegionFnc(regionFnc) {
+    Guard.notNull(regionFnc, "regionFnc cannot be null");
+    this.regionFnc = regionFnc;
+    this.onContainerResize(this.containerSize);
+    return this;
+  }
+
+  setHealth(maxHealth, health) {
+    this.maxHealth = maxHealth;
+    this.health = health;
+    return this;
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new HealthPanel();
+    res.borderColor = Rgba.create(0.8, 0.8, 0.8, 1);
+    res.bgColor = Rgba.create(0.2, 0.2, 0.2, 1);
+    res.healthBarColor = Rgba.create(0.9, 0.2, 0.2, 1);
+    res.regionFnc = UiRegionFncs.center(100, 25);
+    res.containerSize = Size2.create(1, 1);
+    res.region = Functions.apply(res.regionFnc, res.containerSize);
+    res.guardInvariants();
+    return res;
   }
 
 }
-classRegistry.RigidBodyApp06 = RigidBodyApp06;
+classRegistry.HealthPanel = HealthPanel;
+class ScallingImageView extends UiComponent {
+  assets;
+  spriteContainer;
+  sprite;
+  visible;
+  startScale;
+  endScale;
+  duration;
+  atime;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "ScallingImageView";
+  }
+
+  guardInvariants() {
+  }
+
+  init(container) {
+    this.spriteContainer.init(container);
+  }
+
+  move(dt) {
+    if (!this.visible||this.atime>this.duration) {
+      return ;
+    }
+    let t = this.atime/this.duration;
+    let scale = (1-t)*this.startScale+t*this.endScale;
+    this.sprite.setRegionFnc(this.createSpriteRegFnc(scale));
+    this.atime = this.atime+dt;
+  }
+
+  draw(painter) {
+    if (this.visible) {
+      this.spriteContainer.draw(painter);
+    }
+  }
+
+  onContainerResize(size) {
+    this.spriteContainer.onContainerResize(size);
+  }
+
+  setRegionFnc(regionFnc) {
+    this.spriteContainer.setRegionFnc(regionFnc);
+    return this;
+  }
+
+  toString() {
+  }
+
+  getSprite() {
+    return this.visible?this.sprite.getTexture():null;
+  }
+
+  show(sprite, startScale, endScale, duration) {
+    this.sprite.setTexture(sprite);
+    this.sprite.setRegionFnc(this.createSpriteRegFnc(startScale));
+    this.startScale = startScale;
+    this.endScale = endScale;
+    this.duration = duration;
+    this.atime = 0;
+    this.visible = true;
+    return this;
+  }
+
+  hide() {
+    this.visible = false;
+    return this;
+  }
+
+  createSpriteRegFnc(scale) {
+    let sprTex = this.assets.get("Texture", this.sprite.getTexture());
+    let sprW = sprTex.getWidth();
+    let sprH = sprTex.getHeight();
+    let sprAsp = sprW/sprH;
+    return (s) => {
+      if (s.width()<1||s.height()<1) {
+        return Rect2.create(Pos2.ZERO, s);
+      }
+      let aspect = s.width()/s.height();
+      if (sprAsp>=aspect) {
+        let w = s.width()*scale;
+        let h = sprH*s.width()/sprW*scale;
+        return Rect2.create(s.width()/2-w/2, s.height()/2-h/2, w, h);
+      }
+      else {
+        let w = sprW*s.height()/sprH*scale;
+        let h = s.height()*scale;
+        return Rect2.create(s.width()/2-w/2, s.height()/2-h/2, w, h);
+      }
+    };
+  }
+
+  static create(assets) {
+    let res = new ScallingImageView();
+    res.assets = assets;
+    res.spriteContainer = Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setInnerSizeFnc(UiSizeFncs.identity()).setRegionFnc(UiRegionFncs.full());
+    res.sprite = ImageView.create().setRegionFnc(UiRegionFncs.full()).setTexture("empty");
+    res.spriteContainer.addComponent(res.sprite);
+    res.visible = false;
+    res.startScale = 1;
+    res.endScale = 1;
+    res.duration = 1;
+    res.atime = 0;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ScallingImageView = ScallingImageView;
+class TiledBackground extends UiComponent {
+  texture;
+  tileSize;
+  velocity;
+  containerSize;
+  offset = Vec2.ZERO;
+  spriteStyle = SpriteStyle.PIXEL_EDGE.withTextureStyle(TextureStyle.SMOOTH_REPEAT);
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "TiledBackground";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt) {
+    let nx = this.offset.x()+dt*this.velocity.x();
+    let ny = this.offset.y()+dt*this.velocity.y();
+    while (nx>0) {
+      nx = nx-this.tileSize.width();
+    }
+    while (nx+this.tileSize.width()<0) {
+      nx = nx+this.tileSize.width();
+    }
+    while (ny>0) {
+      ny = ny-this.tileSize.height();
+    }
+    while (ny+this.tileSize.height()<0) {
+      ny = ny+this.tileSize.height();
+    }
+    this.offset = Vec2.create(nx, ny);
+  }
+
+  draw(painter) {
+    for (let y = this.offset.y(); y<=this.containerSize.height(); y=y+this.tileSize.height()) {
+      for (let x = this.offset.x(); x<=this.containerSize.width(); x=x+this.tileSize.width()) {
+        painter.drawImage(this.texture, x, y, this.tileSize.width(), this.tileSize.height(), this.spriteStyle);
+      }
+    }
+  }
+
+  onContainerResize(size) {
+    this.containerSize = size;
+  }
+
+  getTexture() {
+    return this.texture;
+  }
+
+  setTexture() {
+    if (arguments.length===1&&arguments[0] instanceof TextureId) {
+      return this.setTexture_1_TextureId(arguments[0]);
+    }
+    else if (arguments.length===1&& typeof arguments[0]==="string") {
+      return this.setTexture_1_string(arguments[0]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  setTexture_1_TextureId(texture) {
+    Guard.notNull(texture, "texture cannot be null");
+    this.texture = texture;
+    return this;
+  }
+
+  setTexture_1_string(texture) {
+    return this.setTexture(TextureId.of(texture));
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new TiledBackground();
+    res.texture = TextureId.of("image");
+    res.tileSize = Size2.create(256, 256);
+    res.velocity = Vec2.create(0, 60);
+    res.containerSize = Size2.create(1, 1);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.TiledBackground = TiledBackground;
+class Uis {
+  static PUNCH_TRAIT = UiComponentTrait.of("PUNCH");
+  static LAYER_SEPARATOR_TRAIT = UiComponentTrait.of("LAYER_SEPARATOR");
+  static DEATH_TYPES = Dut.immutableMap(AttackerType.MUSHROOM, "Killed by Mushroom", AttackerType.PIG, "Killed by Pig", AttackerType.YETI, "Killed by Yeti", AttackerType.DEER, "Killed by Deer", AttackerType.CRAB, "Killed by Crab", AttackerType.CYCLOPS, "Killed by Cyclops", AttackerType.DEMON, "Killed by Demon", AttackerType.FALL, "Death by Fall", AttackerType.PLAYER, "Killed by Player", AttackerType.OTHER, "Mysteriously died");
+  mStyler;
+  settings;
+  rankingManager;
+  slotHeight = 120;
+  constructor() {
+  }
+
+  getClass() {
+    return "Uis";
+  }
+
+  guardInvariants() {
+  }
+
+  uiSizeFnc() {
+    return UiSizeFncs.constantHeight(1600);
+  }
+
+  styler() {
+    if (this.mStyler==null) {
+      let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
+      let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
+      let panelKey = UiComponentStyleKey.plain(UiComponentType.PANEL);
+      let trPanelKey = panelKey.plusTrait(UiComponentTrait.TRANSPARENT);
+      this.mStyler = DefaultUiStyler.create().setH1Font(FontId.of("kenny-mini-100")).setH1Color(Rgba.create(0.723, 0.127, 0.003, 1)).setLargeTextFont(FontId.of("kenny-mini-75")).setMediumTextFont(FontId.of("kenny-mini-50")).setSmallTextFont(FontId.of("kenny-mini-40")).setTextColor(Rgba.create(0.723, 0.127, 0.003, 1)).setButtonLabelFont(FontId.of("kenny-mini-50")).setButtonLabelColor(Rgba.create(0.723, 0.127, 0.003, 1)).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey, btnKey.plusTrait(Uis.PUNCH_TRAIT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punch-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(trPanelKey, panelKey.plusTrait(Uis.LAYER_SEPARATOR_TRAIT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BACKGROUND_COLOR, Rgba.create(0.5, 0.5, 0.5, 0.5)))));
+    }
+    return this.mStyler;
+  }
+
+  slotRegionFnc(slot) {
+    return (size) => {
+      return Rect2.create(0, slot*this.slotHeight, size.width(), this.slotHeight);
+    };
+  }
+
+  panel916() {
+    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setInnerSizeFnc((size) => {
+  return Size2.create(900, 1600);
+}).setRegionFnc((t) => {
+  if (t.aspect()>9/16) {
+    return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
+  }
+  else {
+    return Rect2.create(0, 0, t.width(), t.height());
+  }
+});
+  }
+
+  tiledBg() {
+    return TiledBackground.create().setTexture("bg-tile");
+  }
+
+  titleScreenBg() {
+    return ImageView.create().setTexture("title-screen").setRegionFnc(UiRegionFncs.full());
+  }
+
+  baseScreenBg() {
+    return ImageView.create().setTexture("base-screen").setRegionFnc(UiRegionFncs.full());
+  }
+
+  mediumBtn(label, slot, disabled, action) {
+    return Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.centerTop(slot*this.slotHeight, 600, 100)).setText(label).setDisabled(disabled).addOnClickAction(action);
+  }
+
+  bgBlockPanel(startSlot, numSlots, light, padding) {
+    let pd = padding?0.5:0;
+    return ImageView.create().setTexture(light?"panel-xl-light":"panel-xl-dark").setRegionFnc(UiRegionFncs.centerTop((startSlot-pd)*this.slotHeight, 800, (numSlots+2*pd)*this.slotHeight));
+  }
+
+  soundControl(label, slot) {
+    let panel = Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setInnerSizeFnc(UiSizeFncs.identity()).setRegionFnc(UiRegionFncs.centerTop(slot*this.slotHeight, 600, this.slotHeight));
+    const soundVol = Label.create().addTrait(UiComponentTrait.L).setPosFnc(UiPosFncs.leftTop(450, 50)).setText(Formats.floatToFixedDecimals(this.settings.getSoundVolume()*10, 0)).setAlignment(TextAlignment.CENTER);
+    panel.addComponent(soundVol);
+    let soundVolDownAct = (evtSource) => {
+      let vol = this.settings.getSoundVolume();
+      vol = FMath.clamp(vol-0.1, 0, 1);
+      this.settings.setSoundVolume(vol);
+      soundVol.setText(Formats.floatToFixedDecimals(vol*10, 0));
+    };
+    let soundVolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(300, 0, 100, 100)).setText("-").addOnClickAction(soundVolDownAct);
+    panel.addComponent(soundVolDownBtn);
+    let soundVolUpAct = (evtSource) => {
+      let vol = this.settings.getSoundVolume();
+      vol = FMath.clamp(vol+0.1, 0, 1);
+      this.settings.setSoundVolume(vol);
+      soundVol.setText(Formats.floatToFixedDecimals(vol*10, 0));
+    };
+    let soundVolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(500, 0, 100, 100)).setText("+").addOnClickAction(soundVolUpAct);
+    panel.addComponent(soundVolUpBtn);
+    let soundToggleAct = (evtSource) => {
+      let btn = evtSource;
+      this.settings.setSoundEnabled(btn.isToggledOn());
+    };
+    let soundToggle = ToggleButton.create().addTrait(UiComponentTrait.S).setRegionFnc(UiRegionFncs.leftTop(0, 0, 250, 100)).setText("Sound").toggle(this.settings.isSoundEnabled()).addOnToggleAction(soundToggleAct);
+    panel.addComponent(soundToggle);
+    return panel;
+  }
+
+  rankings(startSlot) {
+    let positionedRankings = this.rankingManager.getRankings();
+    let panel = Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setInnerSizeFnc(UiSizeFncs.identity()).setRegionFnc(UiRegionFncs.centerTop(startSlot*this.slotHeight, 600, this.slotHeight*positionedRankings.size()));
+    for (let i = 0; i<positionedRankings.size(); ++i) {
+      let ranking = this.rankingManager.getRankings().get(i);
+      let highlighted = i==this.rankingManager.getHighlighted();
+      let y = (i+0.5)*this.slotHeight;
+      panel.addComponent(ImageView.create().setTexture(highlighted?"panel-xl-light":"panel-xl-dark").setRegionFnc(UiRegionFncs.leftTop(0, y, 600, this.slotHeight)));
+      if (ranking.getRanking().getLevel()>=0) {
+        let rankLbl = Label.create().addTrait(UiComponentTrait.H1).setText(ranking.getPosition()).setAlignment(TextAlignment.LEFT_CENTER).setPosFnc(UiPosFncs.leftTop(30, y+60));
+        panel.addComponent(rankLbl);
+        let endTypeStr = Uis.DEATH_TYPES.get(ranking.getRanking().getDeathType());
+        if (ranking.getRanking().isPrincessSaved()) {
+          endTypeStr = "Princess rescued";
+        }
+        if (endTypeStr==null) {
+          throw new Error("unmapped death type, implement me: "+ranking.getRanking().getDeathType());
+        }
+        let endTypeLbl = Label.create().setText(endTypeStr).addTrait(UiComponentTrait.M).setAlignment(TextAlignment.LEFT_CENTER).setPosFnc(UiPosFncs.leftTop(100, y+40));
+        panel.addComponent(endTypeLbl);
+        let infoLbl = Label.create().setText(Levels.level(ranking.getRanking().getLevel()).getName()+", Score "+ranking.getRanking().getScore()).addTrait(UiComponentTrait.M).setAlignment(TextAlignment.LEFT_CENTER).setPosFnc(UiPosFncs.leftTop(100, y+80));
+        panel.addComponent(infoLbl);
+      }
+    }
+    return panel;
+  }
+
+  squareImage(texture, startSlot, numSlots) {
+    let size = this.slotHeight*numSlots-20;
+    return ImageView.create().setTexture(texture).setRegionFnc(UiRegionFncs.centerTop(startSlot*this.slotHeight, size, size));
+  }
+
+  titleLabel(text, slot) {
+    return Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.centerTop(slot*this.slotHeight)).setText(text).setAlignment(TextAlignment.CENTER_TOP);
+  }
+
+  normalLabel(text, slot) {
+    return Label.create().addTrait(UiComponentTrait.M).setPosFnc(UiPosFncs.centerTop(slot*this.slotHeight)).setText(text).setAlignment(TextAlignment.CENTER_TOP);
+  }
+
+  pauseBtn(action) {
+    return Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(75, 0, 75, 75)).addOnClickAction(action);
+  }
+
+  exitBtn(action) {
+    return Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(75, 0, 75, 75)).addOnClickAction(action);
+  }
+
+  static prepareScaledFonts(drivers) {
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(50, 75, 100));
+  }
+
+  toString() {
+  }
+
+  static create(settings, rankingManager) {
+    let res = new Uis();
+    res.settings = settings;
+    res.rankingManager = rankingManager;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.Uis = Uis;
 
 
 // -------------------------------------
@@ -33210,7 +38150,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new RigidBodyApp06());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "sand-clock"), new MenuScreen());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

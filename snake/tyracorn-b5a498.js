@@ -7,9 +7,9 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-05";
-const assetsDirName = "/null";
-const localStoragePrefix = "app.";
+const basePath = "/tyracorn-web-examples/snake";
+const assetsDirName = "/assets-fd4a04";
+const localStoragePrefix = "snake.";
 let mouseDown = false;
 let mouseLastDragX = 0;
 let mouseLastDragY = 0;
@@ -1600,9 +1600,10 @@ class Reflections {
      * This method looks for no arguments constructor or no arguments static method called create.
      *
      * @param {String} className class name
+     * @param {Objec} param parameter to pass into a constructor
      * @return {Object} created instance
      */
-    static createClass(className) {
+    static createClass(className, param) {
         const parts = className.split('.');
         const pureClassName = parts[parts.length - 1];
         const clazz = classRegistry[pureClassName];
@@ -1610,9 +1611,9 @@ class Reflections {
             throw new Error("class not found: " + className + " (i.e. " + pureClassName + ")");
         }
         if (typeof clazz.create === 'function') {
-            return clazz.create();
+            return clazz.create(param);
         }
-        return new clazz();
+        return new clazz(param);
     }
 
     /**
@@ -7733,6 +7734,18 @@ class Vec3 {
     return this.mX*this.mX+this.mY*this.mY+this.mZ*this.mZ;
   }
 
+  withX(x) {
+    return Vec3.create(x, this.mY, this.mZ);
+  }
+
+  withY(y) {
+    return Vec3.create(this.mX, y, this.mZ);
+  }
+
+  withZ(z) {
+    return Vec3.create(this.mX, this.mY, z);
+  }
+
   normalize() {
     let m = this.mag();
     return Vec3.create(this.mX/m, this.mY/m, this.mZ/m);
@@ -9311,6 +9324,210 @@ class Aabb3 {
 
 }
 classRegistry.Aabb3 = Aabb3;
+const createEulerAngUnit = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const EulerAngUnit = Object.freeze({
+  DEGREE: createEulerAngUnit("DEGREE"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+const createEulerAngOrder = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const EulerAngOrder = Object.freeze({
+  ROLL_PITCH_YAW: createEulerAngOrder("ROLL_PITCH_YAW"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class EulerAng {
+  static ZERO = EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 0, 0);
+  unit;
+  order;
+  roll;
+  pitch;
+  yaw;
+  constructor() {
+  }
+
+  getClass() {
+    return "EulerAng";
+  }
+
+  guardInvariants() {
+  }
+
+  getUnit() {
+    return this.unit;
+  }
+
+  getOrder() {
+    return this.order;
+  }
+
+  getRoll() {
+    return this.roll;
+  }
+
+  getPitch() {
+    return this.pitch;
+  }
+
+  getYaw() {
+    return this.yaw;
+  }
+
+  toQuaternion() {
+    if (EulerAngUnit.DEGREE.equals(this.unit)&&EulerAngOrder.ROLL_PITCH_YAW.equals(this.order)) {
+      let cy = FMath.cos(this.yaw*FMath.PI/180*0.5);
+      let sy = FMath.sin(this.yaw*FMath.PI/180*0.5);
+      let cp = FMath.cos(this.pitch*FMath.PI/180*0.5);
+      let sp = FMath.sin(this.pitch*FMath.PI/180*0.5);
+      let cr = FMath.cos(this.roll*FMath.PI/180*0.5);
+      let sr = FMath.sin(this.roll*FMath.PI/180*0.5);
+      let res = Quaternion.create(cr*cp*cy+sr*sp*sy, sr*cp*cy-cr*sp*sy, cr*sp*cy+sr*cp*sy, cr*cp*sy-sr*sp*cy);
+      return res.normalize();
+    }
+    else {
+      throw new Error("unsuppoted unit and order combination: "+this.unit+", "+this.order);
+    }
+  }
+
+  hashCode() {
+    return this.roll+13*this.pitch+17*this.yaw;
+  }
+
+  equals(obj) {
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof EulerAng)) {
+      return false;
+    }
+    let ob = obj;
+    return ob.roll==this.roll&&ob.pitch==this.pitch&&ob.yaw==this.yaw;
+  }
+
+  toString() {
+  }
+
+  static create(unit, order, roll, pitch, yaw) {
+    let res = new EulerAng();
+    res.unit = unit;
+    res.order = order;
+    res.roll = roll;
+    res.yaw = yaw;
+    res.pitch = pitch;
+    res.guardInvariants();
+    return res;
+  }
+
+  static fromQuaternion(unit, order, q) {
+    if (EulerAngUnit.DEGREE.equals(unit)&&EulerAngOrder.ROLL_PITCH_YAW.equals(order)) {
+      let sinr_cosp = 2*(q.a()*q.b()+q.c()*q.d());
+      let cosr_cosp = 1-2*(q.b()*q.b()+q.c()*q.c());
+      let rollRad = FMath.atan2(sinr_cosp, cosr_cosp);
+      let sinp = 2*(q.a()*q.c()-q.d()*q.b());
+      let pitchRad = 0;
+      if (FMath.abs(sinp)>=1) {
+        pitchRad = sinp>0?(FMath.PI/2):(-FMath.PI/2);
+      }
+      else {
+        pitchRad = FMath.asin(sinp);
+      }
+      let siny_cosp = 2*(q.a()*q.d()+q.b()*q.c());
+      let cosy_cosp = 1-2*(q.c()*q.c()+q.d()*q.d());
+      let yawRad = FMath.atan2(siny_cosp, cosy_cosp);
+      return EulerAng.create(unit, order, rollRad*180/FMath.PI, pitchRad*180/FMath.PI, yawRad*180/FMath.PI);
+    }
+    else {
+      throw new Error("unsuppoted unit and order combination: "+unit+", "+order);
+    }
+  }
+
+}
+classRegistry.EulerAng = EulerAng;
 class Quaternion {
   static ZERO_ROT = Quaternion.create(1, 0, 0, 0);
   mA;
@@ -14287,6 +14504,7 @@ class UiComponentTrait {
   static TRANSPARENT = UiComponentTrait.of("TRANSPARENT");
   static HEADER = UiComponentTrait.of("HEADER");
   static FOOTER = UiComponentTrait.of("FOOTER");
+  static ERROR = UiComponentTrait.of("ERROR");
   mTrait;
   constructor() {
   }
@@ -14639,23 +14857,28 @@ class DefaultUiStyler {
   extraSmallTextFont = FontId.of("kenny-mini-10");
   textColor = Rgba.create(0.863, 0.392, 0.078, 1);
   buttonTextureIds = Dut.map("xs-up", TextureId.of("button-xs-up"), "xs-down", TextureId.of("button-xs-down"), "xs-disabled", TextureId.of("button-xs-disabled"), "s-up", TextureId.of("button-s-up"), "s-down", TextureId.of("button-s-down"), "s-disabled", TextureId.of("button-s-disabled"), "m-up", TextureId.of("button-m-up"), "m-down", TextureId.of("button-m-down"), "m-disabled", TextureId.of("button-m-disabled"), "l-up", TextureId.of("button-l-up"), "l-down", TextureId.of("button-l-down"), "l-disabled", TextureId.of("button-l-disabled"), "xl-up", TextureId.of("button-xl-up"), "xl-down", TextureId.of("button-xl-down"), "xl-disabled", TextureId.of("button-xl-disabled"), "hamburger-up", TextureId.of("button-hamburger-up"), "hamburger-down", TextureId.of("button-hamburger-down"), "hamburger-disabled", TextureId.of("button-hamburger-disabled"), "cross-up", TextureId.of("button-cross-up"), "cross-down", TextureId.of("button-cross-down"), "cross-disabled", TextureId.of("button-cross-disabled"));
+  toggleButtonTextureIds = Dut.map("xs-up", TextureId.of("button-xs-up"), "xs-down", TextureId.of("button-xs-down"), "xs-disabled", TextureId.of("button-xs-disabled"), "s-up", TextureId.of("button-s-up"), "s-down", TextureId.of("button-s-down"), "s-disabled", TextureId.of("button-s-disabled"), "m-up", TextureId.of("button-m-up"), "m-down", TextureId.of("button-m-down"), "m-disabled", TextureId.of("button-m-disabled"), "l-up", TextureId.of("button-l-up"), "l-down", TextureId.of("button-l-down"), "l-disabled", TextureId.of("button-l-disabled"), "xl-up", TextureId.of("button-xl-up"), "xl-down", TextureId.of("button-xl-down"), "xl-disabled", TextureId.of("button-xl-disabled"));
+  panelBorderColor = Rgba.create(0.365, 0.341, 0.314, 0.5);
+  panelBackgroundColor = Rgba.create(0.482, 0.451, 0.420, 0.5);
   buttonLabelFont = FontId.of("kenny-mini-12");
   buttonLabelColor = Rgba.create(0.863, 0.392, 0.078, 1);
   disabledButtonLabelColor = Rgba.create(0.863*0.5, 0.392*0.5, 0.078*0.5, 1);
-  selectItemTextFont = FontId.of("kenny-mini-14");
-  selectItemTextColor = Rgba.create(0.863, 0.392, 0.078, 1);
-  selectItemHeight = 20;
+  fieldBorderColor = Rgba.create(0.365, 0.341, 0.314, 0.5);
+  fieldBackgroundColor = Rgba.create(0.482, 0.451, 0.420, 0.5);
   fieldValueFont = FontId.of("kenny-mini-14");
   fieldValueColor = Rgba.create(0.863, 0.392, 0.078, 1);
   fieldLabelFont = FontId.of("kenny-mini-10");
   fieldLabelColor = Rgba.create(0.863, 0.392, 0.078, 1);
-  borderColor = Rgba.create(0.365, 0.341, 0.314, 0.5);
-  overlayBorderColor = Rgba.create(0.365, 0.341, 0.314, 0.5);
-  backgroundColor = Rgba.create(0.482, 0.451, 0.420, 0.5);
-  highlightedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.1);
-  selectedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.5);
-  overlayBackgroundColor = Rgba.create(0.482, 0.451, 0.420, 1);
-  overlayHighlightedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.3);
+  selectBorderColor = Rgba.create(0.365, 0.341, 0.314, 0.5);
+  selectBackgroundColor = Rgba.create(0.482, 0.451, 0.420, 0.5);
+  selectHighlightedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.1);
+  selectSelectedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.5);
+  selectItemTextFont = FontId.of("kenny-mini-14");
+  selectItemTextColor = Rgba.create(0.863, 0.392, 0.078, 1);
+  selectItemHeight = 20;
+  dropdownOverlayBorderColor = Rgba.create(0.365, 0.341, 0.314, 0.5);
+  dropdownOverlayBackgroundColor = Rgba.create(0.482, 0.451, 0.420, 1);
+  dropdownOverlayHighlightedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.3);
   customStyles = Collections.emptyList();
   styles = null;
   constructor() {
@@ -14761,9 +14984,30 @@ class DefaultUiStyler {
     return this;
   }
 
+  setPanelBackgroundColor(panelBackgroundColor) {
+    Guard.notNull(panelBackgroundColor, "panelBackgroundColor cannot be null");
+    this.panelBackgroundColor = panelBackgroundColor;
+    this.styles = null;
+    return this;
+  }
+
+  setPanelBorderColor(panelBorderColor) {
+    Guard.notNull(panelBorderColor, "panelBorderColor cannot be null");
+    this.panelBorderColor = panelBorderColor;
+    this.styles = null;
+    return this;
+  }
+
   setButtonTextureIdPattern(pattern) {
     Guard.notEmpty(pattern, "pattern cannot be empty");
     this.buttonTextureIds = Dut.map("xs-up", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "up")), "xs-down", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "down")), "xs-disabled", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "disabled")), "s-up", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "up")), "s-down", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "down")), "s-disabled", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "disabled")), "m-up", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "up")), "m-down", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "down")), "m-disabled", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "disabled")), "l-up", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "up")), "l-down", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "down")), "l-disabled", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "disabled")), "xl-up", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "up")), "xl-down", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "down")), "xl-disabled", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "disabled")), "hamburger-up", TextureId.of(pattern.replace("${type}", "hamburger").replace("${state}", "up")), "hamburger-down", TextureId.of(pattern.replace("${type}", "hamburger").replace("${state}", "down")), "hamburger-disabled", TextureId.of(pattern.replace("${type}", "hamburger").replace("${state}", "disabled")), "cross-up", TextureId.of(pattern.replace("${type}", "cross").replace("${state}", "up")), "cross-down", TextureId.of(pattern.replace("${type}", "cross").replace("${state}", "down")), "cross-disabled", TextureId.of(pattern.replace("${type}", "cross").replace("${state}", "disabled")));
+    this.styles = null;
+    return this;
+  }
+
+  setToggleButtonTextureIdPattern(pattern) {
+    Guard.notEmpty(pattern, "pattern cannot be empty");
+    this.toggleButtonTextureIds = Dut.map("xs-up", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "up")), "xs-down", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "down")), "xs-disabled-up", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "disabled-up")), "xs-disabled-down", TextureId.of(pattern.replace("${type}", "xs").replace("${state}", "disabled-down")), "s-up", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "up")), "s-down", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "down")), "s-disabled-up", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "disabled-up")), "s-disabled-down", TextureId.of(pattern.replace("${type}", "s").replace("${state}", "disabled-down")), "m-up", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "up")), "m-down", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "down")), "m-disabled-up", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "disabled-up")), "m-disabled-down", TextureId.of(pattern.replace("${type}", "m").replace("${state}", "disabled-down")), "l-up", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "up")), "l-down", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "down")), "l-disabled-up", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "disabled-up")), "l-disabled-down", TextureId.of(pattern.replace("${type}", "l").replace("${state}", "disabled-down")), "xl-up", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "up")), "xl-down", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "down")), "xl-disabled-up", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "disabled-up")), "xl-disabled-down", TextureId.of(pattern.replace("${type}", "xl").replace("${state}", "disabled-down")));
     this.styles = null;
     return this;
   }
@@ -14810,6 +15054,20 @@ class DefaultUiStyler {
     return this;
   }
 
+  setFieldBorderColor(fieldBorderColor) {
+    Guard.notNull(fieldBorderColor, "fieldBorderColor cannot be null");
+    this.fieldBorderColor = fieldBorderColor;
+    this.styles = null;
+    return this;
+  }
+
+  setFieldBackgroundColor(fieldBackgroundColor) {
+    Guard.notNull(fieldBackgroundColor, "fieldBackgroundColor cannot be null");
+    this.fieldBackgroundColor = fieldBackgroundColor;
+    this.styles = null;
+    return this;
+  }
+
   setFieldLabelFont(fieldLabelFont) {
     Guard.notNull(fieldLabelFont, "fieldLabelFont cannot be null");
     this.fieldLabelFont = fieldLabelFont;
@@ -14817,9 +15075,23 @@ class DefaultUiStyler {
     return this;
   }
 
+  setFieldLabelColor(fieldLabelColor) {
+    Guard.notNull(fieldLabelColor, "fieldLabelColor cannot be null");
+    this.fieldLabelColor = fieldLabelColor;
+    this.styles = null;
+    return this;
+  }
+
   setFieldValueFont(fieldValueFont) {
     Guard.notNull(fieldValueFont, "fieldValueFont cannot be null");
     this.fieldValueFont = fieldValueFont;
+    this.styles = null;
+    return this;
+  }
+
+  setFieldValueColor(fieldValueColor) {
+    Guard.notNull(fieldValueColor, "fieldValueColor cannot be null");
+    this.fieldValueColor = fieldValueColor;
     this.styles = null;
     return this;
   }
@@ -14836,7 +15108,7 @@ class DefaultUiStyler {
       return ;
     }
     this.styles = new HashMap();
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.PANEL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.PANEL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.panelBorderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.panelBackgroundColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.PANEL).plusTrait(UiComponentTrait.TRANSPARENT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, Rgba.TRANSPARENT, UiComponentStylePropertyKey.BACKGROUND_COLOR, Rgba.TRANSPARENT)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.LABEL).plusTrait(UiComponentTrait.H1), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.TEXT_FONT, this.h1Font, UiComponentStylePropertyKey.TEXT_COLOR, this.h1Color)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.LABEL).plusTrait(UiComponentTrait.H2), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.TEXT_FONT, this.h2Font, UiComponentStylePropertyKey.TEXT_COLOR, this.h2Color)));
@@ -14857,16 +15129,16 @@ class DefaultUiStyler {
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.XL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("xl-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("xl-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("xl-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.HAMBURGER), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("hamburger-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("hamburger-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("hamburger-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.BUTTON).plusTrait(UiComponentTrait.CROSS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, this.buttonTextureIds.get("cross-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, this.buttonTextureIds.get("cross-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, this.buttonTextureIds.get("cross-disabled"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor, UiComponentStylePropertyKey.DISABLED_TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledButtonLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.XS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-xs-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-xs-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.S), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-s-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-s-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.M), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-m-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-m-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.XS), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, this.toggleButtonTextureIds.get("xs-up"), UiComponentStylePropertyKey.ON_TEXTURE, this.toggleButtonTextureIds.get("xs-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.S), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, this.toggleButtonTextureIds.get("s-up"), UiComponentStylePropertyKey.ON_TEXTURE, this.toggleButtonTextureIds.get("xs-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.M), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, this.toggleButtonTextureIds.get("m-up"), UiComponentStylePropertyKey.ON_TEXTURE, this.toggleButtonTextureIds.get("m-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON), this.styles.get(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.M)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.L), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-l-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-l-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.XL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-xl-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-xl-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.L), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, this.toggleButtonTextureIds.get("l-up"), UiComponentStylePropertyKey.ON_TEXTURE, this.toggleButtonTextureIds.get("l-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON).plusTrait(UiComponentTrait.XL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, this.toggleButtonTextureIds.get("xl-up"), UiComponentStylePropertyKey.ON_TEXTURE, this.toggleButtonTextureIds.get("xl-down"), UiComponentStylePropertyKey.TEXT_FONT, this.buttonLabelFont, UiComponentStylePropertyKey.TEXT_COLOR, this.buttonLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.JOYSTICK), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BASE_TEXTURE, TextureId.of("joystick-base"), UiComponentStylePropertyKey.TOP_TEXTURE, TextureId.of("joystick-top"))));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LIST_SELECT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.HIGHLIGHTED_BACKGROUND_COLOR, this.highlightedBackgroundColor, UiComponentStylePropertyKey.SELECTED_BACKGROUND_COLOR, this.selectedBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.SELECTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.SELECTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.ITEM_HEIGHT, this.selectItemHeight)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TEXT_FIELD), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.DROPDOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.borderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.backgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_BORDER_COLOR, this.overlayBorderColor, UiComponentStylePropertyKey.OVERLAY_BACKGROUND_COLOR, this.overlayBackgroundColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_BACKGROUND_COLOR, this.overlayHighlightedBackgroundColor, UiComponentStylePropertyKey.OVERLAY_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_ITEM_HEIGHT, this.selectItemHeight)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.LIST_SELECT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.selectBorderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.selectBackgroundColor, UiComponentStylePropertyKey.HIGHLIGHTED_BACKGROUND_COLOR, this.selectHighlightedBackgroundColor, UiComponentStylePropertyKey.SELECTED_BACKGROUND_COLOR, this.selectSelectedBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.SELECTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.SELECTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.ITEM_HEIGHT, this.selectItemHeight)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.TEXT_FIELD), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.fieldBorderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.fieldBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor)));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.DROPDOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.fieldBorderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.fieldBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor, UiComponentStylePropertyKey.OVERLAY_BORDER_COLOR, this.dropdownOverlayBorderColor, UiComponentStylePropertyKey.OVERLAY_BACKGROUND_COLOR, this.dropdownOverlayBackgroundColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_BACKGROUND_COLOR, this.dropdownOverlayHighlightedBackgroundColor, UiComponentStylePropertyKey.OVERLAY_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_ITEM_HEIGHT, this.selectItemHeight)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.SLIDER), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UNIT_SIZE, 10, UiComponentStylePropertyKey.HANDLE_TEXTURE, TextureId.of("slider-handle"), UiComponentStylePropertyKey.TRACK_TEXTURE, TextureId.of("slider-track"))));
     for (let customStyle of this.customStyles) {
       let newStyle = customStyle.getStyle();
@@ -14916,7 +15188,7 @@ class UiPainters {
       cursorX = cursorX-fontData.getTextWidth(text);
     }
     else {
-      throw new Error("unsupprted horizontal alignment: "+alignment.getHorizontal());
+      throw new Error("unsupported horizontal alignment: "+alignment.getHorizontal());
     }
     if (alignment.getVertical().equals(TextAlignmentVertical.TOP)) {
     }
@@ -14930,7 +15202,7 @@ class UiPainters {
       cursorY = cursorY-fontData.getSize();
     }
     else {
-      throw new Error("unsupprted vertical alignment: "+alignment.getVertical());
+      throw new Error("unsupported vertical alignment: "+alignment.getVertical());
     }
     while (parser.hasNext()) {
       let ch = parser.readCharacter();
@@ -15601,6 +15873,10 @@ class Button extends UiComponent {
     this.container = container;
   }
 
+  isFocusable() {
+    return true;
+  }
+
   move(dt) {
   }
 
@@ -15628,6 +15904,7 @@ class Button extends UiComponent {
     if (inside) {
       this.trackedTouch = id;
       this.downTouch = true;
+      this.container.requestFocus(this);
     }
     return inside;
   }
@@ -17473,7 +17750,7 @@ class ListSelect extends UiComponent {
       if (item.isSelected()) {
         painter.fillRect(itemRegion, selectedBackroungColor);
       }
-      else if (this.trackedTouchStartItemIdx==i) {
+      else if (this.trackedTouchId!=null&&this.trackedTouchStartItemIdx==i) {
         painter.fillRect(itemRegion, highlightedBackroungColor);
       }
       let color = item.isSelected()?selectedTextColor:(this.trackedTouchStartItemIdx==i?highlightedTextColor:textColor);
@@ -17669,6 +17946,7 @@ class ListSelect extends UiComponent {
   clearItems() {
     let before = this.getSelectedIndexes();
     this.items = new ArrayList();
+    this.scroll = 0;
     if (!before.isEmpty()) {
       for (let action of this.onSelectActions) {
         Functions.runUiEventAction(action, this);
@@ -18128,6 +18406,7 @@ class Dropdown extends UiComponent {
     this.trackedTouch = null;
     if (this.region.isInside(pos)&&!cancel) {
       this.container.requestFocus(this);
+      return true;
     }
     return false;
   }
@@ -18540,7 +18819,6 @@ class TextField extends UiComponent {
   region;
   trackedTouch = null;
   focused = false;
-  error = false;
   cursor = "_";
   cursorPos = 0;
   cursorShown = false;
@@ -18669,6 +18947,7 @@ class TextField extends UiComponent {
 
   onFocusLost() {
     this.focused = false;
+    this.setValue(this.displayedValue);
     this.displayedValue = this.value;
   }
 
@@ -18699,15 +18978,12 @@ class TextField extends UiComponent {
       }
       else if (key.isEnter()) {
         if (this.focused) {
-          this.error = false;
-          this.setValue(this.displayedValue);
           this.container.requestFocus(null);
         }
       }
       else if (key.isEscape()) {
         if (this.focused) {
           this.displayedValue = this.value;
-          this.error = false;
           this.container.requestFocus(null);
         }
       }
@@ -22882,7 +23158,7 @@ class TapPrefabs {
       os.write(TapBytes.intToBytesBigEndian(prefab.getComponents().size()));
       for (let cp of prefab.getComponents()) {
         os.write(TapBytes.stringToBytesBigEndian(cp.getType().name()));
-        os.write(TapBytes.stringToBytesBigEndian(cp.getKey()));
+        os.write(TapBytes.stringToBytesBigEndian(cp.getKey().key()));
         os.write(TapBytes.intToBytesBigEndian(cp.getVersion()));
         os.write(TapBytes.stringToBytesBigEndian(Jsons.stringMapToJson(cp.getProperties())));
       }
@@ -22905,9 +23181,12 @@ class TapPrefabs {
     for (let i = 0; i<numCmps; ++i) {
       let cmpType = ComponentPrefabType.valueOf(reader.readString());
       let key = reader.readString();
+      if (Strings.isEmpty(key)) {
+        key = "auto-key-"+i;
+      }
       let cmpVersion = reader.readInt();
       let cmpProps = Jsons.toStringMap(reader.readString());
-      cmps.add(ComponentPrefab.create(cmpType, key, cmpVersion, cmpProps));
+      cmps.add(ComponentPrefab.create(cmpType, ComponentKey.of(key), cmpVersion, cmpProps));
     }
     let numChildren = reader.readInt();
     let children = new ArrayList();
@@ -22928,7 +23207,7 @@ class TapPrefabs {
       let cmpType = ComponentPrefabType.valueOf(reader.readString());
       let cmpVersion = reader.readInt();
       let cmpProps = Jsons.toStringMap(reader.readString());
-      cmps.add(ComponentPrefab.create(cmpType, "", cmpVersion, cmpProps));
+      cmps.add(ComponentPrefab.create(cmpType, ComponentKey.of("auto-key-"+i), cmpVersion, cmpProps));
     }
     let numChildren = reader.readInt();
     let children = new ArrayList();
@@ -22962,10 +23241,10 @@ class TapScenes {
         bos.write(TapBytes.floatToBytesBigEndian(obj.getPos().x()));
         bos.write(TapBytes.floatToBytesBigEndian(obj.getPos().y()));
         bos.write(TapBytes.floatToBytesBigEndian(obj.getPos().z()));
-        bos.write(TapBytes.floatToBytesBigEndian(obj.getRot().a()));
-        bos.write(TapBytes.floatToBytesBigEndian(obj.getRot().b()));
-        bos.write(TapBytes.floatToBytesBigEndian(obj.getRot().c()));
-        bos.write(TapBytes.floatToBytesBigEndian(obj.getRot().d()));
+        bos.write(TapBytes.floatToBytesBigEndian(obj.getRotQuaternion().a()));
+        bos.write(TapBytes.floatToBytesBigEndian(obj.getRotQuaternion().b()));
+        bos.write(TapBytes.floatToBytesBigEndian(obj.getRotQuaternion().c()));
+        bos.write(TapBytes.floatToBytesBigEndian(obj.getRotQuaternion().d()));
       }
       buf = bos.toByteArray();
     }
@@ -23938,6 +24217,7 @@ class Actor {
   listeners = new HashSet();
   tags = new HashSet();
   immutableComponents = Collections.unmodifiableList(this.components);
+  componentKeys = new HashSet();
   mWorld;
   hash = Randoms.nextInt(0, 10000000);
   constructor() {
@@ -24020,7 +24300,7 @@ class Actor {
   getComponentByKey(clazz, key) {
     for (let i = 0; i<this.components.size(); ++i) {
       let comp = this.components.get(i);
-      if (comp.getKey().equals(key)) {
+      if (comp.key().equals(key)) {
         return comp;
       }
     }
@@ -24030,7 +24310,7 @@ class Actor {
   getComponentByKeyNonStrict(clazz, key) {
     for (let i = 0; i<this.components.size(); ++i) {
       let comp = this.components.get(i);
-      if (comp.getKey().equals(key)) {
+      if (comp.key().equals(key)) {
         return comp;
       }
     }
@@ -24038,7 +24318,11 @@ class Actor {
   }
 
   addComponent(component) {
+    if (this.componentKeys.contains(component.key())) {
+      throw new Error("component already contains key: "+component.key());
+    }
     this.components.add(component);
+    this.componentKeys.add(component.key());
     if (this.mWorld!=null) {
       component.registerActor(this);
     }
@@ -24054,6 +24338,7 @@ class Actor {
     }
     component.onRemove();
     this.components.remove(component);
+    this.componentKeys.remove(component.key());
     for (let list of this.listeners) {
       list.onComponentRemoved(this, component);
     }
@@ -24512,6 +24797,26 @@ class ActorPrefab {
     return this.components;
   }
 
+  getComponentByKey(key) {
+    for (let i = 0; i<this.components.size(); ++i) {
+      let comp = this.components.get(i);
+      if (comp.getKey().equals(key)) {
+        return comp;
+      }
+    }
+    throw new Error("key doesn't exists: "+key);
+  }
+
+  getComponentByKeyNonStrict(key) {
+    for (let i = 0; i<this.components.size(); ++i) {
+      let comp = this.components.get(i);
+      if (comp.getKey().equals(key)) {
+        return comp;
+      }
+    }
+    return null;
+  }
+
   getChildren() {
     return this.children;
   }
@@ -24571,14 +24876,14 @@ class ActorPrefab {
     return res;
   }
 
-  replaceComponent(idx, component) {
+  replaceComponent(key, component) {
     let res = new ActorPrefab();
     res.localId = this.localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = new ArrayList();
     for (let i = 0; i<this.components.size(); ++i) {
-      res.components.add(i==idx?component:this.components.get(i));
+      res.components.add(this.components.get(i).getKey().equals(key)?component:this.components.get(i));
     }
     res.components = Collections.unmodifiableList(res.components);
     res.children = this.children;
@@ -24586,16 +24891,17 @@ class ActorPrefab {
     return res;
   }
 
-  minusComponent(idx) {
+  minusComponent(key) {
     let res = new ActorPrefab();
     res.localId = this.localId;
     res.name = this.name;
     res.tags = this.tags;
     res.components = new ArrayList();
     for (let i = 0; i<this.components.size(); ++i) {
-      if (i!=idx) {
-        res.components.add(this.components.get(i));
+      if (this.components.get(i).getKey().equals(key)) {
+        continue;
       }
+      res.components.add(this.components.get(i));
     }
     res.components = Collections.unmodifiableList(res.components);
     res.children = this.children;
@@ -24846,11 +25152,92 @@ class ComponentFeature {
 
 }
 classRegistry.ComponentFeature = ComponentFeature;
+class ComponentKey {
+  static TRANSFORM = ComponentKey.of("TRANSFORM");
+  static RIGID_BODY = ComponentKey.of("RIGID_BODY");
+  static CAMERA = ComponentKey.of("CAMERA");
+  static CAMERA_FOVY = ComponentKey.of("CAMERA_FOVY");
+  static WORLD = ComponentKey.of("WORLD");
+  static SKYBOX = ComponentKey.of("SKYBOX");
+  static LIFETIME = ComponentKey.of("LIFETIME");
+  static AUTO_ROTATE = ComponentKey.of("AUTO_ROTATE");
+  static REMOVE_ON_OUTSPACE = ComponentKey.of("REMOVE_ON_OUTSPACE");
+  static LIGHT_1 = ComponentKey.of("LIGHT_1");
+  static LIGHT_2 = ComponentKey.of("LIGHT_2");
+  static LIGHT_3 = ComponentKey.of("LIGHT_3");
+  static MODEL_1 = ComponentKey.of("MODEL_1");
+  static MODEL_2 = ComponentKey.of("MODEL_2");
+  static MODEL_3 = ComponentKey.of("MODEL_3");
+  static BODY_COLLIDER = ComponentKey.of("BODY_COLLIDER");
+  static COLLIDER_1 = ComponentKey.of("COLLIDER_1");
+  static COLLIDER_2 = ComponentKey.of("COLLIDER_2");
+  static COLLIDER_3 = ComponentKey.of("COLLIDER_3");
+  static COLLIDER_4 = ComponentKey.of("COLLIDER_4");
+  static COLLIDER_5 = ComponentKey.of("COLLIDER_5");
+  static PUNCH_1_COLLIDER = ComponentKey.of("PUNCH_1_COLLIDER");
+  static SPRING_1 = ComponentKey.of("SPRING_1");
+  static SPRING_2 = ComponentKey.of("SPRING_2");
+  static SPRING_3 = ComponentKey.of("SPRING_3");
+  static JOINT_1 = ComponentKey.of("JOINT_1");
+  static JOINT_2 = ComponentKey.of("JOINT_2");
+  static JOINT_3 = ComponentKey.of("JOINT_3");
+  static JOINT_4 = ComponentKey.of("JOINT_4");
+  mKey;
+  constructor() {
+  }
+
+  getClass() {
+    return "ComponentKey";
+  }
+
+  guardInvariants() {
+  }
+
+  key() {
+    return this.mKey;
+  }
+
+  hashCode() {
+    return this.mKey.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ComponentKey)) {
+      return false;
+    }
+    let other = obj;
+    return other.mKey.equals(this.mKey);
+  }
+
+  toString() {
+  }
+
+  static of(key) {
+    let res = new ComponentKey();
+    res.mKey = key;
+    res.guardInvariants();
+    return res;
+  }
+
+  static random() {
+    let res = new ComponentKey();
+    res.mKey = Randoms.nextAlphabetic(4);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ComponentKey = ComponentKey;
 class Component {
   mActor = null;
-  mKey = "";
+  mKey;
   hash = Randoms.nextInt(0, 10000000);
-  constructor() {
+  constructor(key) {
+    this.mKey = key;
+    Guard.notNull(this.mKey, "key must be defined");
   }
 
   getClass() {
@@ -24860,12 +25247,6 @@ class Component {
   registerActor(actor) {
     Guard.beNull(this.mActor, "component can be added to the actor only once");
     this.mActor = actor;
-    if (Strings.isNotEmpty(this.mKey)) {
-      let compByKey = actor.getComponentByKeyNonStrict("Component", this.mKey);
-      if (compByKey!=null&&!compByKey.equals(this)) {
-        throw new Error("component key is duplicated: "+this.mKey);
-      }
-    }
     this.init();
   }
 
@@ -24902,23 +25283,12 @@ class Component {
     return this.mActor;
   }
 
-  world() {
-    return this.mActor.world();
-  }
-
-  getKey() {
+  key() {
     return this.mKey;
   }
 
-  setKey(key) {
-    Guard.notNull(key, "key cannot be null");
-    if (this.mActor!=null&&Strings.isNotEmpty(key)) {
-      if (this.mActor.getComponentByKeyNonStrict("Component", key)!=null) {
-        throw new Error("component key is duplicated: "+key);
-      }
-    }
-    this.mKey = key;
-    return this;
+  world() {
+    return this.mActor.world();
   }
 
   broadcastDomainUpdate(domain, upward, downward) {
@@ -24944,8 +25314,8 @@ class Component {
 }
 classRegistry.Component = Component;
 class Behavior extends Component {
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -24968,8 +25338,8 @@ class TransformComponent extends Component {
   globalMatInv = null;
   localAabb = null;
   globalAabb = null;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -25203,8 +25573,8 @@ class TransformComponent extends Component {
   toString() {
   }
 
-  static create() {
-    return new TransformComponent();
+  static create(key) {
+    return new TransformComponent(key);
   }
 
 }
@@ -25212,8 +25582,8 @@ classRegistry.TransformComponent = TransformComponent;
 class AutoRotateComponent extends Behavior {
   angularVelocity = Vec3.ZERO;
   transform;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -25244,8 +25614,8 @@ class AutoRotateComponent extends Behavior {
   toString() {
   }
 
-  static create() {
-    let res = new AutoRotateComponent();
+  static create(key) {
+    let res = new AutoRotateComponent(key);
     res.guardInvariants();
     return res;
   }
@@ -25264,8 +25634,8 @@ class ModelComponent extends Component {
   transformComp;
   globalMat = null;
   localAabb = null;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -25405,8 +25775,8 @@ class ModelComponent extends Component {
   toString() {
   }
 
-  static create() {
-    let res = new ModelComponent();
+  static create(key) {
+    let res = new ModelComponent(key);
     res.modelId = ModelId.of("empty");
     res.transform = Mat44.IDENTITY;
     res.interpolation = Interpolation.ZERO;
@@ -25422,8 +25792,8 @@ class LightComponent extends Component {
   type;
   shadow;
   color;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -25500,8 +25870,8 @@ class LightComponent extends Component {
   toString() {
   }
 
-  static create() {
-    let res = new LightComponent();
+  static create(key) {
+    let res = new LightComponent(key);
     res.enabled = true;
     res.type = LightType.DIRECTIONAL;
     res.shadow = false;
@@ -25527,8 +25897,8 @@ class CameraComponent extends Component {
   skyboxCameraCache = null;
   transformComp;
   tcGlobalMatCache = Mat44.IDENTITY;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -25688,8 +26058,8 @@ class CameraComponent extends Component {
   toString() {
   }
 
-  static create() {
-    let res = new CameraComponent();
+  static create(key) {
+    let res = new CameraComponent(key);
     res.type = CameraType.PERSPECTIVE;
     res.fovy = FMath.toRadians(60);
     res.aspect = 1;
@@ -25709,8 +26079,8 @@ class CameraFovyComponent extends Behavior {
   fovyPortrait = FMath.toRadians(90);
   displaySize = Size2.create(1, 1);
   camera;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -25765,8 +26135,8 @@ class CameraFovyComponent extends Behavior {
     return this;
   }
 
-  static create() {
-    let res = new CameraFovyComponent();
+  static create(key) {
+    let res = new CameraFovyComponent(key);
     res.guardInvariants();
     return res;
   }
@@ -25779,8 +26149,8 @@ class SkyboxComponent extends Component {
   visible = true;
   transformComp;
   globalMat = null;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -25864,8 +26234,8 @@ class SkyboxComponent extends Component {
   toString() {
   }
 
-  static create() {
-    let res = new SkyboxComponent();
+  static create(key) {
+    let res = new SkyboxComponent(key);
     res.modelId = ModelId.of("empty");
     res.transform = Mat44.IDENTITY;
     res.guardInvariants();
@@ -25880,8 +26250,8 @@ class WorldComponent extends Behavior {
   angularDrag = 0.5;
   boundary = Aabb3.create(-1000, -1000, -1000, 1000, 1000, 1000);
   action;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -25963,8 +26333,8 @@ class WorldComponent extends Behavior {
     };
   }
 
-  static create() {
-    let res = new WorldComponent();
+  static create(key) {
+    let res = new WorldComponent(key);
     res.gravity = Vec3.create(0, -9.81, 0);
     res.drag = 0.5;
     res.angularDrag = 0.5;
@@ -25995,8 +26365,8 @@ class ColliderComponent extends Component {
   globalMat = null;
   volume = null;
   localAabb = null;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -26281,8 +26651,8 @@ class ColliderComponent extends Component {
   toString() {
   }
 
-  static create() {
-    let res = new ColliderComponent();
+  static create(key) {
+    let res = new ColliderComponent(key);
     res.layer = CollisionLayer.OBJECT;
     res.materialId = PhysicalMaterialId.of("default");
     res.shape = ColliderShape.SPHERE;
@@ -26310,8 +26680,8 @@ class RigidBodyComponent extends Component {
   forceAccum = Vec3.ZERO;
   torqueAccum = Vec3.ZERO;
   transform;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -26581,8 +26951,8 @@ class RigidBodyComponent extends Component {
   toString() {
   }
 
-  static create() {
-    let res = new RigidBodyComponent();
+  static create(key) {
+    let res = new RigidBodyComponent(key);
     res.guardInvariants();
     return res;
   }
@@ -26646,8 +27016,8 @@ class BallSocketJointComponent extends Behavior {
   collisionExclusions;
   initDone = false;
   config;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -26753,8 +27123,8 @@ class BallSocketJointComponent extends Behavior {
   toString() {
   }
 
-  static create() {
-    let res = new BallSocketJointComponent();
+  static create(key) {
+    let res = new BallSocketJointComponent(key);
     res.guardInvariants();
     return res;
   }
@@ -26827,8 +27197,8 @@ class HingeJointComponent extends Behavior {
   localPosB;
   localAxisB;
   q0Conjs = Collections.emptyList();
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -26954,8 +27324,8 @@ class HingeJointComponent extends Behavior {
   toString() {
   }
 
-  static create() {
-    let res = new HingeJointComponent();
+  static create(key) {
+    let res = new HingeJointComponent(key);
     res.guardInvariants();
     return res;
   }
@@ -27034,8 +27404,8 @@ class PrismaticJointComponent extends Behavior {
   localPosB;
   localDirB;
   q0;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -27146,8 +27516,8 @@ class PrismaticJointComponent extends Behavior {
   toString() {
   }
 
-  static create() {
-    let res = new PrismaticJointComponent();
+  static create(key) {
+    let res = new PrismaticJointComponent(key);
     res.guardInvariants();
     return res;
   }
@@ -27240,8 +27610,8 @@ class FixedJointComponent extends Behavior {
   localPosA;
   localPosB;
   q0;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -27374,8 +27744,8 @@ class FixedJointComponent extends Behavior {
   toString() {
   }
 
-  static create() {
-    let res = new FixedJointComponent();
+  static create(key) {
+    let res = new FixedJointComponent(key);
     res.guardInvariants();
     return res;
   }
@@ -27389,8 +27759,8 @@ class FixedJointComponent extends Behavior {
 }
 classRegistry.FixedJointComponent = FixedJointComponent;
 class RemoveOnOutspaceComponent extends Component {
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -27406,8 +27776,8 @@ class RemoveOnOutspaceComponent extends Component {
     }
   }
 
-  static create() {
-    let res = new RemoveOnOutspaceComponent();
+  static create(key) {
+    let res = new RemoveOnOutspaceComponent(key);
     res.guardInvariants();
     return res;
   }
@@ -27417,8 +27787,8 @@ classRegistry.RemoveOnOutspaceComponent = RemoveOnOutspaceComponent;
 class LifetimeComponent extends Behavior {
   active;
   remaining;
-  constructor() {
-    super();
+  constructor(key) {
+    super(key);
   }
 
   getClass() {
@@ -27476,8 +27846,8 @@ class LifetimeComponent extends Behavior {
     return this;
   }
 
-  static create() {
-    let res = new LifetimeComponent();
+  static create(key) {
+    let res = new LifetimeComponent(key);
     res.active = true;
     res.remaining = 1;
     res.guardInvariants();
@@ -27486,6 +27856,338 @@ class LifetimeComponent extends Behavior {
 
 }
 classRegistry.LifetimeComponent = LifetimeComponent;
+const createRpGeneratorShape = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const RpGeneratorShape = Object.freeze({
+  SPHERE: createRpGeneratorShape("SPHERE"),
+  BOX: createRpGeneratorShape("BOX"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class RpGeneratorComponent extends Component {
+  static FEATURES = Dut.immutableSet(ComponentFeature.AABB_PRODUCER);
+  active = true;
+  weight = 1;
+  groups = Collections.emptySet();
+  shape = RpGeneratorShape.SPHERE;
+  pos = Vec3.ZERO;
+  rot = Quaternion.ZERO_ROT;
+  radius = 1;
+  ex = 0.5;
+  ey = 0.5;
+  ez = 0.5;
+  localMat = Mat44.IDENTITY;
+  transformComp;
+  globalMat = null;
+  localAabb = null;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "RpGeneratorComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transformComp = this.actor().getComponent("TransformComponent");
+  }
+
+  getFeatures() {
+    return RpGeneratorComponent.FEATURES;
+  }
+
+  onDomainEvent(domain, propagationType) {
+    if (domain.equals(ActorDomain.TRANSFORM)) {
+      this.globalMat = null;
+    }
+    return false;
+  }
+
+  isActive() {
+    return this.active;
+  }
+
+  setActive(active) {
+    this.active = active;
+    return this;
+  }
+
+  getWeight() {
+    return this.weight;
+  }
+
+  setWeight(weight) {
+    this.weight = weight;
+    return this;
+  }
+
+  getGroups() {
+    return this.groups;
+  }
+
+  setGroups(groups) {
+    Guard.notEmptyStringCollection(groups, "groups cannot have an empty string");
+    this.groups = Dut.copyImmutableSet(groups);
+    return this;
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  setPos() {
+    if (arguments.length===1&&arguments[0] instanceof Vec3) {
+      return this.setPos_1_Vec3(arguments[0]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return this.setPos_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  setPos_1_Vec3(pos) {
+    this.pos = pos;
+    this.localMat = null;
+    this.globalMat = null;
+    this.localAabb = null;
+    return this;
+  }
+
+  setPos_3_number_number_number(x, y, z) {
+    return this.setPos(Vec3.create(x, y, z));
+  }
+
+  getRot() {
+    return this.rot;
+  }
+
+  setRot(rot) {
+    this.rot = rot;
+    this.localMat = null;
+    this.globalMat = null;
+    this.localAabb = null;
+    return this;
+  }
+
+  getShape() {
+    return this.shape;
+  }
+
+  setShape(shape) {
+    this.shape = shape;
+    this.localAabb = null;
+    return this;
+  }
+
+  getRadius() {
+    return this.radius;
+  }
+
+  setRadius(radius) {
+    this.radius = radius;
+    this.localAabb = null;
+    return this;
+  }
+
+  getSize() {
+    return Vec3.create(this.ex*2, this.ey*2, this.ez*2);
+  }
+
+  setSize() {
+    if (arguments.length===1&&arguments[0] instanceof Vec3) {
+      return this.setSize_1_Vec3(arguments[0]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return this.setSize_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  setSize_1_Vec3(size) {
+    this.ex = size.x()/2;
+    this.ey = size.y()/2;
+    this.ez = size.z()/2;
+    this.localAabb = null;
+    return this;
+  }
+
+  setSize_3_number_number_number(sx, sy, sz) {
+    return this.setSize(Vec3.create(sx, sy, sz));
+  }
+
+  nextPoint() {
+    this.syncCache();
+    if (this.shape.equals(RpGeneratorShape.SPHERE)) {
+      let r = Randoms.nextFloat(0, this.radius);
+      let nx = Randoms.nextFloat(0, 1)-1;
+      let ny = Randoms.nextFloat(0, 1)-1;
+      let nz = Randoms.nextFloat(0, 1)-1;
+      let mag = FMath.sqrt(nx*nx+ny*ny+nz*nz);
+      nx = nx/mag;
+      ny = ny/mag;
+      nz = nz/mag;
+      return this.globalMat.mul(nx*this.radius, ny*this.radius, nz*this.radius);
+    }
+    else if (this.shape.equals(RpGeneratorShape.BOX)) {
+      let x = Randoms.nextFloat(0, 2*this.ex)-this.ex;
+      let y = Randoms.nextFloat(0, 2*this.ey)-this.ey;
+      let z = Randoms.nextFloat(0, 2*this.ez)-this.ez;
+      return this.globalMat.mul(x, y, z);
+    }
+    else {
+      throw new Error("unsupported shape: "+this.shape);
+    }
+  }
+
+  getLocalAabb() {
+    this.syncCache();
+    return this.localAabb;
+  }
+
+  getGlobalMat() {
+    this.syncCache();
+    return this.globalMat;
+  }
+
+  syncCache() {
+    if (this.localMat==null) {
+      if (this.pos.equals(Vec3.ZERO)&&this.rot.equals(Quaternion.ZERO_ROT)) {
+        this.localMat = Mat44.IDENTITY;
+        this.globalMat = this.transformComp.getGlobalMat();
+      }
+      else {
+        this.localMat = Mat44.transofm(this.pos, this.rot);
+        this.globalMat = this.transformComp.getGlobalMat().mul(this.localMat);
+      }
+    }
+    if (this.globalMat==null) {
+      this.globalMat = this.transformComp.getGlobalMat().mul(this.localMat);
+    }
+    if (this.localAabb==null) {
+      let baseAabb = null;
+      if (this.shape.equals(RpGeneratorShape.SPHERE)) {
+        baseAabb = Aabb3.create(-this.radius, -this.radius, -this.radius, this.radius, this.radius, this.radius);
+      }
+      else if (this.shape.equals(RpGeneratorShape.BOX)) {
+        baseAabb = Aabb3.create(-this.ex, -this.ey, -this.ez, this.ex, this.ey, this.ez);
+      }
+      else {
+        throw new Error("unsupported shape: "+this.shape);
+      }
+      this.localAabb = this.localMat.equals(Mat44.IDENTITY)?baseAabb:baseAabb.transform(this.localMat);
+    }
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new RpGeneratorComponent(key);
+    res.shape = RpGeneratorShape.SPHERE;
+    res.pos = Vec3.ZERO;
+    res.rot = Quaternion.ZERO_ROT;
+    res.radius = 1;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.RpGeneratorComponent = RpGeneratorComponent;
+const createComponentPrefabRotType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const ComponentPrefabRotType = Object.freeze({
+  QUATERNION: createComponentPrefabRotType("QUATERNION"),
+  EULER_ANG: createComponentPrefabRotType("EULER_ANG"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
 const createComponentPrefabType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -27662,6 +28364,109 @@ class ComponentPrefab {
     }
   }
 
+  getEulerAng() {
+    if (arguments.length===1&& typeof arguments[0]==="string") {
+      return this.getEulerAng_1_string(arguments[0]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="string"&&arguments[1] instanceof EulerAng) {
+      return this.getEulerAng_2_string_EulerAng(arguments[0], arguments[1]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  getEulerAng_1_string(key) {
+    return Jsons.toEulerAng(this.properties.get(key));
+  }
+
+  getEulerAng_2_string_EulerAng(key, def) {
+    if (this.properties.containsKey(key)) {
+      return Jsons.toEulerAng(this.properties.get(key));
+    }
+    else {
+      return def;
+    }
+  }
+
+  getRotQuaternion() {
+    if (arguments.length===1&& typeof arguments[0]==="string") {
+      return this.getRotQuaternion_1_string(arguments[0]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="string"&&arguments[1] instanceof Quaternion) {
+      return this.getRotQuaternion_2_string_Quaternion(arguments[0], arguments[1]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  getRotQuaternion_1_string(key) {
+    let rotType = ComponentPrefabRotType.valueOf(this.properties.getOrDefault(key+".type", ComponentPrefabRotType.QUATERNION.name()));
+    if (rotType.equals(ComponentPrefabRotType.QUATERNION)) {
+      return this.getQuaternion(key);
+    }
+    else if (rotType.equals(ComponentPrefabRotType.EULER_ANG)) {
+      return this.getEulerAng(key).toQuaternion();
+    }
+    else {
+      throw new Error("unsupported rotation type: "+rotType);
+    }
+  }
+
+  getRotQuaternion_2_string_Quaternion(key, def) {
+    let rotType = ComponentPrefabRotType.valueOf(this.properties.getOrDefault(key+".type", ComponentPrefabRotType.QUATERNION.name()));
+    if (rotType.equals(ComponentPrefabRotType.QUATERNION)) {
+      return this.getQuaternion(key, def);
+    }
+    else if (rotType.equals(ComponentPrefabRotType.EULER_ANG)) {
+      let ea = this.getEulerAng(key, null);
+      return ea==null?def:ea.toQuaternion();
+    }
+    else {
+      throw new Error("unsupported rotation type: "+rotType);
+    }
+  }
+
+  getRotEulerAng() {
+    if (arguments.length===1&& typeof arguments[0]==="string") {
+      return this.getRotEulerAng_1_string(arguments[0]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="string"&&arguments[1] instanceof EulerAng) {
+      return this.getRotEulerAng_2_string_EulerAng(arguments[0], arguments[1]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  getRotEulerAng_1_string(key) {
+    let rotType = ComponentPrefabRotType.valueOf(this.properties.getOrDefault(key+".type", ComponentPrefabRotType.QUATERNION.name()));
+    if (rotType.equals(ComponentPrefabRotType.QUATERNION)) {
+      return EulerAng.fromQuaternion(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, this.getQuaternion(key));
+    }
+    else if (rotType.equals(ComponentPrefabRotType.EULER_ANG)) {
+      return this.getEulerAng(key);
+    }
+    else {
+      throw new Error("unsupported rotation type: "+rotType);
+    }
+  }
+
+  getRotEulerAng_2_string_EulerAng(key, def) {
+    let rotType = ComponentPrefabRotType.valueOf(this.properties.getOrDefault(key+".type", ComponentPrefabRotType.QUATERNION.name()));
+    if (rotType.equals(ComponentPrefabRotType.QUATERNION)) {
+      let quat = this.getQuaternion(key, null);
+      return quat==null?def:EulerAng.fromQuaternion(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, quat);
+    }
+    else if (rotType.equals(ComponentPrefabRotType.EULER_ANG)) {
+      return this.getEulerAng(key, def);
+    }
+    else {
+      throw new Error("unsupported rotation type: "+rotType);
+    }
+  }
+
   getAabb3(key) {
     return Jsons.toAabb3(this.properties.get(key));
   }
@@ -27721,6 +28526,33 @@ class ComponentPrefab {
     return res;
   }
 
+  withRotProperties(key, val) {
+    let strVal = null;
+    let strType = null;
+    if (val instanceof Quaternion) {
+      strVal = Jsons.toJson(val);
+      strType = ComponentPrefabRotType.QUATERNION.name();
+    }
+    else if (val instanceof EulerAng) {
+      strVal = Jsons.toJson(val);
+      strType = ComponentPrefabRotType.EULER_ANG.name();
+    }
+    else {
+      throw new Error("unsupported value type, implement me: "+val);
+    }
+    let res = new ComponentPrefab();
+    res.type = this.type;
+    res.version = this.version;
+    res.key = this.key;
+    res.properties = new HashMap();
+    res.properties.putAll(this.properties);
+    res.properties.put(key, strVal);
+    res.properties.put(key+".type", strType);
+    res.properties = Collections.unmodifiableMap(res.properties);
+    res.guardInvariants();
+    return res;
+  }
+
   withProperty(key, val) {
     let strVal = null;
     if (val instanceof Boolean) {
@@ -27773,13 +28605,13 @@ class ComponentPrefab {
 
   toLatestVersion() {
     if (this.type.equals(ComponentPrefabType.SPHERE_COLLIDER)&&this.version==1) {
-      return ComponentPrefab.sphereCollider(true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getQuaternion("rot", Quaternion.ZERO_ROT), this.getFloat("radius")).withKey(this.key);
+      return ComponentPrefab.sphereCollider(this.key, true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getRotQuaternion("rot", Quaternion.ZERO_ROT), this.getFloat("radius"));
     }
     if (this.type.equals(ComponentPrefabType.BOX_COLLIDER)&&this.version==1) {
-      return ComponentPrefab.boxCollider(true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getQuaternion("rot", Quaternion.ZERO_ROT), this.getVec3("size")).withKey(this.key);
+      return ComponentPrefab.boxCollider(this.key, true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getRotQuaternion("rot", Quaternion.ZERO_ROT), this.getVec3("size"));
     }
     if (this.type.equals(ComponentPrefabType.CAPSULE_COLLIDER)&&this.version==1) {
-      return ComponentPrefab.capsuleCollider(true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getQuaternion("rot", Quaternion.ZERO_ROT), this.getFloat("height"), this.getFloat("radius")).withKey(this.key);
+      return ComponentPrefab.capsuleCollider(this.key, true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getRotQuaternion("rot", Quaternion.ZERO_ROT), this.getFloat("height"), this.getFloat("radius"));
     }
     return this;
   }
@@ -27787,7 +28619,7 @@ class ComponentPrefab {
   toComponent(idMapping) {
     if (this.type.equals(ComponentPrefabType.TRANSFORM)) {
       if (this.version==1) {
-        return TransformComponent.create().setPos(Jsons.toVec3(this.properties.get("pos"))).setRot(Jsons.toQuaternion(this.properties.get("rot"))).setKey(this.key);
+        return TransformComponent.create(this.key).setPos(this.getVec3("pos")).setRot(this.getRotQuaternion("rot"));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27795,7 +28627,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.RIGID_BODY)) {
       if (this.version==1) {
-        return RigidBodyComponent.create().setKinematic(Formats.parseBoolean(this.properties.get("kinematic"))).setRotationLock(Formats.parseBoolean(this.properties.get("rotationLock"))).setMass(Formats.parseFloat(this.properties.get("mass"))).setDamp(Formats.parseFloat(this.properties.get("damp"))).setAngularDamp(Formats.parseFloat(this.properties.get("angularDamp"))).setVelocity(this.properties.containsKey("velocity")?Jsons.toVec3(this.properties.get("velocity")):Vec3.ZERO).setAngularVelocity(this.properties.containsKey("angularVelocity")?Jsons.toVec3(this.properties.get("angularVelocity")):Vec3.ZERO).setKey(this.key);
+        return RigidBodyComponent.create(this.key).setKinematic(Formats.parseBoolean(this.properties.get("kinematic"))).setRotationLock(Formats.parseBoolean(this.properties.get("rotationLock"))).setMass(Formats.parseFloat(this.properties.get("mass"))).setDamp(Formats.parseFloat(this.properties.get("damp"))).setAngularDamp(Formats.parseFloat(this.properties.get("angularDamp"))).setVelocity(this.properties.containsKey("velocity")?Jsons.toVec3(this.properties.get("velocity")):Vec3.ZERO).setAngularVelocity(this.properties.containsKey("angularVelocity")?Jsons.toVec3(this.properties.get("angularVelocity")):Vec3.ZERO);
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27806,11 +28638,11 @@ class ComponentPrefab {
         let trans = Mat44.IDENTITY;
         let scale = this.getVec3("scale");
         trans = Mat44.scale(scale.x(), scale.y(), scale.z()).mul(trans);
-        let rot = this.getQuaternion("rot");
+        let rot = this.getRotQuaternion("rot");
         trans = Mat44.rot(rot).mul(trans);
         let pos = this.getVec3("pos");
         trans = Mat44.trans(pos).mul(trans);
-        return ModelComponent.create().setModelId(ModelId.of(this.properties.get("modelId"))).setTransform(trans).setInterpolation(this.getInterpolation("interpolation", Interpolation.create(0, 0, 0))).setVisible(Formats.parseBoolean(this.properties.get("visible"))).setCastShadows(Formats.parseBoolean(this.properties.get("castShadows"))).setReceiveShadows(Formats.parseBoolean(this.properties.get("receiveShadows"))).setKey(this.key);
+        return ModelComponent.create(this.key).setModelId(ModelId.of(this.properties.get("modelId"))).setTransform(trans).setInterpolation(this.getInterpolation("interpolation", Interpolation.ZERO)).setVisible(this.getBoolean("visible")).setCastShadows(this.getBoolean("castShadows")).setReceiveShadows(this.getBoolean("receiveShadows"));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27819,13 +28651,13 @@ class ComponentPrefab {
     else if (this.type.equals(ComponentPrefabType.SPHERE_COLLIDER)) {
       if (this.version==1) {
         let pos = this.getVec3("pos", Vec3.ZERO);
-        let rot = this.getQuaternion("rot", Quaternion.ZERO_ROT);
-        return ColliderComponent.create().setShape(ColliderShape.SPHERE).setActive(true).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setRadius(Formats.parseFloat(this.properties.get("radius"))).setKey(this.key);
+        let rot = this.getRotQuaternion("rot", Quaternion.ZERO_ROT);
+        return ColliderComponent.create(this.key).setShape(ColliderShape.SPHERE).setActive(true).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setRadius(Formats.parseFloat(this.properties.get("radius")));
       }
       else if (this.version==2) {
         let pos = this.getVec3("pos", Vec3.ZERO);
-        let rot = this.getQuaternion("rot", Quaternion.ZERO_ROT);
-        return ColliderComponent.create().setShape(ColliderShape.SPHERE).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setRadius(Formats.parseFloat(this.properties.get("radius"))).setKey(this.key);
+        let rot = this.getRotQuaternion("rot", Quaternion.ZERO_ROT);
+        return ColliderComponent.create(this.key).setShape(ColliderShape.SPHERE).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setRadius(Formats.parseFloat(this.properties.get("radius")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27834,13 +28666,13 @@ class ComponentPrefab {
     else if (this.type.equals(ComponentPrefabType.BOX_COLLIDER)) {
       if (this.version==1) {
         let pos = this.getVec3("pos", Vec3.ZERO);
-        let rot = this.getQuaternion("rot", Quaternion.ZERO_ROT);
-        return ColliderComponent.create().setShape(ColliderShape.BOX).setActive(true).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setSize(Jsons.toVec3(this.properties.get("size"))).setKey(this.key);
+        let rot = this.getRotQuaternion("rot", Quaternion.ZERO_ROT);
+        return ColliderComponent.create(this.key).setShape(ColliderShape.BOX).setActive(true).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setSize(Jsons.toVec3(this.properties.get("size")));
       }
       else if (this.version==2) {
         let pos = this.getVec3("pos", Vec3.ZERO);
-        let rot = this.getQuaternion("rot", Quaternion.ZERO_ROT);
-        return ColliderComponent.create().setShape(ColliderShape.BOX).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setSize(Jsons.toVec3(this.properties.get("size"))).setKey(this.key);
+        let rot = this.getRotQuaternion("rot", Quaternion.ZERO_ROT);
+        return ColliderComponent.create(this.key).setShape(ColliderShape.BOX).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setSize(Jsons.toVec3(this.properties.get("size")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27849,13 +28681,13 @@ class ComponentPrefab {
     else if (this.type.equals(ComponentPrefabType.CAPSULE_COLLIDER)) {
       if (this.version==1) {
         let pos = this.getVec3("pos", Vec3.ZERO);
-        let rot = this.getQuaternion("rot", Quaternion.ZERO_ROT);
-        return ColliderComponent.create().setShape(ColliderShape.CAPSULE).setActive(true).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setHeight(Formats.parseFloat(this.properties.get("height"))).setRadius(Formats.parseFloat(this.properties.get("radius"))).setKey(this.key);
+        let rot = this.getRotQuaternion("rot", Quaternion.ZERO_ROT);
+        return ColliderComponent.create(this.key).setShape(ColliderShape.CAPSULE).setActive(true).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setHeight(Formats.parseFloat(this.properties.get("height"))).setRadius(Formats.parseFloat(this.properties.get("radius")));
       }
       else if (this.version==2) {
         let pos = this.getVec3("pos", Vec3.ZERO);
-        let rot = this.getQuaternion("rot", Quaternion.ZERO_ROT);
-        return ColliderComponent.create().setShape(ColliderShape.CAPSULE).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setHeight(Formats.parseFloat(this.properties.get("height"))).setRadius(Formats.parseFloat(this.properties.get("radius"))).setKey(this.key);
+        let rot = this.getRotQuaternion("rot", Quaternion.ZERO_ROT);
+        return ColliderComponent.create(this.key).setShape(ColliderShape.CAPSULE).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setHeight(Formats.parseFloat(this.properties.get("height"))).setRadius(Formats.parseFloat(this.properties.get("radius")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27863,7 +28695,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.DIR_LIGHT)) {
       if (this.version==1) {
-        return LightComponent.create().setType(LightType.DIRECTIONAL).setEnabled(Formats.parseBoolean(this.properties.get("enabled"))).setShadow(Formats.parseBoolean(this.properties.get("shadow"))).setAmbient(Jsons.toRgb(this.properties.get("ambient"))).setDiffuse(Jsons.toRgb(this.properties.get("diffuse"))).setSpecular(Jsons.toRgb(this.properties.get("specular"))).setKey(this.key);
+        return LightComponent.create(this.key).setType(LightType.DIRECTIONAL).setEnabled(Formats.parseBoolean(this.properties.get("enabled"))).setShadow(Formats.parseBoolean(this.properties.get("shadow"))).setAmbient(Jsons.toRgb(this.properties.get("ambient"))).setDiffuse(Jsons.toRgb(this.properties.get("diffuse"))).setSpecular(Jsons.toRgb(this.properties.get("specular")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27871,10 +28703,10 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.PERSPECTIVE_CAMERA)) {
       if (this.version==1) {
-        return CameraComponent.create().setType(CameraType.PERSPECTIVE).setFovy(Formats.parseFloat(this.properties.get("fovy"))).setAspect(Formats.parseFloat(this.properties.get("aspect"))).setNear(Formats.parseFloat(this.properties.get("near"))).setFar(Formats.parseFloat(this.properties.get("far"))).setKey(this.key);
+        return CameraComponent.create(this.key).setType(CameraType.PERSPECTIVE).setFovy(Formats.parseFloat(this.properties.get("fovy"))).setAspect(Formats.parseFloat(this.properties.get("aspect"))).setNear(Formats.parseFloat(this.properties.get("near"))).setFar(Formats.parseFloat(this.properties.get("far")));
       }
       else if (this.version==2) {
-        return CameraComponent.create().setType(CameraType.PERSPECTIVE).setFovy(Formats.parseFloat(this.properties.get("fovy"))).setAspect(Formats.parseFloat(this.properties.get("aspect"))).setNear(Formats.parseFloat(this.properties.get("near"))).setFar(Formats.parseFloat(this.properties.get("far"))).setSkyboxNear(Formats.parseFloat(this.properties.get("skyboxNear"))).setSkyboxFar(Formats.parseFloat(this.properties.get("skyboxFar"))).setKey(this.key);
+        return CameraComponent.create(this.key).setType(CameraType.PERSPECTIVE).setFovy(Formats.parseFloat(this.properties.get("fovy"))).setAspect(Formats.parseFloat(this.properties.get("aspect"))).setNear(Formats.parseFloat(this.properties.get("near"))).setFar(Formats.parseFloat(this.properties.get("far"))).setSkyboxNear(Formats.parseFloat(this.properties.get("skyboxNear"))).setSkyboxFar(Formats.parseFloat(this.properties.get("skyboxFar")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27882,7 +28714,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.PERSPECTIVE_CAMERA_FOVY)) {
       if (this.version==1) {
-        return CameraFovyComponent.create().setDisplaySizeInputKey(this.properties.get("displaySizeInputKey")).setFovyLandscape(this.getFloat("fovyLandscape")).setFovyPortrait(this.getFloat("fovyPortrait")).setKey(this.key);
+        return CameraFovyComponent.create(this.key).setDisplaySizeInputKey(this.properties.get("displaySizeInputKey")).setFovyLandscape(this.getFloat("fovyLandscape")).setFovyPortrait(this.getFloat("fovyPortrait"));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27893,11 +28725,11 @@ class ComponentPrefab {
         let trans = Mat44.IDENTITY;
         let scale = this.getVec3("scale");
         trans = Mat44.scale(scale.x(), scale.y(), scale.z()).mul(trans);
-        let rot = this.getQuaternion("rot");
+        let rot = this.getRotQuaternion("rot");
         trans = Mat44.rot(rot).mul(trans);
         let pos = this.getVec3("pos");
         trans = Mat44.trans(pos).mul(trans);
-        return SkyboxComponent.create().setModelId(ModelId.of(this.properties.get("modelId"))).setTransform(trans).setVisible(Formats.parseBoolean(this.properties.get("visible"))).setKey(this.key);
+        return SkyboxComponent.create(this.key).setModelId(ModelId.of(this.properties.get("modelId"))).setTransform(trans).setVisible(Formats.parseBoolean(this.properties.get("visible")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27905,7 +28737,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.WORLD)) {
       if (this.version==1) {
-        return WorldComponent.create().setGravity(Jsons.toVec3(this.properties.get("gravity"))).setDrag(Formats.parseFloat(this.properties.get("drag"))).setAngularDrag(Formats.parseFloat(this.properties.get("angularDrag"))).setBoundary(Jsons.toAabb3(this.properties.get("boundary"))).setKey(this.key);
+        return WorldComponent.create(this.key).setGravity(Jsons.toVec3(this.properties.get("gravity"))).setDrag(Formats.parseFloat(this.properties.get("drag"))).setAngularDrag(Formats.parseFloat(this.properties.get("angularDrag"))).setBoundary(Jsons.toAabb3(this.properties.get("boundary")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27913,7 +28745,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.AUTO_ROTATE)) {
       if (this.version==1) {
-        return AutoRotateComponent.create().setAngularVelocity(Jsons.toVec3(this.properties.get("angularVelocity"))).setKey(this.key);
+        return AutoRotateComponent.create(this.key).setAngularVelocity(Jsons.toVec3(this.properties.get("angularVelocity")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27921,7 +28753,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.LIFETIME)) {
       if (this.version==1) {
-        return LifetimeComponent.create().setActive(this.getBoolean("active")).setRemaining(this.getFloat("remaining"), this.getFloat("random")).setKey(this.key);
+        return LifetimeComponent.create(this.key).setActive(this.getBoolean("active")).setRemaining(this.getFloat("remaining"), this.getFloat("random"));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27929,7 +28761,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.REMOVE_ON_OUTSPACE)) {
       if (this.version==1) {
-        return RemoveOnOutspaceComponent.create().setKey(this.key);
+        return RemoveOnOutspaceComponent.create(this.key);
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27937,7 +28769,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.POI)) {
       if (this.version==1) {
-        return PoiComponent.create().setPos(this.getVec3("pos")).setKey(this.key);
+        return PoiComponent.create(this.key).setPos(this.getVec3("pos"));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27945,7 +28777,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.RP_GENERATOR)) {
       if (this.version==1) {
-        return RpGeneratorComponent.create().setActive(this.getBoolean("active")).setWeight(this.getFloat("weight")).setGroups(Dut.copySet(Jsons.toStringList(this.getString("groups")))).setShape(RpGeneratorShape.valueOf(this.getString("shape"))).setPos(this.getVec3("pos")).setRot(this.getQuaternion("rot")).setRadius(this.getFloat("radius")).setSize(this.getVec3("size")).setKey(this.key);
+        return RpGeneratorComponent.create(this.key).setActive(this.getBoolean("active")).setWeight(this.getFloat("weight")).setGroups(Dut.copySet(Jsons.toStringList(this.getString("groups")))).setShape(RpGeneratorShape.valueOf(this.getString("shape"))).setPos(this.getVec3("pos")).setRot(this.getRotQuaternion("rot")).setRadius(this.getFloat("radius")).setSize(this.getVec3("size"));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -27953,8 +28785,7 @@ class ComponentPrefab {
     }
     else if (this.type.equals(ComponentPrefabType.SCRIPT)) {
       if (this.version==1) {
-        let res = Reflections.createClass(this.properties.get("className"));
-        res.setKey(this.key);
+        let res = Reflections.createClass(this.properties.get("className"), this.key);
         let cmpProps = Jsons.toStringMap(this.properties.get("properties"));
         res.setPrefabProperties(idMapping, cmpProps);
         return res;
@@ -27989,170 +28820,170 @@ class ComponentPrefab {
     return res;
   }
 
-  static transform(pos, rot) {
+  static transform(key, pos, rot) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.TRANSFORM;
-    res.key = "";
+    res.key = key;
     res.version = 1;
-    res.properties = Dut.immutableMap("pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot));
+    res.properties = Dut.immutableMap("pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name());
     res.guardInvariants();
     return res;
   }
 
-  static rigidBody(kinematic, rotationLock, mass, damp, angularDamp) {
+  static rigidBody(key, kinematic, rotationLock, mass, damp, angularDamp) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.RIGID_BODY;
-    res.key = "";
+    res.key = key;
     res.version = 1;
     res.properties = Dut.immutableMap("kinematic", String.valueOf(kinematic), "rotationLock", String.valueOf(rotationLock), "mass", String.valueOf(mass), "damp", String.valueOf(damp), "angularDamp", String.valueOf(angularDamp));
     res.guardInvariants();
     return res;
   }
 
-  static model(modelId, pos, rot, scale, visible, castShadows, receiveShadows) {
+  static model(key, modelId, pos, rot, scale, visible, castShadows, receiveShadows) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.MODEL;
-    res.key = "";
+    res.key = key;
     res.version = 1;
-    res.properties = Dut.immutableMap("modelId", modelId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "scale", Jsons.toJson(scale), "visible", String.valueOf(visible), "castShadows", String.valueOf(castShadows), "receiveShadows", String.valueOf(receiveShadows), "interpolation", Jsons.toJson(Interpolation.create(0, 0, 0)));
+    res.properties = Dut.immutableMap("modelId", modelId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "scale", Jsons.toJson(scale), "visible", String.valueOf(visible), "castShadows", String.valueOf(castShadows), "receiveShadows", String.valueOf(receiveShadows), "interpolation", Jsons.toJson(Interpolation.create(0, 0, 0)));
     res.guardInvariants();
     return res;
   }
 
-  static sphereCollider(active, trigger, layer, materialId, pos, rot, radius) {
+  static sphereCollider(key, active, trigger, layer, materialId, pos, rot, radius) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.SPHERE_COLLIDER;
-    res.key = "";
+    res.key = key;
     res.version = 2;
-    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "radius", String.valueOf(radius));
+    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "radius", String.valueOf(radius));
     res.guardInvariants();
     return res;
   }
 
-  static boxCollider(active, trigger, layer, materialId, pos, rot, size) {
+  static boxCollider(key, active, trigger, layer, materialId, pos, rot, size) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.BOX_COLLIDER;
-    res.key = "";
+    res.key = key;
     res.version = 2;
-    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "size", Jsons.toJson(size));
+    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "size", Jsons.toJson(size));
     res.guardInvariants();
     return res;
   }
 
-  static capsuleCollider(active, trigger, layer, materialId, pos, rot, height, radius) {
+  static capsuleCollider(key, active, trigger, layer, materialId, pos, rot, height, radius) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.CAPSULE_COLLIDER;
-    res.key = "";
+    res.key = key;
     res.version = 2;
-    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "height", String.valueOf(height), "radius", String.valueOf(radius));
+    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "height", String.valueOf(height), "radius", String.valueOf(radius));
     res.guardInvariants();
     return res;
   }
 
-  static dirLight(enabled, shadow, ambient, diffuse, specular) {
+  static dirLight(key, enabled, shadow, ambient, diffuse, specular) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.DIR_LIGHT;
-    res.key = "";
+    res.key = key;
     res.version = 1;
     res.properties = Dut.immutableMap("enabled", String.valueOf(enabled), "shadow", String.valueOf(shadow), "ambient", Jsons.toJson(ambient), "diffuse", Jsons.toJson(diffuse), "specular", Jsons.toJson(specular));
     res.guardInvariants();
     return res;
   }
 
-  static perspectiveCamera(fovy, aspect, near, far, skyboxNear, skyboxFar) {
+  static perspectiveCamera(key, fovy, aspect, near, far, skyboxNear, skyboxFar) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.PERSPECTIVE_CAMERA;
-    res.key = "";
+    res.key = key;
     res.version = 2;
     res.properties = Dut.immutableMap("fovy", String.valueOf(fovy), "aspect", String.valueOf(aspect), "near", String.valueOf(near), "far", String.valueOf(far), "skyboxNear", String.valueOf(skyboxNear), "skyboxFar", String.valueOf(skyboxFar));
     res.guardInvariants();
     return res;
   }
 
-  static perspectiveCameraFovy(displaySizeInputKey, fovyLandscape, fovyPortrait) {
+  static perspectiveCameraFovy(key, displaySizeInputKey, fovyLandscape, fovyPortrait) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.PERSPECTIVE_CAMERA_FOVY;
-    res.key = "";
+    res.key = key;
     res.version = 1;
     res.properties = Dut.immutableMap("displaySizeInputKey", displaySizeInputKey, "fovyLandscape", String.valueOf(fovyLandscape), "fovyPortrait", String.valueOf(fovyPortrait));
     res.guardInvariants();
     return res;
   }
 
-  static skybox(modelId, pos, rot, scale, visible) {
+  static skybox(key, modelId, pos, rot, scale, visible) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.SKYBOX;
-    res.key = "";
+    res.key = key;
     res.version = 1;
-    res.properties = Dut.immutableMap("modelId", modelId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "scale", Jsons.toJson(scale), "visible", String.valueOf(visible));
+    res.properties = Dut.immutableMap("modelId", modelId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "scale", Jsons.toJson(scale), "visible", String.valueOf(visible));
     res.guardInvariants();
     return res;
   }
 
-  static world(gravity, drag, angularDrag, boundary) {
+  static world(key, gravity, drag, angularDrag, boundary) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.WORLD;
-    res.key = "";
+    res.key = key;
     res.version = 1;
     res.properties = Dut.immutableMap("gravity", Jsons.toJson(gravity), "drag", String.valueOf(drag), "angularDrag", String.valueOf(angularDrag), "boundary", Jsons.toJson(boundary));
     res.guardInvariants();
     return res;
   }
 
-  static autoRotate(angularVelocity) {
+  static autoRotate(key, angularVelocity) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.AUTO_ROTATE;
-    res.key = "";
+    res.key = key;
     res.version = 1;
     res.properties = Dut.immutableMap("angularVelocity", Jsons.toJson(angularVelocity));
     res.guardInvariants();
     return res;
   }
 
-  static lifetime(active, remaining, random) {
+  static lifetime(key, active, remaining, random) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.LIFETIME;
-    res.key = "";
+    res.key = key;
     res.version = 1;
     res.properties = Dut.immutableMap("active", String.valueOf(active), "remaining", String.valueOf(remaining), "random", String.valueOf(random));
     res.guardInvariants();
     return res;
   }
 
-  static removeOnOutspace() {
+  static removeOnOutspace(key) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.REMOVE_ON_OUTSPACE;
-    res.key = "";
+    res.key = key;
     res.version = 1;
     res.properties = Collections.emptyMap();
     res.guardInvariants();
     return res;
   }
 
-  static poi(pos) {
+  static poi(key, pos) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.POI;
-    res.key = "";
+    res.key = key;
     res.version = 1;
     res.properties = Dut.immutableMap("pos", Jsons.toJson(pos));
     res.guardInvariants();
     return res;
   }
 
-  static rpGenerator(active, weight, groups, shape, pos, rot, radius, size) {
+  static rpGenerator(key, active, weight, groups, shape, pos, rot, radius, size) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.RP_GENERATOR;
-    res.key = "";
+    res.key = key;
     res.version = 1;
-    res.properties = Dut.immutableMap("active", String.valueOf(active), "weight", String.valueOf(weight), "groups", Jsons.stringListToJson(Dut.copyImmutableList(Dut.copySortedSet(groups))), "shape", shape.name(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "radius", String.valueOf(radius), "size", Jsons.toJson(size));
+    res.properties = Dut.immutableMap("active", String.valueOf(active), "weight", String.valueOf(weight), "groups", Jsons.stringListToJson(Dut.copyImmutableList(Dut.copySortedSet(groups))), "shape", shape.name(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "radius", String.valueOf(radius), "size", Jsons.toJson(size));
     res.guardInvariants();
     return res;
   }
 
-  static script(className, properties) {
+  static script(key, className, properties) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.SCRIPT;
-    res.key = "";
+    res.key = key;
     res.version = 1;
     res.properties = Dut.immutableMap("className", className, "properties", Jsons.stringMapToJson(properties));
     res.guardInvariants();
@@ -31777,7 +32608,8 @@ class SceneObject {
   prefabId;
   actorId;
   pos;
-  rot;
+  rotQuaternion;
+  rotEulerAng;
   constructor() {
   }
 
@@ -31804,8 +32636,12 @@ class SceneObject {
     return this.pos;
   }
 
-  getRot() {
-    return this.rot;
+  getRotQuaternion() {
+    return this.rotQuaternion;
+  }
+
+  getRotEulerAng() {
+    return this.rotEulerAng;
   }
 
   withName(name) {
@@ -31814,7 +32650,8 @@ class SceneObject {
     res.prefabId = this.prefabId;
     res.actorId = this.actorId;
     res.pos = this.pos;
-    res.rot = this.rot;
+    res.rotQuaternion = this.rotQuaternion;
+    res.rotEulerAng = this.rotEulerAng;
     res.guardInvariants();
     return res;
   }
@@ -31825,7 +32662,8 @@ class SceneObject {
     res.prefabId = prefabId;
     res.actorId = this.actorId;
     res.pos = this.pos;
-    res.rot = this.rot;
+    res.rotQuaternion = this.rotQuaternion;
+    res.rotEulerAng = this.rotEulerAng;
     res.guardInvariants();
     return res;
   }
@@ -31836,7 +32674,8 @@ class SceneObject {
     res.prefabId = this.prefabId;
     res.actorId = actorId;
     res.pos = this.pos;
-    res.rot = this.rot;
+    res.rotQuaternion = this.rotQuaternion;
+    res.rotEulerAng = this.rotEulerAng;
     res.guardInvariants();
     return res;
   }
@@ -31847,18 +32686,44 @@ class SceneObject {
     res.prefabId = this.prefabId;
     res.actorId = this.actorId;
     res.pos = pos;
-    res.rot = this.rot;
+    res.rotQuaternion = this.rotQuaternion;
+    res.rotEulerAng = this.rotEulerAng;
     res.guardInvariants();
     return res;
   }
 
-  withRot(rot) {
+  withRot() {
+    if (arguments.length===1&&arguments[0] instanceof Quaternion) {
+      return this.withRot_1_Quaternion(arguments[0]);
+    }
+    else if (arguments.length===1&&arguments[0] instanceof EulerAng) {
+      return this.withRot_1_EulerAng(arguments[0]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  withRot_1_Quaternion(rot) {
     let res = new SceneObject();
     res.name = this.name;
     res.prefabId = this.prefabId;
     res.actorId = this.actorId;
     res.pos = this.pos;
-    res.rot = rot;
+    res.rotQuaternion = rot;
+    res.rotEulerAng = EulerAng.fromQuaternion(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, rot);
+    res.guardInvariants();
+    return res;
+  }
+
+  withRot_1_EulerAng(rot) {
+    let res = new SceneObject();
+    res.name = this.name;
+    res.prefabId = this.prefabId;
+    res.actorId = this.actorId;
+    res.pos = this.pos;
+    res.rotQuaternion = rot.toQuaternion();
+    res.rotEulerAng = rot;
     res.guardInvariants();
     return res;
   }
@@ -31880,7 +32745,8 @@ class SceneObject {
     res.prefabId = prefabId;
     res.actorId = null;
     res.pos = Vec3.ZERO;
-    res.rot = Quaternion.ZERO_ROT;
+    res.rotQuaternion = Quaternion.ZERO_ROT;
+    res.rotEulerAng = EulerAng.ZERO;
     res.guardInvariants();
     return res;
   }
@@ -31902,6 +32768,10 @@ class Scene {
 
   getName() {
     return this.name;
+  }
+
+  getObject(idx) {
+    return this.objects.get(idx);
   }
 
   getObjects() {
@@ -31976,7 +32846,7 @@ class Scene {
   loadToWorld(world, assets) {
     for (let so of this.objects) {
       let prefab = assets.get("ActorPrefab", so.getPrefabId());
-      world.constructActor(CreateActorRequest.create(prefab, so.getActorId(), so.getPos(), so.getRot()));
+      world.constructActor(CreateActorRequest.create(prefab, so.getActorId(), so.getPos(), so.getRotQuaternion()));
     }
     return this;
   }
@@ -32024,199 +32894,1653 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class BoxMeshFactory {
+class AboutScreen extends TyracornScreen {
+  ui;
   constructor() {
+    super();
+    this.guardInvariants();
   }
 
   getClass() {
-    return "BoxMeshFactory";
+    return "AboutScreen";
   }
 
-  static rgbBox() {
-    if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&&arguments[3] instanceof Rgb) {
-      return BoxMeshFactory.rgbBox_4_Rgb_Rgb_Rgb_Rgb(arguments[0], arguments[1], arguments[2], arguments[3]);
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.add(assets.resolveAsync(Path.of("asset:packages/images.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    let assets = drivers.getDriver("AssetManager");
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(Uis.create().styler());
+    let uiTop = -140;
+    this.ui.addComponent(ImageView.create().setTexture("tyracorn").setRegionFnc(UiRegionFncs.center(-50, uiTop, 100, 100)));
+    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop+110)).setText("Credits").setAlignment(TextAlignment.CENTER_TOP));
+    this.ui.addComponent(Label.create().setPosFnc(UiPosFncs.center(0, uiTop+160)).setText("https://quaternius.com").setAlignment(TextAlignment.CENTER_TOP));
+    this.ui.addComponent(Label.create().setPosFnc(UiPosFncs.center(0, uiTop+190)).setText("https://www.kenney.nl").setAlignment(TextAlignment.CENTER_TOP));
+    this.ui.addComponent(Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, uiTop+230, 120, 30)).setText("Back").addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(null))));
+    let exitBtn = Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(null)));
+    this.ui.addComponent(exitBtn);
+    this.ui.subscribe(drivers);
+  }
+
+  leave(drivers) {
+    drivers.getDriver("AudioDriver").getMixer().stop();
+    this.ui.unsubscribe(drivers);
+  }
+
+}
+classRegistry.AboutScreen = AboutScreen;
+class CameraTrackBehavior extends Behavior {
+  targetId;
+  offset;
+  up;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "CameraTrackBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  lateMove(dt, inputs) {
+    let tc = this.actor().getComponent("TransformComponent");
+    let target = this.world().actors().get(this.targetId);
+    let targetTc = target.getComponent("TransformComponent");
+    tc.lookAt(targetTc.getPos().add(this.offset), targetTc.getPos(), this.up);
+  }
+
+  static create() {
+    if (arguments.length===1&&arguments[0] instanceof ComponentKey) {
+      return CameraTrackBehavior.create_1_ComponentKey(arguments[0]);
     }
-    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
-      return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    else if (arguments.length===4&&arguments[0] instanceof ComponentKey&&arguments[1] instanceof ActorId&&arguments[2] instanceof Vec3&&arguments[3] instanceof Vec3) {
+      return CameraTrackBehavior.create_4_ComponentKey_ActorId_Vec3_Vec3(arguments[0], arguments[1], arguments[2], arguments[3]);
     }
     else {
       throw new Error("ambiguous overload");
     }
   }
 
-  static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+  static create_1_ComponentKey(key) {
+    let res = new CameraTrackBehavior(key);
+    res.guardInvariants();
     return res;
   }
 
-  static rgbBox_3_number_number_number(r, g, b) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static rgbaBox(c1, c2, c3, c4, a) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static fabricBox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.fabric(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelBox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelSkybox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, -1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22))).toMesh();
-    return res;
-  }
-
-  static modelBoxDeformed1() {
-    let en = Vec2.create(1, -1).normalize();
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelBoxDeformed2() {
-    let en = Vec2.create(-1, -1).normalize();
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.floatValues(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+  static create_4_ComponentKey_ActorId_Vec3_Vec3(key, targetId, offset, up) {
+    let res = new CameraTrackBehavior(key);
+    res.targetId = targetId;
+    res.offset = offset;
+    res.up = up;
+    res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp05 extends TyracornApp {
-  box = MeshId.of("box");
-  whiteBox = MeshId.of("white-box");
-  shadow1 = ShadowBufferId.of("shadow1");
-  shadow2 = ShadowBufferId.of("shadow2");
-  shadow3 = ShadowBufferId.of("shadow3");
-  time = 0;
+classRegistry.CameraTrackBehavior = CameraTrackBehavior;
+class CampaignScreen extends TyracornScreen {
+  settings;
+  highScoreManager;
+  ui = null;
+  constructor(settings) {
+    super();
+    this.settings = settings;
+    this.guardInvariants();
+  }
+
+  getClass() {
+    return "CampaignScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.add(assets.resolveAsync(Path.of("asset:packages/level-thumbs.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    if (this.highScoreManager==null) {
+      this.highScoreManager = HighScoreManager.create(drivers.getDriver("LocalDataStorage"));
+    }
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(20, 30, 40));
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(Uis.create().styler());
+    let uiTop = -140;
+    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Campaign").setAlignment(TextAlignment.CENTER_TOP));
+    this.ui.addComponent(Label.create().setPosFnc(UiPosFncs.center(0, uiTop+40)).setText("Total Score: "+this.highScoreManager.getCampaignScore()).setAlignment(TextAlignment.CENTER_TOP));
+    let tabs = TabContainer.create();
+    let tabIdx = 0;
+    for (let i = 0; i<Levels.CAMPAIGN.size(); ++i) {
+      let level = Levels.CAMPAIGN.get(i);
+      let disabled = level.getRequiredScore()>this.highScoreManager.getCampaignScore();
+      if (!disabled) {
+        tabIdx = i;
+      }
+      let tab = Tab.create();
+      tab.addComponent(ImageView.create().setTexture(level.getImageId()).setRegionFnc(UiRegionFncs.center(-120, uiTop+60, 240, 180)));
+      tab.addComponent(Label.create().addTrait(UiComponentTrait.H2).setPosFnc(UiPosFncs.center(-115, uiTop+60)).setText(level.getName()).setAlignment(TextAlignment.LEFT_TOP));
+      tab.addComponent(Label.create().setPosFnc(UiPosFncs.center(-115, uiTop+90)).setText("Required Score: "+level.getRequiredScore()).setAlignment(TextAlignment.LEFT_TOP));
+      tab.addComponent(Label.create().setPosFnc(UiPosFncs.center(-115, uiTop+110)).setText("Difficulty: "+level.getDifficulty()).setAlignment(TextAlignment.LEFT_TOP));
+      tab.addComponent(Label.create().setPosFnc(UiPosFncs.center(-115, uiTop+130)).setText("High Score: "+this.highScoreManager.get(level)).setAlignment(TextAlignment.LEFT_TOP));
+      tab.addComponent(Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, uiTop+250, 120, 30)).setText("Play").setDisabled(disabled).addOnClickAction(UiEventActions.showScreen(screenManager, new GameScreen(this.settings, this.highScoreManager, level))));
+      tabs.addTab(tab);
+    }
+    let freeRideTab = Tab.create();
+    if (this.highScoreManager.isFreeRideOpen()) {
+      tabIdx = tabIdx+1;
+    }
+    freeRideTab.addComponent(Label.create().setPosFnc(UiPosFncs.center(0, -35)).setText("Required Score: "+Levels.FREE_PLAY_REQUIRED_SCORE).setAlignment(TextAlignment.CENTER_TOP));
+    freeRideTab.addComponent(Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, -5, 120, 30)).setText("Free Ride").setDisabled(!this.highScoreManager.isFreeRideOpen()).addOnClickAction(UiEventActions.showScreen(screenManager, new FreeRideScreen(this.settings))));
+    tabs.addTab(freeRideTab);
+    tabs.setActiveTabIdx(tabIdx);
+    this.ui.addComponent(tabs);
+    let prevPageBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(-110, uiTop+250, 30, 30)).setText("<").addOnClickAction(UiEventActions.previousTab(tabs));
+    this.ui.addComponent(prevPageBtn);
+    let nextPageBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(80, uiTop+250, 30, 30)).setText(">").addOnClickAction(UiEventActions.nextTab(tabs));
+    this.ui.addComponent(nextPageBtn);
+    let exitBtn = Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
+    this.ui.addComponent(exitBtn);
+    this.ui.subscribe(drivers);
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+  }
+
+}
+classRegistry.CampaignScreen = CampaignScreen;
+class CollisionLayers {
+  static SNAKE_HEAD = CollisionLayer.of("SNAKE_HEAD");
+  static SNAKE_NECK = CollisionLayer.of("SNAKE_NECK");
+  static SNAKE_BODY = CollisionLayer.of("SNAKE_BODY");
+  static SNAKE_TAIL = CollisionLayer.of("SNAKE_TAIL");
+  static FOOD = CollisionLayer.of("FOOD");
+  constructor() {
+  }
+
+  getClass() {
+    return "CollisionLayers";
+  }
+
+  static getMatrix() {
+    return CollisionLayerMatrix.create().withDef(false).withValue(CollisionLayers.SNAKE_HEAD, CollisionLayer.WALL, true).withValue(CollisionLayers.SNAKE_HEAD, CollisionLayer.OBJECT, true).withValue(CollisionLayers.SNAKE_HEAD, CollisionLayers.SNAKE_BODY, true).withValue(CollisionLayers.SNAKE_HEAD, CollisionLayers.SNAKE_TAIL, true).withValue(CollisionLayers.SNAKE_HEAD, CollisionLayers.FOOD, true).withValue(CollisionLayers.FOOD, CollisionLayer.OBJECT, true).withValue(CollisionLayers.FOOD, CollisionLayer.WALL, true).withValue(CollisionLayers.FOOD, CollisionLayers.SNAKE_NECK, true).withValue(CollisionLayers.FOOD, CollisionLayers.SNAKE_BODY, true).withValue(CollisionLayers.FOOD, CollisionLayers.SNAKE_TAIL, true).withValue(CollisionLayers.FOOD, CollisionLayers.FOOD, true);
+  }
+
+}
+classRegistry.CollisionLayers = CollisionLayers;
+class ComponentDelay extends UiComponent {
+  component;
+  delay;
+  time;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp05";
+    return "ComponentDelay";
   }
 
-  move(drivers, dt) {
-    let dirLightEnabled = true;
-    let spotLight1Enabled = true;
-    let spotLight2Enabled = true;
+  guardInvariants() {
+  }
+
+  init(container) {
+    this.component.init(container);
+  }
+
+  move(dt) {
     this.time = this.time+dt;
-    let gDriver = drivers.getDriver("GraphicsDriver");
-    let aspect = gDriver.getScreenViewport().getAspect();
-    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
-    let m = 2*FMath.sin(this.time/3);
-    let cam = Camera.persp(fovy, aspect, 0.1, 1000.0).lookAt(Vec3.create(m, 2, 7), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0));
-    let dirLightColor = LightColor.create(Rgb.gray(0.4), Rgb.gray(0.6), Rgb.gray(0.6));
-    let dirLightDir = Vec3.create(0.2*FMath.cos(this.time/4), -1, 0.4).normalize();
-    let dirLightPos = Vec3.create(0, 5, 0);
-    let dirLightShadowMap = ShadowMap.createDir(this.shadow1, dirLightPos, dirLightDir, 10, 10);
-    let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
-    let spotLight1Pos = Vec3.create(0, 2, 0);
-    let spotLight1Dir = Vec3.create(0.4+m, -1, -0.2).normalize();
-    let spotLight1Color = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
-    let spotLight1Cone = LightCone.create(FMath.PI/9, FMath.PI/6);
-    let spotLight1ShadowMap = ShadowMap.createSpot(this.shadow2, spotLight1Pos, spotLight1Dir, spotLight1Cone.getOutTheta(), 1, 8);
-    let spotLight1 = Light.spotQuadratic(spotLight1Color, spotLight1Pos, spotLight1Dir, 8, spotLight1Cone, spotLight1ShadowMap);
-    let spotLight2Pos = Vec3.create(0, 2, 0);
-    let spotLight2Dir = Vec3.create(0.4, -1, -0.2+m/2).normalize();
-    let spotLight2Color = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
-    let spotLight2Cone = LightCone.create(FMath.PI/9, FMath.PI/6);
-    let spotLight2ShadowMap = ShadowMap.createSpot(this.shadow3, spotLight2Pos, spotLight2Dir, spotLight2Cone.getOutTheta(), 1, 8);
-    let spotLight2 = Light.spotQuadratic(spotLight2Color, spotLight2Pos, spotLight2Dir, 8, spotLight2Cone, spotLight2ShadowMap);
-    let smapRndr = null;
-    if (dirLightEnabled) {
-      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3));
-      smapRndr.end();
-    }
-    if (spotLight1Enabled) {
-      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight1));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3));
-      smapRndr.end();
-    }
-    if (spotLight2Enabled) {
-      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight2));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3));
-      smapRndr.end();
-    }
-    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let lights = new ArrayList();
-    if (dirLightEnabled) {
-      lights.add(dirLight);
-    }
-    if (spotLight1Enabled) {
-      lights.add(spotLight1);
-    }
-    if (spotLight2Enabled) {
-      lights.add(spotLight2);
-    }
-    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, lights));
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.WHITE_PLASTIC.withAmbient(Rgb.gray(0.3)));
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3), Material.GOLD);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3), Material.SILVER);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3), Material.COPPER);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0), Material.GOLD);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.SILVER);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0), Material.COPPER);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3), Material.GOLD);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3), Material.SILVER);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3), Material.WHITE_PLASTIC);
-    objRnderer.end();
-    let crndr = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
-    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight1.getPos()).mul(Mat44.scale(0.05)));
-    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight2.getPos()).mul(Mat44.scale(0.05)));
-    crndr.end();
   }
 
-  init(drivers, properties) {
-    let assets = drivers.getDriver("AssetManager");
-    assets.put(this.box, BoxMeshFactory.fabricBox());
-    assets.put(this.whiteBox, BoxMeshFactory.rgbBox(1, 1, 1));
-    assets.put(this.shadow1, ShadowBuffer.create(1024, 1024));
-    assets.put(this.shadow2, ShadowBuffer.create(1024, 1024));
-    assets.put(this.shadow3, ShadowBuffer.create(1024, 1024));
-    return Collections.emptyList();
+  draw(painter) {
+    if (this.time<this.delay) {
+      return ;
+    }
+    this.component.draw(painter);
   }
 
-  close(drivers) {
+  onContainerResize(size) {
+    this.component.onContainerResize(size);
+  }
+
+  onKeyPressed(key) {
+    if (this.time<this.delay) {
+      return false;
+    }
+    return this.component.onKeyPressed(key);
+  }
+
+  onKeyReleased(key) {
+    if (this.time<this.delay) {
+      return false;
+    }
+    return this.component.onKeyReleased(key);
+  }
+
+  onTouchStart(id, pos, size) {
+    if (this.time<this.delay) {
+      return false;
+    }
+    return this.component.onTouchStart(id, pos, size);
+  }
+
+  onTouchMove(id, pos, size) {
+    if (this.time<this.delay) {
+      return false;
+    }
+    return this.component.onTouchMove(id, pos, size);
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    if (this.time<this.delay) {
+      return false;
+    }
+    return this.component.onTouchEnd(id, pos, size, cancel);
+  }
+
+  toString() {
+  }
+
+  static create(component, delay) {
+    let res = new ComponentDelay();
+    res.component = component;
+    res.delay = delay;
+    res.guardInvariants();
+    return res;
   }
 
 }
-classRegistry.BasicApp05 = BasicApp05;
+classRegistry.ComponentDelay = ComponentDelay;
+class FoodGeneratorBehavior extends Behavior {
+  gameState = null;
+  foodPrefabs = null;
+  spawns = null;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FoodGeneratorBehavior";
+  }
+
+  init() {
+    this.gameState = this.world().actors().get(GameScreen.GAME_STATE_ID).getComponent("GameStateBehavior");
+    this.foodPrefabs = ActorPrefabs.findAllByTag(this.world().assets(), "food");
+    this.spawns = GameActors.findAllByTag(this.world().actors(), "food-spawn");
+  }
+
+  move(dt, inputs) {
+  }
+
+  lateMove(dt, inputs) {
+    if (!this.gameState.getState().equals(GameState.PLAYING)) {
+      return ;
+    }
+    if (this.foodExists()||this.foodPrefabs.isEmpty()) {
+      return ;
+    }
+    let foodSpawn = this.spawns.get(Randoms.nextInt(0, this.spawns.size()));
+    let gen = foodSpawn.getComponentByKey("RpGeneratorComponent", ComponentKey.of("food-spawn"));
+    let pos = gen.nextPoint().withY(0.5);
+    let rot = Quaternion.rotY(Randoms.nextFloat(0, 2*FMath.PI));
+    let fp = this.foodPrefabs.get(Randoms.nextInt(0, this.foodPrefabs.size()));
+    let fact = this.world().constructActor(CreateActorRequest.create(fp, null, pos, rot));
+    let collider = fact.getComponent("ColliderComponent");
+    while (!this.world().collisions().withCollider(collider).isEmpty()) {
+      foodSpawn = this.spawns.get(Randoms.nextInt(0, this.spawns.size()));
+      gen = foodSpawn.getComponentByKey("RpGeneratorComponent", ComponentKey.of("food-spawn"));
+      pos = gen.nextPoint().withY(0.5);
+      fact.getComponent("TransformComponent").setPos(pos);
+    }
+  }
+
+  foodExists() {
+    let res = new HashSet();
+    let act = (ac) => {
+      if (ac.hasTag("food")) {
+        res.add(true);
+      }
+    };
+    this.world().actors().forEach(ActorId.ROOT, act);
+    return !res.isEmpty();
+  }
+
+  static create(key) {
+    return new FoodGeneratorBehavior(key);
+  }
+
+}
+classRegistry.FoodGeneratorBehavior = FoodGeneratorBehavior;
+class FreeRideScreen extends TyracornScreen {
+  settings;
+  highScoreManager;
+  ui = null;
+  constructor(settings) {
+    super();
+    this.settings = settings;
+    this.guardInvariants();
+  }
+
+  getClass() {
+    return "FreeRideScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.add(assets.resolveAsync(Path.of("asset:packages/level-thumbs.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    if (this.highScoreManager==null) {
+      this.highScoreManager = HighScoreManager.create(drivers.getDriver("LocalDataStorage"));
+    }
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(20, 30, 40));
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(Uis.create().styler());
+    let uiTop = -140;
+    const levelIdx = new AtomicInteger(0);
+    const difficulty = new AtomicInteger(1);
+    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Free Ride").setAlignment(TextAlignment.CENTER_TOP));
+    let levelImg = ImageView.create().setTexture(this.getLevel(levelIdx, difficulty).getImageId()).setRegionFnc(UiRegionFncs.center(-100, uiTop+45, 200, 130));
+    this.ui.addComponent(levelImg);
+    const highScoreLabel = Label.create().setPosFnc(UiPosFncs.center(0, uiTop+45)).setText("High Score: "+this.highScoreManager.get(this.getLevel(levelIdx, difficulty))).setAlignment(TextAlignment.CENTER_TOP);
+    this.ui.addComponent(highScoreLabel);
+    const levelNameLabel = Label.create().addTrait(UiComponentTrait.H2).setPosFnc(UiPosFncs.center(0, uiTop+195)).setText(this.getLevel(levelIdx, difficulty).getName()).setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(levelNameLabel);
+    let prevLevelAct = (evtSource) => {
+      if (levelIdx.addAndGet(-1)<0) {
+        levelIdx.set(Levels.FREE_PLAY.size()-1);
+      }
+      levelImg.setTexture(this.getLevel(levelIdx, difficulty).getImageId());
+      highScoreLabel.setText("High Score: "+this.highScoreManager.get(this.getLevel(levelIdx, difficulty)));
+      levelNameLabel.setText(this.getLevel(levelIdx, difficulty).getName());
+    };
+    let prevLevelBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(-110, uiTop+180, 30, 30)).setText("<").addOnClickAction(prevLevelAct);
+    this.ui.addComponent(prevLevelBtn);
+    let nextLevelAct = (evtSource) => {
+      if (levelIdx.addAndGet(1)>=Levels.FREE_PLAY.size()) {
+        levelIdx.set(0);
+      }
+      levelImg.setTexture(this.getLevel(levelIdx, difficulty).getImageId());
+      highScoreLabel.setText("High Score: "+this.highScoreManager.get(this.getLevel(levelIdx, difficulty)));
+      levelNameLabel.setText(this.getLevel(levelIdx, difficulty).getName());
+    };
+    let nextLevelBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(80, uiTop+180, 30, 30)).setText(">").addOnClickAction(nextLevelAct);
+    this.ui.addComponent(nextLevelBtn);
+    const difficultyLabel = Label.create().setPosFnc(UiPosFncs.center(0, uiTop+235)).setText("Dificulty: "+difficulty.get()).setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(difficultyLabel);
+    let prevDiffAct = (evtSource) => {
+      if (difficulty.addAndGet(-1)<1) {
+        difficulty.set(5);
+      }
+      highScoreLabel.setText("High Score: "+this.highScoreManager.get(this.getLevel(levelIdx, difficulty)));
+      difficultyLabel.setText("Dificulty: "+difficulty.get());
+    };
+    let prevDifficultyBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(-110, uiTop+220, 30, 30)).setText("<").addOnClickAction(prevDiffAct);
+    this.ui.addComponent(prevDifficultyBtn);
+    let nextDiffAct = (evtSource) => {
+      if (difficulty.addAndGet(1)>5) {
+        difficulty.set(1);
+      }
+      highScoreLabel.setText("High Score: "+this.highScoreManager.get(this.getLevel(levelIdx, difficulty)));
+      difficultyLabel.setText("Dificulty: "+difficulty.get());
+    };
+    let nextDifficultyBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(80, uiTop+220, 30, 30)).setText(">").addOnClickAction(nextDiffAct);
+    this.ui.addComponent(nextDifficultyBtn);
+    let playAct = (evtSource) => {
+      screenManager.showScreen(new GameScreen(this.settings, this.highScoreManager, this.getLevel(levelIdx, difficulty)));
+    };
+    let platyBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, uiTop+260, 120, 30)).setText("Play").addOnClickAction(playAct);
+    this.ui.addComponent(platyBtn);
+    let exitBtn = Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
+    this.ui.addComponent(exitBtn);
+    this.ui.subscribe(drivers);
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+  }
+
+  getLevel(idx, difficulty) {
+    return Levels.FREE_PLAY.get(idx.get()).withDifficulty(difficulty.get());
+  }
+
+}
+classRegistry.FreeRideScreen = FreeRideScreen;
+class GameActors {
+  constructor() {
+  }
+
+  getClass() {
+    return "GameActors";
+  }
+
+  static findAllByTag(actors, tag) {
+    const res = new ArrayList();
+    let act = (actor) => {
+      if (actor.hasTag(tag)) {
+        res.add(actor);
+      }
+    };
+    actors.forEach(ActorId.ROOT, act);
+    return res;
+  }
+
+  static findByUniqueName(actors, name) {
+    let res = GameActors.findByUniqueNameNonStrict(actors, ActorId.ROOT, name);
+    if (res==null) {
+      throw new Error("actor with the given name doesn't exists: "+name);
+    }
+    return res;
+  }
+
+  static findByNameUniqueNonStrict(actors, name) {
+    return GameActors.findByUniqueNameNonStrict(actors, ActorId.ROOT, name);
+  }
+
+  static findByUniqueNameNonStrict(actors, root, name) {
+    let res = null;
+    let self = actors.get(root);
+    if (self.getName().equals(name)) {
+      res = self;
+    }
+    for (let ch of actors.children(root)) {
+      let chres = GameActors.findByUniqueNameNonStrict(actors, ch.getId(), name);
+      if (chres!=null) {
+        if (res!=null) {
+          throw new Error("actor name is ambiguous: "+name);
+        }
+        res = chres;
+      }
+    }
+    return res;
+  }
+
+}
+classRegistry.GameActors = GameActors;
+const createGameMode = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const GameMode = Object.freeze({
+  CAMPAIGN: createGameMode("CAMPAIGN"),
+  FREE_PLAY: createGameMode("FREE_PLAY"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class GameScreen extends TyracornScreen {
+  static SNAKE_HEAD_ID = ActorId.of("snake-head");
+  static SNAKE_NECK_1_ID = ActorId.of("snake-neck-1");
+  static SNAKE_NECK_2_ID = ActorId.of("snake-neck-2");
+  static SNAKE_TAIL_ID = ActorId.of("snake-tail");
+  static GAME_STATE_ID = ActorId.of("game-state");
+  settings;
+  highScoreManager;
+  level;
+  world;
+  inputs = InputCache.create();
+  ui;
+  joystick;
+  gameState;
+  mainSprite;
+  scoreLabel;
+  paused = false;
+  constructor(settings, highScoreManager, level) {
+    super();
+    this.settings = settings;
+    this.highScoreManager = highScoreManager;
+    this.level = level;
+    this.guardInvariants();
+  }
+
+  getClass() {
+    return "GameScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    if (this.paused) {
+      screenManager.showScreen(new MenuScreen(this.settings));
+      return ;
+    }
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    this.inputs.put("dir", this.joystick.getDir());
+    this.world.move(dt, this.inputs);
+    this.world.render(RenderRequest.NORMAL);
+    let mainSpriteTid = this.gameState.getMainSprite();
+    if (mainSpriteTid==null) {
+      this.mainSprite.hide();
+    }
+    else if (!mainSpriteTid.equals(this.mainSprite.getSprite())) {
+      if (mainSpriteTid.equals(GameStateBehavior.SPRITE_GAME_OVER)) {
+        this.highScoreManager.updateMaybe(this.level, this.gameState.getScore());
+        this.mainSprite.show(mainSpriteTid, 0.3, 1, 1);
+        let btnFont = FontId.of("kenny-mini-20");
+        let nextScr = this.level.getGameMode().equals(GameMode.CAMPAIGN)?new CampaignScreen(this.settings):new FreeRideScreen(this.settings);
+        let restartBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-130, 0, 120, 30)).setText("Restart").addOnClickAction(UiEventActions.showScreen(screenManager, new GameScreen(this.settings, this.highScoreManager, this.level)));
+        this.ui.addComponent(ComponentDelay.create(restartBtn, 1));
+        let nextBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(10, 0, 120, 30)).setText("Next").addOnClickAction(UiEventActions.showScreen(screenManager, nextScr));
+        this.ui.addComponent(ComponentDelay.create(nextBtn, 1));
+      }
+      else {
+        this.mainSprite.show(mainSpriteTid, 1, 0.3, 1);
+      }
+    }
+    gDriver.clearBuffers(BufferId.DEPTH);
+    this.scoreLabel.setText("Score: "+this.gameState.getScore());
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/nature")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/audio")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/snake.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:default.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:prefabs.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:scenes.tap")));
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(20, 32));
+    this.world = RigidBodyWorld.create(drivers).setCollisionLayerMatrix(CollisionLayers.getMatrix());
+    assets.get("Scene", this.level.getSceneId()).emptyWorld(this.world).loadToWorld(this.world, assets);
+    this.gameState = GameStateBehavior.create(ComponentKey.random()).setSettings(this.settings);
+    let gameStateAct = Actor.create(GameScreen.GAME_STATE_ID).addComponent(this.gameState);
+    this.world.actors().add(ActorId.ROOT, gameStateAct);
+    this.buildSnake(assets);
+    let foodGenAct = Actor.create("food-generator").addComponent(FoodGeneratorBehavior.create(ComponentKey.random()));
+    this.world.actors().add(ActorId.ROOT, foodGenAct);
+    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 15, 9), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY).setDisplaySizeInputKey("display.size").setFovyLandscape(FMath.toRadians(60)).setFovyPortrait(FMath.toRadians(90))).addComponent(CameraTrackBehavior.create(ComponentKey.random(), GameScreen.SNAKE_HEAD_ID, Vec3.create(0, 7, 3), Vec3.create(0, 0, -1)));
+    this.world.actors().add(ActorId.ROOT, camera);
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(Uis.create().styler());
+    this.joystick = Joystick.create().setRegionFnc(UiRegionFncs.centerBottom(125, 100, 100)).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD());
+    this.ui.addComponent(this.joystick);
+    let mainSpriteRegFnc = (t) => {
+      let w = t.width()>t.hashCode()?t.width()*0.6:t.width()*0.9;
+      let h = t.width()>t.hashCode()?100:t.height()*0.2;
+      return Rect2.create(t.width()/2-w/2, t.height()/3-h/2, w, h);
+    };
+    this.mainSprite = MainSpritePanel.create(assets).setRegionFnc(mainSpriteRegFnc);
+    this.ui.addComponent(this.mainSprite);
+    this.scoreLabel = Label.create().addTrait(UiComponentTrait.H3).setPosFnc(UiPosFncs.leftTop(5, 5)).setAlignment(TextAlignment.LEFT_TOP).setText("Score: 0");
+    this.ui.addComponent(this.scoreLabel);
+    let exitBtn = Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
+    this.ui.addComponent(exitBtn);
+    this.ui.subscribe(drivers);
+    let dlist = InputCacheDisplayListener.create(this.inputs);
+    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
+    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+    this.world.destroy(drivers);
+  }
+
+  pause(drivers) {
+    this.paused = true;
+  }
+
+  buildSnake(assets) {
+    let spawns = GameActors.findAllByTag(this.world.actors(), "snake-spawn");
+    let snakeSpawn = spawns.get(Randoms.nextInt(0, spawns.size()));
+    let rpGen = snakeSpawn.getComponentByKey("RpGeneratorComponent", ComponentKey.of("snake-spawn"));
+    let headPos = rpGen.nextPoint().withY(0.5);
+    let angle = FMath.PI*Randoms.nextInt(0, 4)*0.5;
+    let headPrefab = assets.get("ActorPrefab", ActorPrefabId.of("snake-head-1"));
+    let headCr = CreateActorRequest.create(headPrefab, GameScreen.SNAKE_HEAD_ID, headPos, Quaternion.rotY(angle));
+    let headActor = this.world.constructActor(headCr);
+    let hbeh = headActor.getComponent("SnakeHeadBehavior");
+    hbeh.scaleSpeed(1+(this.level.getDifficulty()-1)/4);
+    let neckPrefab = assets.get("ActorPrefab", ActorPrefabId.of("snake-neck-1"));
+    let neck1Pos = headActor.getComponent("TransformComponent").toGlobal(Vec3.create(0, 0, 0.5));
+    let neck1Cr = CreateActorRequest.create(neckPrefab, GameScreen.SNAKE_NECK_1_ID, neck1Pos, Quaternion.rotY(angle));
+    let neck1Actor = this.world.constructActor(neck1Cr);
+    neck1Actor.addComponent(ShadowMoveBehavior.create(ComponentKey.random()).setTargetActorId(GameScreen.SNAKE_HEAD_ID).setDistance(0.5));
+    let neck2Pos = neck1Actor.getComponent("TransformComponent").toGlobal(Vec3.create(0, 0, 0.5));
+    let neck2Cr = CreateActorRequest.create(neckPrefab, GameScreen.SNAKE_NECK_2_ID, neck2Pos, Quaternion.rotY(angle));
+    let neck2Actor = this.world.constructActor(neck2Cr);
+    neck2Actor.addComponent(ShadowMoveBehavior.create(ComponentKey.random()).setTargetActorId(GameScreen.SNAKE_NECK_1_ID).setDistance(0.5));
+    let tailPos = neck2Actor.getComponent("TransformComponent").toGlobal(Vec3.create(0, 0, 0.5));
+    let tailPrefab = assets.get("ActorPrefab", ActorPrefabId.of("snake-tail-1"));
+    let tailCr = CreateActorRequest.create(tailPrefab, GameScreen.SNAKE_TAIL_ID, tailPos, Quaternion.rotY(angle));
+    let tailActor = this.world.constructActor(tailCr);
+    tailActor.addComponent(ShadowMoveBehavior.create(ComponentKey.random()).setTargetActorId(GameScreen.SNAKE_NECK_2_ID).setDistance(0.5));
+  }
+
+}
+classRegistry.GameScreen = GameScreen;
+const createGameState = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const GameState = Object.freeze({
+  STARTING: createGameState("STARTING"),
+  PLAYING: createGameState("PLAYING"),
+  GAME_OVER: createGameState("GAME_OVER"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class GameStateBehavior extends Behavior {
+  static SPRITE_3 = TextureId.of("3");
+  static SPRITE_2 = TextureId.of("2");
+  static SPRITE_1 = TextureId.of("1");
+  static SPRITE_GO = TextureId.of("go");
+  static SPRITE_GAME_OVER = TextureId.of("game-over");
+  settings;
+  time = -3.5;
+  state = GameState.STARTING;
+  score = 0;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "GameStateBehavior";
+  }
+
+  move(dt, inputs) {
+    let before = this.getMainSprite();
+    this.time = this.time+dt;
+    let after = this.getMainSprite();
+    if (before!=null&&after!=null) {
+      if (before.equals(GameStateBehavior.SPRITE_3)&&after.equals(GameStateBehavior.SPRITE_2)&&this.isSoundEnabled()) {
+        this.world().audio().prepare(PlaybackId.of(Randoms.nextAlphabetic(8)), SoundId.of("zap2")).setVolume(this.getVolume()).play();
+      }
+      else if (before.equals(GameStateBehavior.SPRITE_2)&&after.equals(GameStateBehavior.SPRITE_1)&&this.isSoundEnabled()) {
+        this.world().audio().prepare(PlaybackId.of(Randoms.nextAlphabetic(8)), SoundId.of("zap2")).setVolume(this.getVolume()).play();
+      }
+      else if (before.equals(GameStateBehavior.SPRITE_1)&&after.equals(GameStateBehavior.SPRITE_GO)&&this.isSoundEnabled()) {
+        this.world().audio().prepare(PlaybackId.of(Randoms.nextAlphabetic(8)), SoundId.of("zap1")).setVolume(this.getVolume()).play();
+      }
+    }
+    if (this.state.equals(GameState.STARTING)&&this.time>=0) {
+      this.state = GameState.PLAYING;
+    }
+  }
+
+  getState() {
+    return this.state;
+  }
+
+  toGameOver() {
+    this.state = GameState.GAME_OVER;
+    return this;
+  }
+
+  getMainSprite() {
+    if (this.state.equals(GameState.STARTING)) {
+      if (this.time<-3) {
+        return null;
+      }
+      else if (this.time<-2) {
+        return GameStateBehavior.SPRITE_3;
+      }
+      else if (this.time<-1) {
+        return GameStateBehavior.SPRITE_2;
+      }
+      else if (this.time<0) {
+        return GameStateBehavior.SPRITE_1;
+      }
+      else if (this.time<1) {
+        return GameStateBehavior.SPRITE_GO;
+      }
+    }
+    if (this.state.equals(GameState.PLAYING)) {
+      if (this.time<1) {
+        return GameStateBehavior.SPRITE_GO;
+      }
+    }
+    else if (this.state.equals(GameState.GAME_OVER)) {
+      return GameStateBehavior.SPRITE_GAME_OVER;
+    }
+    return null;
+  }
+
+  getScore() {
+    return this.score;
+  }
+
+  incrementScore() {
+    this.score = this.score+1;
+    return this;
+  }
+
+  isSoundEnabled() {
+    return this.settings.getBoolean(PropertyKey.of("audio.sound.enabled"));
+  }
+
+  getVolume() {
+    return this.settings.getFloat(PropertyKey.of("audio.sound.volume"));
+  }
+
+  setSettings(settings) {
+    Guard.notNull(settings, "settings cannot be null");
+    this.settings = settings;
+    return this;
+  }
+
+  static create(key) {
+    return new GameStateBehavior(key);
+  }
+
+}
+classRegistry.GameStateBehavior = GameStateBehavior;
+class HighScoreManager {
+  properties;
+  constructor() {
+  }
+
+  getClass() {
+    return "HighScoreManager";
+  }
+
+  guardInvariants() {
+  }
+
+  get(level) {
+    return this.properties.getInt(level.getHighscoreKey(), 0);
+  }
+
+  updateMaybe(level, sc) {
+    let chs = this.get(level);
+    if (sc<=chs) {
+      return false;
+    }
+    this.properties.put(level.getHighscoreKey(), sc);
+    return true;
+  }
+
+  getCampaignScore() {
+    let res = 0;
+    for (let level of Levels.CAMPAIGN) {
+      res = res+this.get(level);
+    }
+    return res;
+  }
+
+  isFreeRideOpen() {
+    return this.getCampaignScore()>=Levels.FREE_PLAY_REQUIRED_SCORE;
+  }
+
+  clearAll() {
+    this.properties.removeAll();
+  }
+
+  toString() {
+  }
+
+  static create(storage) {
+    let res = new HighScoreManager();
+    res.properties = LocalDataConfigProperties.create(storage, LocalDataKey.of("highscore.properties"));
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.HighScoreManager = HighScoreManager;
+class Level {
+  gameMode;
+  key;
+  name;
+  imageId;
+  sceneId;
+  difficulty;
+  requiredScore;
+  constructor() {
+  }
+
+  getClass() {
+    return "Level";
+  }
+
+  guardInvariants() {
+  }
+
+  getGameMode() {
+    return this.gameMode;
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  getImageId() {
+    return this.imageId;
+  }
+
+  getSceneId() {
+    return this.sceneId;
+  }
+
+  getDifficulty() {
+    return this.difficulty;
+  }
+
+  getRequiredScore() {
+    return this.requiredScore;
+  }
+
+  withDifficulty(difficulty) {
+    let res = new Level();
+    res.gameMode = this.gameMode;
+    res.key = this.key;
+    res.name = this.name;
+    res.imageId = this.imageId;
+    res.sceneId = this.sceneId;
+    res.difficulty = difficulty;
+    res.requiredScore = this.requiredScore;
+    res.guardInvariants();
+    return res;
+  }
+
+  getHighscoreKey() {
+    if (this.gameMode.equals(GameMode.CAMPAIGN)) {
+      return PropertyKey.of("highscore."+this.key);
+    }
+    else if (this.gameMode.equals(GameMode.FREE_PLAY)) {
+      return PropertyKey.of("highscore."+this.key+"-"+this.difficulty);
+    }
+    else {
+      throw new Error("unknown game more: "+this.gameMode);
+    }
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(gameMode, key, name, imageId, sceneId, difficulty, requiredScore) {
+    let res = new Level();
+    res.gameMode = gameMode;
+    res.key = key;
+    res.name = name;
+    res.imageId = imageId;
+    res.sceneId = sceneId;
+    res.difficulty = difficulty;
+    res.requiredScore = requiredScore;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.Level = Level;
+class Levels {
+  static CAMPAIGN = Dut.immutableList(Level.create(GameMode.CAMPAIGN, "campaign-00", "Level 1", TextureId.of("level-1"), SceneId.of("level-1"), 1, 0), Level.create(GameMode.CAMPAIGN, "campaign-01", "Level 2", TextureId.of("level-2"), SceneId.of("level-2"), 1, 30), Level.create(GameMode.CAMPAIGN, "campaign-02", "Level 3", TextureId.of("level-1"), SceneId.of("level-1"), 2, 60), Level.create(GameMode.CAMPAIGN, "campaign-03", "Level 4", TextureId.of("level-3"), SceneId.of("level-3"), 2, 100), Level.create(GameMode.CAMPAIGN, "campaign-04", "Level 5", TextureId.of("level-2"), SceneId.of("level-2"), 2, 140), Level.create(GameMode.CAMPAIGN, "campaign-05", "Level 6", TextureId.of("level-3"), SceneId.of("level-3"), 3, 180), Level.create(GameMode.CAMPAIGN, "campaign-06", "Level 7", TextureId.of("level-1"), SceneId.of("level-1"), 3, 220), Level.create(GameMode.CAMPAIGN, "campaign-07", "Level 8", TextureId.of("level-2"), SceneId.of("level-2"), 4, 265), Level.create(GameMode.CAMPAIGN, "campaign-08", "Level 9", TextureId.of("level-3"), SceneId.of("level-3"), 4, 310), Level.create(GameMode.CAMPAIGN, "campaign-09", "Level 10", TextureId.of("level-4"), SceneId.of("level-4"), 5, 350));
+  static FREE_PLAY = Dut.immutableList(Level.create(GameMode.FREE_PLAY, "free-00", "Level 1", TextureId.of("level-1"), SceneId.of("level-1"), 1, 0), Level.create(GameMode.FREE_PLAY, "free-01", "Level 2", TextureId.of("level-2"), SceneId.of("level-2"), 1, 0), Level.create(GameMode.FREE_PLAY, "free-02", "Level 3", TextureId.of("level-3"), SceneId.of("level-3"), 1, 0), Level.create(GameMode.FREE_PLAY, "free-03", "Level 4", TextureId.of("level-4"), SceneId.of("level-4"), 1, 0));
+  static FREE_PLAY_REQUIRED_SCORE = 400;
+  constructor() {
+  }
+
+  getClass() {
+    return "Levels";
+  }
+
+}
+classRegistry.Levels = Levels;
+class MainSpritePanel extends UiComponent {
+  assets;
+  spriteContainer;
+  sprite;
+  visible;
+  startScale;
+  endScale;
+  duration;
+  atime;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "MainSpritePanel";
+  }
+
+  guardInvariants() {
+  }
+
+  init(container) {
+    this.spriteContainer.init(container);
+  }
+
+  move(dt) {
+    if (!this.visible||this.atime>this.duration) {
+      return ;
+    }
+    let t = this.atime/this.duration;
+    let scale = (1-t)*this.startScale+t*this.endScale;
+    this.sprite.setRegionFnc(this.createSpriteRegFnc(scale));
+    this.atime = this.atime+dt;
+  }
+
+  draw(painter) {
+    if (this.visible) {
+      this.spriteContainer.draw(painter);
+    }
+  }
+
+  onContainerResize(size) {
+    this.spriteContainer.onContainerResize(size);
+  }
+
+  setRegionFnc(regionFnc) {
+    this.spriteContainer.setRegionFnc(regionFnc);
+    return this;
+  }
+
+  toString() {
+  }
+
+  getSprite() {
+    return this.visible?this.sprite.getTexture():null;
+  }
+
+  show(sprite, startScale, endScale, duration) {
+    this.sprite.setTexture(sprite);
+    this.sprite.setRegionFnc(this.createSpriteRegFnc(startScale));
+    this.startScale = startScale;
+    this.endScale = endScale;
+    this.duration = duration;
+    this.atime = 0;
+    this.visible = true;
+    return this;
+  }
+
+  hide() {
+    this.visible = false;
+    return this;
+  }
+
+  createSpriteRegFnc(scale) {
+    let sprTex = this.assets.get("Texture", this.sprite.getTexture());
+    let sprW = sprTex.getWidth();
+    let sprH = sprTex.getHeight();
+    let sprAsp = sprW/sprH;
+    return (s) => {
+      if (s.width()<1||s.height()<1) {
+        return Rect2.create(Pos2.ZERO, s);
+      }
+      let aspect = s.width()/s.height();
+      if (sprAsp>=aspect) {
+        let w = s.width()*scale;
+        let h = sprH*s.width()/sprW*scale;
+        return Rect2.create(s.width()/2-w/2, s.height()/2-h/2, w, h);
+      }
+      else {
+        let w = sprW*s.height()/sprH*scale;
+        let h = s.height()*scale;
+        return Rect2.create(s.width()/2-w/2, s.height()/2-h/2, w, h);
+      }
+    };
+  }
+
+  static create(assets) {
+    let res = new MainSpritePanel();
+    res.assets = assets;
+    res.spriteContainer = Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setInnerSizeFnc(UiSizeFncs.identity()).setRegionFnc(UiRegionFncs.full());
+    res.sprite = ImageView.create().setRegionFnc(UiRegionFncs.full()).setTexture("empty");
+    res.spriteContainer.addComponent(res.sprite);
+    res.visible = false;
+    res.startScale = 1;
+    res.endScale = 1;
+    res.duration = 1;
+    res.atime = 0;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.MainSpritePanel = MainSpritePanel;
+class MenuScreen extends TyracornScreen {
+  settings;
+  ui = null;
+  constructor(settings) {
+    super();
+    this.settings = settings;
+  }
+
+  getClass() {
+    return "MenuScreen";
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    if (this.settings==null) {
+      this.settings = LocalDataConfigProperties.create(drivers.getDriver("LocalDataStorage"), LocalDataKey.of("settings.properties")).withDefaults(Dut.map(PropertyKey.of("audio.sound.enabled"), "true", PropertyKey.of("audio.sound.volume"), "1"));
+    }
+    let highScoreManager = HighScoreManager.create(drivers.getDriver("LocalDataStorage"));
+    Uis.prepareScaledFonts(drivers);
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(Uis.create().styler());
+    this.ui.addComponent(ImageView.create().setTexture("snake").setRegionFnc(UiRegionFncs.center(-90, -140, 180, 100)));
+    let playBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, -20, 120, 30)).setText("Campaign").addOnClickAction(UiEventActions.showScreen(screenManager, new CampaignScreen(this.settings)));
+    this.ui.addComponent(playBtn);
+    let freeRideBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, 20, 120, 30)).setText("Free Ride").setDisabled(!highScoreManager.isFreeRideOpen()).addOnClickAction(UiEventActions.showScreen(screenManager, new FreeRideScreen(this.settings)));
+    this.ui.addComponent(freeRideBtn);
+    let settingsBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, 60, 120, 30)).setText("Settings").addOnClickAction(UiEventActions.showScreen(screenManager, new SettingsScreen(this.settings)));
+    this.ui.addComponent(settingsBtn);
+    let aboutBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, 100, 120, 30)).setText("About").addOnClickAction(UiEventActions.showScreen(screenManager, new AboutScreen()));
+    this.ui.addComponent(aboutBtn);
+    if (drivers.getPlatform().isExitable()) {
+      let exitBtn = Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager));
+      this.ui.addComponent(exitBtn);
+    }
+    this.ui.subscribe(drivers);
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+  }
+
+}
+classRegistry.MenuScreen = MenuScreen;
+class OscilatorBehavior extends Behavior {
+  trans;
+  amplitude = Vec3.create(0, 0.1, 0);
+  frequency = Vec3.create(1, 1, 1);
+  basePos;
+  time = 0;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "OscilatorBehavior";
+  }
+
+  init() {
+    this.trans = this.actor().getComponent("TransformComponent");
+  }
+
+  move(dt, inputs) {
+    if (this.basePos==null) {
+      this.basePos = this.trans.getPos();
+    }
+    this.time = this.time+dt;
+    let dx = this.amplitude.x()*FMath.sin(this.time*this.frequency.x()*2*FMath.PI);
+    let dy = this.amplitude.y()*FMath.sin(this.time*this.frequency.y()*2*FMath.PI);
+    let dz = this.amplitude.z()*FMath.sin(this.time*this.frequency.z()*2*FMath.PI);
+    this.trans.setPos(this.basePos.add(dx, dy, dz));
+  }
+
+  setPrefabProperties(idMapping, properties) {
+    if (properties.containsKey("amplitude")) {
+      this.amplitude = Jsons.toVec3("amplitude");
+    }
+    if (properties.containsKey("frequency")) {
+      this.frequency = Jsons.toVec3("frequency");
+    }
+  }
+
+  static create(key) {
+    return new OscilatorBehavior(key);
+  }
+
+}
+classRegistry.OscilatorBehavior = OscilatorBehavior;
+class PosRotPoint {
+  pos;
+  rot;
+  constructor() {
+  }
+
+  getClass() {
+    return "PosRotPoint";
+  }
+
+  guardInvariants() {
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getRot() {
+    return this.rot;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(pos, rot) {
+    let res = new PosRotPoint();
+    res.pos = pos;
+    res.rot = rot;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.PosRotPoint = PosRotPoint;
+class SettingsScreen extends TyracornScreen {
+  static SOUND_VOLUME_KEY = PropertyKey.of("audio.sound.volume");
+  settings;
+  ui;
+  constructor(settings) {
+    super();
+    this.settings = settings;
+    this.guardInvariants();
+  }
+
+  getClass() {
+    return "SettingsScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    let storage = drivers.getDriver("LocalDataStorage");
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300))).setStyler(Uis.create().styler());
+    let uiTop = -100;
+    let header = Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Settings").setAlignment(TextAlignment.CENTER_TOP);
+    this.ui.addComponent(header);
+    const soundVol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+95)).setText(Formats.floatToFixedDecimals(this.settings.getFloat(SettingsScreen.SOUND_VOLUME_KEY)*10, 0)).setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(soundVol);
+    let soundVolDownAct = (evtSource) => {
+      let vol = this.settings.getFloat(SettingsScreen.SOUND_VOLUME_KEY);
+      vol = FMath.clamp(vol-0.1, 0, 1);
+      this.settings.put(SettingsScreen.SOUND_VOLUME_KEY, vol);
+      soundVol.setText(Formats.floatToFixedDecimals(vol*10, 0));
+    };
+    let soundVolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+80, 30, 30)).setText("-").addOnClickAction(soundVolDownAct);
+    this.ui.addComponent(soundVolDownBtn);
+    let soundVolUpAct = (evtSource) => {
+      let vol = this.settings.getFloat(SettingsScreen.SOUND_VOLUME_KEY);
+      vol = FMath.clamp(vol+0.1, 0, 1);
+      this.settings.put(SettingsScreen.SOUND_VOLUME_KEY, vol);
+      soundVol.setText(Formats.floatToFixedDecimals(vol*10, 0));
+    };
+    let soundVolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+80, 30, 30)).setText("+").addOnClickAction(soundVolUpAct);
+    this.ui.addComponent(soundVolUpBtn);
+    let soundToggleAct = (evtSource) => {
+      let btn = evtSource;
+      this.settings.put(PropertyKey.of("audio.sound.enabled"), btn.isToggledOn());
+    };
+    let soundToggle = ToggleButton.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+80, 120, 30)).setText("Sound").toggle(this.settings.getBoolean(PropertyKey.of("audio.sound.enabled"))).addOnToggleAction(soundToggleAct);
+    this.ui.addComponent(soundToggle);
+    let resetHsAct = (evtSource) => {
+      let hsm = HighScoreManager.create(storage);
+      hsm.clearAll();
+    };
+    let resetHsBtn = Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.center(-80, uiTop+125, 160, 30)).setText("Reset Campaign").addOnClickAction(resetHsAct);
+    this.ui.addComponent(resetHsBtn);
+    let backBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-60, uiTop+170, 120, 30)).setText("Back").addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
+    this.ui.addComponent(backBtn);
+    let exitBtn = Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.settings)));
+    this.ui.addComponent(exitBtn);
+    this.ui.subscribe(drivers);
+  }
+
+  leave(drivers) {
+    drivers.getDriver("AudioDriver").getMixer().stop();
+    this.ui.unsubscribe(drivers);
+  }
+
+}
+classRegistry.SettingsScreen = SettingsScreen;
+class ShadowMoveBehavior extends Behavior {
+  targetActorId = null;
+  distance;
+  trace = new ArrayList();
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "ShadowMoveBehavior";
+  }
+
+  move(dt, inputs) {
+    if (!this.world().actors().exists(this.targetActorId)) {
+      return ;
+    }
+    if (this.trace.isEmpty()) {
+      return ;
+    }
+    let dst = 0;
+    let cut = -1;
+    for (let i = this.trace.size()-1; i>0; --i) {
+      let segDst = this.trace.get(i).getPos().dist(this.trace.get(i-1).getPos());
+      if (dst+segDst<this.distance) {
+        dst = dst+segDst;
+      }
+      else {
+        cut = i-1;
+        break;
+      }
+    }
+    if (cut==-1) {
+      let mytc = this.actor().getComponent("TransformComponent");
+      let mytr = PosRotPoint.create(mytc.getPos(), mytc.getRot());
+      let dstAfter = dst+this.trace.get(0).getPos().dist(mytr.getPos());
+      if (dstAfter>this.distance) {
+        if (dstAfter-dst>1e-4) {
+          let t = (this.distance-dstAfter)/(dst-dstAfter);
+          mytc.setPos(Vec3.interpolate(mytc.getPos(), this.trace.get(0).getPos(), t));
+          mytc.setRot(this.interpolateRot(mytc.getRot(), this.trace.get(0).getRot(), t));
+        }
+      }
+    }
+    else {
+      let mytc = this.actor().getComponent("TransformComponent");
+      for (let i = 0; i<cut; ++i) {
+        this.trace.remove(this.trace.get(0));
+      }
+      let dstAfter = dst+this.trace.get(0).getPos().dist(this.trace.get(1).getPos());
+      let t = (this.distance-dstAfter)/(dst-dstAfter);
+      mytc.setPos(Vec3.interpolate(this.trace.get(0).getPos(), this.trace.get(1).getPos(), t));
+      mytc.setRot(this.interpolateRot(this.trace.get(0).getRot(), this.trace.get(1).getRot(), t));
+    }
+  }
+
+  lateMove(dt, inputs) {
+    if (this.targetActorId==null||!this.world().actors().exists(this.targetActorId)) {
+      return ;
+    }
+    let act = this.world().actors().get(this.targetActorId);
+    let tc = act.getComponent("TransformComponent");
+    if (this.trace.isEmpty()||tc.getPos().dist(this.trace.get(this.trace.size()-1).getPos())>1e-4) {
+      this.trace.add(PosRotPoint.create(tc.getPos(), tc.getRot()));
+    }
+  }
+
+  setProperties(properties) {
+    if (properties.containsKey("actorId")) {
+      this.targetActorId = ActorId.of(properties.get("actorId"));
+      this.trace.clear();
+    }
+    if (properties.containsKey("distance")) {
+      this.distance = Float.valueOf(properties.get("distance"));
+    }
+  }
+
+  getTargetActorId() {
+    return this.targetActorId;
+  }
+
+  setTargetActorId(targetActorId) {
+    this.targetActorId = targetActorId;
+    this.trace.clear();
+    return this;
+  }
+
+  setDistance(distance) {
+    this.distance = distance;
+    return this;
+  }
+
+  interpolateRot(a, b, t) {
+    let ti = 1-t;
+    let aNeg = a.negate();
+    if (aNeg.dist(b)<a.dist(b)) {
+      a = aNeg;
+    }
+    return Quaternion.create(ti*a.a()+t*b.a(), ti*a.b()+t*b.b(), ti*a.c()+t*b.c(), ti*a.d()+t*b.d()).normalize();
+  }
+
+  static create(key) {
+    return new ShadowMoveBehavior(key);
+  }
+
+}
+classRegistry.ShadowMoveBehavior = ShadowMoveBehavior;
+class SnakeHeadBehavior extends Behavior {
+  static FWD = Vec3.create(0, 0, -1);
+  static EAT_SOUNDS = Dut.immutableList(SoundId.of("eat-1"), SoundId.of("eat-2"), SoundId.of("eat-3"), SoundId.of("eat-4"), SoundId.of("eat-5"));
+  static GAME_OVER_SOUNDS = Dut.immutableList(SoundId.of("game-over-1"));
+  gameStateScript = null;
+  speed = 2;
+  turnSpeed = 0.7*FMath.PI;
+  targetDir = null;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "SnakeHeadBehavior";
+  }
+
+  init() {
+    this.gameStateScript = this.world().actors().get(GameScreen.GAME_STATE_ID).getComponent("GameStateBehavior");
+    let tc = this.actor().getComponent("TransformComponent");
+    let zero = tc.toGlobal(Vec3.ZERO);
+    let fwd = tc.toGlobal(SnakeHeadBehavior.FWD);
+    let currDir = fwd.subAndNormalize(zero);
+    this.targetDir = Vec2.create(currDir.x(), -currDir.z());
+  }
+
+  move(dt, inputs) {
+    if (!this.gameStateScript.getState().equals(GameState.PLAYING)) {
+      return ;
+    }
+    let tc = this.actor().getComponent("TransformComponent");
+    let zero = tc.toGlobal(Vec3.ZERO);
+    let fwd = tc.toGlobal(SnakeHeadBehavior.FWD);
+    let currDir = fwd.subAndNormalize(zero);
+    let mv = currDir.scale(dt*this.speed);
+    this.actor().getComponent("TransformComponent").move(mv);
+    let dir = inputs.getVec2("dir", Vec2.ZERO);
+    if (dir.mag()>0.7) {
+      let dx = FMath.abs(dir.x())>=FMath.abs(dir.y())?FMath.signum(dir.x()):0;
+      let dy = FMath.abs(dir.x())<FMath.abs(dir.y())?FMath.signum(dir.y()):0;
+      let newTargetDir = Vec2.create(dx, dy);
+      if (!newTargetDir.equals(this.targetDir)&&!newTargetDir.add(this.targetDir).equals(Vec2.ZERO)) {
+        this.targetDir = newTargetDir;
+      }
+    }
+    dir = dir.normalize();
+    let turn = -FMath.atan2(currDir.x(), -currDir.z());
+    let targetTurn = -FMath.atan2(this.targetDir.x(), this.targetDir.y());
+    let maxdTurn = dt*this.turnSpeed;
+    if (FMath.abs(turn-targetTurn)<=maxdTurn||FMath.abs(turn+2*FMath.PI-targetTurn)<=maxdTurn||FMath.abs(turn-2*FMath.PI-targetTurn)<=maxdTurn) {
+      turn = targetTurn;
+    }
+    else if (targetTurn>turn) {
+      if (targetTurn-turn<turn-targetTurn+FMath.PI*2) {
+        turn = turn+maxdTurn;
+        if (turn>FMath.PI) {
+          turn = turn-2*FMath.PI;
+        }
+      }
+      else {
+        turn = turn-maxdTurn;
+        if (turn<-FMath.PI) {
+          turn = turn+2*FMath.PI;
+        }
+      }
+    }
+    else {
+      if (turn-targetTurn<targetTurn-turn+FMath.PI*2) {
+        turn = turn-maxdTurn;
+        if (turn<-FMath.PI) {
+          turn = turn+2*FMath.PI;
+        }
+      }
+      else {
+        turn = turn+maxdTurn;
+        if (turn>FMath.PI) {
+          turn = turn-2*FMath.PI;
+        }
+      }
+    }
+    this.actor().getComponent("TransformComponent").setRot(Quaternion.rotY(turn));
+  }
+
+  lateMove(dt, inputs) {
+    if (!this.gameStateScript.getState().equals(GameState.PLAYING)) {
+      return ;
+    }
+    let collider = this.actor().getComponent("ColliderComponent");
+    let cols = this.world().collisions().withCollider(collider);
+    for (let col of cols) {
+      let cl = col.getLayer();
+      if (cl.equals(CollisionLayers.FOOD)) {
+        if (this.gameStateScript.isSoundEnabled()) {
+          this.world().audio().prepare(PlaybackId.of(Randoms.nextAlphabetic(8)), this.getRandomSoundId(SnakeHeadBehavior.EAT_SOUNDS)).setVolume(this.gameStateScript.getVolume()).play();
+        }
+        let fact = col.actor();
+        this.world().actors().remove(fact.getId());
+        let tailAct = this.world().actors().get(GameScreen.SNAKE_TAIL_ID);
+        let tailTrans = tailAct.getComponent("TransformComponent");
+        let tailMvBeh = tailAct.getComponent("ShadowMoveBehavior");
+        let snakeBodyPrefab = this.world().assets().get("ActorPrefab", ActorPrefabId.of("snake-body-1"));
+        let breq = CreateActorRequest.create(snakeBodyPrefab, null, tailTrans.getPos(), tailTrans.getRot());
+        let bodyPart = this.world().constructActor(breq);
+        bodyPart.addComponent(ShadowMoveBehavior.create(ComponentKey.random()).setTargetActorId(tailMvBeh.getTargetActorId()).setDistance(0.7));
+        tailMvBeh.setTargetActorId(bodyPart.getId());
+        this.gameStateScript.incrementScore();
+      }
+      else {
+        this.gameStateScript.toGameOver();
+        if (this.gameStateScript.isSoundEnabled()) {
+          this.world().audio().prepare(PlaybackId.of(Randoms.nextAlphabetic(8)), this.getRandomSoundId(SnakeHeadBehavior.GAME_OVER_SOUNDS)).setVolume(1).play();
+        }
+      }
+    }
+  }
+
+  setPrefabProperties(idMapping, properties) {
+    if (properties.containsKey("speed")) {
+      this.speed = Float.valueOf(properties.get("speed"));
+    }
+    if (properties.containsKey("turnSpeed")) {
+      this.turnSpeed = Float.valueOf(properties.get("turnSpeed"));
+    }
+  }
+
+  scaleSpeed(sf) {
+    this.speed = this.speed*sf;
+    this.turnSpeed = this.turnSpeed*sf;
+    return this;
+  }
+
+  getRandomSoundId(options) {
+    return options.get(Randoms.nextInt(0, options.size()));
+  }
+
+  static create(key) {
+    return new SnakeHeadBehavior(key);
+  }
+
+}
+classRegistry.SnakeHeadBehavior = SnakeHeadBehavior;
+class Uis {
+  mStyler;
+  constructor() {
+  }
+
+  getClass() {
+    return "Uis";
+  }
+
+  guardInvariants() {
+  }
+
+  uiSizeFnc() {
+    return UiSizeFncs.constantHeight(1600);
+  }
+
+  styler() {
+    if (this.mStyler==null) {
+      this.mStyler = DefaultUiStyler.create().setH1Font(FontId.of("kenny-mini-40")).setH1Color(Rgba.WHITE).setH2Font(FontId.of("kenny-mini-30")).setH2Color(Rgba.WHITE).setH3Font(FontId.of("kenny-mini-32")).setH3Color(Rgba.WHITE).setMediumTextFont(FontId.of("kenny-mini-20")).setTextColor(Rgba.WHITE).setButtonLabelFont(FontId.of("kenny-mini-20")).setButtonLabelColor(Rgba.WHITE).setDisabledButtonLabelColor(Rgba.gray(0.8));
+    }
+    return this.mStyler;
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new Uis();
+    res.guardInvariants();
+    return res;
+  }
+
+  static prepareScaledFonts(drivers) {
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(20, 30, 32, 40));
+  }
+
+}
+classRegistry.Uis = Uis;
 
 
 // -------------------------------------
@@ -32599,7 +34923,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = new BasicApp05();
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new MenuScreen());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
