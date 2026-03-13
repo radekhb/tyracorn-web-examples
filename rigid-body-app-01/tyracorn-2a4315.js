@@ -32894,6 +32894,48 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
+class PlayUis {
+  static ARROW_UP = UiComponentTrait.of("ARROW_UP");
+  static ARROW_DOWN = UiComponentTrait.of("ARROW_DOWN");
+  static ARROW_LEFT = UiComponentTrait.of("ARROW_LEFT");
+  static ARROW_RIGHT = UiComponentTrait.of("ARROW_RIGHT");
+  static BRAKE = UiComponentTrait.of("BRAKE");
+  static PUNCH = UiComponentTrait.of("PUNCH");
+  static WALK_RUN = UiComponentTrait.of("WALK_RUN");
+  constructor() {
+  }
+
+  getClass() {
+    return "PlayUis";
+  }
+
+  static uiSizeFnc() {
+    return UiSizeFncs.constantHeight(1600);
+  }
+
+  static styler() {
+    let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
+    let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
+    let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
+    let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
+    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-100")).setH2Font(FontId.of("kenny-thick-90")).setH3Font(FontId.of("kenny-thick-85")).setExtraLargeTextFont(FontId.of("kenny-mini-80")).setLargeTextFont(FontId.of("kenny-mini-75")).setMediumTextFont(FontId.of("kenny-mini-50")).setSmallTextFont(FontId.of("kenny-mini-40")).setButtonLabelFont(FontId.of("kenny-mini-50")).setFieldLabelFont(FontId.of("kenny-mini-40")).setFieldValueFont(FontId.of("kenny-mini-50")).setSelectItemTextFont(FontId.of("kenny-mini-50")).setSelectItemHeight(50).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
+  }
+
+  static panel916() {
+    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setInnerSizeFnc((size) => {
+  return Size2.create(900, 1600);
+}).setRegionFnc((t) => {
+  if (t.aspect()>9/16) {
+    return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
+  }
+  else {
+    return Rect2.create(0, 0, t.width(), t.height());
+  }
+});
+  }
+
+}
+classRegistry.PlayUis = PlayUis;
 class GamePad extends UiComponent {
   leftJoystick;
   rightJoystick;
@@ -33172,7 +33214,7 @@ class RigidBodyApp01 extends TyracornScreen {
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(12, 14, 20));
+    Fonts.prepareScaledFonts(assets, Dut.set(40, 50, 75, 80, 85, 100));
     let boxDiffuse = TextureId.of("tex_box_01_d");
     let boxSpecular = TextureId.of("tex_box_01_s");
     assets.put(MaterialId.of("brass"), Material.BRASS);
@@ -33201,35 +33243,35 @@ class RigidBodyApp01 extends TyracornScreen {
     this.world.actors().add(ActorId.ROOT, light);
     let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(1, 2, 7), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create(ComponentKey.of("FREE_CAMERA"), "moveDir", "rotDir", 3, 1)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY));
     this.world.actors().add(ActorId.ROOT, camera);
-    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
+    this.ui = StretchUi.create(PlayUis.uiSizeFnc()).setStyler(PlayUis.styler());
     this.gamePad = GamePad.create(drivers);
     this.ui.addComponent(this.gamePad);
-    let xLabel = Label.create().setPosFnc(UiPosFncs.leftTop(55, 25)).setText("X-axis").setAlignment(TextAlignment.RIGHT_CENTER);
+    let xLabel = Label.create().addTrait(UiComponentTrait.H3).setPosFnc(UiPosFncs.leftTop(255, 75)).setText("X-axis").setAlignment(TextAlignment.RIGHT_CENTER);
     this.ui.addComponent(xLabel);
-    let xVal = Label.create().setPosFnc(UiPosFncs.leftTop(125, 25)).setText("0.0").setAlignment(TextAlignment.CENTER);
+    let xVal = Label.create().setPosFnc(UiPosFncs.leftTop(450, 75)).setText("0.0").setAlignment(TextAlignment.CENTER);
     this.ui.addComponent(xVal);
-    let xMinusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(65, 10, 30, 30)).setText("-").addOnClickAction(this.inputChangeAction(this.inputs, "x", -0.1, xVal));
+    let xMinusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(300, 25, 100, 100)).setText("-").addOnClickAction(this.inputChangeAction(this.inputs, "x", -0.1, xVal));
     this.ui.addComponent(xMinusBtn);
-    let xPlusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(155, 10, 30, 30)).setText("+").addOnClickAction(this.inputChangeAction(this.inputs, "x", 0.1, xVal));
+    let xPlusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(500, 25, 100, 100)).setText("+").addOnClickAction(this.inputChangeAction(this.inputs, "x", 0.1, xVal));
     this.ui.addComponent(xPlusBtn);
-    let yLabel = Label.create().setPosFnc(UiPosFncs.leftTop(55, 65)).setText("Y-axis").setAlignment(TextAlignment.RIGHT_CENTER);
+    let yLabel = Label.create().addTrait(UiComponentTrait.H3).setPosFnc(UiPosFncs.leftTop(255, 225)).setText("Y-axis").setAlignment(TextAlignment.RIGHT_CENTER);
     this.ui.addComponent(yLabel);
-    let yVal = Label.create().setPosFnc(UiPosFncs.leftTop(125, 65)).setText("0.0").setAlignment(TextAlignment.CENTER);
+    let yVal = Label.create().setPosFnc(UiPosFncs.leftTop(450, 225)).setText("0.0").setAlignment(TextAlignment.CENTER);
     this.ui.addComponent(yVal);
-    let yMinusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(65, 50, 30, 30)).setText("-").addOnClickAction(this.inputChangeAction(this.inputs, "y", -0.1, yVal));
+    let yMinusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(300, 175, 100, 100)).setText("-").addOnClickAction(this.inputChangeAction(this.inputs, "y", -0.1, yVal));
     this.ui.addComponent(yMinusBtn);
-    let yPlusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(155, 50, 30, 30)).setText("+").addOnClickAction(this.inputChangeAction(this.inputs, "y", 0.1, yVal));
+    let yPlusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(500, 175, 100, 100)).setText("+").addOnClickAction(this.inputChangeAction(this.inputs, "y", 0.1, yVal));
     this.ui.addComponent(yPlusBtn);
-    let zLabel = Label.create().setPosFnc(UiPosFncs.leftTop(55, 105)).setText("Z-axis").setAlignment(TextAlignment.RIGHT_CENTER);
+    let zLabel = Label.create().addTrait(UiComponentTrait.H3).setPosFnc(UiPosFncs.leftTop(255, 375)).setText("Z-axis").setAlignment(TextAlignment.RIGHT_CENTER);
     this.ui.addComponent(zLabel);
-    let zVal = Label.create().setPosFnc(UiPosFncs.leftTop(125, 105)).setText("0.0").setAlignment(TextAlignment.CENTER);
+    let zVal = Label.create().setPosFnc(UiPosFncs.leftTop(450, 375)).setText("0.0").setAlignment(TextAlignment.CENTER);
     this.ui.addComponent(zVal);
-    let zMinusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(65, 90, 30, 30)).setText("-").addOnClickAction(this.inputChangeAction(this.inputs, "z", -0.1, zVal));
+    let zMinusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(300, 325, 100, 100)).setText("-").addOnClickAction(this.inputChangeAction(this.inputs, "z", -0.1, zVal));
     this.ui.addComponent(zMinusBtn);
-    let zPlusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(155, 90, 30, 30)).setText("+").addOnClickAction(this.inputChangeAction(this.inputs, "z", 0.1, zVal));
+    let zPlusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(500, 325, 100, 100)).setText("+").addOnClickAction(this.inputChangeAction(this.inputs, "z", 0.1, zVal));
     this.ui.addComponent(zPlusBtn);
     if (drivers.getPlatform().isExitable()) {
-      this.ui.addComponent(Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(25, 0, 25, 25)).addOnClickAction(UiEventActions.exitApp(screenManager)));
+      this.ui.addComponent(Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(75, 0, 75, 75)).addOnClickAction(UiEventActions.exitApp(screenManager)));
     }
     this.ui.subscribe(drivers);
     let dlist = InputCacheDisplayListener.create(this.inputs);

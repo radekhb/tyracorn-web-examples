@@ -32894,6 +32894,48 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
+class PlayUis {
+  static ARROW_UP = UiComponentTrait.of("ARROW_UP");
+  static ARROW_DOWN = UiComponentTrait.of("ARROW_DOWN");
+  static ARROW_LEFT = UiComponentTrait.of("ARROW_LEFT");
+  static ARROW_RIGHT = UiComponentTrait.of("ARROW_RIGHT");
+  static BRAKE = UiComponentTrait.of("BRAKE");
+  static PUNCH = UiComponentTrait.of("PUNCH");
+  static WALK_RUN = UiComponentTrait.of("WALK_RUN");
+  constructor() {
+  }
+
+  getClass() {
+    return "PlayUis";
+  }
+
+  static uiSizeFnc() {
+    return UiSizeFncs.constantHeight(1600);
+  }
+
+  static styler() {
+    let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
+    let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
+    let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
+    let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
+    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-100")).setH2Font(FontId.of("kenny-thick-90")).setH3Font(FontId.of("kenny-thick-85")).setExtraLargeTextFont(FontId.of("kenny-mini-80")).setLargeTextFont(FontId.of("kenny-mini-75")).setMediumTextFont(FontId.of("kenny-mini-50")).setSmallTextFont(FontId.of("kenny-mini-40")).setButtonLabelFont(FontId.of("kenny-mini-50")).setFieldLabelFont(FontId.of("kenny-mini-40")).setFieldValueFont(FontId.of("kenny-mini-50")).setSelectItemTextFont(FontId.of("kenny-mini-50")).setSelectItemHeight(50).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
+  }
+
+  static panel916() {
+    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setInnerSizeFnc((size) => {
+  return Size2.create(900, 1600);
+}).setRegionFnc((t) => {
+  if (t.aspect()>9/16) {
+    return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
+  }
+  else {
+    return Rect2.create(0, 0, t.width(), t.height());
+  }
+});
+  }
+
+}
+classRegistry.PlayUis = PlayUis;
 class GamePad extends UiComponent {
   leftJoystick;
   rightJoystick;
