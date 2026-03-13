@@ -33191,7 +33191,7 @@ class BasicApp10 extends TyracornScreen {
     assets.put(this.shadow1, ShadowBuffer.create(2048, 2048));
     this.groundModel = Model.simple(modelBox, MaterialId.of("brass"));
     this.box1Model = Model.simple(modelBoxAnimated, MaterialId.of("wood-box"));
-    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
+    this.ui = StretchUi.create(PlayUis.uiSizeFnc()).setStyler(PlayUis.styler());
     let gamePad = GamePad.create(drivers);
     this.ui.addComponent(gamePad);
     let cam = Camera.persp(FMath.toRadians(60.0), 1, 0.1, 1000.0).lookAt(Vec3.create(0.0, 1, 4), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0));
