@@ -32910,7 +32910,7 @@ class PlayUis {
   }
 
   static uiSizeFnc() {
-    return UiSizeFncs.constantHeight(1600);
+    return UiSizeFncs.identity();
   }
 
   static styler() {
@@ -33013,8 +33013,18 @@ class GamePad extends UiComponent {
 
   static create(drivers) {
     let res = new GamePad();
-    res.leftJoystick = Joystick.create().setRegionFnc(UiRegionFncs.leftBottom(70, 370, 300, 300)).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("W"), KeyCodeMatchers.upperCharacter("S"), KeyCodeMatchers.upperCharacter("A"), KeyCodeMatchers.upperCharacter("D"));
-    res.rightJoystick = Joystick.create().setRegionFnc(UiRegionFncs.rightBottom(370, 370, 300, 300)).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("I"), KeyCodeMatchers.upperCharacter("K"), KeyCodeMatchers.upperCharacter("J"), KeyCodeMatchers.upperCharacter("L"));
+    res.leftJoystick = Joystick.create().setRegionFnc((s) => {
+  let h5 = s.height()*0.05;
+  let h20 = s.height()*0.2;
+  let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+  return Rect2.create(h5, s.height()-h5-size, size, size);
+}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("W"), KeyCodeMatchers.upperCharacter("S"), KeyCodeMatchers.upperCharacter("A"), KeyCodeMatchers.upperCharacter("D"));
+    res.rightJoystick = Joystick.create().setRegionFnc((s) => {
+  let h5 = s.height()*0.05;
+  let h20 = s.height()*0.2;
+  let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+  return Rect2.create(s.width()-h5-size, s.height()-h5-size, size, size);
+}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("I"), KeyCodeMatchers.upperCharacter("K"), KeyCodeMatchers.upperCharacter("J"), KeyCodeMatchers.upperCharacter("L"));
     res.guardInvariants();
     return res;
   }
