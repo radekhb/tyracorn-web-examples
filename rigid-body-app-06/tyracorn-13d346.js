@@ -32973,22 +32973,20 @@ class PlayUis {
     return "PlayUis";
   }
 
-  static uiSizeFnc() {
-    return UiSizeFncs.constantHeight(1600);
+  static createUiSizeFnc() {
+    return UiSizeFncs.identity();
   }
 
-  static styler() {
+  static createDefaultStyler() {
     let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
     let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
     let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
     let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
-    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-100")).setH2Font(FontId.of("kenny-thick-90")).setH3Font(FontId.of("kenny-thick-85")).setExtraLargeTextFont(FontId.of("kenny-mini-80")).setLargeTextFont(FontId.of("kenny-mini-75")).setMediumTextFont(FontId.of("kenny-mini-50")).setSmallTextFont(FontId.of("kenny-mini-40")).setButtonLabelFont(FontId.of("kenny-mini-50")).setFieldLabelFont(FontId.of("kenny-mini-40")).setFieldValueFont(FontId.of("kenny-mini-50")).setSelectItemTextFont(FontId.of("kenny-mini-50")).setSelectItemHeight(50).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
+    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-30")).setH2Font(FontId.of("kenny-thick-26")).setH3Font(FontId.of("kenny-thick-24")).setExtraLargeTextFont(FontId.of("kenny-mini-22")).setLargeTextFont(FontId.of("kenny-mini-20")).setMediumTextFont(FontId.of("kenny-mini-18")).setSmallTextFont(FontId.of("kenny-mini-16")).setButtonLabelFont(FontId.of("kenny-mini-18")).setFieldLabelFont(FontId.of("kenny-mini-16")).setFieldValueFont(FontId.of("kenny-mini-16")).setSelectItemTextFont(FontId.of("kenny-mini-18")).setSelectItemHeight(20).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
   }
 
-  static panel916() {
-    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setInnerSizeFnc((size) => {
-  return Size2.create(900, 1600);
-}).setRegionFnc((t) => {
+  static create916Panel() {
+    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setRegionFnc((t) => {
   if (t.aspect()>9/16) {
     return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
   }
@@ -33092,9 +33090,57 @@ class CharacterController extends UiComponent {
   static create(drivers) {
     Guard.beTrue(drivers.isDriverAvailable("TouchDriver"), "touch driver is not available");
     let res = new CharacterController();
-    res.joystick = Joystick.create().setRegionFnc(UiRegionFncs.leftBottom(70, 370, 300, 300)).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD());
-    res.runButton = ToggleButton.create().addTrait(PlayUis.WALK_RUN).setRegionFnc(UiRegionFncs.rightBottom(370, 200, 130, 130)).setKeyCodeMatcher(KeyCodeMatchers.shift());
-    res.punchButton = Button.create().addTrait(PlayUis.PUNCH).setRegionFnc(UiRegionFncs.rightBottom(200, 220, 150, 150)).setKeyCodeMatcher(KeyCodeMatchers.control());
+    res.joystick = Joystick.create().setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h30 = s.height()*0.3;
+    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h5, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h2, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD());
+    res.runButton = ToggleButton.create().addTrait(PlayUis.WALK_RUN).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h7 = s.height()*0.07;
+    let h20 = s.height()*0.2;
+    let h25 = s.height()*0.25;
+    let punchSize = FMath.clamp(h25, 1, s.width()*0.25-h5);
+    let size = FMath.clamp(h20, 1, s.width()*0.25-h7);
+    return Rect2.create(s.width()-punchSize-2*h5-size, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h7 = s.height()*0.07;
+    let h15 = s.height()*0.15;
+    let h20 = s.height()*0.2;
+    let punchSize = FMath.clamp(h20, 1, s.width()*0.25-h5);
+    let size = FMath.clamp(h15, 1, s.width()*0.25-h7);
+    return Rect2.create(s.width()-punchSize-2*h2-size, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.shift());
+    res.punchButton = Button.create().addTrait(PlayUis.PUNCH).setRegionFnc(UiRegionFncs.rightBottom(200, 220, 150, 150)).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h25 = s.height()*0.25;
+    let size = FMath.clamp(h25, 1, s.width()*0.25-h5);
+    return Rect2.create(s.width()-h5-size, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.25-h5);
+    return Rect2.create(s.width()-h2-size, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.control());
     res.guardInvariants();
     return res;
   }
@@ -33586,17 +33632,15 @@ class RigidBodyApp06 extends TyracornScreen {
     if (this.paused&&this.ui.getNumLayers()==1) {
       this.ui.pushLayer();
       this.ui.addComponent(Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setRegionFnc(UiRegionFncs.full()));
-      let panel916 = PlayUis.panel916();
-      this.ui.addComponent(panel916);
-      let menuPanel = Panel.create().setRegionFnc(UiRegionFncs.center(800, 800));
-      panel916.addComponent(menuPanel);
-      menuPanel.addComponent(Label.create().addTrait(UiComponentTrait.H1).setAlignment(TextAlignment.CENTER_TOP).setPosFnc(UiPosFncs.center(0, -250)).setText("Pause"));
-      menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.center(-200, -50, 400, 100)).setText("Resume").addOnClickAction((evtSource) => {
+      let menuPanel = Panel.create().setRegionFnc(UiRegionFncs.center(250, 250));
+      this.ui.addComponent(menuPanel);
+      menuPanel.addComponent(Label.create().addTrait(UiComponentTrait.H1).setAlignment(TextAlignment.CENTER_TOP).setPosFnc(UiPosFncs.centerTop(40)).setText("Pause"));
+      menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(100, 150, 30)).setText("Resume").addOnClickAction((evtSource) => {
   this.paused = false;
   this.ui.popLayer();
 }));
       if (drivers.getPlatform().isExitable()) {
-        menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.center(-200, 75, 400, 100)).setText("Exit").addOnClickAction(UiEventActions.exitApp(screenManager)));
+        menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(150, 150, 30)).setText("Exit").addOnClickAction(UiEventActions.exitApp(screenManager)));
       }
     }
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
@@ -33625,7 +33669,7 @@ class RigidBodyApp06 extends TyracornScreen {
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(40, 50, 75, 100));
+    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 30));
     assets.put(MaterialId.of("brass"), Material.BRASS);
     assets.put(MaterialId.of("copper"), Material.COPPER);
     const sphereModelId = ModelId.of("sphere");
@@ -33696,7 +33740,7 @@ class RigidBodyApp06 extends TyracornScreen {
     this.world.actors().add(ActorId.ROOT, prismaticEnds);
     let prismaticBlock = Actor.create("prismatic-block").setName("prismatic-block").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(20, 3, -8))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(10)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId)).addComponent(PrismaticJointComponent.create(ComponentKey.random()).setJoint("prismatic-base", "prismatic-block", Vec3.create(20, 4, -8), Vec3.RIGHT));
     this.world.actors().add(ActorId.ROOT, prismaticBlock);
-    this.ui = StretchUi.create(PlayUis.uiSizeFnc()).setStyler(PlayUis.styler());
+    this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
     let addObjectAct = (evetSource) => {
       let r = Randoms.nextFloat(1, 3);
       let m = Randoms.nextFloat(1, 2);
@@ -33707,11 +33751,11 @@ class RigidBodyApp06 extends TyracornScreen {
       let sphereObj2 = Actor.create(id2).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 8, r))).addComponent(RemoveOnOutspaceComponent.create(ComponentKey.REMOVE_ON_OUTSPACE)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(sphereModelId).setTransform(Mat44.scale(r/2))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(m/10)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r/2).setMaterialId(objectColMatId)).addComponent(BreakableSphereBehavior.create(ComponentKey.random()).setSphereModelId(sphereModelId)).addComponent(FixedJointComponent.create(ComponentKey.random()).setJoint(id1, id2));
       this.world.actors().add(sphereObj1.getId(), sphereObj2);
     };
-    let objectBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(75, 75, 350, 100)).setText("Object").addOnClickAction(addObjectAct);
+    let objectBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(10, 10, 120, 30)).setText("Object").addOnClickAction(addObjectAct);
     this.ui.addComponent(objectBtn);
     this.controller = CharacterController.create(drivers);
     this.ui.addComponent(this.controller);
-    this.ui.addComponent(Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(75, 0, 75, 75)).addOnClickAction((evt) => {
+    this.ui.addComponent(Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction((evt) => {
   this.paused = true;
 }));
     this.ui.subscribe(drivers);
