@@ -33016,7 +33016,7 @@ class GamePad extends UiComponent {
     res.leftJoystick = Joystick.create().setRegionFnc((s) => {
   if (s.width()>s.height()) {
     let h5 = s.height()*0.05;
-    let h30 = s.height()*0.2;
+    let h30 = s.height()*0.3;
     let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
     return Rect2.create(h5, s.height()-h5-size, size, size);
   }
