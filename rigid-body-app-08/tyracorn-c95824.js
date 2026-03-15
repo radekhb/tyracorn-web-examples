@@ -33158,57 +33158,57 @@ class CarController extends UiComponent {
   if (s.width()>s.height()) {
     let h2 = s.height()*0.02;
     let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
     let h10 = s.height()*0.1;
-    let h12 = s.height()*0.12;
     let buttonSize = FMath.clamp(h10, 1, s.width()*0.25-h5);
     let h = FMath.clamp(h10, 1, s.width()*0.25-h5);
     let w = FMath.clamp(2.5*h, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(h5+h2+buttonSize, s.height()-h12-h, w, h);
+    return Rect2.create(h5+h2+buttonSize, s.height()-h6-1.5*h, w, h);
   }
   else {
     let h2 = s.height()*0.02;
     let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
     let h10 = s.height()*0.1;
-    let h12 = s.height()*0.12;
     let buttonSize = FMath.clamp(h10, 1, s.width()*0.25-h5);
     let h = FMath.clamp(h10, 1, s.width()*0.25-h5);
     let w = FMath.clamp(2.5*h, 1, s.width()*0.5-1.8*h5);
-    return Rect2.create(2*h2+buttonSize, s.height()-h12-h, w, h);
+    return Rect2.create(2*h2+buttonSize, s.height()-h6-1.5*h, w, h);
   }
 }).setKeyCodeMatcher(KeyCodeMatchers.space());
     res.leftButton = Button.create().addTrait(PlayUis.ARROW_LEFT).setRegionFnc((s) => {
   if (s.width()>s.height()) {
     let h2 = s.height()*0.02;
     let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
     let h10 = s.height()*0.1;
-    let h12 = s.height()*0.12;
     let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
-    return Rect2.create(s.width()-h5-h2-2*size, s.height()-h12-size, size, size);
+    return Rect2.create(s.width()-h5-h2-2*size, s.height()-h6-1.5*size, size, size);
   }
   else {
     let h2 = s.height()*0.02;
     let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
     let h10 = s.height()*0.1;
-    let h12 = s.height()*0.12;
     let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
-    return Rect2.create(s.width()-2*h2-2*size, s.height()-h12-size, size, size);
+    return Rect2.create(s.width()-2*h2-2*size, s.height()-h6-1.5*size, size, size);
   }
 }).setKeyCodeMatcher(KeyCodeMatchers.arrowLeftOrA());
     res.rightButton = Button.create().addTrait(PlayUis.ARROW_RIGHT).setRegionFnc((s) => {
   if (s.width()>s.height()) {
     let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
     let h10 = s.height()*0.1;
-    let h12 = s.height()*0.12;
     let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
-    return Rect2.create(s.width()-h5-size, s.height()-h12-size, size, size);
+    return Rect2.create(s.width()-h5-size, s.height()-h6-1.5*size, size, size);
   }
   else {
     let h2 = s.height()*0.02;
     let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
     let h10 = s.height()*0.1;
-    let h12 = s.height()*0.12;
     let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
-    return Rect2.create(s.width()-h2-size, s.height()-h12-size, size, size);
+    return Rect2.create(s.width()-h2-size, s.height()-h6-1.5*size, size, size);
   }
 }).setKeyCodeMatcher(KeyCodeMatchers.arrowRightOrD());
     res.guardInvariants();
