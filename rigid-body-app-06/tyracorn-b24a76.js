@@ -33109,10 +33109,10 @@ class CharacterController extends UiComponent {
   if (s.width()>s.height()) {
     let h5 = s.height()*0.05;
     let h7 = s.height()*0.07;
+    let h15 = s.height()*0.15;
     let h20 = s.height()*0.2;
-    let h25 = s.height()*0.25;
-    let punchSize = FMath.clamp(h25, 1, s.width()*0.25-h5);
-    let size = FMath.clamp(h20, 1, s.width()*0.25-h7);
+    let punchSize = FMath.clamp(h20, 1, s.width()*0.25-h5);
+    let size = FMath.clamp(h15, 1, s.width()*0.25-h7);
     return Rect2.create(s.width()-punchSize-2*h5-size, s.height()-h5-size, size, size);
   }
   else {
@@ -33129,8 +33129,8 @@ class CharacterController extends UiComponent {
     res.punchButton = Button.create().addTrait(PlayUis.PUNCH).setRegionFnc(UiRegionFncs.rightBottom(200, 220, 150, 150)).setRegionFnc((s) => {
   if (s.width()>s.height()) {
     let h5 = s.height()*0.05;
-    let h25 = s.height()*0.25;
-    let size = FMath.clamp(h25, 1, s.width()*0.25-h5);
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.25-h5);
     return Rect2.create(s.width()-h5-size, s.height()-h5-size, size, size);
   }
   else {
