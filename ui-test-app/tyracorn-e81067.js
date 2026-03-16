@@ -16206,7 +16206,7 @@ class ToggleButton extends UiComponent {
 
   toggleOn() {
     if (this.toggledOn) {
-      return ;
+      return this;
     }
     this.toggledOn = true;
     this.on = true;
@@ -16214,6 +16214,7 @@ class ToggleButton extends UiComponent {
     for (let action of this.onToggleActions) {
       Functions.runUiEventAction(action, this);
     }
+    return this;
   }
 
   toggleOff() {

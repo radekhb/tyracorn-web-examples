@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-10";
-const assetsDirName = "/assets-407279";
+const basePath = "/tyracorn-web-examples/basic-app-04";
+const assetsDirName = "/null";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -16206,7 +16206,7 @@ class ToggleButton extends UiComponent {
 
   toggleOn() {
     if (this.toggledOn) {
-      return ;
+      return this;
     }
     this.toggledOn = true;
     this.on = true;
@@ -16214,6 +16214,7 @@ class ToggleButton extends UiComponent {
     for (let action of this.onToggleActions) {
       Functions.runUiEventAction(action, this);
     }
+    return this;
   }
 
   toggleOff() {
@@ -32894,243 +32895,6 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class PlayUis {
-  static ARROW_UP = UiComponentTrait.of("ARROW_UP");
-  static ARROW_DOWN = UiComponentTrait.of("ARROW_DOWN");
-  static ARROW_LEFT = UiComponentTrait.of("ARROW_LEFT");
-  static ARROW_RIGHT = UiComponentTrait.of("ARROW_RIGHT");
-  static BRAKE = UiComponentTrait.of("BRAKE");
-  static PUNCH = UiComponentTrait.of("PUNCH");
-  static WALK_RUN = UiComponentTrait.of("WALK_RUN");
-  constructor() {
-  }
-
-  getClass() {
-    return "PlayUis";
-  }
-
-  static createUiSizeFnc() {
-    return UiSizeFncs.identity();
-  }
-
-  static createDefaultStyler() {
-    let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
-    let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
-    let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
-    let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
-    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-30")).setH2Font(FontId.of("kenny-thick-26")).setH3Font(FontId.of("kenny-thick-24")).setExtraLargeTextFont(FontId.of("kenny-mini-22")).setLargeTextFont(FontId.of("kenny-mini-20")).setMediumTextFont(FontId.of("kenny-mini-18")).setSmallTextFont(FontId.of("kenny-mini-16")).setButtonLabelFont(FontId.of("kenny-mini-18")).setFieldLabelFont(FontId.of("kenny-mini-16")).setFieldValueFont(FontId.of("kenny-mini-16")).setSelectItemTextFont(FontId.of("kenny-mini-18")).setSelectItemHeight(20).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
-  }
-
-  static create916Panel() {
-    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setRegionFnc((t) => {
-  if (t.aspect()>9/16) {
-    return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
-  }
-  else {
-    return Rect2.create(0, 0, t.width(), t.height());
-  }
-});
-  }
-
-}
-classRegistry.PlayUis = PlayUis;
-class GamePad extends UiComponent {
-  leftJoystick;
-  rightJoystick;
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "GamePad";
-  }
-
-  guardInvariants() {
-  }
-
-  getLeftDir() {
-    return this.leftJoystick.getDir();
-  }
-
-  getRightDir() {
-    return this.rightJoystick.getDir();
-  }
-
-  init(container) {
-    this.leftJoystick.init(container);
-    this.rightJoystick.init(container);
-  }
-
-  move(dt) {
-    this.leftJoystick.move(dt);
-    this.rightJoystick.move(dt);
-  }
-
-  draw(painter) {
-    this.leftJoystick.draw(painter);
-    this.rightJoystick.draw(painter);
-  }
-
-  onContainerResize(size) {
-    this.leftJoystick.onContainerResize(size);
-    this.rightJoystick.onContainerResize(size);
-  }
-
-  onTouchStart(id, pos, size) {
-    this.leftJoystick.onTouchStart(id, pos, size);
-    this.rightJoystick.onTouchStart(id, pos, size);
-    return false;
-  }
-
-  onTouchMove(id, pos, size) {
-    this.leftJoystick.onTouchMove(id, pos, size);
-    this.rightJoystick.onTouchMove(id, pos, size);
-    return false;
-  }
-
-  onTouchEnd(id, pos, size, cancel) {
-    this.leftJoystick.onTouchEnd(id, pos, size, cancel);
-    this.rightJoystick.onTouchEnd(id, pos, size, cancel);
-    return false;
-  }
-
-  onKeyPressed(key) {
-    this.leftJoystick.onKeyPressed(key);
-    this.rightJoystick.onKeyPressed(key);
-    return false;
-  }
-
-  onKeyReleased(key) {
-    this.leftJoystick.onKeyReleased(key);
-    this.rightJoystick.onKeyReleased(key);
-    return false;
-  }
-
-  toString() {
-  }
-
-  static create(drivers) {
-    let res = new GamePad();
-    res.leftJoystick = Joystick.create().setRegionFnc((s) => {
-  if (s.width()>s.height()) {
-    let h5 = s.height()*0.05;
-    let h30 = s.height()*0.3;
-    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(h5, s.height()-h5-size, size, size);
-  }
-  else {
-    let h2 = s.height()*0.02;
-    let h5 = s.height()*0.05;
-    let h20 = s.height()*0.2;
-    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(h2, s.height()-h5-size, size, size);
-  }
-}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("W"), KeyCodeMatchers.upperCharacter("S"), KeyCodeMatchers.upperCharacter("A"), KeyCodeMatchers.upperCharacter("D"));
-    res.rightJoystick = Joystick.create().setRegionFnc((s) => {
-  if (s.width()>s.height()) {
-    let h5 = s.height()*0.05;
-    let h30 = s.height()*0.3;
-    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(s.width()-h5-size, s.height()-h5-size, size, size);
-  }
-  else {
-    let h2 = s.height()*0.02;
-    let h5 = s.height()*0.05;
-    let h20 = s.height()*0.2;
-    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(s.width()-h2-size, s.height()-h5-size, size, size);
-  }
-}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("I"), KeyCodeMatchers.upperCharacter("K"), KeyCodeMatchers.upperCharacter("J"), KeyCodeMatchers.upperCharacter("L"));
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.GamePad = GamePad;
-class FreeCameraController {
-  initCamera;
-  pos;
-  rotX;
-  rotY;
-  moveSpeed;
-  rotSpeed;
-  gamePad;
-  constructor() {
-  }
-
-  getClass() {
-    return "FreeCameraController";
-  }
-
-  guardInvariants() {
-  }
-
-  getPos() {
-    return this.pos;
-  }
-
-  getTarget() {
-    let rxMat = Mat33.rotX(this.rotX);
-    let ryMat = Mat33.rotY(this.rotY);
-    return ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
-  }
-
-  getCamera() {
-    let rxMat = Mat33.rotX(this.rotX);
-    let ryMat = Mat33.rotY(this.rotY);
-    let target = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
-    let up = ryMat.mul(rxMat.mul(Vec3.create(0, 1, 0)));
-    return this.initCamera.lookAt(this.pos, target, up);
-  }
-
-  move(dt) {
-    let moveDir = this.gamePad.getLeftDir();
-    let rotDir = this.gamePad.getRightDir();
-    let rxMat = Mat33.rotX(this.rotX);
-    let ryMat = Mat33.rotY(this.rotY);
-    let fwd = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).normalize().scale(moveDir.y()*this.moveSpeed*dt);
-    let right = ryMat.mul(rxMat.mul(Vec3.create(1, 0, 0))).normalize().scale(moveDir.x()*this.moveSpeed*dt);
-    this.pos = this.pos.add(fwd).add(right);
-    this.rotX = this.rotX+rotDir.y()*this.rotSpeed*dt;
-    if (this.rotX>FMath.PI/2) {
-      this.rotX = FMath.PI/2;
-    }
-    if (this.rotX<-FMath.PI/2) {
-      this.rotX = -FMath.PI/2;
-    }
-    this.rotY = this.rotY-rotDir.x()*this.rotSpeed*dt;
-    while (this.rotY>FMath.PI) {
-      this.rotY = this.rotY-2*FMath.PI;
-    }
-    while (this.rotY<-FMath.PI) {
-      this.rotY = this.rotY+2*FMath.PI;
-    }
-  }
-
-  setPersp(fovy, aspect, near, far) {
-    this.initCamera = this.initCamera.withPersp(fovy, aspect, near, far);
-  }
-
-  toString() {
-  }
-
-  static create(initCamera, gamePad, moveSpeed, rotSpeed) {
-    let res = new FreeCameraController();
-    res.initCamera = initCamera;
-    res.pos = initCamera.getPos();
-    let fwd = Vec3.create(-initCamera.getView().m20(), -initCamera.getView().m21(), -initCamera.getView().m22());
-    let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
-    res.rotX = FMath.asin(fwd.y());
-    res.rotY = fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y());
-    res.moveSpeed = moveSpeed;
-    res.rotSpeed = rotSpeed;
-    res.gamePad = gamePad;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FreeCameraController = FreeCameraController;
 class BoxMeshFactory {
   constructor() {
   }
@@ -33195,97 +32959,59 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp10 extends TyracornScreen {
-  groundModel = null;
-  box1Model = null;
+class BasicApp04 extends TyracornApp {
+  box = MeshId.of("box");
+  whiteBox = MeshId.of("white-box");
   shadow1 = ShadowBufferId.of("shadow1");
   time = 0;
-  inputs = InputCache.create();
-  ui;
-  camera;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp10";
+    return "BasicApp04";
   }
 
-  move(drivers, screenManager, dt) {
+  move(drivers, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
-    let aspect = this.inputs.getSize2(InputCacheDisplayListener.DEFAULT_KEY, Size2.create(1, 1)).aspect();
+    let aspect = gDriver.getScreenViewport().getAspect();
     let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
-    this.camera.setPersp(fovy, aspect, 1.0, 50.0);
-    this.camera.move(dt);
-    this.ui.move(dt);
-    let t = Math.abs(Math.sin(this.time));
-    let dirLightColor = LightColor.create(Rgb.gray(0.5), Rgb.gray(0.5), Rgb.WHITE);
-    let dirLightDir = Vec3.create(FMath.sin(this.time/5), -1, FMath.cos(this.time/5)).normalize();
-    let dirLightPos = dirLightDir.scale(-5);
-    let dirLightShadowMap = ShadowMap.createDir(this.shadow1, dirLightPos, dirLightDir, 13, 20);
-    let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
-    let smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
-    this.renderSceneShaow(smapRndr, t);
+    let cam = Camera.persp(fovy, aspect, 0.1, 1000.0).lookAt(Vec3.create(1.0, 3.5, 4.5), Vec3.create(2.0, 0.0, 0.0), Vec3.create(0, 1, 0));
+    let dirLight = Light.directional(LightColor.create(Rgb.gray(0.75), Rgb.BLACK, Rgb.BLACK), Vec3.create(1, -1, 0));
+    let shadowLightPos = Vec3.create(-3+3*Math.sin(this.time), 2, -1);
+    let shadowLightDir = Vec3.create(1.5, -1, 0.6).normalize();
+    let spotLightColor = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
+    let spotLightCone = LightCone.create(FMath.PI/9, FMath.PI/6);
+    let spotLightShadowMap = ShadowMap.createSpot(this.shadow1, shadowLightPos, shadowLightDir, spotLightCone.getOutTheta(), 1, 32);
+    let spotLight = Light.spotQuadratic(spotLightColor, shadowLightPos, shadowLightDir, 16, spotLightCone, spotLightShadowMap);
+    let smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight));
+    smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
     smapRndr.end();
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(this.camera.getCamera(), dirLight));
-    this.renderScene(objRnderer, t);
+    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, dirLight, spotLight));
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.CHROME);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.SILVER);
     objRnderer.end();
-    gDriver.clearBuffers(BufferId.DEPTH);
-    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    uiRenderer.render(this.ui);
-    uiRenderer.end();
+    let crndr = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
+    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight.getPos()).mul(Mat44.scale(0.05)));
+    crndr.end();
   }
 
-  load(drivers, screenManager, properties) {
+  init(drivers, properties) {
     let assets = drivers.getDriver("AssetManager");
-    let res = new ArrayList();
-    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/box-01.tap")));
-    return res;
+    assets.put(this.box, BoxMeshFactory.fabricBox());
+    assets.put(this.whiteBox, BoxMeshFactory.rgbBox(1, 1, 1));
+    assets.put(this.shadow1, ShadowBuffer.create(1024, 1024));
+    return Collections.emptyList();
   }
 
-  init(drivers, screenManager, properties) {
-    let assets = drivers.getDriver("AssetManager");
-    let modelBox = MeshId.of("modelBox");
-    let modelBoxAnimated = MeshId.of("modelBox-animated");
-    assets.put(modelBox, BoxMeshFactory.modelBox());
-    assets.put(modelBoxAnimated, BoxMeshFactory.modelBox().plusMeshFrames(BoxMeshFactory.modelBoxDeformed1()).plusMeshFrames(BoxMeshFactory.modelBoxDeformed2()));
-    let boxDiffuse = TextureId.of("tex_box_01_d");
-    let boxSpecular = TextureId.of("tex_box_01_s");
-    assets.put(MaterialId.of("brass"), Material.BRASS);
-    assets.put(MaterialId.of("wood-box"), Material.BLACK.withShininess(50).plusTexture(TextureAttachment.diffuse(boxDiffuse)).plusTexture(TextureAttachment.specular(boxSpecular)));
-    assets.put(this.shadow1, ShadowBuffer.create(2048, 2048));
-    this.groundModel = Model.simple(modelBox, MaterialId.of("brass"));
-    this.box1Model = Model.simple(modelBoxAnimated, MaterialId.of("wood-box"));
-    this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
-    let gamePad = GamePad.create(drivers);
-    this.ui.addComponent(gamePad);
-    let cam = Camera.persp(FMath.toRadians(60.0), 1, 0.1, 1000.0).lookAt(Vec3.create(0.0, 1, 4), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0));
-    this.camera = FreeCameraController.create(cam, gamePad, 3, 1);
-    this.ui.subscribe(drivers);
-    let dlist = InputCacheDisplayListener.create(this.inputs);
-    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
-    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
-  }
-
-  leave(drivers) {
-    this.ui.unsubscribe(drivers);
-  }
-
-  renderScene(renderer, t) {
-    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1Model, Interpolation.create(0, 1, t), ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
-  }
-
-  renderSceneShaow(renderer, t) {
-    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1Model, Interpolation.create(0, 1, t), ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
+  close(drivers) {
   }
 
 }
-classRegistry.BasicApp10 = BasicApp10;
+classRegistry.BasicApp04 = BasicApp04;
 
 
 // -------------------------------------
@@ -33668,7 +33394,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp10());
+    tyracornApp = new BasicApp04();
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
