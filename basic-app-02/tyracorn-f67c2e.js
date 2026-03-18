@@ -25158,6 +25158,7 @@ class ComponentKey {
   static RIGID_BODY = ComponentKey.of("RIGID_BODY");
   static CAMERA = ComponentKey.of("CAMERA");
   static CAMERA_FOVY = ComponentKey.of("CAMERA_FOVY");
+  static CAMERA_CONTROLLER = ComponentKey.of("CAMERA_CONTROLLER");
   static WORLD = ComponentKey.of("WORLD");
   static SKYBOX = ComponentKey.of("SKYBOX");
   static LIFETIME = ComponentKey.of("LIFETIME");
@@ -26144,6 +26145,226 @@ class CameraFovyComponent extends Behavior {
 
 }
 classRegistry.CameraFovyComponent = CameraFovyComponent;
+const createCameraControlMode = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const CameraControlMode = Object.freeze({
+  ISOMETRIC: createCameraControlMode("ISOMETRIC"),
+  THIRD_PERSON: createCameraControlMode("THIRD_PERSON"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class CameraShake {
+  magnitude;
+  duration;
+  constructor() {
+  }
+
+  getClass() {
+    return "CameraShake";
+  }
+
+  guardInvariants() {
+  }
+
+  getMagnitude() {
+    return this.magnitude;
+  }
+
+  getDuration() {
+    return this.duration;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(magnitude, duration) {
+    let res = new CameraShake();
+    res.magnitude = magnitude;
+    res.duration = duration;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CameraShake = CameraShake;
+class CameraControllerComponent extends Behavior {
+  mode = CameraControlMode.ISOMETRIC;
+  up = Vec3.UP;
+  targetId = null;
+  posOffset = Vec3.create(0, 13, 15);
+  lookAtOffset = Vec3.ZERO;
+  posK = 0.01;
+  lookAtK = 0.03;
+  shakeMag = 0;
+  shakeRem = 0;
+  shakeDrop = 0;
+  transform;
+  cameraPos = null;
+  cameraLookAt = null;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "CameraControllerComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+  }
+
+  lateMove(dt, inputs) {
+    if (this.cameraPos==null) {
+      this.cameraPos = this.transform.toGlobal(Vec3.ZERO);
+    }
+    if (this.cameraLookAt==null) {
+      this.cameraLookAt = this.transform.toGlobal(Vec3.BACKWARD);
+    }
+    let newPos = this.cameraPos;
+    let newLookAt = this.cameraLookAt;
+    if (this.targetId!=null&&this.world().actors().exists(this.targetId)) {
+      if (this.mode.equals(CameraControlMode.ISOMETRIC)) {
+        let targetPos = this.world().actors().get(this.targetId).getComponent("TransformComponent").toGlobal(Vec3.ZERO);
+        let newWantedPos = targetPos.add(this.posOffset);
+        newPos = Vec3.interpolate(this.cameraPos, newWantedPos, this.posK);
+        let newWantedLookAt = targetPos.add(this.lookAtOffset);
+        let projectedLookAt = Geometry3.projectToLine(this.cameraPos, this.cameraLookAt.subAndNormalize(this.cameraPos), newWantedLookAt);
+        newLookAt = Vec3.interpolate(projectedLookAt, newWantedLookAt, this.lookAtK);
+      }
+      else if (this.mode.equals(CameraControlMode.THIRD_PERSON)) {
+        let newWantedPos = this.world().actors().get(this.targetId).getComponent("TransformComponent").toGlobal(this.posOffset);
+        newPos = Vec3.interpolate(this.cameraPos, newWantedPos, this.posK);
+        let newWantedLookAt = this.world().actors().get(this.targetId).getComponent("TransformComponent").toGlobal(this.lookAtOffset);
+        let projectedLookAt = Geometry3.projectToLine(this.cameraPos, this.cameraLookAt.subAndNormalize(this.cameraPos), newWantedLookAt);
+        newLookAt = Vec3.interpolate(projectedLookAt, newWantedLookAt, this.lookAtK);
+      }
+      else {
+        throw new Error("unsupported camera mode: "+this.mode);
+      }
+    }
+    let posShake = Vec3.ZERO;
+    let targetShake = Vec3.ZERO;
+    if (this.shakeMag>0&&this.shakeRem>0) {
+      let rand1 = Vec3.create(Randoms.nextFloat(0, 2)-1, Randoms.nextFloat(0, 2)-1, 0).normalize().scale(this.shakeMag);
+      let rand2 = Vec3.create(Randoms.nextFloat(0, 2)-1, Randoms.nextFloat(0, 2)-1, 0).normalize().scale(this.shakeMag);
+      posShake = this.transform.toGlobalRot(rand1);
+      targetShake = this.transform.toGlobalRot(rand2);
+      this.shakeMag = FMath.max(0, this.shakeMag-this.shakeDrop*dt);
+      this.shakeRem = FMath.max(0, this.shakeRem-dt);
+    }
+    this.transform.lookAt(newPos.add(posShake), newLookAt.add(targetShake), this.up);
+    this.cameraPos = newPos;
+    this.cameraLookAt = newLookAt;
+  }
+
+  setMode(mode) {
+    Guard.notNull(mode, "mode cannot be null");
+    this.mode = mode;
+    return this;
+  }
+
+  setUp(up) {
+    Guard.notNull(up, "up cannot be null");
+    this.up = up;
+    return this;
+  }
+
+  setTargetId(targetId) {
+    this.targetId = targetId;
+    return this;
+  }
+
+  setPosOffset(posOffset) {
+    Guard.notNull(posOffset, "posOffset cannot be null");
+    this.posOffset = posOffset;
+    return this;
+  }
+
+  setLookAtOffset(lookAtOffset) {
+    Guard.notNull(lookAtOffset, "lookAtOffset cannot be null");
+    this.lookAtOffset = lookAtOffset;
+    return this;
+  }
+
+  setPosK(posK) {
+    this.posK = posK;
+    return this;
+  }
+
+  setLookAtK(lookAtK) {
+    this.lookAtK = lookAtK;
+    return this;
+  }
+
+  shake(shake) {
+    this.shakeRem = FMath.max(this.shakeRem, shake.getDuration());
+    this.shakeMag = FMath.max(this.shakeMag, shake.getMagnitude());
+    this.shakeDrop = this.shakeMag/this.shakeRem;
+    return this;
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new CameraControllerComponent(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CameraControllerComponent = CameraControllerComponent;
 class SkyboxComponent extends Component {
   modelId;
   transform;
