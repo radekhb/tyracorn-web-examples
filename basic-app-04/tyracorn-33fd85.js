@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-15";
-const assetsDirName = "/assets-407279";
+const basePath = "/tyracorn-web-examples/basic-app-04";
+const assetsDirName = "/null";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -2124,8 +2124,29 @@ class WebPlatformDriver {
  * Data block definition.
  */
 class DataBlock {
+    /**
+     * Empty data block.
+     * 
+     * @type DataBlock
+     */
+    static EMPTY = DataBlock.fromBase64String("");
+    /**
+     * Data buffer.
+     * 
+     * @type ArrayBuffer
+     */
     data;
+    /**
+     * View of the data.
+     * 
+     * @type DataView
+     */
     view;
+    /**
+     * Constructor.
+     * 
+     * @returns {DataBlock}
+     */
     constructor() {
     }
 
@@ -2553,6 +2574,41 @@ class DataBlockRandomWriter {
 
 }
 /**
+ * Utility class for working with data blocks.
+ *
+ * @author radek.hecl
+ */
+class DataBlocks {
+
+    /**
+     * Decodes this data block into a string.
+     * Expects that the full block is UTF-8 encoded string.
+     *
+     * @param {DataBlock} block data block
+     * @return {String} decoded string
+     */
+    static decodeString(block) {
+        const strBytes = new Uint8Array(block.view.buffer, 0, block.size());
+        const textDecoder = new TextDecoder('utf-8');
+        const res = textDecoder.decode(strBytes);
+        return res;
+    }
+
+    /**
+     * Encodes the data block from a given string.
+     * String is encoded in UTF-8 character ser.
+     *
+     * @param {String} str string
+     * @return {DataBlock} data block
+     */
+    static  encodeString(str) {
+        const encoder = new TextEncoder("utf-8");
+        const bytes = encoder.encode(str);
+        return DataBlock.fromByteArray(bytes.buffer);
+    }
+
+}
+/**
  * Data block definition.
  */
 class WebLocalDataStorage {
@@ -2676,11 +2732,228 @@ class WebLocalDataStorage {
      * Creates new instance.
      * 
      * @param {String} prefix prefix used for local storage
-     * @returns {WebLocalDataStorage.create.res}
+     * @returns {WebLocalDataStorage}
      */
     static create(prefix) {
         const res = new WebLocalDataStorage();
         res.prefix = prefix;
+        res.guardInvaritants();
+        return res;
+    }
+
+}
+/**
+ * Promise for http requests in web.
+ */
+class WebHttpPromise {
+
+    /**
+     * @type {HttpResponse|null}
+     */
+    response = null;
+
+    /**
+     * @type {Array<{type: string, handler: Function}>}
+     */
+    handlers = [];
+
+    /**
+     * Creates new instance.
+     * 
+     * @returns {WebHttpPromise}
+     */
+    constructor() {
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvaritants() {
+    }
+
+    /**
+     * Resolves this promise with response.
+     * This is an internal API used by WebHttpClient.
+     *
+     * @param {HttpResponse} response response
+     */
+    resolve(response) {
+        if (this.response !== null && this.response !== undefined) {
+            throw new Error("promise was already resolved");
+        }
+        this.response = response;
+        let success = response.isSuccess();
+        for (let wrp of this.handlers) {
+            if (success && wrp.type === "SUCCESS") {
+                response = wrp.handler(response);
+                success = response.isSuccess();
+            } else if (!success && wrp.type === "ERROR") {
+                response = wrp.handler(response);
+                success = response.isSuccess();
+            }
+        }
+        this.response = response;
+    }
+
+    /**
+     * Function executed on success.
+     *
+     * @param {Function} handler handler that transforms the response (HttpResponse->HttpResponse)
+     * @return {HttpPromise} promise for chaining
+     */
+    onSuccess(handler) {
+        if (handler === null || handler === undefined) {
+            throw new Error("handler cannot be null");
+        }
+        this.handlers.push({type: "SUCCESS", handler: handler});
+        if (this.response !== null && this.response !== undefined && this.response.isSuccess()) {
+            this.response = handler(this.response);
+        }
+        return this;
+    }
+
+    /**
+     * Function executed on error.
+     *
+     * @param {Function} handler handler that transforms the response (HttpResponse->HttpResponse)
+     * @return {HttpPromise} promise for chaining
+     */
+    onError(handler) {
+        if (handler === null || handler === undefined) {
+            throw new Error("handler cannot be null");
+        }
+        this.handlers.push({type: "ERROR", handler: handler});
+        if (this.response !== null && this.response !== undefined && this.response.isError()) {
+            this.response = handler(this.response);
+        }
+        return this;
+    }
+
+    /**
+     * Creates new instance.
+     * 
+     * @returns {WebHttpPromise}
+     */
+    static create() {
+        const res = new WebHttpPromise();
+        res.guardInvaritants();
+        return res;
+    }
+
+}
+/**
+ * Http client implementation in web.
+ */
+class WebHttpClient {
+
+    prefix
+    /**
+     * Creates new instance.
+     * 
+     * @returns {WebHttpClient}
+     */
+    constructor() {
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvaritants() {
+        if (this.prefix === null || this.prefix === undefined) {
+            throw new Error("prefix cannot be null");
+        }
+    }
+
+    /**
+     * Sends the request.
+     * 
+     * @param {HttpRequest} request request
+     * @return {HttpPromise} promise 
+     */
+    request(request) {
+        const promise = WebHttpPromise.create();
+        const url = this.buildUrl(request.getUrl());
+        const method = request.getMethod().name();
+
+        const headerMap = {};
+        const headersList = request.getHeaders();
+        for (let i = 0; i < headersList.size(); ++i) {
+            const h = headersList.get(i);
+            headerMap[h.getName()] = h.getValue();
+        }
+
+        const options = {
+            method: method,
+            headers: headerMap
+        };
+        const bodyBlock = request.getBody();
+        if (bodyBlock.size() > 0) {
+            options.body = bodyBlock.data;
+        }
+
+        fetch(url, options).
+                then(async (resp) => {
+                    // response code
+                    let code = resp.status;
+                    if (code === 0 || code === null || code === undefined) {
+                        code = 500;
+                    }
+                    // headers
+                    const respHeaders = new ArrayList();
+                    resp.headers.forEach((value, key) => {
+                        respHeaders.add(HttpHeader.create(key, value));
+                    });
+                    // response body
+                    let respBody = DataBlock.EMPTY;
+                    if (resp.body !== null && code !== 204 && code !== 205) {
+                        const respArray = await resp.arrayBuffer();
+                        respBody = DataBlock.fromByteArray(respArray);
+                    }
+
+                    promise.resolve(HttpResponse.create(code, respHeaders, respBody));
+                }).
+                catch((err) => {
+                    // this is network or CORS error => nothing is produced => mapping to 500
+                    promise.resolve(HttpResponse.create(500, Collections.emptyList(), DataBlock.EMPTY));
+                });
+
+        return promise;
+    }
+
+    /**
+     * Builds absolute URL from request URL.
+     *
+     * @param {String} url url from HttpRequest
+     * @returns {String} absolute/normalized url
+     */
+    buildUrl(url) {
+        if (url === null || url === undefined) {
+            throw new Error("url cannot be null");
+        }
+        // Absolute (http/https) or protocol-relative URL.
+        if (typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("//"))) {
+            return url;
+        }
+        // Relative URL: prefix with basePath/prefix.
+        let p = this.prefix;
+        if (p.endsWith("/") && url.startsWith("/")) {
+            return p.substring(0, p.length - 1) + url;
+        }
+        if (!p.endsWith("/") && !url.startsWith("/")) {
+            return p + "/" + url;
+        }
+        return p + url;
+    }
+
+    /**
+     * Creates new instance.
+     * 
+     * @returns {WebHttpClient}
+     */
+    static create() {
+        const res = new WebHttpClient();
+        // basePath is a global varaible in the template
+        res.prefix = (typeof basePath !== "undefined" && basePath !== null && basePath !== undefined) ? basePath : "";
         res.guardInvaritants();
         return res;
     }
@@ -7229,6 +7502,7 @@ class DriverProvider {
     touchDriver = WebTouchDriver.create();
     keyboardDriver = WebKeyboardDriver.create();
     localDataStorage = WebLocalDataStorage.create(localStoragePrefix);
+    httpClient = WebHttpClient.create();
 
     constructor() {
     }
@@ -7260,6 +7534,8 @@ class DriverProvider {
             return true;
         } else if (driver === "LocalDataStorage") {
             return true;
+        } else if (driver === "HttpClient") {
+            return true;
         }
         return false;
     }
@@ -7289,6 +7565,8 @@ class DriverProvider {
             return this.plaformDriver;
         } else if (driver === "LocalDataStorage") {
             return this.localDataStorage;
+        } else if (driver === "HttpClient") {
+            return this.httpClient;
         }
         throw "driver doesn't exists:" + driver;
         return null;
@@ -10331,6 +10609,237 @@ class LocalDataConfigProperties {
 
 }
 classRegistry.LocalDataConfigProperties = LocalDataConfigProperties;
+const createHttpMethod = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const HttpMethod = Object.freeze({
+  GET: createHttpMethod("GET"),
+  PUT: createHttpMethod("PUT"),
+  POST: createHttpMethod("POST"),
+  DELETE: createHttpMethod("DELETE"),
+  PATCH: createHttpMethod("PATCH"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class HttpHeader {
+  name;
+  value;
+  constructor() {
+  }
+
+  getClass() {
+    return "HttpHeader";
+  }
+
+  guardInvariants() {
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  getValue() {
+    return this.value;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(name, value) {
+    let res = new HttpHeader();
+    res.name = name;
+    res.value = value;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.HttpHeader = HttpHeader;
+class HttpRequest {
+  method;
+  url;
+  headers;
+  body;
+  constructor() {
+  }
+
+  getClass() {
+    return "HttpRequest";
+  }
+
+  guardInvariants() {
+  }
+
+  getMethod() {
+    return this.method;
+  }
+
+  getUrl() {
+    return this.url;
+  }
+
+  getHeaders() {
+    return this.headers;
+  }
+
+  plusHeader(header) {
+    let res = new HttpRequest();
+    res.method = this.method;
+    res.url = this.url;
+    res.headers = Dut.immutableListPlusItem(this.headers, header);
+    res.body = this.body;
+    res.guardInvariants();
+    return res;
+  }
+
+  getBody() {
+    return this.body;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(method, url, headers, body) {
+    let res = new HttpRequest();
+    res.method = method;
+    res.url = url;
+    res.headers = Dut.copyImmutableList(headers);
+    res.body = body;
+    res.guardInvariants();
+    return res;
+  }
+
+  static get(url) {
+    let res = new HttpRequest();
+    res.method = HttpMethod.GET;
+    res.url = url;
+    res.headers = Collections.emptyList();
+    res.body = DataBlock.EMPTY;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.HttpRequest = HttpRequest;
+class HttpResponse {
+  code;
+  headers;
+  body;
+  constructor() {
+  }
+
+  getClass() {
+    return "HttpResponse";
+  }
+
+  guardInvariants() {
+  }
+
+  getCode() {
+    return this.code;
+  }
+
+  isSuccess() {
+    return this.code>=200&&this.code<400;
+  }
+
+  isError() {
+    return this.code>=400&&this.code<600;
+  }
+
+  getHeaders() {
+    return this.headers;
+  }
+
+  getBodySize() {
+    return this.body.size();
+  }
+
+  getBody() {
+    return this.body;
+  }
+
+  getBodyAsString() {
+    return DataBlocks.decodeString(this.body);
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(code, headers, body) {
+    let res = new HttpResponse();
+    res.code = code;
+    res.headers = Dut.copyImmutableList(headers);
+    res.body = body;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.HttpResponse = HttpResponse;
 class Rgb {
   static RED = Rgb.create(1, 0, 0);
   static GREEN = Rgb.create(0, 1, 0);
@@ -33116,243 +33625,6 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class PlayUis {
-  static ARROW_UP = UiComponentTrait.of("ARROW_UP");
-  static ARROW_DOWN = UiComponentTrait.of("ARROW_DOWN");
-  static ARROW_LEFT = UiComponentTrait.of("ARROW_LEFT");
-  static ARROW_RIGHT = UiComponentTrait.of("ARROW_RIGHT");
-  static BRAKE = UiComponentTrait.of("BRAKE");
-  static PUNCH = UiComponentTrait.of("PUNCH");
-  static WALK_RUN = UiComponentTrait.of("WALK_RUN");
-  constructor() {
-  }
-
-  getClass() {
-    return "PlayUis";
-  }
-
-  static createUiSizeFnc() {
-    return UiSizeFncs.identity();
-  }
-
-  static createDefaultStyler() {
-    let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
-    let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
-    let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
-    let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
-    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-30")).setH2Font(FontId.of("kenny-thick-26")).setH3Font(FontId.of("kenny-thick-24")).setExtraLargeTextFont(FontId.of("kenny-mini-22")).setLargeTextFont(FontId.of("kenny-mini-20")).setMediumTextFont(FontId.of("kenny-mini-18")).setSmallTextFont(FontId.of("kenny-mini-16")).setButtonLabelFont(FontId.of("kenny-mini-18")).setFieldLabelFont(FontId.of("kenny-mini-16")).setFieldValueFont(FontId.of("kenny-mini-16")).setSelectItemTextFont(FontId.of("kenny-mini-18")).setSelectItemHeight(20).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
-  }
-
-  static create916Panel() {
-    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setRegionFnc((t) => {
-  if (t.aspect()>9/16) {
-    return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
-  }
-  else {
-    return Rect2.create(0, 0, t.width(), t.height());
-  }
-});
-  }
-
-}
-classRegistry.PlayUis = PlayUis;
-class GamePad extends UiComponent {
-  leftJoystick;
-  rightJoystick;
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "GamePad";
-  }
-
-  guardInvariants() {
-  }
-
-  getLeftDir() {
-    return this.leftJoystick.getDir();
-  }
-
-  getRightDir() {
-    return this.rightJoystick.getDir();
-  }
-
-  init(container) {
-    this.leftJoystick.init(container);
-    this.rightJoystick.init(container);
-  }
-
-  move(dt) {
-    this.leftJoystick.move(dt);
-    this.rightJoystick.move(dt);
-  }
-
-  draw(painter) {
-    this.leftJoystick.draw(painter);
-    this.rightJoystick.draw(painter);
-  }
-
-  onContainerResize(size) {
-    this.leftJoystick.onContainerResize(size);
-    this.rightJoystick.onContainerResize(size);
-  }
-
-  onTouchStart(id, pos, size) {
-    this.leftJoystick.onTouchStart(id, pos, size);
-    this.rightJoystick.onTouchStart(id, pos, size);
-    return false;
-  }
-
-  onTouchMove(id, pos, size) {
-    this.leftJoystick.onTouchMove(id, pos, size);
-    this.rightJoystick.onTouchMove(id, pos, size);
-    return false;
-  }
-
-  onTouchEnd(id, pos, size, cancel) {
-    this.leftJoystick.onTouchEnd(id, pos, size, cancel);
-    this.rightJoystick.onTouchEnd(id, pos, size, cancel);
-    return false;
-  }
-
-  onKeyPressed(key) {
-    this.leftJoystick.onKeyPressed(key);
-    this.rightJoystick.onKeyPressed(key);
-    return false;
-  }
-
-  onKeyReleased(key) {
-    this.leftJoystick.onKeyReleased(key);
-    this.rightJoystick.onKeyReleased(key);
-    return false;
-  }
-
-  toString() {
-  }
-
-  static create(drivers) {
-    let res = new GamePad();
-    res.leftJoystick = Joystick.create().setRegionFnc((s) => {
-  if (s.width()>s.height()) {
-    let h5 = s.height()*0.05;
-    let h30 = s.height()*0.3;
-    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(h5, s.height()-h5-size, size, size);
-  }
-  else {
-    let h2 = s.height()*0.02;
-    let h5 = s.height()*0.05;
-    let h20 = s.height()*0.2;
-    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(h2, s.height()-h5-size, size, size);
-  }
-}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("W"), KeyCodeMatchers.upperCharacter("S"), KeyCodeMatchers.upperCharacter("A"), KeyCodeMatchers.upperCharacter("D"));
-    res.rightJoystick = Joystick.create().setRegionFnc((s) => {
-  if (s.width()>s.height()) {
-    let h5 = s.height()*0.05;
-    let h30 = s.height()*0.3;
-    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(s.width()-h5-size, s.height()-h5-size, size, size);
-  }
-  else {
-    let h2 = s.height()*0.02;
-    let h5 = s.height()*0.05;
-    let h20 = s.height()*0.2;
-    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(s.width()-h2-size, s.height()-h5-size, size, size);
-  }
-}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("I"), KeyCodeMatchers.upperCharacter("K"), KeyCodeMatchers.upperCharacter("J"), KeyCodeMatchers.upperCharacter("L"));
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.GamePad = GamePad;
-class FreeCameraController {
-  initCamera;
-  pos;
-  rotX;
-  rotY;
-  moveSpeed;
-  rotSpeed;
-  gamePad;
-  constructor() {
-  }
-
-  getClass() {
-    return "FreeCameraController";
-  }
-
-  guardInvariants() {
-  }
-
-  getPos() {
-    return this.pos;
-  }
-
-  getTarget() {
-    let rxMat = Mat33.rotX(this.rotX);
-    let ryMat = Mat33.rotY(this.rotY);
-    return ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
-  }
-
-  getCamera() {
-    let rxMat = Mat33.rotX(this.rotX);
-    let ryMat = Mat33.rotY(this.rotY);
-    let target = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
-    let up = ryMat.mul(rxMat.mul(Vec3.create(0, 1, 0)));
-    return this.initCamera.lookAt(this.pos, target, up);
-  }
-
-  move(dt) {
-    let moveDir = this.gamePad.getLeftDir();
-    let rotDir = this.gamePad.getRightDir();
-    let rxMat = Mat33.rotX(this.rotX);
-    let ryMat = Mat33.rotY(this.rotY);
-    let fwd = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).normalize().scale(moveDir.y()*this.moveSpeed*dt);
-    let right = ryMat.mul(rxMat.mul(Vec3.create(1, 0, 0))).normalize().scale(moveDir.x()*this.moveSpeed*dt);
-    this.pos = this.pos.add(fwd).add(right);
-    this.rotX = this.rotX+rotDir.y()*this.rotSpeed*dt;
-    if (this.rotX>FMath.PI/2) {
-      this.rotX = FMath.PI/2;
-    }
-    if (this.rotX<-FMath.PI/2) {
-      this.rotX = -FMath.PI/2;
-    }
-    this.rotY = this.rotY-rotDir.x()*this.rotSpeed*dt;
-    while (this.rotY>FMath.PI) {
-      this.rotY = this.rotY-2*FMath.PI;
-    }
-    while (this.rotY<-FMath.PI) {
-      this.rotY = this.rotY+2*FMath.PI;
-    }
-  }
-
-  setPersp(fovy, aspect, near, far) {
-    this.initCamera = this.initCamera.withPersp(fovy, aspect, near, far);
-  }
-
-  toString() {
-  }
-
-  static create(initCamera, gamePad, moveSpeed, rotSpeed) {
-    let res = new FreeCameraController();
-    res.initCamera = initCamera;
-    res.pos = initCamera.getPos();
-    let fwd = Vec3.create(-initCamera.getView().m20(), -initCamera.getView().m21(), -initCamera.getView().m22());
-    let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
-    res.rotX = FMath.asin(fwd.y());
-    res.rotY = fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y());
-    res.moveSpeed = moveSpeed;
-    res.rotSpeed = rotSpeed;
-    res.gamePad = gamePad;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FreeCameraController = FreeCameraController;
 class BoxMeshFactory {
   constructor() {
   }
@@ -33417,112 +33689,59 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp15 extends TyracornScreen {
-  groundModel = null;
-  box1Model = null;
+class BasicApp04 extends TyracornApp {
+  box = MeshId.of("box");
+  whiteBox = MeshId.of("white-box");
   shadow1 = ShadowBufferId.of("shadow1");
   time = 0;
-  inputs = InputCache.create();
-  ui;
-  camera;
-  armature;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp15";
+    return "BasicApp04";
   }
 
-  move(drivers, screenManager, dt) {
+  move(drivers, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
-    let aspect = this.inputs.getSize2(InputCacheDisplayListener.DEFAULT_KEY, Size2.create(1, 1)).aspect();
+    let aspect = gDriver.getScreenViewport().getAspect();
     let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
-    this.camera.setPersp(fovy, aspect, 1.0, 50.0);
-    this.camera.move(dt);
-    this.ui.move(dt);
-    let angleFact = FMath.abs(FMath.sin(this.time/3));
-    let pose = this.armature.getPose(Dut.map(ArmatureNodeId.of("node-1"), Mat44.rotZ(angleFact*FMath.PI_QUARTER), ArmatureNodeId.of("node-2"), Mat44.transofm(Vec3.create(1, 0, 0), Quaternion.rotZ(angleFact*FMath.PI_QUARTER)), ArmatureNodeId.of("node-3"), Mat44.transofm(Vec3.create(1, 0, 0), Quaternion.rotZ(angleFact*FMath.PI_QUARTER))));
-    let dirLightColor = LightColor.create(Rgb.gray(0.5), Rgb.gray(0.5), Rgb.WHITE);
-    let dirLightDir = Vec3.create(0.6, -1, -0.2).normalize();
-    let dirLightPos = dirLightDir.scale(-5);
-    let dirLightShadowMap = ShadowMap.createDir(this.shadow1, dirLightPos, dirLightDir, 13, 20);
-    let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
-    let smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
-    this.renderSceneShaow(smapRndr, pose);
+    let cam = Camera.persp(fovy, aspect, 0.1, 1000.0).lookAt(Vec3.create(1.0, 3.5, 4.5), Vec3.create(2.0, 0.0, 0.0), Vec3.create(0, 1, 0));
+    let dirLight = Light.directional(LightColor.create(Rgb.gray(0.75), Rgb.BLACK, Rgb.BLACK), Vec3.create(1, -1, 0));
+    let shadowLightPos = Vec3.create(-3+3*Math.sin(this.time), 2, -1);
+    let shadowLightDir = Vec3.create(1.5, -1, 0.6).normalize();
+    let spotLightColor = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
+    let spotLightCone = LightCone.create(FMath.PI/9, FMath.PI/6);
+    let spotLightShadowMap = ShadowMap.createSpot(this.shadow1, shadowLightPos, shadowLightDir, spotLightCone.getOutTheta(), 1, 32);
+    let spotLight = Light.spotQuadratic(spotLightColor, shadowLightPos, shadowLightDir, 16, spotLightCone, spotLightShadowMap);
+    let smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight));
+    smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
     smapRndr.end();
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(this.camera.getCamera(), dirLight));
-    this.renderScene(objRnderer, pose);
+    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, dirLight, spotLight));
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.CHROME);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.SILVER);
     objRnderer.end();
-    gDriver.clearBuffers(BufferId.DEPTH);
-    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    uiRenderer.render(this.ui);
-    uiRenderer.end();
+    let crndr = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
+    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight.getPos()).mul(Mat44.scale(0.05)));
+    crndr.end();
   }
 
-  load(drivers, screenManager, properties) {
+  init(drivers, properties) {
     let assets = drivers.getDriver("AssetManager");
-    let res = new ArrayList();
-    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/box-01.tap")));
-    return res;
+    assets.put(this.box, BoxMeshFactory.fabricBox());
+    assets.put(this.whiteBox, BoxMeshFactory.rgbBox(1, 1, 1));
+    assets.put(this.shadow1, ShadowBuffer.create(1024, 1024));
+    return Collections.emptyList();
   }
 
-  init(drivers, screenManager, properties) {
-    let assets = drivers.getDriver("AssetManager");
-    let boxMeshId = MeshId.of("box-mesh");
-    let riggeMeshId = MeshId.of("rigged-mesh");
-    assets.put(boxMeshId, BoxMeshFactory.modelBox());
-    assets.put(riggeMeshId, this.createRiggedMesh());
-    let boxDiffuse = TextureId.of("tex_box_01_d");
-    let boxSpecular = TextureId.of("tex_box_01_s");
-    assets.put(MaterialId.of("brass"), Material.BRASS);
-    assets.put(MaterialId.of("wood-box"), Material.BLACK.withShininess(50).plusTexture(TextureAttachment.diffuse(boxDiffuse)).plusTexture(TextureAttachment.specular(boxSpecular)));
-    assets.put(this.shadow1, ShadowBuffer.create(2048, 2048));
-    this.groundModel = Model.simple(boxMeshId, MaterialId.of("brass"));
-    this.box1Model = Model.simple(riggeMeshId, MaterialId.of("wood-box"));
-    let node1 = ArmatureNodeId.of("node-1");
-    let node2 = ArmatureNodeId.of("node-2");
-    let node3 = ArmatureNodeId.of("node-3");
-    this.armature = Armature.empty().plusNode(ArmatureNode.create(node1, null, Mat44.IDENTITY, Mat44.IDENTITY)).plusNode(ArmatureNode.create(node2, node1, Mat44.trans(1, 0, 0), Mat44.trans(-1, 0, 0))).plusNode(ArmatureNode.create(node3, node2, Mat44.trans(1, 0, 0), Mat44.trans(-2, 0, 0)));
-    this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
-    let gamePad = GamePad.create(drivers);
-    this.ui.addComponent(gamePad);
-    let cam = Camera.persp(FMath.toRadians(60.0), 1, 0.1, 1000.0).lookAt(Vec3.create(0.0, 1, 4), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0));
-    this.camera = FreeCameraController.create(cam, gamePad, 3, 1);
-    this.ui.subscribe(drivers);
-    let dlist = InputCacheDisplayListener.create(this.inputs);
-    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
-    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
-  }
-
-  leave(drivers) {
-    this.ui.unsubscribe(drivers);
-  }
-
-  renderScene(renderer, pose) {
-    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1Model, Interpolation.ZERO, pose, Mat44.trans(0, 0, 0));
-  }
-
-  renderSceneShaow(renderer, pose) {
-    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1Model, Interpolation.ZERO, pose, Mat44.trans(0, 0, 0));
-  }
-
-  createRiggedMesh() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.riggedModel(Dut.list(this.rmVert(-0.5, -0.5, 0, 0, 0, 1, 0, 0, 0, -1, -1, -1, 1, 0, 0, 0), this.rmVert(-0.5, 0.5, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, 1, 0, 0, 0), this.rmVert(0.5, -0.5, 0, 0, 0, 1, 1, 0, 0, 1, -1, -1, 0.75, 0.25, 0, 0), this.rmVert(0.5, 0.5, 0, 0, 0, 1, 1, 1, 0, 1, -1, -1, 0.75, 0.25, 0, 0), this.rmVert(1.5, -0.5, 0, 0, 0, 1, 2, 0, 1, 2, -1, -1, 0.5, 0.5, 0, 0), this.rmVert(1.5, 0.5, 0, 0, 0, 1, 2, 1, 1, 2, -1, -1, 0.5, 0.5, 0, 0), this.rmVert(2.5, -0.5, 0, 0, 0, 1, 3, 0, 2, -1, -1, -1, 1, 0, 0, 0), this.rmVert(2.5, 0.5, 0, 0, 0, 1, 3, 1, 2, -1, -1, -1, 1, 0, 0, 0))), Dut.list(Face.triangle(0, 2, 3), Face.triangle(0, 3, 1), Face.triangle(2, 4, 5), Face.triangle(2, 5, 3), Face.triangle(4, 6, 7), Face.triangle(4, 7, 5))).toMesh();
-    return res;
-  }
-
-  rmVert(x, y, z, nx, ny, nz, tu, tv, bidx1, bidx2, bidx3, bidx4, bw1, bw2, bw3, bw4) {
-    return Vertex.create(Dut.list(Float.valueOf(x), Float.valueOf(y), Float.valueOf(z), Float.valueOf(nx), Float.valueOf(ny), Float.valueOf(nz), Float.valueOf(tu), Float.valueOf(tv), Short.valueOf(bidx1), Short.valueOf(bidx2), Short.valueOf(bidx3), Short.valueOf(bidx4), Float.valueOf(bw1), Float.valueOf(bw2), Float.valueOf(bw3), Float.valueOf(bw4)));
+  close(drivers) {
   }
 
 }
-classRegistry.BasicApp15 = BasicApp15;
+classRegistry.BasicApp04 = BasicApp04;
 
 
 // -------------------------------------
@@ -33905,7 +34124,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp15());
+    tyracornApp = new BasicApp04();
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

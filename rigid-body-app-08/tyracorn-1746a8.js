@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-04";
-const assetsDirName = "/null";
+const basePath = "/tyracorn-web-examples/rigid-body-app-08";
+const assetsDirName = "/assets-3c15df";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -2124,8 +2124,29 @@ class WebPlatformDriver {
  * Data block definition.
  */
 class DataBlock {
+    /**
+     * Empty data block.
+     * 
+     * @type DataBlock
+     */
+    static EMPTY = DataBlock.fromBase64String("");
+    /**
+     * Data buffer.
+     * 
+     * @type ArrayBuffer
+     */
     data;
+    /**
+     * View of the data.
+     * 
+     * @type DataView
+     */
     view;
+    /**
+     * Constructor.
+     * 
+     * @returns {DataBlock}
+     */
     constructor() {
     }
 
@@ -2553,6 +2574,41 @@ class DataBlockRandomWriter {
 
 }
 /**
+ * Utility class for working with data blocks.
+ *
+ * @author radek.hecl
+ */
+class DataBlocks {
+
+    /**
+     * Decodes this data block into a string.
+     * Expects that the full block is UTF-8 encoded string.
+     *
+     * @param {DataBlock} block data block
+     * @return {String} decoded string
+     */
+    static decodeString(block) {
+        const strBytes = new Uint8Array(block.view.buffer, 0, block.size());
+        const textDecoder = new TextDecoder('utf-8');
+        const res = textDecoder.decode(strBytes);
+        return res;
+    }
+
+    /**
+     * Encodes the data block from a given string.
+     * String is encoded in UTF-8 character ser.
+     *
+     * @param {String} str string
+     * @return {DataBlock} data block
+     */
+    static  encodeString(str) {
+        const encoder = new TextEncoder("utf-8");
+        const bytes = encoder.encode(str);
+        return DataBlock.fromByteArray(bytes.buffer);
+    }
+
+}
+/**
  * Data block definition.
  */
 class WebLocalDataStorage {
@@ -2676,11 +2732,228 @@ class WebLocalDataStorage {
      * Creates new instance.
      * 
      * @param {String} prefix prefix used for local storage
-     * @returns {WebLocalDataStorage.create.res}
+     * @returns {WebLocalDataStorage}
      */
     static create(prefix) {
         const res = new WebLocalDataStorage();
         res.prefix = prefix;
+        res.guardInvaritants();
+        return res;
+    }
+
+}
+/**
+ * Promise for http requests in web.
+ */
+class WebHttpPromise {
+
+    /**
+     * @type {HttpResponse|null}
+     */
+    response = null;
+
+    /**
+     * @type {Array<{type: string, handler: Function}>}
+     */
+    handlers = [];
+
+    /**
+     * Creates new instance.
+     * 
+     * @returns {WebHttpPromise}
+     */
+    constructor() {
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvaritants() {
+    }
+
+    /**
+     * Resolves this promise with response.
+     * This is an internal API used by WebHttpClient.
+     *
+     * @param {HttpResponse} response response
+     */
+    resolve(response) {
+        if (this.response !== null && this.response !== undefined) {
+            throw new Error("promise was already resolved");
+        }
+        this.response = response;
+        let success = response.isSuccess();
+        for (let wrp of this.handlers) {
+            if (success && wrp.type === "SUCCESS") {
+                response = wrp.handler(response);
+                success = response.isSuccess();
+            } else if (!success && wrp.type === "ERROR") {
+                response = wrp.handler(response);
+                success = response.isSuccess();
+            }
+        }
+        this.response = response;
+    }
+
+    /**
+     * Function executed on success.
+     *
+     * @param {Function} handler handler that transforms the response (HttpResponse->HttpResponse)
+     * @return {HttpPromise} promise for chaining
+     */
+    onSuccess(handler) {
+        if (handler === null || handler === undefined) {
+            throw new Error("handler cannot be null");
+        }
+        this.handlers.push({type: "SUCCESS", handler: handler});
+        if (this.response !== null && this.response !== undefined && this.response.isSuccess()) {
+            this.response = handler(this.response);
+        }
+        return this;
+    }
+
+    /**
+     * Function executed on error.
+     *
+     * @param {Function} handler handler that transforms the response (HttpResponse->HttpResponse)
+     * @return {HttpPromise} promise for chaining
+     */
+    onError(handler) {
+        if (handler === null || handler === undefined) {
+            throw new Error("handler cannot be null");
+        }
+        this.handlers.push({type: "ERROR", handler: handler});
+        if (this.response !== null && this.response !== undefined && this.response.isError()) {
+            this.response = handler(this.response);
+        }
+        return this;
+    }
+
+    /**
+     * Creates new instance.
+     * 
+     * @returns {WebHttpPromise}
+     */
+    static create() {
+        const res = new WebHttpPromise();
+        res.guardInvaritants();
+        return res;
+    }
+
+}
+/**
+ * Http client implementation in web.
+ */
+class WebHttpClient {
+
+    prefix
+    /**
+     * Creates new instance.
+     * 
+     * @returns {WebHttpClient}
+     */
+    constructor() {
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvaritants() {
+        if (this.prefix === null || this.prefix === undefined) {
+            throw new Error("prefix cannot be null");
+        }
+    }
+
+    /**
+     * Sends the request.
+     * 
+     * @param {HttpRequest} request request
+     * @return {HttpPromise} promise 
+     */
+    request(request) {
+        const promise = WebHttpPromise.create();
+        const url = this.buildUrl(request.getUrl());
+        const method = request.getMethod().name();
+
+        const headerMap = {};
+        const headersList = request.getHeaders();
+        for (let i = 0; i < headersList.size(); ++i) {
+            const h = headersList.get(i);
+            headerMap[h.getName()] = h.getValue();
+        }
+
+        const options = {
+            method: method,
+            headers: headerMap
+        };
+        const bodyBlock = request.getBody();
+        if (bodyBlock.size() > 0) {
+            options.body = bodyBlock.data;
+        }
+
+        fetch(url, options).
+                then(async (resp) => {
+                    // response code
+                    let code = resp.status;
+                    if (code === 0 || code === null || code === undefined) {
+                        code = 500;
+                    }
+                    // headers
+                    const respHeaders = new ArrayList();
+                    resp.headers.forEach((value, key) => {
+                        respHeaders.add(HttpHeader.create(key, value));
+                    });
+                    // response body
+                    let respBody = DataBlock.EMPTY;
+                    if (resp.body !== null && code !== 204 && code !== 205) {
+                        const respArray = await resp.arrayBuffer();
+                        respBody = DataBlock.fromByteArray(respArray);
+                    }
+
+                    promise.resolve(HttpResponse.create(code, respHeaders, respBody));
+                }).
+                catch((err) => {
+                    // this is network or CORS error => nothing is produced => mapping to 500
+                    promise.resolve(HttpResponse.create(500, Collections.emptyList(), DataBlock.EMPTY));
+                });
+
+        return promise;
+    }
+
+    /**
+     * Builds absolute URL from request URL.
+     *
+     * @param {String} url url from HttpRequest
+     * @returns {String} absolute/normalized url
+     */
+    buildUrl(url) {
+        if (url === null || url === undefined) {
+            throw new Error("url cannot be null");
+        }
+        // Absolute (http/https) or protocol-relative URL.
+        if (typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("//"))) {
+            return url;
+        }
+        // Relative URL: prefix with basePath/prefix.
+        let p = this.prefix;
+        if (p.endsWith("/") && url.startsWith("/")) {
+            return p.substring(0, p.length - 1) + url;
+        }
+        if (!p.endsWith("/") && !url.startsWith("/")) {
+            return p + "/" + url;
+        }
+        return p + url;
+    }
+
+    /**
+     * Creates new instance.
+     * 
+     * @returns {WebHttpClient}
+     */
+    static create() {
+        const res = new WebHttpClient();
+        // basePath is a global varaible in the template
+        res.prefix = (typeof basePath !== "undefined" && basePath !== null && basePath !== undefined) ? basePath : "";
         res.guardInvaritants();
         return res;
     }
@@ -7229,6 +7502,7 @@ class DriverProvider {
     touchDriver = WebTouchDriver.create();
     keyboardDriver = WebKeyboardDriver.create();
     localDataStorage = WebLocalDataStorage.create(localStoragePrefix);
+    httpClient = WebHttpClient.create();
 
     constructor() {
     }
@@ -7260,6 +7534,8 @@ class DriverProvider {
             return true;
         } else if (driver === "LocalDataStorage") {
             return true;
+        } else if (driver === "HttpClient") {
+            return true;
         }
         return false;
     }
@@ -7289,6 +7565,8 @@ class DriverProvider {
             return this.plaformDriver;
         } else if (driver === "LocalDataStorage") {
             return this.localDataStorage;
+        } else if (driver === "HttpClient") {
+            return this.httpClient;
         }
         throw "driver doesn't exists:" + driver;
         return null;
@@ -10331,6 +10609,237 @@ class LocalDataConfigProperties {
 
 }
 classRegistry.LocalDataConfigProperties = LocalDataConfigProperties;
+const createHttpMethod = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const HttpMethod = Object.freeze({
+  GET: createHttpMethod("GET"),
+  PUT: createHttpMethod("PUT"),
+  POST: createHttpMethod("POST"),
+  DELETE: createHttpMethod("DELETE"),
+  PATCH: createHttpMethod("PATCH"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class HttpHeader {
+  name;
+  value;
+  constructor() {
+  }
+
+  getClass() {
+    return "HttpHeader";
+  }
+
+  guardInvariants() {
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  getValue() {
+    return this.value;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(name, value) {
+    let res = new HttpHeader();
+    res.name = name;
+    res.value = value;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.HttpHeader = HttpHeader;
+class HttpRequest {
+  method;
+  url;
+  headers;
+  body;
+  constructor() {
+  }
+
+  getClass() {
+    return "HttpRequest";
+  }
+
+  guardInvariants() {
+  }
+
+  getMethod() {
+    return this.method;
+  }
+
+  getUrl() {
+    return this.url;
+  }
+
+  getHeaders() {
+    return this.headers;
+  }
+
+  plusHeader(header) {
+    let res = new HttpRequest();
+    res.method = this.method;
+    res.url = this.url;
+    res.headers = Dut.immutableListPlusItem(this.headers, header);
+    res.body = this.body;
+    res.guardInvariants();
+    return res;
+  }
+
+  getBody() {
+    return this.body;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(method, url, headers, body) {
+    let res = new HttpRequest();
+    res.method = method;
+    res.url = url;
+    res.headers = Dut.copyImmutableList(headers);
+    res.body = body;
+    res.guardInvariants();
+    return res;
+  }
+
+  static get(url) {
+    let res = new HttpRequest();
+    res.method = HttpMethod.GET;
+    res.url = url;
+    res.headers = Collections.emptyList();
+    res.body = DataBlock.EMPTY;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.HttpRequest = HttpRequest;
+class HttpResponse {
+  code;
+  headers;
+  body;
+  constructor() {
+  }
+
+  getClass() {
+    return "HttpResponse";
+  }
+
+  guardInvariants() {
+  }
+
+  getCode() {
+    return this.code;
+  }
+
+  isSuccess() {
+    return this.code>=200&&this.code<400;
+  }
+
+  isError() {
+    return this.code>=400&&this.code<600;
+  }
+
+  getHeaders() {
+    return this.headers;
+  }
+
+  getBodySize() {
+    return this.body.size();
+  }
+
+  getBody() {
+    return this.body;
+  }
+
+  getBodyAsString() {
+    return DataBlocks.decodeString(this.body);
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(code, headers, body) {
+    let res = new HttpResponse();
+    res.code = code;
+    res.headers = Dut.copyImmutableList(headers);
+    res.body = body;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.HttpResponse = HttpResponse;
 class Rgb {
   static RED = Rgb.create(1, 0, 0);
   static GREEN = Rgb.create(0, 1, 0);
@@ -33180,59 +33689,865 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp04 extends TyracornApp {
-  box = MeshId.of("box");
-  whiteBox = MeshId.of("white-box");
-  shadow1 = ShadowBufferId.of("shadow1");
-  time = 0;
+class PlayUis {
+  static ARROW_UP = UiComponentTrait.of("ARROW_UP");
+  static ARROW_DOWN = UiComponentTrait.of("ARROW_DOWN");
+  static ARROW_LEFT = UiComponentTrait.of("ARROW_LEFT");
+  static ARROW_RIGHT = UiComponentTrait.of("ARROW_RIGHT");
+  static BRAKE = UiComponentTrait.of("BRAKE");
+  static PUNCH = UiComponentTrait.of("PUNCH");
+  static WALK_RUN = UiComponentTrait.of("WALK_RUN");
+  constructor() {
+  }
+
+  getClass() {
+    return "PlayUis";
+  }
+
+  static createUiSizeFnc() {
+    return UiSizeFncs.identity();
+  }
+
+  static createDefaultStyler() {
+    let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
+    let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
+    let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
+    let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
+    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-30")).setH2Font(FontId.of("kenny-thick-26")).setH3Font(FontId.of("kenny-thick-24")).setExtraLargeTextFont(FontId.of("kenny-mini-22")).setLargeTextFont(FontId.of("kenny-mini-20")).setMediumTextFont(FontId.of("kenny-mini-18")).setSmallTextFont(FontId.of("kenny-mini-16")).setButtonLabelFont(FontId.of("kenny-mini-18")).setFieldLabelFont(FontId.of("kenny-mini-16")).setFieldValueFont(FontId.of("kenny-mini-16")).setSelectItemTextFont(FontId.of("kenny-mini-18")).setSelectItemHeight(20).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
+  }
+
+  static create916Panel() {
+    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setRegionFnc((t) => {
+  if (t.aspect()>9/16) {
+    return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
+  }
+  else {
+    return Rect2.create(0, 0, t.width(), t.height());
+  }
+});
+  }
+
+}
+classRegistry.PlayUis = PlayUis;
+class CarController extends UiComponent {
+  forwardButton;
+  reverseButton;
+  leftButton;
+  rightButton;
+  brakeButton;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp04";
+    return "CarController";
   }
 
-  move(drivers, dt) {
-    this.time = this.time+dt;
-    let gDriver = drivers.getDriver("GraphicsDriver");
-    let aspect = gDriver.getScreenViewport().getAspect();
-    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
-    let cam = Camera.persp(fovy, aspect, 0.1, 1000.0).lookAt(Vec3.create(1.0, 3.5, 4.5), Vec3.create(2.0, 0.0, 0.0), Vec3.create(0, 1, 0));
-    let dirLight = Light.directional(LightColor.create(Rgb.gray(0.75), Rgb.BLACK, Rgb.BLACK), Vec3.create(1, -1, 0));
-    let shadowLightPos = Vec3.create(-3+3*Math.sin(this.time), 2, -1);
-    let shadowLightDir = Vec3.create(1.5, -1, 0.6).normalize();
-    let spotLightColor = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
-    let spotLightCone = LightCone.create(FMath.PI/9, FMath.PI/6);
-    let spotLightShadowMap = ShadowMap.createSpot(this.shadow1, shadowLightPos, shadowLightDir, spotLightCone.getOutTheta(), 1, 32);
-    let spotLight = Light.spotQuadratic(spotLightColor, shadowLightPos, shadowLightDir, 16, spotLightCone, spotLightShadowMap);
-    let smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight));
-    smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
-    smapRndr.end();
-    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, dirLight, spotLight));
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.CHROME);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.SILVER);
-    objRnderer.end();
-    let crndr = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
-    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight.getPos()).mul(Mat44.scale(0.05)));
-    crndr.end();
+  guardInvariants() {
   }
 
-  init(drivers, properties) {
-    let assets = drivers.getDriver("AssetManager");
-    assets.put(this.box, BoxMeshFactory.fabricBox());
-    assets.put(this.whiteBox, BoxMeshFactory.rgbBox(1, 1, 1));
-    assets.put(this.shadow1, ShadowBuffer.create(1024, 1024));
-    return Collections.emptyList();
+  getAcceleration() {
+    let res = 0;
+    if (this.forwardButton.isDown()) {
+      res = res+1;
+    }
+    if (this.reverseButton.isDown()) {
+      res = res-1;
+    }
+    return res;
   }
 
-  close(drivers) {
+  getSteering() {
+    let res = 0;
+    if (this.rightButton.isDown()) {
+      res = res+1;
+    }
+    if (this.leftButton.isDown()) {
+      res = res-1;
+    }
+    return res;
+  }
+
+  getBrake() {
+    return this.brakeButton.isDown()?1:0;
+  }
+
+  init(container) {
+    this.forwardButton.init(container);
+    this.reverseButton.init(container);
+    this.leftButton.init(container);
+    this.rightButton.init(container);
+    this.brakeButton.init(container);
+  }
+
+  move(dt) {
+    this.forwardButton.move(dt);
+    this.reverseButton.move(dt);
+    this.leftButton.move(dt);
+    this.rightButton.move(dt);
+    this.brakeButton.move(dt);
+  }
+
+  draw(painter) {
+    this.forwardButton.draw(painter);
+    this.reverseButton.draw(painter);
+    this.leftButton.draw(painter);
+    this.rightButton.draw(painter);
+    this.brakeButton.draw(painter);
+  }
+
+  onContainerResize(size) {
+    this.forwardButton.onContainerResize(size);
+    this.reverseButton.onContainerResize(size);
+    this.leftButton.onContainerResize(size);
+    this.rightButton.onContainerResize(size);
+    this.brakeButton.onContainerResize(size);
+  }
+
+  onTouchStart(id, pos, size) {
+    this.forwardButton.onTouchStart(id, pos, size);
+    this.reverseButton.onTouchStart(id, pos, size);
+    this.leftButton.onTouchStart(id, pos, size);
+    this.rightButton.onTouchStart(id, pos, size);
+    this.brakeButton.onTouchStart(id, pos, size);
+    return false;
+  }
+
+  onTouchMove(id, pos, size) {
+    this.forwardButton.onTouchMove(id, pos, size);
+    this.reverseButton.onTouchMove(id, pos, size);
+    this.leftButton.onTouchMove(id, pos, size);
+    this.rightButton.onTouchMove(id, pos, size);
+    this.brakeButton.onTouchMove(id, pos, size);
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    this.forwardButton.onTouchEnd(id, pos, size, cancel);
+    this.reverseButton.onTouchEnd(id, pos, size, cancel);
+    this.leftButton.onTouchEnd(id, pos, size, cancel);
+    this.rightButton.onTouchEnd(id, pos, size, cancel);
+    this.brakeButton.onTouchEnd(id, pos, size, cancel);
+    return false;
+  }
+
+  onKeyPressed(key) {
+    this.forwardButton.onKeyPressed(key);
+    this.reverseButton.onKeyPressed(key);
+    this.leftButton.onKeyPressed(key);
+    this.rightButton.onKeyPressed(key);
+    this.brakeButton.onKeyPressed(key);
+    return false;
+  }
+
+  onKeyReleased(key) {
+    this.forwardButton.onKeyReleased(key);
+    this.reverseButton.onKeyReleased(key);
+    this.leftButton.onKeyReleased(key);
+    this.rightButton.onKeyReleased(key);
+    this.brakeButton.onKeyReleased(key);
+    return false;
+  }
+
+  toString() {
+  }
+
+  static create(drivers) {
+    let res = new CarController();
+    res.forwardButton = Button.create().addTrait(PlayUis.ARROW_UP).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(h5, s.height()-h5-h2-2*size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(h2, s.height()-h5-h2-2*size, size, size);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.arrowUpOrW());
+    res.reverseButton = Button.create().addTrait(PlayUis.ARROW_DOWN).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(h5, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(h2, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.arrowDownOrS());
+    res.brakeButton = Button.create().addTrait(PlayUis.BRAKE).setRegionFnc(UiRegionFncs.leftBottom(400, 350, 300, 150)).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let buttonSize = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    let h = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    let w = FMath.clamp(2.5*h, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h5+h2+buttonSize, s.height()-h6-1.5*h, w, h);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let buttonSize = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    let h = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    let w = FMath.clamp(2.5*h, 1, s.width()*0.5-1.8*h5);
+    return Rect2.create(2*h2+buttonSize, s.height()-h6-1.5*h, w, h);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.space());
+    res.leftButton = Button.create().addTrait(PlayUis.ARROW_LEFT).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(s.width()-h5-h2-2*size, s.height()-h6-1.5*size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(s.width()-2*h2-2*size, s.height()-h6-1.5*size, size, size);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.arrowLeftOrA());
+    res.rightButton = Button.create().addTrait(PlayUis.ARROW_RIGHT).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(s.width()-h5-size, s.height()-h6-1.5*size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(s.width()-h2-size, s.height()-h6-1.5*size, size, size);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.arrowRightOrD());
+    res.guardInvariants();
+    return res;
   }
 
 }
-classRegistry.BasicApp04 = BasicApp04;
+classRegistry.CarController = CarController;
+class BreakableSphereBehavior extends Behavior {
+  static FEATURES = Dut.immutableSet(ComponentFeature.create("HITTABLE"));
+  numPieces = 10;
+  radiusFactor = 0.3;
+  sphereModelId;
+  hit = false;
+  hitDir;
+  hitImpact;
+  childMaterialId = PhysicalMaterialId.of("object");
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "BreakableSphereBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  getFeatures() {
+    return BreakableSphereBehavior.FEATURES;
+  }
+
+  move(dt, inputs) {
+    if (!this.hit) {
+      return ;
+    }
+    this.world().actors().remove(this.actor().getId());
+    let tc = this.actor().getComponent("TransformComponent");
+    let rb = this.actor().getComponent("RigidBodyComponent");
+    let collider = this.actor().getComponent("ColliderComponent");
+    let r = this.radiusFactor*collider.getRadius();
+    let m = Math.max(0.2, rb.getMass()/this.numPieces);
+    for (let i = 0; i<this.numPieces; ++i) {
+      let posRandom = Vec3.create(Randoms.nextFloat(0, r)-r/2, Randoms.nextFloat(0, r)-r/2, Randoms.nextFloat(0, r)-r/2);
+      let velRand = Vec3.create(Randoms.nextFloat(0, this.hitImpact)-this.hitImpact/2, Randoms.nextFloat(0, this.hitImpact)-this.hitImpact/2, Randoms.nextFloat(0, this.hitImpact)-this.hitImpact/2);
+      let sphere = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(tc.getPos().add(posRandom))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(this.sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(m).setVelocity(this.hitDir.scale(this.hitImpact).add(velRand))).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(this.childMaterialId)).addComponent(LifetimeComponent.create(ComponentKey.LIFETIME).setRemaining(10, 3));
+      this.world().actors().add(ActorId.ROOT, sphere);
+    }
+  }
+
+  onHit(pos, dir, impact) {
+    this.hitDir = dir;
+    this.hitImpact = impact;
+    this.hit = true;
+  }
+
+  setSphereModelId(sphereModelId) {
+    this.sphereModelId = sphereModelId;
+    return this;
+  }
+
+  static create(key) {
+    let res = new BreakableSphereBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.BreakableSphereBehavior = BreakableSphereBehavior;
+class CarWheelJointConfig {
+  carActor;
+  wheelActor;
+  pos;
+  forward;
+  up;
+  constructor() {
+  }
+
+  getClass() {
+    return "CarWheelJointConfig";
+  }
+
+  guardInvariants() {
+  }
+
+  getCarActor() {
+    return this.carActor;
+  }
+
+  getWheelActor() {
+    return this.wheelActor;
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getForward() {
+    return this.forward;
+  }
+
+  getUp() {
+    return this.up;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(carActor, wheelActor, pos, forward, up) {
+    let res = new CarWheelJointConfig();
+    res.carActor = carActor;
+    res.wheelActor = wheelActor;
+    res.pos = pos;
+    res.forward = forward;
+    res.up = up;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CarWheelJointConfig = CarWheelJointConfig;
+class CarWheelJointComponent extends Behavior {
+  static FEATURES = Dut.immutableSet(ComponentFeature.COLLISION_EXCLUSION_PRODUCER, ComponentFeature.RIGID_BODY_JOINT);
+  localCarPos;
+  localCarUp;
+  localCarRight;
+  localWheelPos;
+  localWheelRight;
+  carBody;
+  wheelBody;
+  collisionExclusions;
+  initDone = false;
+  config;
+  damp = 0.1;
+  suspensionStiffness = 200;
+  suspensionDamp = 10;
+  suspensionLastDir = Vec3.UP;
+  maxForwardTorque = 50;
+  maxReverseTorque = 25;
+  maxBrakeTorque = 1.5;
+  cumBrake = 0;
+  engine = 0;
+  brake = 0;
+  maxSteer = FMath.PI_THIRD/2;
+  steerSpeed = FMath.PI_THIRD/2;
+  steer = 0;
+  currentSteer = 0;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "CarWheelJointComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.initDone = true;
+    if (this.config==null) {
+      return ;
+    }
+    let car = this.world().actors().get(this.config.getCarActor());
+    let wheel = this.world().actors().get(this.config.getWheelActor());
+    this.carBody = car.getComponent("RigidBodyComponent");
+    this.wheelBody = wheel.getComponent("RigidBodyComponent");
+    let globalRight = Vec3.cross(this.config.getForward(), this.config.getUp()).normalize();
+    this.localCarPos = this.carBody.toLocal(this.config.getPos());
+    this.localCarUp = this.carBody.toLocalRot(this.config.getUp()).normalize();
+    this.localCarRight = this.carBody.toLocalRot(globalRight).normalize();
+    this.localWheelPos = this.wheelBody.toLocal(this.config.getPos());
+    this.localWheelRight = this.wheelBody.toLocalRot(globalRight).normalize();
+    this.collisionExclusions = Dut.immutableSet(CollisionExclusion.create(this.config.getCarActor(), this.config.getWheelActor()));
+    this.broadcastDomainUpdate(ActorDomain.COLLISION_EXCLUSION, false, false);
+    this.config = null;
+  }
+
+  getFeatures() {
+    return CarWheelJointComponent.FEATURES;
+  }
+
+  move(dt, inputs) {
+    let wheelRight = this.wheelBody.toGlobalRot(this.localWheelRight);
+    let wheelRotVel = this.wheelBody.getAngularVelocity().dot(wheelRight);
+    this.wheelBody.applyTorque(wheelRight.scale(-this.damp*wheelRotVel));
+    let etq = this.engine>=0?this.engine*this.maxForwardTorque:this.engine*this.maxReverseTorque;
+    this.wheelBody.applyTorque(wheelRight.scale(-etq));
+    let carPos = this.carBody.toGlobal(this.localCarPos);
+    let carVel = this.carBody.getPointVelocity(carPos);
+    let wheelPos = this.wheelBody.toGlobal(this.localWheelPos);
+    let wheelVel = this.wheelBody.getPointVelocity(wheelPos);
+    let pDiff = wheelPos.sub(carPos);
+    let dir = pDiff.sqrMag()>0.0001?pDiff.normalize():this.suspensionLastDir;
+    let vDiff = wheelVel.sub(carVel).dot(dir);
+    let fmag = this.suspensionStiffness*pDiff.mag()+vDiff*this.suspensionDamp;
+    this.carBody.applyForce(carPos, dir.scale(fmag));
+    this.wheelBody.applyForce(wheelPos, dir.scale(-fmag));
+    this.suspensionLastDir = dir;
+    let tgtTurn = -this.steer*this.maxSteer;
+    if (this.currentSteer<tgtTurn) {
+      this.currentSteer = Math.min(this.maxSteer, this.currentSteer+dt*this.steerSpeed);
+    }
+    else if (this.currentSteer>tgtTurn) {
+      this.currentSteer = Math.max(-this.maxSteer, this.currentSteer-dt*this.steerSpeed);
+    }
+  }
+
+  getRigidBodyA() {
+    return this.carBody;
+  }
+
+  getRigidBodyB() {
+    return this.wheelBody;
+  }
+
+  solveVelocities(configuration, iteration) {
+    let res = false;
+    let carPos = this.carBody.toGlobal(this.localCarPos);
+    let carUp = this.carBody.toGlobalRot(this.localCarUp);
+    let carRight = this.carBody.toGlobalRot(Quaternion.rot(this.localCarUp, this.currentSteer).rotate(this.localCarRight));
+    let wheelPos = this.wheelBody.toGlobal(this.localWheelPos);
+    let wheelRight = this.wheelBody.toGlobalRot(this.localWheelRight);
+    let wheelProjPos = Geometry3.projectToLine(carPos, carUp, wheelPos);
+    let wheelProjVel = this.carBody.getPointVelocity(wheelProjPos);
+    let wheelVel = this.wheelBody.getPointVelocity(wheelPos);
+    let nextWheelProjPos = wheelProjPos.addScaled(wheelProjVel, configuration.getTimeStep());
+    let nextWheelPos = wheelPos.addScaled(wheelVel, configuration.getTimeStep());
+    let pivotDiff = nextWheelPos.sub(nextWheelProjPos).scale(1/configuration.getTimeStep());
+    pivotDiff = pivotDiff.subScaled(carUp, pivotDiff.dot(carUp));
+    let pivotMag = pivotDiff.mag();
+    if (pivotMag>=configuration.getVelError()) {
+      let normal = pivotDiff.normalize();
+      let uinefCar = this.carBody.getImpulseEffectOnPoint(wheelProjPos, normal, wheelProjPos);
+      let uinefWheel = this.wheelBody.getImpulseEffectOnPoint(wheelPos, normal, wheelPos);
+      let uinefnorm1 = normal.dot(uinefCar);
+      let uinefnorm2 = normal.dot(uinefWheel);
+      let uinefnorm = uinefnorm1+uinefnorm2;
+      let normimmag = pivotMag/uinefnorm;
+      Guard.notNegative(normimmag, "normimmag cannot be negative: %s", normimmag);
+      this.carBody.applyImpulse(wheelProjPos, normal.scale(normimmag));
+      this.wheelBody.applyImpulse(wheelPos, normal.scale(-normimmag));
+      if (normimmag>configuration.getImpulseError()) {
+        res = true;
+      }
+    }
+    let carSidePos = wheelProjPos.add(carRight);
+    let wheelSidePos = wheelPos.add(wheelRight);
+    let carSideVel = this.carBody.getPointVelocity(carSidePos);
+    let wheelSideVel = this.wheelBody.getPointVelocity(wheelSidePos);
+    let nextCarSidePos = carSidePos.addScaled(carSideVel, configuration.getTimeStep());
+    let nextWheelSidePos = wheelSidePos.addScaled(wheelSideVel, configuration.getTimeStep());
+    let sideDiff = nextWheelSidePos.sub(nextCarSidePos).scale(1/configuration.getTimeStep());
+    sideDiff = sideDiff.subScaled(carUp, sideDiff.dot(carUp));
+    let sideMag = sideDiff.mag();
+    if (sideMag>=configuration.getVelError()) {
+      let normal = sideDiff.normalize();
+      let uinefCar = this.carBody.getImpulseEffectOnPoint(carSidePos, normal, carSidePos);
+      let uinefWheel = this.wheelBody.getImpulseEffectOnPoint(wheelSidePos, normal, wheelSidePos);
+      let uinefnorm1 = normal.dot(uinefCar);
+      let uinefnorm2 = normal.dot(uinefWheel);
+      let uinefnorm = uinefnorm1+uinefnorm2;
+      let normimmag = sideMag/uinefnorm;
+      Guard.notNegative(normimmag, "normimmag cannot be negative: %s", normimmag);
+      this.carBody.applyImpulse(carSidePos, normal.scale(normimmag));
+      this.wheelBody.applyImpulse(wheelSidePos, normal.scale(-normimmag));
+      if (normimmag>configuration.getImpulseError()) {
+        res = true;
+      }
+    }
+    if (this.brake>0&&this.maxBrakeTorque>0) {
+      if (iteration==0) {
+        this.cumBrake = 0;
+      }
+      let wheelAngVel = this.wheelBody.getAngularVelocity();
+      let wheelAngVelProj = wheelRight.scale(wheelRight.dot(wheelAngVel));
+      let unitBrakeEfect = this.wheelBody.getInverseInertia().mul(wheelRight);
+      let btq = wheelAngVelProj.dot(wheelRight)/unitBrakeEfect.dot(wheelRight);
+      let targetBrakeTq = this.brake*this.maxBrakeTorque;
+      if (btq>=0) {
+        btq = FMath.min(btq, targetBrakeTq-this.cumBrake);
+      }
+      else {
+        btq = FMath.max(btq, -targetBrakeTq-this.cumBrake);
+      }
+      this.wheelBody.applyTorqueImpulse(wheelRight.scale(-btq));
+      this.cumBrake = this.cumBrake+btq;
+      if (btq>configuration.getImpulseError()) {
+        res = true;
+      }
+    }
+    return res;
+  }
+
+  getCollisionExclusions() {
+    return this.collisionExclusions;
+  }
+
+  setDamp(damp) {
+    this.damp = damp;
+    return this;
+  }
+
+  setSuspensionStiffness(suspensionStiffness) {
+    Guard.beTrue(suspensionStiffness>=0, "suspensionStiffness must be >= 0");
+    this.suspensionStiffness = suspensionStiffness;
+    return this;
+  }
+
+  setSuspensionDamp(suspensionDamp) {
+    Guard.beTrue(suspensionDamp>=0, "suspensionDamp must be >= 0");
+    this.suspensionDamp = suspensionDamp;
+    return this;
+  }
+
+  setMaxForwardTorque(maxForwardTorque) {
+    Guard.beTrue(maxForwardTorque>=0, "maxForwardTorque must be >= 0");
+    this.maxForwardTorque = maxForwardTorque;
+    return this;
+  }
+
+  setMaxReverseTorque(maxReverseTorque) {
+    Guard.beTrue(maxReverseTorque>=0, "maxReverseTorque must be >= 0");
+    this.maxReverseTorque = maxReverseTorque;
+    return this;
+  }
+
+  setMaxBrakeTorque(maxBrakeTorque) {
+    Guard.beTrue(maxBrakeTorque>=0, "maxBrakeTorque must be >= 0");
+    this.maxBrakeTorque = maxBrakeTorque;
+    return this;
+  }
+
+  setEngine(engine) {
+    Guard.beTrue(engine>=-1&&engine<=1, "engine must be in [-1, 1] interval");
+    this.engine = engine;
+    return this;
+  }
+
+  setBrake(brake) {
+    Guard.beTrue(brake>=0&&brake<=1, "brake must be in [0, 1] interval");
+    this.brake = brake;
+    return this;
+  }
+
+  setMaxSteer(maxSteer) {
+    Guard.beTrue(maxSteer>=0, "maxSteer must be >= 0");
+    this.maxSteer = maxSteer;
+    return this;
+  }
+
+  setSteerSpeed(steerSpeed) {
+    Guard.beTrue(steerSpeed>=0, "steerSpeed must be >= 0");
+    this.steerSpeed = steerSpeed;
+    return this;
+  }
+
+  setSteer(steer) {
+    Guard.beTrue(steer>=-1&&steer<=1, "steer must be in [-1, 1] interval");
+    this.steer = steer;
+    return this;
+  }
+
+  setJoint() {
+    if (arguments.length===1&&arguments[0] instanceof CarWheelJointConfig) {
+      return this.setJoint_1_CarWheelJointConfig(arguments[0]);
+    }
+    else if (arguments.length===5&& typeof arguments[0]==="string"&& typeof arguments[1]==="string"&&arguments[2] instanceof Vec3&&arguments[3] instanceof Vec3&&arguments[4] instanceof Vec3) {
+      return this.setJoint_5_string_string_Vec3_Vec3_Vec3(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  setJoint_1_CarWheelJointConfig(config) {
+    this.config = config;
+    if (this.initDone) {
+      this.init();
+    }
+    return this;
+  }
+
+  setJoint_5_string_string_Vec3_Vec3_Vec3(carActor, wheelActor, pos, forward, up) {
+    return this.setJoint(CarWheelJointConfig.create(ActorId.of(carActor), ActorId.of(wheelActor), pos, forward, up));
+  }
+
+  renderDebug(gDriver, request, camera) {
+    if (!request.hasDebugRenderRealm(DebugRenderRealm.JOINT)) {
+      return ;
+    }
+    let prend = gDriver.startRenderer("PrimitiveRenderer", BasicEnvironment.create(camera));
+    let carPos = this.carBody.toGlobal(this.localCarPos);
+    let carUp = this.carBody.toGlobal(this.localCarPos.add(this.localCarUp));
+    let carRight = this.carBody.toGlobal(this.localCarPos.add(this.localCarRight));
+    let wheelPos = this.wheelBody.toGlobal(this.localWheelPos);
+    let wheelRight = this.wheelBody.toGlobal(this.localWheelPos.add(this.localWheelRight));
+    DebugRendering.sphere(prend, carPos, 0.3, Rgb.BLUE);
+    DebugRendering.sphere(prend, wheelPos, 0.3, Rgb.BLUE);
+    DebugRendering.line(prend, carPos, wheelPos, Rgb.BLUE);
+    DebugRendering.line(prend, carPos, carUp, Rgb.BLUE);
+    DebugRendering.line(prend, carPos, carRight, Rgb.BLUE);
+    DebugRendering.line(prend, wheelPos, wheelRight, Rgb.BLUE);
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new CarWheelJointComponent(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CarWheelJointComponent = CarWheelJointComponent;
+class RigidBodyApp08 extends TyracornScreen {
+  time = 0;
+  world;
+  inputs = InputCache.create();
+  ui;
+  controller;
+  wheelFL;
+  wheelFR;
+  wheelBL;
+  wheelBR;
+  paused = false;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "RigidBodyApp08";
+  }
+
+  move(drivers, screenManager, dt) {
+    this.time = this.time+dt;
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    if (this.paused&&this.ui.getNumLayers()==1) {
+      this.ui.pushLayer();
+      this.ui.addComponent(Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setRegionFnc(UiRegionFncs.full()));
+      let menuPanel = Panel.create().setRegionFnc(UiRegionFncs.center(250, 250));
+      this.ui.addComponent(menuPanel);
+      menuPanel.addComponent(Label.create().addTrait(UiComponentTrait.H1).setAlignment(TextAlignment.CENTER_TOP).setPosFnc(UiPosFncs.centerTop(40)).setText("Pause"));
+      menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(100, 150, 30)).setText("Resume").addOnClickAction((evtSource) => {
+  this.paused = false;
+  this.ui.popLayer();
+}));
+      if (drivers.getPlatform().isExitable()) {
+        menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(150, 150, 30)).setText("Exit").addOnClickAction(UiEventActions.exitApp(screenManager)));
+      }
+    }
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    if (!this.paused) {
+      let steer = this.controller.getSteering();
+      let accel = this.controller.getAcceleration();
+      let brake = this.controller.getBrake();
+      this.wheelFL.setSteer(steer);
+      this.wheelFR.setSteer(steer);
+      this.wheelFL.setEngine(accel);
+      this.wheelFR.setEngine(accel);
+      this.wheelFL.setBrake(brake);
+      this.wheelFR.setBrake(brake);
+      this.wheelBL.setBrake(brake);
+      this.wheelBR.setBrake(brake);
+      this.world.move(dt, this.inputs);
+    }
+    this.world.render(RenderRequest.NORMAL);
+    gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/primitives.tap")));
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 30));
+    assets.put(MaterialId.of("brass"), Material.BRASS);
+    assets.put(MaterialId.of("copper"), Material.COPPER);
+    assets.put(MaterialId.of("chrome"), Material.CHROME);
+    const sphereModelId = ModelId.of("sphere");
+    const skyboxModelId = ModelId.of("skybox-1");
+    const cylinderModelId = ModelId.of("cylinder");
+    assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
+    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("brass"));
+    const groundModelId = ModelId.of("ground");
+    assets.put(groundModelId, groundModel);
+    let copperBox = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
+    const copperBoxModelId = ModelId.of("copperBox");
+    assets.put(copperBoxModelId, copperBox);
+    let chromeBox = Model.simple(MeshId.of("modelBox"), MaterialId.of("chrome"));
+    const chromeBoxModelId = ModelId.of("chromeBox");
+    assets.put(chromeBoxModelId, chromeBox);
+    let boxModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("stone-1"));
+    const boxModelId = ModelId.of("box");
+    assets.put(boxModelId, boxModel);
+    const wallColMatId = PhysicalMaterialId.of("wall");
+    assets.put(wallColMatId, PhysicalMaterial.simple(0.6, 1.8, 1.8));
+    const objectColMatId = PhysicalMaterialId.of("object");
+    assets.put(objectColMatId, PhysicalMaterial.create(0.6, PhysicalMaterialCombineType.AVG, 18, 18, PhysicalMaterialCombineType.MAX));
+    const carColMat = PhysicalMaterialId.of("car");
+    assets.put(carColMat, PhysicalMaterial.create(0.2, PhysicalMaterialCombineType.AVG, 2, 2.5, PhysicalMaterialCombineType.MIN));
+    const wheelColMat = PhysicalMaterialId.of("wheel");
+    assets.put(wheelColMat, PhysicalMaterial.create(0.0, PhysicalMaterialCombineType.MIN, 18, 20, PhysicalMaterialCombineType.MAX));
+    this.world = RigidBodyWorld.create(drivers);
+    let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create(ComponentKey.WORLD).setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-300, -30, -300, 300, 30, 300)));
+    this.world.actors().add(worldActor);
+    let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create(ComponentKey.TRANSFORM)).addComponent(SkyboxComponent.create(ComponentKey.SKYBOX).setModelId(skyboxModelId).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create(ComponentKey.AUTO_ROTATE).setAngularVelocity(Vec3.create(0, 0.1, 0)));
+    this.world.actors().add(skybox);
+    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(10, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(40, 1, 60)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 2, 62)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
+    this.world.actors().add(ground);
+    let back = Actor.create("back").setName("back").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(10, 0, -30))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(42, 1, 7)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 7, 1)).setMaterialId(wallColMatId));
+    this.world.actors().add(back);
+    let front = Actor.create("front").setName("front").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(10, 0, 30))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(42, 1, 3)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 3, 1)).setMaterialId(wallColMatId));
+    this.world.actors().add(front);
+    let left = Actor.create("left").setName("left").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-10, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 62, 7)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 62)).setMaterialId(wallColMatId));
+    this.world.actors().add(left);
+    let right = Actor.create("right").setName("right").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(30, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 62, 7)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 62)).setMaterialId(wallColMatId));
+    this.world.actors().add(right);
+    let slope1 = Actor.create("slope-1").setName("slope-1").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(8, 0.5, 0).rotate(FMath.PI/10, Vec3.create(0, 0, 1))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(copperBoxModelId).setTransform(Mat44.scale(7, 1, 15))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(7, 1, 15).setMaterialId(wallColMatId));
+    this.world.actors().add(slope1);
+    let slope2 = Actor.create("slope-2").setName("slope-2").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(20, 0.5, 0).rotate(-FMath.PI/10, Vec3.create(0, 0, 1))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(copperBoxModelId).setTransform(Mat44.scale(7, 1, 15))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(7, 1, 15).setMaterialId(wallColMatId));
+    this.world.actors().add(slope2);
+    let bridge = Actor.create("bridge").setName("bridge").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(14, 1.54, 0)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(copperBoxModelId).setTransform(Mat44.scale(5.6, 1, 15))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(5.6, 1, 15).setMaterialId(wallColMatId));
+    this.world.actors().add(bridge);
+    let stair = Actor.create("stair").setName("stair").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-2, -0.1, -18)).rotate(-FMath.PI/3, Vec3.create(0, 1, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(copperBoxModelId).setTransform(Mat44.scale(6, 1, 6))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WALL).setShape(ColliderShape.BOX).setSize(Vec3.create(6, 1, 6)).setMaterialId(wallColMatId));
+    this.world.actors().add(stair);
+    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(2, 5, 4), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
+    this.world.actors().add(light);
+    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY)).addComponent(CameraControllerComponent.create(ComponentKey.random()).setMode(CameraControlMode.THIRD_PERSON).setTargetId(ActorId.of("car")).setPosOffset(Vec3.create(0, 5, 11)).setPosK(0.05).setLookAtK(0.15));
+    this.world.actors().add(camera);
+    let suspensionStiffness = 200;
+    let suspensionDamp = 10;
+    let maxTurn = FMath.PI_THIRD/2;
+    let turnSpeed = FMath.PI_THIRD/2;
+    let car = Actor.create("car").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(0, 5, 0)).addComponent(RemoveOnOutspaceComponent.create(ComponentKey.REMOVE_ON_OUTSPACE)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(chromeBoxModelId).setTransform(Mat44.trans(0, -0.3, 0).mul(Mat44.scale(2, 1.0, 5)))).addComponent(ModelComponent.create(ComponentKey.MODEL_2).setModelId(chromeBoxModelId).setTransform(Mat44.trans(0, 0, -0.5).mul(Mat44.scale(1.8, 1.6, 2)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setMass(10)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setPos(0, -0.3, 0).setSize(2, 1, 5).setMaterialId(carColMat)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_2).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setPos(0, 0, -0.5).setSize(1.8, 1.6, 2).setMaterialId(carColMat));
+    this.world.actors().add(car);
+    let wheelFRAct = Actor.create("wheel-front-right").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(1, 3.5, -1.6)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(cylinderModelId).setTransform(Mat44.rotZ(FMath.PI_HALF).mul(Mat44.scale(0.8, 0.3, 0.8)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setMass(1)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(0.8).setMaterialId(wheelColMat)).addComponent(CarWheelJointComponent.create(ComponentKey.random()).setJoint("car", "wheel-front-right", Vec3.create(1, 3.5, -1.6), Vec3.BACKWARD, Vec3.UP));
+    this.world.actors().add(car.getId(), wheelFRAct);
+    this.wheelFR = wheelFRAct.getComponent("CarWheelJointComponent");
+    let wheelFLAct = Actor.create("wheel-front-left").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(-1, 3.5, -1.6)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(cylinderModelId).setTransform(Mat44.rotZ(FMath.PI_HALF).mul(Mat44.scale(0.8, 0.3, 0.8)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setMass(1)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(0.8).setMaterialId(wheelColMat)).addComponent(CarWheelJointComponent.create(ComponentKey.random()).setJoint("car", "wheel-front-left", Vec3.create(-1, 3.5, -1.6), Vec3.BACKWARD, Vec3.UP));
+    this.world.actors().add(car.getId(), wheelFLAct);
+    this.wheelFL = wheelFLAct.getComponent("CarWheelJointComponent");
+    let wheelBRAct = Actor.create("wheel-back-right").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(1, 3.5, 1.8)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(cylinderModelId).setTransform(Mat44.rotZ(FMath.PI_HALF).mul(Mat44.scale(0.8, 0.3, 0.8)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setMass(1)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(0.8).setMaterialId(wheelColMat)).addComponent(CarWheelJointComponent.create(ComponentKey.random()).setJoint("car", "wheel-back-right", Vec3.create(1, 3.5, 1.8), Vec3.BACKWARD, Vec3.UP));
+    this.world.actors().add(car.getId(), wheelBRAct);
+    this.wheelBR = wheelBRAct.getComponent("CarWheelJointComponent");
+    let wheelBLAct = Actor.create("wheel-back-left").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(Vec3.create(-1, 3.5, 1.8))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(cylinderModelId).setTransform(Mat44.rotZ(FMath.PI_HALF).mul(Mat44.scale(0.8, 0.3, 0.8)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setMass(1)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(0.8).setMaterialId(wheelColMat)).addComponent(CarWheelJointComponent.create(ComponentKey.random()).setJoint("car", "wheel-back-left", Vec3.create(-1, 3.5, 1.8), Vec3.BACKWARD, Vec3.UP));
+    this.world.actors().add(car.getId(), wheelBLAct);
+    this.wheelBL = wheelBLAct.getComponent("CarWheelJointComponent");
+    this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
+    this.controller = CarController.create(drivers);
+    this.ui.addComponent(this.controller);
+    let addSphereAct = (evtSource) => {
+      let r = Randoms.nextFloat(1, 1.5);
+      let m = Randoms.nextFloat(1, 2);
+      let sphere = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create(ComponentKey.REMOVE_ON_OUTSPACE)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(m).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(objectColMatId)).addComponent(BreakableSphereBehavior.create(ComponentKey.random()).setSphereModelId(sphereModelId));
+      this.world.actors().add(sphere);
+    };
+    this.ui.addComponent(Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(10, 10, 120, 30)).setText("Sphere").addOnClickAction(addSphereAct));
+    this.ui.addComponent(ToggleButton.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(10, 50, 120, 30)).setText("Camera").toggleOn().addOnToggleAction((b) => {
+  let btn = b;
+  let cc = this.world.actors().get(ActorId.of("camera")).getComponent("CameraControllerComponent");
+  cc.setMode(btn.isToggledOn()?CameraControlMode.THIRD_PERSON:CameraControlMode.ISOMETRIC);
+}));
+    this.ui.addComponent(Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction((evt) => {
+  this.paused = true;
+}));
+    this.ui.subscribe(drivers);
+    let dlist = InputCacheDisplayListener.create(this.inputs);
+    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
+    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
+  }
+
+  pause(drivers) {
+    this.paused = true;
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+    this.world.destroy(drivers);
+  }
+
+  getRandomVelocity() {
+    let vx = Randoms.nextFloat(0, 2)-1;
+    let vy = Randoms.nextFloat(0, 2)-1;
+    let vz = Randoms.nextFloat(0, 2)-1;
+    return Vec3.create(vx, vy, vz);
+  }
+
+}
+classRegistry.RigidBodyApp08 = RigidBodyApp08;
 
 
 // -------------------------------------
@@ -33615,7 +34930,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = new BasicApp04();
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new RigidBodyApp08());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

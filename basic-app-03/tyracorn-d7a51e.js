@@ -2124,8 +2124,29 @@ class WebPlatformDriver {
  * Data block definition.
  */
 class DataBlock {
+    /**
+     * Empty data block.
+     * 
+     * @type DataBlock
+     */
+    static EMPTY = DataBlock.fromBase64String("");
+    /**
+     * Data buffer.
+     * 
+     * @type ArrayBuffer
+     */
     data;
+    /**
+     * View of the data.
+     * 
+     * @type DataView
+     */
     view;
+    /**
+     * Constructor.
+     * 
+     * @returns {DataBlock}
+     */
     constructor() {
     }
 
@@ -2553,6 +2574,41 @@ class DataBlockRandomWriter {
 
 }
 /**
+ * Utility class for working with data blocks.
+ *
+ * @author radek.hecl
+ */
+class DataBlocks {
+
+    /**
+     * Decodes this data block into a string.
+     * Expects that the full block is UTF-8 encoded string.
+     *
+     * @param {DataBlock} block data block
+     * @return {String} decoded string
+     */
+    static decodeString(block) {
+        const strBytes = new Uint8Array(block.view.buffer, 0, block.size());
+        const textDecoder = new TextDecoder('utf-8');
+        const res = textDecoder.decode(strBytes);
+        return res;
+    }
+
+    /**
+     * Encodes the data block from a given string.
+     * String is encoded in UTF-8 character ser.
+     *
+     * @param {String} str string
+     * @return {DataBlock} data block
+     */
+    static  encodeString(str) {
+        const encoder = new TextEncoder("utf-8");
+        const bytes = encoder.encode(str);
+        return DataBlock.fromByteArray(bytes.buffer);
+    }
+
+}
+/**
  * Data block definition.
  */
 class WebLocalDataStorage {
@@ -2676,11 +2732,228 @@ class WebLocalDataStorage {
      * Creates new instance.
      * 
      * @param {String} prefix prefix used for local storage
-     * @returns {WebLocalDataStorage.create.res}
+     * @returns {WebLocalDataStorage}
      */
     static create(prefix) {
         const res = new WebLocalDataStorage();
         res.prefix = prefix;
+        res.guardInvaritants();
+        return res;
+    }
+
+}
+/**
+ * Promise for http requests in web.
+ */
+class WebHttpPromise {
+
+    /**
+     * @type {HttpResponse|null}
+     */
+    response = null;
+
+    /**
+     * @type {Array<{type: string, handler: Function}>}
+     */
+    handlers = [];
+
+    /**
+     * Creates new instance.
+     * 
+     * @returns {WebHttpPromise}
+     */
+    constructor() {
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvaritants() {
+    }
+
+    /**
+     * Resolves this promise with response.
+     * This is an internal API used by WebHttpClient.
+     *
+     * @param {HttpResponse} response response
+     */
+    resolve(response) {
+        if (this.response !== null && this.response !== undefined) {
+            throw new Error("promise was already resolved");
+        }
+        this.response = response;
+        let success = response.isSuccess();
+        for (let wrp of this.handlers) {
+            if (success && wrp.type === "SUCCESS") {
+                response = wrp.handler(response);
+                success = response.isSuccess();
+            } else if (!success && wrp.type === "ERROR") {
+                response = wrp.handler(response);
+                success = response.isSuccess();
+            }
+        }
+        this.response = response;
+    }
+
+    /**
+     * Function executed on success.
+     *
+     * @param {Function} handler handler that transforms the response (HttpResponse->HttpResponse)
+     * @return {HttpPromise} promise for chaining
+     */
+    onSuccess(handler) {
+        if (handler === null || handler === undefined) {
+            throw new Error("handler cannot be null");
+        }
+        this.handlers.push({type: "SUCCESS", handler: handler});
+        if (this.response !== null && this.response !== undefined && this.response.isSuccess()) {
+            this.response = handler(this.response);
+        }
+        return this;
+    }
+
+    /**
+     * Function executed on error.
+     *
+     * @param {Function} handler handler that transforms the response (HttpResponse->HttpResponse)
+     * @return {HttpPromise} promise for chaining
+     */
+    onError(handler) {
+        if (handler === null || handler === undefined) {
+            throw new Error("handler cannot be null");
+        }
+        this.handlers.push({type: "ERROR", handler: handler});
+        if (this.response !== null && this.response !== undefined && this.response.isError()) {
+            this.response = handler(this.response);
+        }
+        return this;
+    }
+
+    /**
+     * Creates new instance.
+     * 
+     * @returns {WebHttpPromise}
+     */
+    static create() {
+        const res = new WebHttpPromise();
+        res.guardInvaritants();
+        return res;
+    }
+
+}
+/**
+ * Http client implementation in web.
+ */
+class WebHttpClient {
+
+    prefix
+    /**
+     * Creates new instance.
+     * 
+     * @returns {WebHttpClient}
+     */
+    constructor() {
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvaritants() {
+        if (this.prefix === null || this.prefix === undefined) {
+            throw new Error("prefix cannot be null");
+        }
+    }
+
+    /**
+     * Sends the request.
+     * 
+     * @param {HttpRequest} request request
+     * @return {HttpPromise} promise 
+     */
+    request(request) {
+        const promise = WebHttpPromise.create();
+        const url = this.buildUrl(request.getUrl());
+        const method = request.getMethod().name();
+
+        const headerMap = {};
+        const headersList = request.getHeaders();
+        for (let i = 0; i < headersList.size(); ++i) {
+            const h = headersList.get(i);
+            headerMap[h.getName()] = h.getValue();
+        }
+
+        const options = {
+            method: method,
+            headers: headerMap
+        };
+        const bodyBlock = request.getBody();
+        if (bodyBlock.size() > 0) {
+            options.body = bodyBlock.data;
+        }
+
+        fetch(url, options).
+                then(async (resp) => {
+                    // response code
+                    let code = resp.status;
+                    if (code === 0 || code === null || code === undefined) {
+                        code = 500;
+                    }
+                    // headers
+                    const respHeaders = new ArrayList();
+                    resp.headers.forEach((value, key) => {
+                        respHeaders.add(HttpHeader.create(key, value));
+                    });
+                    // response body
+                    let respBody = DataBlock.EMPTY;
+                    if (resp.body !== null && code !== 204 && code !== 205) {
+                        const respArray = await resp.arrayBuffer();
+                        respBody = DataBlock.fromByteArray(respArray);
+                    }
+
+                    promise.resolve(HttpResponse.create(code, respHeaders, respBody));
+                }).
+                catch((err) => {
+                    // this is network or CORS error => nothing is produced => mapping to 500
+                    promise.resolve(HttpResponse.create(500, Collections.emptyList(), DataBlock.EMPTY));
+                });
+
+        return promise;
+    }
+
+    /**
+     * Builds absolute URL from request URL.
+     *
+     * @param {String} url url from HttpRequest
+     * @returns {String} absolute/normalized url
+     */
+    buildUrl(url) {
+        if (url === null || url === undefined) {
+            throw new Error("url cannot be null");
+        }
+        // Absolute (http/https) or protocol-relative URL.
+        if (typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("//"))) {
+            return url;
+        }
+        // Relative URL: prefix with basePath/prefix.
+        let p = this.prefix;
+        if (p.endsWith("/") && url.startsWith("/")) {
+            return p.substring(0, p.length - 1) + url;
+        }
+        if (!p.endsWith("/") && !url.startsWith("/")) {
+            return p + "/" + url;
+        }
+        return p + url;
+    }
+
+    /**
+     * Creates new instance.
+     * 
+     * @returns {WebHttpClient}
+     */
+    static create() {
+        const res = new WebHttpClient();
+        // basePath is a global varaible in the template
+        res.prefix = (typeof basePath !== "undefined" && basePath !== null && basePath !== undefined) ? basePath : "";
         res.guardInvaritants();
         return res;
     }
@@ -7229,6 +7502,7 @@ class DriverProvider {
     touchDriver = WebTouchDriver.create();
     keyboardDriver = WebKeyboardDriver.create();
     localDataStorage = WebLocalDataStorage.create(localStoragePrefix);
+    httpClient = WebHttpClient.create();
 
     constructor() {
     }
@@ -7260,6 +7534,8 @@ class DriverProvider {
             return true;
         } else if (driver === "LocalDataStorage") {
             return true;
+        } else if (driver === "HttpClient") {
+            return true;
         }
         return false;
     }
@@ -7289,6 +7565,8 @@ class DriverProvider {
             return this.plaformDriver;
         } else if (driver === "LocalDataStorage") {
             return this.localDataStorage;
+        } else if (driver === "HttpClient") {
+            return this.httpClient;
         }
         throw "driver doesn't exists:" + driver;
         return null;
@@ -10331,6 +10609,237 @@ class LocalDataConfigProperties {
 
 }
 classRegistry.LocalDataConfigProperties = LocalDataConfigProperties;
+const createHttpMethod = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const HttpMethod = Object.freeze({
+  GET: createHttpMethod("GET"),
+  PUT: createHttpMethod("PUT"),
+  POST: createHttpMethod("POST"),
+  DELETE: createHttpMethod("DELETE"),
+  PATCH: createHttpMethod("PATCH"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class HttpHeader {
+  name;
+  value;
+  constructor() {
+  }
+
+  getClass() {
+    return "HttpHeader";
+  }
+
+  guardInvariants() {
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  getValue() {
+    return this.value;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(name, value) {
+    let res = new HttpHeader();
+    res.name = name;
+    res.value = value;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.HttpHeader = HttpHeader;
+class HttpRequest {
+  method;
+  url;
+  headers;
+  body;
+  constructor() {
+  }
+
+  getClass() {
+    return "HttpRequest";
+  }
+
+  guardInvariants() {
+  }
+
+  getMethod() {
+    return this.method;
+  }
+
+  getUrl() {
+    return this.url;
+  }
+
+  getHeaders() {
+    return this.headers;
+  }
+
+  plusHeader(header) {
+    let res = new HttpRequest();
+    res.method = this.method;
+    res.url = this.url;
+    res.headers = Dut.immutableListPlusItem(this.headers, header);
+    res.body = this.body;
+    res.guardInvariants();
+    return res;
+  }
+
+  getBody() {
+    return this.body;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(method, url, headers, body) {
+    let res = new HttpRequest();
+    res.method = method;
+    res.url = url;
+    res.headers = Dut.copyImmutableList(headers);
+    res.body = body;
+    res.guardInvariants();
+    return res;
+  }
+
+  static get(url) {
+    let res = new HttpRequest();
+    res.method = HttpMethod.GET;
+    res.url = url;
+    res.headers = Collections.emptyList();
+    res.body = DataBlock.EMPTY;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.HttpRequest = HttpRequest;
+class HttpResponse {
+  code;
+  headers;
+  body;
+  constructor() {
+  }
+
+  getClass() {
+    return "HttpResponse";
+  }
+
+  guardInvariants() {
+  }
+
+  getCode() {
+    return this.code;
+  }
+
+  isSuccess() {
+    return this.code>=200&&this.code<400;
+  }
+
+  isError() {
+    return this.code>=400&&this.code<600;
+  }
+
+  getHeaders() {
+    return this.headers;
+  }
+
+  getBodySize() {
+    return this.body.size();
+  }
+
+  getBody() {
+    return this.body;
+  }
+
+  getBodyAsString() {
+    return DataBlocks.decodeString(this.body);
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(code, headers, body) {
+    let res = new HttpResponse();
+    res.code = code;
+    res.headers = Dut.copyImmutableList(headers);
+    res.body = body;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.HttpResponse = HttpResponse;
 class Rgb {
   static RED = Rgb.create(1, 0, 0);
   static GREEN = Rgb.create(0, 1, 0);

@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-05";
-const assetsDirName = "/null";
+const basePath = "/tyracorn-web-examples/ui-test-app";
+const assetsDirName = "/assets-16a053";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -2124,8 +2124,29 @@ class WebPlatformDriver {
  * Data block definition.
  */
 class DataBlock {
+    /**
+     * Empty data block.
+     * 
+     * @type DataBlock
+     */
+    static EMPTY = DataBlock.fromBase64String("");
+    /**
+     * Data buffer.
+     * 
+     * @type ArrayBuffer
+     */
     data;
+    /**
+     * View of the data.
+     * 
+     * @type DataView
+     */
     view;
+    /**
+     * Constructor.
+     * 
+     * @returns {DataBlock}
+     */
     constructor() {
     }
 
@@ -2553,6 +2574,41 @@ class DataBlockRandomWriter {
 
 }
 /**
+ * Utility class for working with data blocks.
+ *
+ * @author radek.hecl
+ */
+class DataBlocks {
+
+    /**
+     * Decodes this data block into a string.
+     * Expects that the full block is UTF-8 encoded string.
+     *
+     * @param {DataBlock} block data block
+     * @return {String} decoded string
+     */
+    static decodeString(block) {
+        const strBytes = new Uint8Array(block.view.buffer, 0, block.size());
+        const textDecoder = new TextDecoder('utf-8');
+        const res = textDecoder.decode(strBytes);
+        return res;
+    }
+
+    /**
+     * Encodes the data block from a given string.
+     * String is encoded in UTF-8 character ser.
+     *
+     * @param {String} str string
+     * @return {DataBlock} data block
+     */
+    static  encodeString(str) {
+        const encoder = new TextEncoder("utf-8");
+        const bytes = encoder.encode(str);
+        return DataBlock.fromByteArray(bytes.buffer);
+    }
+
+}
+/**
  * Data block definition.
  */
 class WebLocalDataStorage {
@@ -2676,11 +2732,228 @@ class WebLocalDataStorage {
      * Creates new instance.
      * 
      * @param {String} prefix prefix used for local storage
-     * @returns {WebLocalDataStorage.create.res}
+     * @returns {WebLocalDataStorage}
      */
     static create(prefix) {
         const res = new WebLocalDataStorage();
         res.prefix = prefix;
+        res.guardInvaritants();
+        return res;
+    }
+
+}
+/**
+ * Promise for http requests in web.
+ */
+class WebHttpPromise {
+
+    /**
+     * @type {HttpResponse|null}
+     */
+    response = null;
+
+    /**
+     * @type {Array<{type: string, handler: Function}>}
+     */
+    handlers = [];
+
+    /**
+     * Creates new instance.
+     * 
+     * @returns {WebHttpPromise}
+     */
+    constructor() {
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvaritants() {
+    }
+
+    /**
+     * Resolves this promise with response.
+     * This is an internal API used by WebHttpClient.
+     *
+     * @param {HttpResponse} response response
+     */
+    resolve(response) {
+        if (this.response !== null && this.response !== undefined) {
+            throw new Error("promise was already resolved");
+        }
+        this.response = response;
+        let success = response.isSuccess();
+        for (let wrp of this.handlers) {
+            if (success && wrp.type === "SUCCESS") {
+                response = wrp.handler(response);
+                success = response.isSuccess();
+            } else if (!success && wrp.type === "ERROR") {
+                response = wrp.handler(response);
+                success = response.isSuccess();
+            }
+        }
+        this.response = response;
+    }
+
+    /**
+     * Function executed on success.
+     *
+     * @param {Function} handler handler that transforms the response (HttpResponse->HttpResponse)
+     * @return {HttpPromise} promise for chaining
+     */
+    onSuccess(handler) {
+        if (handler === null || handler === undefined) {
+            throw new Error("handler cannot be null");
+        }
+        this.handlers.push({type: "SUCCESS", handler: handler});
+        if (this.response !== null && this.response !== undefined && this.response.isSuccess()) {
+            this.response = handler(this.response);
+        }
+        return this;
+    }
+
+    /**
+     * Function executed on error.
+     *
+     * @param {Function} handler handler that transforms the response (HttpResponse->HttpResponse)
+     * @return {HttpPromise} promise for chaining
+     */
+    onError(handler) {
+        if (handler === null || handler === undefined) {
+            throw new Error("handler cannot be null");
+        }
+        this.handlers.push({type: "ERROR", handler: handler});
+        if (this.response !== null && this.response !== undefined && this.response.isError()) {
+            this.response = handler(this.response);
+        }
+        return this;
+    }
+
+    /**
+     * Creates new instance.
+     * 
+     * @returns {WebHttpPromise}
+     */
+    static create() {
+        const res = new WebHttpPromise();
+        res.guardInvaritants();
+        return res;
+    }
+
+}
+/**
+ * Http client implementation in web.
+ */
+class WebHttpClient {
+
+    prefix
+    /**
+     * Creates new instance.
+     * 
+     * @returns {WebHttpClient}
+     */
+    constructor() {
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvaritants() {
+        if (this.prefix === null || this.prefix === undefined) {
+            throw new Error("prefix cannot be null");
+        }
+    }
+
+    /**
+     * Sends the request.
+     * 
+     * @param {HttpRequest} request request
+     * @return {HttpPromise} promise 
+     */
+    request(request) {
+        const promise = WebHttpPromise.create();
+        const url = this.buildUrl(request.getUrl());
+        const method = request.getMethod().name();
+
+        const headerMap = {};
+        const headersList = request.getHeaders();
+        for (let i = 0; i < headersList.size(); ++i) {
+            const h = headersList.get(i);
+            headerMap[h.getName()] = h.getValue();
+        }
+
+        const options = {
+            method: method,
+            headers: headerMap
+        };
+        const bodyBlock = request.getBody();
+        if (bodyBlock.size() > 0) {
+            options.body = bodyBlock.data;
+        }
+
+        fetch(url, options).
+                then(async (resp) => {
+                    // response code
+                    let code = resp.status;
+                    if (code === 0 || code === null || code === undefined) {
+                        code = 500;
+                    }
+                    // headers
+                    const respHeaders = new ArrayList();
+                    resp.headers.forEach((value, key) => {
+                        respHeaders.add(HttpHeader.create(key, value));
+                    });
+                    // response body
+                    let respBody = DataBlock.EMPTY;
+                    if (resp.body !== null && code !== 204 && code !== 205) {
+                        const respArray = await resp.arrayBuffer();
+                        respBody = DataBlock.fromByteArray(respArray);
+                    }
+
+                    promise.resolve(HttpResponse.create(code, respHeaders, respBody));
+                }).
+                catch((err) => {
+                    // this is network or CORS error => nothing is produced => mapping to 500
+                    promise.resolve(HttpResponse.create(500, Collections.emptyList(), DataBlock.EMPTY));
+                });
+
+        return promise;
+    }
+
+    /**
+     * Builds absolute URL from request URL.
+     *
+     * @param {String} url url from HttpRequest
+     * @returns {String} absolute/normalized url
+     */
+    buildUrl(url) {
+        if (url === null || url === undefined) {
+            throw new Error("url cannot be null");
+        }
+        // Absolute (http/https) or protocol-relative URL.
+        if (typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("//"))) {
+            return url;
+        }
+        // Relative URL: prefix with basePath/prefix.
+        let p = this.prefix;
+        if (p.endsWith("/") && url.startsWith("/")) {
+            return p.substring(0, p.length - 1) + url;
+        }
+        if (!p.endsWith("/") && !url.startsWith("/")) {
+            return p + "/" + url;
+        }
+        return p + url;
+    }
+
+    /**
+     * Creates new instance.
+     * 
+     * @returns {WebHttpClient}
+     */
+    static create() {
+        const res = new WebHttpClient();
+        // basePath is a global varaible in the template
+        res.prefix = (typeof basePath !== "undefined" && basePath !== null && basePath !== undefined) ? basePath : "";
         res.guardInvaritants();
         return res;
     }
@@ -7229,6 +7502,7 @@ class DriverProvider {
     touchDriver = WebTouchDriver.create();
     keyboardDriver = WebKeyboardDriver.create();
     localDataStorage = WebLocalDataStorage.create(localStoragePrefix);
+    httpClient = WebHttpClient.create();
 
     constructor() {
     }
@@ -7260,6 +7534,8 @@ class DriverProvider {
             return true;
         } else if (driver === "LocalDataStorage") {
             return true;
+        } else if (driver === "HttpClient") {
+            return true;
         }
         return false;
     }
@@ -7289,6 +7565,8 @@ class DriverProvider {
             return this.plaformDriver;
         } else if (driver === "LocalDataStorage") {
             return this.localDataStorage;
+        } else if (driver === "HttpClient") {
+            return this.httpClient;
         }
         throw "driver doesn't exists:" + driver;
         return null;
@@ -10331,6 +10609,237 @@ class LocalDataConfigProperties {
 
 }
 classRegistry.LocalDataConfigProperties = LocalDataConfigProperties;
+const createHttpMethod = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const HttpMethod = Object.freeze({
+  GET: createHttpMethod("GET"),
+  PUT: createHttpMethod("PUT"),
+  POST: createHttpMethod("POST"),
+  DELETE: createHttpMethod("DELETE"),
+  PATCH: createHttpMethod("PATCH"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class HttpHeader {
+  name;
+  value;
+  constructor() {
+  }
+
+  getClass() {
+    return "HttpHeader";
+  }
+
+  guardInvariants() {
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  getValue() {
+    return this.value;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(name, value) {
+    let res = new HttpHeader();
+    res.name = name;
+    res.value = value;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.HttpHeader = HttpHeader;
+class HttpRequest {
+  method;
+  url;
+  headers;
+  body;
+  constructor() {
+  }
+
+  getClass() {
+    return "HttpRequest";
+  }
+
+  guardInvariants() {
+  }
+
+  getMethod() {
+    return this.method;
+  }
+
+  getUrl() {
+    return this.url;
+  }
+
+  getHeaders() {
+    return this.headers;
+  }
+
+  plusHeader(header) {
+    let res = new HttpRequest();
+    res.method = this.method;
+    res.url = this.url;
+    res.headers = Dut.immutableListPlusItem(this.headers, header);
+    res.body = this.body;
+    res.guardInvariants();
+    return res;
+  }
+
+  getBody() {
+    return this.body;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(method, url, headers, body) {
+    let res = new HttpRequest();
+    res.method = method;
+    res.url = url;
+    res.headers = Dut.copyImmutableList(headers);
+    res.body = body;
+    res.guardInvariants();
+    return res;
+  }
+
+  static get(url) {
+    let res = new HttpRequest();
+    res.method = HttpMethod.GET;
+    res.url = url;
+    res.headers = Collections.emptyList();
+    res.body = DataBlock.EMPTY;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.HttpRequest = HttpRequest;
+class HttpResponse {
+  code;
+  headers;
+  body;
+  constructor() {
+  }
+
+  getClass() {
+    return "HttpResponse";
+  }
+
+  guardInvariants() {
+  }
+
+  getCode() {
+    return this.code;
+  }
+
+  isSuccess() {
+    return this.code>=200&&this.code<400;
+  }
+
+  isError() {
+    return this.code>=400&&this.code<600;
+  }
+
+  getHeaders() {
+    return this.headers;
+  }
+
+  getBodySize() {
+    return this.body.size();
+  }
+
+  getBody() {
+    return this.body;
+  }
+
+  getBodyAsString() {
+    return DataBlocks.decodeString(this.body);
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(code, headers, body) {
+    let res = new HttpResponse();
+    res.code = code;
+    res.headers = Dut.copyImmutableList(headers);
+    res.body = body;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.HttpResponse = HttpResponse;
 class Rgb {
   static RED = Rgb.create(1, 0, 0);
   static GREEN = Rgb.create(0, 1, 0);
@@ -33116,199 +33625,168 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class BoxMeshFactory {
-  constructor() {
-  }
-
-  getClass() {
-    return "BoxMeshFactory";
-  }
-
-  static rgbBox() {
-    if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&&arguments[3] instanceof Rgb) {
-      return BoxMeshFactory.rgbBox_4_Rgb_Rgb_Rgb_Rgb(arguments[0], arguments[1], arguments[2], arguments[3]);
-    }
-    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
-      return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static rgbBox_3_number_number_number(r, g, b) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static rgbaBox(c1, c2, c3, c4, a) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static fabricBox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.fabric(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelBox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelSkybox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, -1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22))).toMesh();
-    return res;
-  }
-
-  static modelBoxDeformed1() {
-    let en = Vec2.create(1, -1).normalize();
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelBoxDeformed2() {
-    let en = Vec2.create(-1, -1).normalize();
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.floatValues(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-}
-classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp05 extends TyracornApp {
-  box = MeshId.of("box");
-  whiteBox = MeshId.of("white-box");
-  shadow1 = ShadowBufferId.of("shadow1");
-  shadow2 = ShadowBufferId.of("shadow2");
-  shadow3 = ShadowBufferId.of("shadow3");
-  time = 0;
+class UiTestApp extends TyracornScreen {
+  ui;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp05";
+    return "UiTestApp";
   }
 
-  move(drivers, dt) {
-    let dirLightEnabled = true;
-    let spotLight1Enabled = true;
-    let spotLight2Enabled = true;
-    this.time = this.time+dt;
+  move(drivers, screenManager, dt) {
     let gDriver = drivers.getDriver("GraphicsDriver");
-    let aspect = gDriver.getScreenViewport().getAspect();
-    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
-    let m = 2*FMath.sin(this.time/3);
-    let cam = Camera.persp(fovy, aspect, 0.1, 1000.0).lookAt(Vec3.create(m, 2, 7), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0));
-    let dirLightColor = LightColor.create(Rgb.gray(0.4), Rgb.gray(0.6), Rgb.gray(0.6));
-    let dirLightDir = Vec3.create(0.2*FMath.cos(this.time/4), -1, 0.4).normalize();
-    let dirLightPos = Vec3.create(0, 5, 0);
-    let dirLightShadowMap = ShadowMap.createDir(this.shadow1, dirLightPos, dirLightDir, 10, 10);
-    let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
-    let spotLight1Pos = Vec3.create(0, 2, 0);
-    let spotLight1Dir = Vec3.create(0.4+m, -1, -0.2).normalize();
-    let spotLight1Color = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
-    let spotLight1Cone = LightCone.create(FMath.PI/9, FMath.PI/6);
-    let spotLight1ShadowMap = ShadowMap.createSpot(this.shadow2, spotLight1Pos, spotLight1Dir, spotLight1Cone.getOutTheta(), 1, 8);
-    let spotLight1 = Light.spotQuadratic(spotLight1Color, spotLight1Pos, spotLight1Dir, 8, spotLight1Cone, spotLight1ShadowMap);
-    let spotLight2Pos = Vec3.create(0, 2, 0);
-    let spotLight2Dir = Vec3.create(0.4, -1, -0.2+m/2).normalize();
-    let spotLight2Color = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
-    let spotLight2Cone = LightCone.create(FMath.PI/9, FMath.PI/6);
-    let spotLight2ShadowMap = ShadowMap.createSpot(this.shadow3, spotLight2Pos, spotLight2Dir, spotLight2Cone.getOutTheta(), 1, 8);
-    let spotLight2 = Light.spotQuadratic(spotLight2Color, spotLight2Pos, spotLight2Dir, 8, spotLight2Cone, spotLight2ShadowMap);
-    let smapRndr = null;
-    if (dirLightEnabled) {
-      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3));
-      smapRndr.end();
-    }
-    if (spotLight1Enabled) {
-      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight1));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3));
-      smapRndr.end();
-    }
-    if (spotLight2Enabled) {
-      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight2));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3));
-      smapRndr.end();
-    }
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let lights = new ArrayList();
-    if (dirLightEnabled) {
-      lights.add(dirLight);
-    }
-    if (spotLight1Enabled) {
-      lights.add(spotLight1);
-    }
-    if (spotLight2Enabled) {
-      lights.add(spotLight2);
-    }
-    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, lights));
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.WHITE_PLASTIC.withAmbient(Rgb.gray(0.3)));
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3), Material.GOLD);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3), Material.SILVER);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3), Material.COPPER);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0), Material.GOLD);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.SILVER);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0), Material.COPPER);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3), Material.GOLD);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3), Material.SILVER);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3), Material.WHITE_PLASTIC);
-    objRnderer.end();
-    let crndr = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
-    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight1.getPos()).mul(Mat44.scale(0.05)));
-    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight2.getPos()).mul(Mat44.scale(0.05)));
-    crndr.end();
+    this.ui.move(dt);
+    gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
   }
 
-  init(drivers, properties) {
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
-    assets.put(this.box, BoxMeshFactory.fabricBox());
-    assets.put(this.whiteBox, BoxMeshFactory.rgbBox(1, 1, 1));
-    assets.put(this.shadow1, ShadowBuffer.create(1024, 1024));
-    assets.put(this.shadow2, ShadowBuffer.create(1024, 1024));
-    assets.put(this.shadow3, ShadowBuffer.create(1024, 1024));
-    return Collections.emptyList();
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    return res;
   }
 
-  close(drivers) {
+  init(drivers, screenManager, properties) {
+    let platform = drivers.getPlatform();
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 28));
+    this.ui = StretchUi.create(UiSizeFncs.scale(0.7));
+    let tabs = TabContainer.create().setRegionFnc(UiRegionFncs.fullFromTop(50));
+    this.ui.addComponent(tabs);
+    let navbar = TabNavbar.create().setTabContainer(tabs).setRegionFnc(UiRegionFncs.fullTop(50)).addTextTabLink("Labels").addTextTabLink("Buttons").addTextTabLink("Selects").addTextTabLink("Inputs");
+    this.ui.addComponent(navbar);
+    let labelsTab = Tab.create();
+    tabs.addTab(labelsTab);
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Example of H1 text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.H2).setPosFnc(UiPosFncs.leftTop(10, 50)).setText("Example of H2 text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.H3).setPosFnc(UiPosFncs.leftTop(10, 90)).setText("Example of H3 text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.XL).setPosFnc(UiPosFncs.leftTop(10, 130)).setText("Example of extra-large regular text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.L).setPosFnc(UiPosFncs.leftTop(10, 160)).setText("Example of large regular text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 190)).setText("Example of regular text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.S).setPosFnc(UiPosFncs.leftTop(10, 220)).setText("Example of small regular text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.XS).setPosFnc(UiPosFncs.leftTop(10, 250)).setText("Example of extra-small regular text").setAlignment(TextAlignment.LEFT_TOP));
+    let butonsTab = Tab.create();
+    tabs.addTab(butonsTab);
+    butonsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Regular buttons").setAlignment(TextAlignment.LEFT_TOP));
+    butonsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 40)).setText("Press by Q, H, G or Ctrl + E").setAlignment(TextAlignment.LEFT_TOP));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 20, 20)).addTrait(UiComponentTrait.XS).setText("XS").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).addOnClickAction((evt) => {
+  platform.logInfo("XS button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(40, 70, 20, 20)).addTrait(UiComponentTrait.HAMBURGER).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("H")).addOnClickAction((evt) => {
+  platform.logInfo("Hamburger button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(70, 70, 20, 20)).addTrait(UiComponentTrait.CROSS).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("G")).addOnClickAction((evt) => {
+  platform.logInfo("Cross button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 100, 50, 20)).addTrait(UiComponentTrait.S).setText("Small").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).addOnClickAction((evt) => {
+  platform.logInfo("S button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 130, 100, 20)).setText("Medium").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).addOnClickAction((evt) => {
+  platform.logInfo("M button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 160, 150, 20)).addTrait(UiComponentTrait.L).setText("Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.control(), KeyCodeMatchers.upperCharacter("E"))).addOnClickAction((evt) => {
+  platform.logInfo("L button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 190, 200, 20)).addTrait(UiComponentTrait.XL).setText("Extra Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.control(), KeyCodeMatchers.upperCharacter("E"))).addOnClickAction((evt) => {
+  platform.logInfo("XL button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 220, 100, 20)).setText("Disabled").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).setDisabled(true).addOnClickAction((evt) => {
+  platform.logInfo("Disabled button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(120, 220, 20, 20)).addTrait(UiComponentTrait.HAMBURGER).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("H")).setDisabled(true).addOnClickAction((evt) => {
+  platform.logInfo("Disabled hamburger button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(150, 220, 20, 20)).addTrait(UiComponentTrait.CROSS).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("G")).setDisabled(true).addOnClickAction((evt) => {
+  platform.logInfo("Disabled cross button - click");
+}));
+    butonsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(230, 10)).setText("Toggle buttons").setAlignment(TextAlignment.LEFT_TOP));
+    butonsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(230, 40)).setText("Toggle by Z or Shift + X").setAlignment(TextAlignment.LEFT_TOP));
+    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 70, 20, 20)).addTrait(UiComponentTrait.XS).setText("XS").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Z")).addOnToggleAction((evt) => {
+  platform.logInfo("XS toggle button - toggled");
+}));
+    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 100, 50, 20)).addTrait(UiComponentTrait.S).setText("Small").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Z")).addOnToggleAction((evt) => {
+  platform.logInfo("S toggle button - toggled");
+}));
+    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 130, 100, 20)).setText("Medium").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Z")).addOnToggleAction((evt) => {
+  platform.logInfo("M toggle button - toggled");
+}));
+    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 160, 150, 20)).addTrait(UiComponentTrait.L).setText("Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.shift(), KeyCodeMatchers.upperCharacter("X"))).addOnToggleAction((evt) => {
+  platform.logInfo("L toggle button - toggled");
+}));
+    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 190, 200, 20)).addTrait(UiComponentTrait.XL).setText("Extra Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.shift(), KeyCodeMatchers.upperCharacter("X"))).addOnToggleAction((evt) => {
+  platform.logInfo("XL toggle button - toggled");
+}));
+    butonsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(450, 10)).setText("Joystick").setAlignment(TextAlignment.LEFT_TOP));
+    butonsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(450, 40)).setText("Control by arrows or WSAD").setAlignment(TextAlignment.LEFT_TOP));
+    butonsTab.addComponent(Joystick.create().setRegionFnc(UiRegionFncs.leftTop(450, 70, 80, 80)).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD()));
+    let selectsTab = Tab.create();
+    tabs.addTab(selectsTab);
+    selectsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Few items").setAlignment(TextAlignment.LEFT_TOP));
+    selectsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 40)).setText("No srolling").setAlignment(TextAlignment.LEFT_TOP));
+    selectsTab.addComponent(ListSelect.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 200, 100)).addOnSelectAction((src) => {
+  platform.logInfo("Small list: "+(src).getSelectedIndexes().toString());
+}).addItem(ListSelectItem.create("item1", "Item 1")).addItem(ListSelectItem.create("item2", "Item 2")).addItem(ListSelectItem.create("item3", "Item 3 - string that is long enough to be clipped")));
+    selectsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(230, 10)).setText("Scrolling").setAlignment(TextAlignment.LEFT_TOP));
+    selectsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(230, 40)).setText("Necessary to scroll").setAlignment(TextAlignment.LEFT_TOP));
+    selectsTab.addComponent(ListSelect.create().setRegionFnc(UiRegionFncs.leftTop(230, 70, 200, 100)).addOnSelectAction((src) => {
+  platform.logInfo("Big list: "+(src).getSelectedIndexes().toString());
+}).addItem(ListSelectItem.create("item1", "Item 1")).addItem(ListSelectItem.create("item2", "Item 2")).addItem(ListSelectItem.create("item3", "Item 3")).addItem(ListSelectItem.create("item4", "Item 4")).addItem(ListSelectItem.create("item5", "Item 5")).addItem(ListSelectItem.create("item6", "Item 6")).addItem(ListSelectItem.create("item7", "Item 7")).addItem(ListSelectItem.create("item8", "Item 8")).addItem(ListSelectItem.create("item9", "Item 9")).addItem(ListSelectItem.create("item10", "Item 10")).addItem(ListSelectItem.create("item11", "Item 11")).addItem(ListSelectItem.create("item12", "Item 12")).addItem(ListSelectItem.create("item13", "Item 13")).addItem(ListSelectItem.create("item14", "Item 14")).addItem(ListSelectItem.create("item15", "Item 15")).addItem(ListSelectItem.create("item16", "Item 16")).addItem(ListSelectItem.create("item17", "Item 17")).addItem(ListSelectItem.create("item18", "Item 18")).addItem(ListSelectItem.create("item19", "Item 19")).addItem(ListSelectItem.create("item20", "Item 20")).addItem(ListSelectItem.create("item21", "Item 21")).addItem(ListSelectItem.create("item22", "Item 22")).addItem(ListSelectItem.create("item23", "Item 23")).addItem(ListSelectItem.create("item24", "Item 24")).addItem(ListSelectItem.create("item25", "Item 25")).addItem(ListSelectItem.create("item26", "Item 26")).addItem(ListSelectItem.create("item27", "Item 27")).addItem(ListSelectItem.create("item28", "Item 28")).addItem(ListSelectItem.create("item29", "Item 29")).addItem(ListSelectItem.create("item30", "Item 30")));
+    selectsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(450, 10)).setText("Dropdown").setAlignment(TextAlignment.LEFT_TOP));
+    selectsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(450, 40)).setText("Select item from dropdown").setAlignment(TextAlignment.LEFT_TOP));
+    selectsTab.addComponent(Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(450, 70, 100, 30)).setLabelText("Small tiems").setSelected(DropdownItem.create("", "")).addItem(DropdownItem.create("item1", "Item 1")).addItem(DropdownItem.create("item2", "Item 2")).addItem(DropdownItem.create("item3", "Item 3 - string that is long enough to be clipped")).addOnChangeAction((src) => {
+  platform.logInfo("Dropdown changed: "+(src).getSelected().getText());
+}));
+    selectsTab.addComponent(Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(450, 110, 100, 30)).setLabelText("Many tiems").setSelected(DropdownItem.create("", "")).addItem(DropdownItem.create("item1", "Item 1")).addItem(DropdownItem.create("item2", "Item 2")).addItem(DropdownItem.create("item3", "Item 3")).addItem(DropdownItem.create("item4", "Item 4")).addItem(DropdownItem.create("item5", "Item 5")).addItem(DropdownItem.create("item6", "Item 6")).addItem(DropdownItem.create("item7", "Item 7")).addItem(DropdownItem.create("item8", "Item 8")).addItem(DropdownItem.create("item9", "Item 9")).addItem(DropdownItem.create("item10", "Item 10")).addItem(DropdownItem.create("item11", "Item 11")).addItem(DropdownItem.create("item12", "Item 12")).addItem(DropdownItem.create("item13", "Item 13")).addItem(DropdownItem.create("item14", "Item 14")).addItem(DropdownItem.create("item15", "Item 15")).addItem(DropdownItem.create("item16", "Item 16")).addItem(DropdownItem.create("item17", "Item 17")).addItem(DropdownItem.create("item18", "Item 18")).addItem(DropdownItem.create("item19", "Item 19")).addItem(DropdownItem.create("item20", "Item 20")).addOnChangeAction((src) => {
+  platform.logInfo("Dropdown changed: "+(src).getSelected().getText());
+}));
+    selectsTab.addComponent(Panel.create().setRegionFnc(UiRegionFncs.leftTop(450, 150, 120, 50)).addComponent(Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(10, 10, 100, 30)).setLabelText("Dropdown in panel").setSelected(DropdownItem.create("", "")).addItem(DropdownItem.create("item1", "Item 1")).addItem(DropdownItem.create("item2", "Item 2")).addItem(DropdownItem.create("item3", "Item 3")).addItem(DropdownItem.create("item4", "Item 4")).addItem(DropdownItem.create("item5", "Item 5")).addItem(DropdownItem.create("item6", "Item 6")).addItem(DropdownItem.create("item7", "Item 7")).addItem(DropdownItem.create("item8", "Item 8")).addItem(DropdownItem.create("item9", "Item 9")).addItem(DropdownItem.create("item10", "Item 10")).addItem(DropdownItem.create("item11", "Item 11")).addItem(DropdownItem.create("item12", "Item 12")).addItem(DropdownItem.create("item13", "Item 13")).addItem(DropdownItem.create("item14", "Item 14")).addItem(DropdownItem.create("item15", "Item 15")).addItem(DropdownItem.create("item16", "Item 16")).addItem(DropdownItem.create("item17", "Item 17")).addItem(DropdownItem.create("item18", "Item 18")).addItem(DropdownItem.create("item19", "Item 19")).addItem(DropdownItem.create("item20", "Item 20")).addOnChangeAction((src) => {
+  platform.logInfo("Penel dropdown changed: "+(src).getSelected().getText());
+})));
+    let inputsTab = Tab.create();
+    tabs.addTab(inputsTab);
+    inputsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Text fields").setAlignment(TextAlignment.LEFT_TOP));
+    inputsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 40)).setText("Input text, integers, and floats").setAlignment(TextAlignment.LEFT_TOP));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 100, 30)).setLabelText("Text").setValue("Hello").setConstraint(TextFieldFreeConstraint.create(10)).addOnChangeAction((src) => {
+  platform.logInfo("Text field changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 110, 100, 30)).setLabelText("Integer").setValue("0").setConstraint(TextFieldIntegerConstraint.create(true, 8)).addOnChangeAction((src) => {
+  platform.logInfo("Integer field changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 150, 100, 30)).setLabelText("Not negative Integer").setValue("0").setConstraint(TextFieldIntegerConstraint.create(false, 8)).addOnChangeAction((src) => {
+  platform.logInfo("Not negative Integer field changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 190, 100, 30)).setLabelText("Float").setValue("0.0").setConstraint(TextFieldFloatConstraint.create(true, 8)).addOnChangeAction((src) => {
+  platform.logInfo("Float field changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 230, 100, 30)).setLabelText("Not negative Float").setValue("0.0").setConstraint(TextFieldFloatConstraint.create(false, 8)).addOnChangeAction((src) => {
+  platform.logInfo("Not negative Float field changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(120, 70, 100, 30)).setLabelText("Read Only").setValue("Can't change").setReadOnly(true));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(120, 110, 100, 30)).setLabelText("Live Change").setValue("").setLiveChange(true).addOnChangeAction((src) => {
+  platform.logInfo("Live Change field changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(230, 10)).setText("Sliders").setAlignment(TextAlignment.LEFT_TOP));
+    inputsTab.addComponent(Slider.create().setRegionFnc(UiRegionFncs.leftTop(230, 70, 200, 30)).setMin(0).setMax(100).setStep(1).setValue(20).addOnChangeAction((src) => {
+  platform.logInfo("Slider 1 changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(Slider.create().setRegionFnc(UiRegionFncs.leftTop(230, 110, 200, 30)).setMin(-1).setMax(1).setStep(0.25).setValue(0).addOnChangeAction((src) => {
+  platform.logInfo("Slider 2 changed: "+(src).getValue());
+}));
+    this.ui.subscribe(drivers);
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
   }
 
 }
-classRegistry.BasicApp05 = BasicApp05;
+classRegistry.UiTestApp = UiTestApp;
 
 
 // -------------------------------------
@@ -33691,7 +34169,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = new BasicApp05();
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new UiTestApp());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
