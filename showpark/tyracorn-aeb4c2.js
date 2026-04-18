@@ -38030,7 +38030,7 @@ class Platformer2CharacterController extends UiComponent {
     let h6 = s.height()*0.06;
     let h10 = s.height()*0.1;
     let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
-    return Rect2.create(s.width()-2*h2-2*size, s.height()-h6-h2-2.5*size, size, size);
+    return Rect2.create(s.width()-2*h2-2*size, s.height()-h5-h2-2*size, size, size);
   }
 }).setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("U"));
     res.actionButton2 = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc((s) => {
@@ -38048,7 +38048,7 @@ class Platformer2CharacterController extends UiComponent {
     let h6 = s.height()*0.06;
     let h10 = s.height()*0.1;
     let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
-    return Rect2.create(s.width()-h2-size, s.height()-h6-h2-2.5*size, size, size);
+    return Rect2.create(s.width()-h2-size, s.height()-h5-h2-2*size, size, size);
   }
 }).setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("I"));
     res.actionButton3 = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc((s) => {
@@ -38066,7 +38066,7 @@ class Platformer2CharacterController extends UiComponent {
     let h6 = s.height()*0.06;
     let h10 = s.height()*0.1;
     let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
-    return Rect2.create(s.width()-2*h2-2*size, s.height()-h6-1.5*size, size, size);
+    return Rect2.create(s.width()-2*h2-2*size, s.height()-h5-size, size, size);
   }
 }).setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("J"));
     res.actionButton4 = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc((s) => {
@@ -38083,7 +38083,7 @@ class Platformer2CharacterController extends UiComponent {
     let h6 = s.height()*0.06;
     let h10 = s.height()*0.1;
     let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
-    return Rect2.create(s.width()-h2-size, s.height()-h6-1.5*size, size, size);
+    return Rect2.create(s.width()-h2-size, s.height()-h5-size, size, size);
   }
 }).setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("K"));
     res.guardInvariants();
