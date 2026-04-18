@@ -1,10 +1,10 @@
 
-const VERSION = "fff292"; // version - need to change on every modificaiton
+const VERSION = "7bdd2f"; // version - need to change on every modificaiton
 const BASE_PATH = "/tyracorn-web-examples/pwa-test-app";
-const CACHE_NAME = "tyracorn.pwa-test-app-fff292";
+const CACHE_NAME = "tyracorn.pwa-test-app-7bdd2f";
 
 // The static resources that the app needs to function
-const APP_STATIC_RESOURCES = ["/tyracorn-web-examples/pwa-test-app/","/tyracorn-web-examples/pwa-test-app/index.html","/tyracorn-web-examples/pwa-test-app/manifest.json","/tyracorn-web-examples/pwa-test-app/tyracorn-68b6ba.js","/tyracorn-web-examples/pwa-test-app/style-7fa826.css","/tyracorn-web-examples/pwa-test-app/tyracorn-256.png","/tyracorn-web-examples/pwa-test-app/tyracorn-512.png","/tyracorn-web-examples/pwa-test-app/tyracorn-540x960.png","/tyracorn-web-examples/pwa-test-app/tyracorn-960x540.jpg","/tyracorn-web-examples/pwa-test-app/assets-24a46f/content.json","/tyracorn-web-examples/pwa-test-app/assets-24a46f/packages/content.json","/tyracorn-web-examples/pwa-test-app/assets-24a46f/packages/images.tap","/tyracorn-web-examples/pwa-test-app/assets-24a46f/packages/ui/buttons-controls.tap","/tyracorn-web-examples/pwa-test-app/assets-24a46f/packages/ui/buttons.tap","/tyracorn-web-examples/pwa-test-app/assets-24a46f/packages/ui/content.json","/tyracorn-web-examples/pwa-test-app/assets-24a46f/packages/ui/controls.tap","/tyracorn-web-examples/pwa-test-app/assets-24a46f/packages/ui/fonts.tap"];
+const APP_STATIC_RESOURCES = ["/tyracorn-web-examples/pwa-test-app/","/tyracorn-web-examples/pwa-test-app/index.html","/tyracorn-web-examples/pwa-test-app/manifest.json","/tyracorn-web-examples/pwa-test-app/tyracorn-803cb3.js","/tyracorn-web-examples/pwa-test-app/style-7fa826.css","/tyracorn-web-examples/pwa-test-app/tyracorn-256.png","/tyracorn-web-examples/pwa-test-app/tyracorn-512.png","/tyracorn-web-examples/pwa-test-app/tyracorn-540x960.png","/tyracorn-web-examples/pwa-test-app/tyracorn-960x540.jpg","/tyracorn-web-examples/pwa-test-app/assets-fba731/content.json","/tyracorn-web-examples/pwa-test-app/assets-fba731/packages/content.json","/tyracorn-web-examples/pwa-test-app/assets-fba731/packages/images.tap","/tyracorn-web-examples/pwa-test-app/assets-fba731/packages/ui/buttons-controls.tap","/tyracorn-web-examples/pwa-test-app/assets-fba731/packages/ui/buttons.tap","/tyracorn-web-examples/pwa-test-app/assets-fba731/packages/ui/content.json","/tyracorn-web-examples/pwa-test-app/assets-fba731/packages/ui/controls.tap","/tyracorn-web-examples/pwa-test-app/assets-fba731/packages/ui/fonts.tap"];
 
 self.addEventListener("install", event => {
     // Kick out old service worker
