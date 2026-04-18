@@ -38160,6 +38160,7 @@ class CharacterAttributes {
   airForce = 15;
   turnSpeed = 4*FMath.PI;
   jumpUpImpulse = 100;
+  landEnabled = false;
   constructor() {
   }
 
@@ -38196,6 +38197,10 @@ class CharacterAttributes {
 
   getJumpUpImpulse() {
     return this.jumpUpImpulse;
+  }
+
+  isLandEnabled() {
+    return this.landEnabled;
   }
 
   static create() {
@@ -38401,7 +38406,7 @@ class Platformer2PlayerBehavior extends Behavior {
   }
 
   move(dt, inputs) {
-    let input = PlayerInput.create(dt, true, inputs.getVec2("moveDir", Vec2.ZERO));
+    let input = PlayerInput.create(dt, true, inputs.getVec2("moveDir", Vec2.ZERO), inputs.getBoolean("action2", false), inputs.getBoolean("action3", false), inputs.getBoolean("action1", false), inputs.getBoolean("action4", false));
     let turnable = this.stateFnc(input);
     if (turnable) {
       this.moveTurn(input);
@@ -38428,17 +38433,29 @@ class Platformer2PlayerBehavior extends Behavior {
     if (!this.grounded.isGrounded()) {
       this.stateFnc = this.stateJumpFly.bind(this);
     }
-    else if (input.getMoveDir().y()>0.5) {
+    else if (this.isJumpDirection(input)) {
       this.rigidBody.applyImpulse(Vec3.ZERO, Vec3.UP.scale(this.attrs.getJumpUpImpulse()));
       this.stateFnc = this.stateJumpStart.bind(this);
     }
-    else if (input.getMoveDir().x()!=0) {
-      this.stateFnc = this.stateJog.bind(this);
+    else if (this.isRunDirection(input)) {
+      this.stateFnc = this.stateRun.bind(this);
+    }
+    else if (input.isPunch()) {
+      this.stateFnc = Randoms.nextFloat(0, 1)<0.7?this.stateFightJab.bind(this):this.stateFightCross.bind(this);
+    }
+    else if (input.isKick()) {
+      this.stateFnc = this.stateFightKick.bind(this);
+    }
+    else if (input.isSpecial()) {
+      this.stateFnc = this.stateFightSpecial.bind(this);
+    }
+    else if (input.isBlock()) {
+      this.stateFnc = this.stateFightBlock.bind(this);
     }
     return true;
   }
 
-  stateJog(input) {
+  stateRun(input) {
     this.animationPlayer.play(MeshAnimationKey.of("jog-forward"));
     if (!input.isControllable()) {
       return false;
@@ -38446,12 +38463,24 @@ class Platformer2PlayerBehavior extends Behavior {
     if (!this.grounded.isGrounded()) {
       this.stateFnc = this.stateJumpFly.bind(this);
     }
-    else if (input.getMoveDir().x()==0) {
+    else if (!this.isRunDirection(input)) {
       this.stateFnc = this.stateIdle.bind(this);
     }
-    else if (input.getMoveDir().y()>0.5) {
+    else if (this.isJumpDirection(input)) {
       this.rigidBody.applyImpulse(Vec3.ZERO, Vec3.UP.scale(this.attrs.getJumpUpImpulse()));
       this.stateFnc = this.stateJumpFly.bind(this);
+    }
+    else if (input.isPunch()) {
+      this.stateFnc = Randoms.nextFloat(0, 1)<0.7?this.stateFightJab.bind(this):this.stateFightCross.bind(this);
+    }
+    else if (input.isKick()) {
+      this.stateFnc = this.stateFightKick.bind(this);
+    }
+    else if (input.isSpecial()) {
+      this.stateFnc = this.stateFightSpecial.bind(this);
+    }
+    else if (input.isBlock()) {
+      this.stateFnc = this.stateFightBlock.bind(this);
     }
     else {
       let force = this.grounded.isGrounded()?this.attrs.getRunForce():this.attrs.getAirForce();
@@ -38466,7 +38495,7 @@ class Platformer2PlayerBehavior extends Behavior {
       this.stateFnc = this.stateJumpFly.bind(this);
     }
     else if (this.grounded.isGrounded()&&!this.grounded.isGroundedBefore()) {
-      this.stateFnc = this.stateJumpLand.bind(this);
+      this.stateFnc = this.attrs.isLandEnabled()?this.stateJumpLand.bind(this):this.stateIdle.bind(this);
     }
     else if (input.getMoveDir().x()!=0) {
       this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*this.attrs.getAirForce(), 0, 0));
@@ -38477,7 +38506,7 @@ class Platformer2PlayerBehavior extends Behavior {
   stateJumpFly(input) {
     this.animationPlayer.play(MeshAnimationKey.of("jump-fly"));
     if (this.grounded.isGrounded()) {
-      this.stateFnc = this.stateJumpLand.bind(this);
+      this.stateFnc = this.attrs.isLandEnabled()?this.stateJumpLand.bind(this):this.stateIdle.bind(this);
     }
     else if (input.getMoveDir().x()!=0) {
       this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*this.attrs.getAirForce(), 0, 0));
@@ -38488,6 +38517,61 @@ class Platformer2PlayerBehavior extends Behavior {
   stateJumpLand(input) {
     this.animationPlayer.play(MeshAnimationKey.of("jump-land"));
     if (this.animationPlayer.isEnd()) {
+      this.stateFnc = this.stateIdle.bind(this);
+    }
+    return true;
+  }
+
+  stateFightJab(input) {
+    this.animationPlayer.play(MeshAnimationKey.of("fight-jab"));
+    if (!this.grounded.isGrounded()) {
+      this.stateFnc = this.stateJumpFly.bind(this);
+    }
+    if (this.animationPlayer.isEnd()) {
+      this.stateFnc = this.stateIdle.bind(this);
+    }
+    return true;
+  }
+
+  stateFightCross(input) {
+    this.animationPlayer.play(MeshAnimationKey.of("fight-cross"));
+    if (!this.grounded.isGrounded()) {
+      this.stateFnc = this.stateJumpFly.bind(this);
+    }
+    if (this.animationPlayer.isEnd()) {
+      this.stateFnc = this.stateIdle.bind(this);
+    }
+    return true;
+  }
+
+  stateFightKick(input) {
+    this.animationPlayer.play(MeshAnimationKey.of("fight-kick"));
+    if (!this.grounded.isGrounded()) {
+      this.stateFnc = this.stateJumpFly.bind(this);
+    }
+    if (this.animationPlayer.isEnd()) {
+      this.stateFnc = this.stateIdle.bind(this);
+    }
+    return false;
+  }
+
+  stateFightSpecial(input) {
+    this.animationPlayer.play(MeshAnimationKey.of("backflip"));
+    if (!this.grounded.isGrounded()) {
+      this.stateFnc = this.stateJumpFly.bind(this);
+    }
+    if (this.animationPlayer.isEnd()) {
+      this.stateFnc = this.stateIdle.bind(this);
+    }
+    return false;
+  }
+
+  stateFightBlock(input) {
+    this.animationPlayer.play(MeshAnimationKey.of("spell-double-idle"));
+    if (!this.grounded.isGrounded()) {
+      this.stateFnc = this.stateJumpFly.bind(this);
+    }
+    if (!input.isBlock()) {
       this.stateFnc = this.stateIdle.bind(this);
     }
     return true;
@@ -38505,6 +38589,17 @@ class Platformer2PlayerBehavior extends Behavior {
     this.turn = FMath.abs(turnDiff)<maxTurn?this.targetTurn:this.turn+FMath.signum(turnDiff)*maxTurn;
   }
 
+  isRunDirection(input) {
+    return FMath.abs(input.getMoveDir().x())>=0.5;
+  }
+
+  isJumpDirection(input) {
+    return input.getMoveDir().y()>=0.5;
+  }
+
+  toString() {
+  }
+
   static create(key) {
     let res = new Platformer2PlayerBehavior(key);
     res.guardInvariants();
@@ -38517,6 +38612,10 @@ class PlayerInput {
   dt;
   controllable;
   moveDir;
+  punch;
+  kick;
+  special;
+  block;
   constructor() {
   }
 
@@ -38539,6 +38638,22 @@ class PlayerInput {
     return this.moveDir;
   }
 
+  isPunch() {
+    return this.punch;
+  }
+
+  isKick() {
+    return this.kick;
+  }
+
+  isSpecial() {
+    return this.special;
+  }
+
+  isBlock() {
+    return this.block;
+  }
+
   hashCode() {
     return Reflections.hashCode(this);
   }
@@ -38550,11 +38665,15 @@ class PlayerInput {
   toString() {
   }
 
-  static create(dt, controllable, moveDir) {
+  static create(dt, controllable, moveDir, punch, kick, special, block) {
     let res = new PlayerInput();
     res.dt = dt;
     res.controllable = controllable;
     res.moveDir = moveDir;
+    res.punch = punch;
+    res.kick = kick;
+    res.special = special;
+    res.block = block;
     res.guardInvariants();
     return res;
   }
