@@ -37895,6 +37895,10 @@ class GamePad extends UiComponent {
 classRegistry.GamePad = GamePad;
 class Platformer2CharacterController extends UiComponent {
   moveJoystick;
+  actionButton1;
+  actionButton2;
+  actionButton3;
+  actionButton4;
   constructor() {
     super();
   }
@@ -37908,47 +37912,87 @@ class Platformer2CharacterController extends UiComponent {
 
   init(container) {
     this.moveJoystick.init(container);
+    this.actionButton1.init(container);
+    this.actionButton2.init(container);
+    this.actionButton3.init(container);
+    this.actionButton4.init(container);
   }
 
   move(dt) {
     this.moveJoystick.move(dt);
+    this.actionButton1.move(dt);
+    this.actionButton2.move(dt);
+    this.actionButton3.move(dt);
+    this.actionButton4.move(dt);
   }
 
   draw(painter) {
     this.moveJoystick.draw(painter);
+    this.actionButton1.draw(painter);
+    this.actionButton2.draw(painter);
+    this.actionButton3.draw(painter);
+    this.actionButton4.draw(painter);
   }
 
   onContainerResize(size) {
     this.moveJoystick.onContainerResize(size);
+    this.actionButton1.onContainerResize(size);
+    this.actionButton2.onContainerResize(size);
+    this.actionButton3.onContainerResize(size);
+    this.actionButton4.onContainerResize(size);
   }
 
   onTouchStart(id, pos, size) {
     this.moveJoystick.onTouchStart(id, pos, size);
+    this.actionButton1.onTouchStart(id, pos, size);
+    this.actionButton2.onTouchStart(id, pos, size);
+    this.actionButton3.onTouchStart(id, pos, size);
+    this.actionButton4.onTouchStart(id, pos, size);
     return false;
   }
 
   onTouchMove(id, pos, size) {
     this.moveJoystick.onTouchMove(id, pos, size);
+    this.actionButton1.onTouchMove(id, pos, size);
+    this.actionButton2.onTouchMove(id, pos, size);
+    this.actionButton3.onTouchMove(id, pos, size);
+    this.actionButton4.onTouchMove(id, pos, size);
     return false;
   }
 
   onTouchEnd(id, pos, size, cancel) {
     this.moveJoystick.onTouchEnd(id, pos, size, cancel);
+    this.actionButton1.onTouchEnd(id, pos, size, cancel);
+    this.actionButton2.onTouchEnd(id, pos, size, cancel);
+    this.actionButton3.onTouchEnd(id, pos, size, cancel);
+    this.actionButton4.onTouchEnd(id, pos, size, cancel);
     return false;
   }
 
   onKeyPressed(key) {
     this.moveJoystick.onKeyPressed(key);
+    this.actionButton1.onKeyPressed(key);
+    this.actionButton2.onKeyPressed(key);
+    this.actionButton3.onKeyPressed(key);
+    this.actionButton4.onKeyPressed(key);
     return false;
   }
 
   onKeyReleased(key) {
     this.moveJoystick.onKeyReleased(key);
+    this.actionButton1.onKeyReleased(key);
+    this.actionButton2.onKeyReleased(key);
+    this.actionButton3.onKeyReleased(key);
+    this.actionButton4.onKeyReleased(key);
     return false;
   }
 
   pushToInputs(inputs) {
     inputs.put("moveDir", this.moveJoystick.getDir());
+    inputs.put("action1", this.actionButton1.isDown());
+    inputs.put("action2", this.actionButton2.isDown());
+    inputs.put("action3", this.actionButton3.isDown());
+    inputs.put("action4", this.actionButton4.isDown());
   }
 
   toString() {
@@ -37971,6 +38015,77 @@ class Platformer2CharacterController extends UiComponent {
     return Rect2.create(h2, s.height()-h5-size, size, size);
   }
 }).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD());
+    res.actionButton1 = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(s.width()-h5-h2-2*size, s.height()-h6-h2-2.5*size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(s.width()-2*h2-2*size, s.height()-h6-h2-2.5*size, size, size);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("U"));
+    res.actionButton2 = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(s.width()-h5-size, s.height()-h6-h2-2.5*size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(s.width()-h2-size, s.height()-h6-h2-2.5*size, size, size);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("I"));
+    res.actionButton3 = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(s.width()-h5-h2-2*size, s.height()-h6-1.5*size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(s.width()-2*h2-2*size, s.height()-h6-1.5*size, size, size);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("J"));
+    res.actionButton4 = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(s.width()-h5-size, s.height()-h6-1.5*size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(s.width()-h2-size, s.height()-h6-1.5*size, size, size);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("K"));
     res.guardInvariants();
     return res;
   }
