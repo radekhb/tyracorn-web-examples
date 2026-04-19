@@ -8,7 +8,7 @@ let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
 const basePath = "/tyracorn-web-examples/showpark";
-const assetsDirName = "/assets-c8327c";
+const assetsDirName = "/assets-2db589";
 const localStoragePrefix = "showpark.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -38262,7 +38262,7 @@ class FighterWorld01 extends TyracornScreen {
   load(drivers, screenManager, properties) {
     let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
-    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/physical-materials.tap")), assets.resolveAsync(Path.of("asset:packages/characters/base-fighter.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/medieval-village.tap")), assets.resolveAsync(Path.of("asset:default.tap")), assets.resolveAsync(Path.of("asset:prefabs.tap")), assets.resolveAsync(Path.of("asset:scenes.tap")));
+    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/physical-materials.tap")), assets.resolveAsync(Path.of("asset:packages/characters/base-fighter.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/medieval-village.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/medieval-buildings.tap")), assets.resolveAsync(Path.of("asset:default.tap")), assets.resolveAsync(Path.of("asset:prefabs.tap")), assets.resolveAsync(Path.of("asset:scenes.tap")));
   }
 
   init(drivers, screenManager, properties) {
