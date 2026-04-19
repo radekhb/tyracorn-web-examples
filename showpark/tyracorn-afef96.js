@@ -38447,12 +38447,7 @@ class Platformer2PlayerBehavior extends Behavior {
     if (!input.isControllable()) {
       return false;
     }
-    if (this.isCrouchDirection(input)) {
-      this.animationPlayer.play(MeshAnimationKey.of("crouch-idle"));
-    }
-    else {
-      this.animationPlayer.play(MeshAnimationKey.of("idle"));
-    }
+    this.animationPlayer.play(MeshAnimationKey.of("idle"));
     if (!this.grounded.isGrounded()) {
       this.stateFnc = this.stateJumpFly.bind(this);
     }
@@ -38460,8 +38455,40 @@ class Platformer2PlayerBehavior extends Behavior {
       this.rigidBody.applyImpulse(Vec3.ZERO, Vec3.UP.scale(this.attrs.getJumpUpImpulse()));
       this.stateFnc = this.stateJumpStart.bind(this);
     }
+    else if (this.isCrouchDirection(input)) {
+      this.stateFnc = this.stateCrouchIdle.bind(this);
+    }
     else if (this.isRunDirection(input)) {
       this.stateFnc = this.stateRun.bind(this);
+    }
+    else if (input.isPunch()) {
+      this.stateFnc = Randoms.nextFloat(0, 1)<0.7?this.stateFightJab.bind(this):this.stateFightCross.bind(this);
+    }
+    else if (input.isKick()) {
+      this.stateFnc = this.stateFightKick.bind(this);
+    }
+    else if (input.isSpecial()) {
+      this.stateFnc = this.stateFightSpecial.bind(this);
+    }
+    else if (input.isBlock()) {
+      this.stateFnc = this.stateFightBlock.bind(this);
+    }
+    return true;
+  }
+
+  stateCrouchIdle(input) {
+    if (!input.isControllable()) {
+      return false;
+    }
+    this.animationPlayer.play(MeshAnimationKey.of("crouch-idle"));
+    if (!this.grounded.isGrounded()) {
+      this.stateFnc = this.stateJumpFly.bind(this);
+    }
+    else if (!this.isCrouchDirection(input)) {
+      this.stateFnc = this.stateIdle.bind(this);
+    }
+    else if (this.isRunDirection(input)) {
+      this.stateFnc = this.stateCrouchWalk.bind(this);
     }
     else if (input.isPunch()) {
       this.stateFnc = Randoms.nextFloat(0, 1)<0.7?this.stateFightJab.bind(this):this.stateFightCross.bind(this);
@@ -38482,17 +38509,51 @@ class Platformer2PlayerBehavior extends Behavior {
     if (!input.isControllable()) {
       return false;
     }
-    if (this.isCrouchDirection(input)) {
-      this.animationPlayer.play(MeshAnimationKey.of("crouch-forward"));
-    }
-    else {
-      this.animationPlayer.play(MeshAnimationKey.of("jog-forward"));
-    }
+    this.animationPlayer.play(MeshAnimationKey.of("jog-forward"));
     if (!this.grounded.isGrounded()) {
       this.stateFnc = this.stateJumpFly.bind(this);
     }
     else if (!this.isRunDirection(input)) {
       this.stateFnc = this.stateIdle.bind(this);
+    }
+    else if (this.isJumpDirection(input)) {
+      this.rigidBody.applyImpulse(Vec3.ZERO, Vec3.UP.scale(this.attrs.getJumpUpImpulse()));
+      this.stateFnc = this.stateJumpFly.bind(this);
+    }
+    else if (this.isCrouchDirection(input)) {
+      this.stateFnc = this.stateCrouchWalk.bind(this);
+    }
+    else if (input.isPunch()) {
+      this.stateFnc = Randoms.nextFloat(0, 1)<0.7?this.stateFightJab.bind(this):this.stateFightCross.bind(this);
+    }
+    else if (input.isKick()) {
+      this.stateFnc = this.stateFightKick.bind(this);
+    }
+    else if (input.isSpecial()) {
+      this.stateFnc = this.stateFightSpecial.bind(this);
+    }
+    else if (input.isBlock()) {
+      this.stateFnc = this.stateFightBlock.bind(this);
+    }
+    else {
+      this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*this.attrs.getRunForce(), 0, 0));
+    }
+    return true;
+  }
+
+  stateCrouchWalk(input) {
+    if (!input.isControllable()) {
+      return false;
+    }
+    this.animationPlayer.play(MeshAnimationKey.of("crouch-forward"));
+    if (!this.grounded.isGrounded()) {
+      this.stateFnc = this.stateJumpFly.bind(this);
+    }
+    else if (!this.isCrouchDirection(input)) {
+      this.stateFnc = this.stateRun.bind(this);
+    }
+    else if (!this.isRunDirection(input)) {
+      this.stateFnc = this.stateCrouchIdle.bind(this);
     }
     else if (this.isJumpDirection(input)) {
       this.rigidBody.applyImpulse(Vec3.ZERO, Vec3.UP.scale(this.attrs.getJumpUpImpulse()));
@@ -38511,8 +38572,7 @@ class Platformer2PlayerBehavior extends Behavior {
       this.stateFnc = this.stateFightBlock.bind(this);
     }
     else {
-      let force = this.grounded.isGrounded()?(this.isCrouchDirection(input)?this.attrs.getCrouchWalkForce():this.attrs.getRunForce()):this.attrs.getAirForce();
-      this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*force, 0, 0));
+      this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*this.attrs.getCrouchWalkForce(), 0, 0));
     }
     return true;
   }
@@ -38545,7 +38605,7 @@ class Platformer2PlayerBehavior extends Behavior {
   stateJumpLand(input) {
     this.animationPlayer.play(MeshAnimationKey.of("jump-land"));
     if (this.animationPlayer.isEnd()) {
-      this.stateFnc = this.stateIdle.bind(this);
+      this.stateFnc = this.isCrouchDirection(input)?this.stateCrouchIdle.bind(this):this.stateIdle.bind(this);
     }
     return true;
   }
@@ -38556,7 +38616,7 @@ class Platformer2PlayerBehavior extends Behavior {
       this.stateFnc = this.stateJumpFly.bind(this);
     }
     if (this.animationPlayer.isEnd()) {
-      this.stateFnc = this.stateIdle.bind(this);
+      this.stateFnc = this.isCrouchDirection(input)?this.stateCrouchIdle.bind(this):this.stateIdle.bind(this);
     }
     return true;
   }
@@ -38567,7 +38627,7 @@ class Platformer2PlayerBehavior extends Behavior {
       this.stateFnc = this.stateJumpFly.bind(this);
     }
     if (this.animationPlayer.isEnd()) {
-      this.stateFnc = this.stateIdle.bind(this);
+      this.stateFnc = this.isCrouchDirection(input)?this.stateCrouchIdle.bind(this):this.stateIdle.bind(this);
     }
     return true;
   }
@@ -38578,7 +38638,7 @@ class Platformer2PlayerBehavior extends Behavior {
       this.stateFnc = this.stateJumpFly.bind(this);
     }
     if (this.animationPlayer.isEnd()) {
-      this.stateFnc = this.stateIdle.bind(this);
+      this.stateFnc = this.isCrouchDirection(input)?this.stateCrouchIdle.bind(this):this.stateIdle.bind(this);
     }
     return false;
   }
@@ -38589,7 +38649,7 @@ class Platformer2PlayerBehavior extends Behavior {
       this.stateFnc = this.stateJumpFly.bind(this);
     }
     if (this.animationPlayer.isEnd()) {
-      this.stateFnc = this.stateIdle.bind(this);
+      this.stateFnc = this.isCrouchDirection(input)?this.stateCrouchIdle.bind(this):this.stateIdle.bind(this);
     }
     return false;
   }
@@ -38600,7 +38660,7 @@ class Platformer2PlayerBehavior extends Behavior {
       this.stateFnc = this.stateJumpFly.bind(this);
     }
     if (!input.isBlock()) {
-      this.stateFnc = this.stateIdle.bind(this);
+      this.stateFnc = this.isCrouchDirection(input)?this.stateCrouchIdle.bind(this):this.stateIdle.bind(this);
     }
     return true;
   }
