@@ -38160,7 +38160,7 @@ class CharacterAttributes {
   airForce = 15;
   turnSpeed = 4*FMath.PI;
   jumpUpImpulse = 100;
-  landEnabled = false;
+  landVelocity = 15;
   constructor() {
   }
 
@@ -38199,8 +38199,8 @@ class CharacterAttributes {
     return this.jumpUpImpulse;
   }
 
-  isLandEnabled() {
-    return this.landEnabled;
+  getLandVelocity() {
+    return this.landVelocity;
   }
 
   static create() {
@@ -38299,9 +38299,12 @@ classRegistry.FighterWorld01 = FighterWorld01;
 class GroundedBehavior extends Behavior {
   grounded = false;
   groundedBefore = false;
+  fallVelocity = Vec3.ZERO;
+  nextFallVelocity = Vec3.ZERO;
   colliderKey;
   delta = 0.5;
   transform;
+  rigidBody;
   collider;
   constructor(key) {
     super(key);
@@ -38313,6 +38316,7 @@ class GroundedBehavior extends Behavior {
 
   init() {
     this.transform = this.actor().getComponent("TransformComponent");
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
     this.collider = this.actor().getComponentByKey("ColliderComponent", this.colliderKey);
   }
 
@@ -38340,6 +38344,8 @@ class GroundedBehavior extends Behavior {
       }
     }
     this.grounded = bestCollisionPt<=bottomY+this.delta;
+    this.fallVelocity = this.nextFallVelocity;
+    this.nextFallVelocity = this.nextFallVelocity=this.grounded?Vec3.ZERO:this.rigidBody.getVelocity();
   }
 
   isGrounded() {
@@ -38348,6 +38354,10 @@ class GroundedBehavior extends Behavior {
 
   isGroundedBefore() {
     return this.groundedBefore;
+  }
+
+  getFallVelocity() {
+    return this.fallVelocity;
   }
 
   setColliderKey(colliderKey) {
@@ -38406,7 +38416,7 @@ class Platformer2PlayerBehavior extends Behavior {
   }
 
   move(dt, inputs) {
-    let input = PlayerInput.create(dt, true, inputs.getVec2("moveDir", Vec2.ZERO), inputs.getBoolean("action2", false), inputs.getBoolean("action3", false), inputs.getBoolean("action1", false), inputs.getBoolean("action4", false));
+    let input = PlayerInput.create(dt, true, inputs.getVec2("moveDir", Vec2.ZERO), inputs.getBoolean("action3", false), inputs.getBoolean("action2", false), inputs.getBoolean("action1", false), inputs.getBoolean("action4", false));
     let turnable = this.stateFnc(input);
     if (turnable) {
       this.moveTurn(input);
@@ -38422,6 +38432,9 @@ class Platformer2PlayerBehavior extends Behavior {
   }
 
   lateMove(dt, inputs) {
+    if (this.transform.getPos().y()<-0.05) {
+      this.transform.setPos(this.transform.getPos().withY(-0.05));
+    }
     this.transform.setPos(this.transform.getPos().withZ(0));
   }
 
@@ -38495,7 +38508,7 @@ class Platformer2PlayerBehavior extends Behavior {
       this.stateFnc = this.stateJumpFly.bind(this);
     }
     else if (this.grounded.isGrounded()&&!this.grounded.isGroundedBefore()) {
-      this.stateFnc = this.attrs.isLandEnabled()?this.stateJumpLand.bind(this):this.stateIdle.bind(this);
+      this.stateFnc = -this.grounded.getFallVelocity().y()>this.attrs.getLandVelocity()?this.stateJumpLand.bind(this):this.stateIdle.bind(this);
     }
     else if (input.getMoveDir().x()!=0) {
       this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*this.attrs.getAirForce(), 0, 0));
@@ -38506,7 +38519,7 @@ class Platformer2PlayerBehavior extends Behavior {
   stateJumpFly(input) {
     this.animationPlayer.play(MeshAnimationKey.of("jump-fly"));
     if (this.grounded.isGrounded()) {
-      this.stateFnc = this.attrs.isLandEnabled()?this.stateJumpLand.bind(this):this.stateIdle.bind(this);
+      this.stateFnc = -this.grounded.getFallVelocity().y()>this.attrs.getLandVelocity()?this.stateJumpLand.bind(this):this.stateIdle.bind(this);
     }
     else if (input.getMoveDir().x()!=0) {
       this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*this.attrs.getAirForce(), 0, 0));
@@ -38594,7 +38607,7 @@ class Platformer2PlayerBehavior extends Behavior {
   }
 
   isJumpDirection(input) {
-    return input.getMoveDir().y()>=0.5;
+    return input.getMoveDir().y()>=0.8;
   }
 
   toString() {
