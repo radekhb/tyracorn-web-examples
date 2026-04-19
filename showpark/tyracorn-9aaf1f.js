@@ -38157,6 +38157,7 @@ class CharacterAttributes {
   groundFriction = 200;
   walkForce = 300;
   runForce = 1000;
+  crouchWalkForce = 150;
   airForce = 15;
   turnSpeed = 4*FMath.PI;
   jumpUpImpulse = 100;
@@ -38185,6 +38186,10 @@ class CharacterAttributes {
 
   getRunForce() {
     return this.runForce;
+  }
+
+  getCrouchWalkForce() {
+    return this.crouchWalkForce;
   }
 
   getAirForce() {
@@ -38439,9 +38444,14 @@ class Platformer2PlayerBehavior extends Behavior {
   }
 
   stateIdle(input) {
-    this.animationPlayer.play(MeshAnimationKey.of("idle"));
     if (!input.isControllable()) {
       return false;
+    }
+    if (this.isCrouchDirection(input)) {
+      this.animationPlayer.play(MeshAnimationKey.of("crouch-idle"));
+    }
+    else {
+      this.animationPlayer.play(MeshAnimationKey.of("idle"));
     }
     if (!this.grounded.isGrounded()) {
       this.stateFnc = this.stateJumpFly.bind(this);
@@ -38469,9 +38479,14 @@ class Platformer2PlayerBehavior extends Behavior {
   }
 
   stateRun(input) {
-    this.animationPlayer.play(MeshAnimationKey.of("jog-forward"));
     if (!input.isControllable()) {
       return false;
+    }
+    if (this.isCrouchDirection(input)) {
+      this.animationPlayer.play(MeshAnimationKey.of("crouch-forward"));
+    }
+    else {
+      this.animationPlayer.play(MeshAnimationKey.of("jog-forward"));
     }
     if (!this.grounded.isGrounded()) {
       this.stateFnc = this.stateJumpFly.bind(this);
@@ -38496,7 +38511,7 @@ class Platformer2PlayerBehavior extends Behavior {
       this.stateFnc = this.stateFightBlock.bind(this);
     }
     else {
-      let force = this.grounded.isGrounded()?this.attrs.getRunForce():this.attrs.getAirForce();
+      let force = this.grounded.isGrounded()?(this.isCrouchDirection(input)?this.attrs.getCrouchWalkForce():this.attrs.getRunForce()):this.attrs.getAirForce();
       this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*force, 0, 0));
     }
     return true;
@@ -38607,7 +38622,11 @@ class Platformer2PlayerBehavior extends Behavior {
   }
 
   isJumpDirection(input) {
-    return input.getMoveDir().y()>=0.8;
+    return input.getMoveDir().y()>=0.9;
+  }
+
+  isCrouchDirection(input) {
+    return input.getMoveDir().y()<=-0.9;
   }
 
   toString() {
