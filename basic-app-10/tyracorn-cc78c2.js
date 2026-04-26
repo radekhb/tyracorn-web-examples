@@ -8328,6 +8328,15 @@ class Vec3 {
     return res;
   }
 
+  static createNormalized(x, y, z) {
+    let mag = FMath.sqrt(x*x+y*y+z*z);
+    let res = new Vec3();
+    res.mX = x/mag;
+    res.mY = y/mag;
+    res.mZ = z/mag;
+    return res;
+  }
+
   static diagonal(a) {
     let res = new Vec3();
     res.mX = a;
@@ -22686,6 +22695,8 @@ class Assets {
             for (let j = 0; j<animationsJson.size(); ++j) {
               let animJson = animationsJson.getJsonObject(j);
               let animOpts = RiggedModelAnimationImportOptions.create(animJson.getString("sourceId"), MeshAnimationKey.of(animJson.getString("key")), animJson.getBoolean("loop"));
+              let triggers = animJson.containsKey("triggers")?Assets.parseMeshAnimationTriggers(animJson.getJsonArray("triggers")):Collections.emptyList();
+              animOpts = animOpts.plusTriggers(triggers);
               options = options.plusAnimation(animOpts);
             }
             res = res.mergeStrict(loader.loadBundle(file, options));
@@ -22813,7 +22824,7 @@ class Assets {
       let numTicks = animJson.getInt("numTicks");
       ;
       let loop = animJson.getBoolean("loop");
-      let triggers = animJson.containsKey("triggers")?Assets.parseClipAnimationTriggers(animJson.getJsonArray("triggers")):Collections.emptyList();
+      let triggers = animJson.containsKey("triggers")?Assets.parseMeshAnimationTriggers(animJson.getJsonArray("triggers")):Collections.emptyList();
       animations.add(MeshAnimation.create(MeshAnimationKey.of(key), ticksPerSecond, numTicks, loop).withClip(clip).plusTriggers(triggers));
     }
     let res = MeshAnimationCollection.create(animations);
@@ -22881,7 +22892,7 @@ class Assets {
     return Clip.create(frames);
   }
 
-  static parseClipAnimationTriggers(array) {
+  static parseMeshAnimationTriggers(array) {
     let res = new ArrayList();
     for (let i = 0; i<array.size(); ++i) {
       let tJson = array.getJsonObject(i);
@@ -27561,14 +27572,68 @@ class WorldComponent extends Behavior {
 
 }
 classRegistry.WorldComponent = WorldComponent;
+class ColliderPoseNodeRef {
+  componentKey;
+  nodeId;
+  constructor() {
+  }
+
+  getClass() {
+    return "ColliderPoseNodeRef";
+  }
+
+  guardInvariants() {
+  }
+
+  getComponentKey() {
+    return this.componentKey;
+  }
+
+  getNodeId() {
+    return this.nodeId;
+  }
+
+  hashCode() {
+    return this.componentKey.hashCode()+this.nodeId.hashCode();
+  }
+
+  equals(obj) {
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ColliderPoseNodeRef)) {
+      return false;
+    }
+    let other = obj;
+    return other.componentKey.equals(this.componentKey)&&other.nodeId.equals(this.nodeId);
+  }
+
+  toString() {
+  }
+
+  static create(componentKey, nodeId) {
+    let res = new ColliderPoseNodeRef();
+    res.componentKey = componentKey;
+    res.nodeId = nodeId;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ColliderPoseNodeRef = ColliderPoseNodeRef;
 class ColliderComponent extends Component {
   static FEATURES = Dut.immutableSet(ComponentFeature.AABB_PRODUCER, ComponentFeature.COLLIDER);
   active = true;
   trigger = false;
   layer;
+  zone = ColliderZone.EMPTY;
   materialId;
   pos = Vec3.ZERO;
   rot = Quaternion.ZERO_ROT;
+  poseNodeRef = null;
   shape = ColliderShape.SPHERE;
   radius = 1;
   ex = 0.5;
@@ -27577,6 +27642,10 @@ class ColliderComponent extends Component {
   height = 2;
   localMat = Mat44.IDENTITY;
   transformComp;
+  modelComp;
+  poseNodeIdx = -1;
+  modelMat = null;
+  poseNodeMat = null;
   globalMat = null;
   volume = null;
   localAabb = null;
@@ -27605,7 +27674,17 @@ class ColliderComponent extends Component {
       this.globalMat = null;
       this.volume = null;
     }
+    else if (domain.equals(ActorDomain.VISUAL)&&this.poseNodeRef!=null) {
+      this.modelMat = null;
+      this.poseNodeMat = null;
+      this.globalMat = null;
+      this.volume = null;
+    }
     return false;
+  }
+
+  getActor() {
+    return this.actor();
   }
 
   isActive() {
@@ -27635,6 +27714,17 @@ class ColliderComponent extends Component {
   setLayer(layer) {
     Guard.notNull(layer, "layer cannot be null");
     this.layer = layer;
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    return this;
+  }
+
+  getZone() {
+    return this.zone;
+  }
+
+  setZone(zone) {
+    Guard.notNull(zone, "zone cannot be null");
+    this.zone = zone;
     this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
     return this;
   }
@@ -27704,6 +27794,19 @@ class ColliderComponent extends Component {
 
   getShape() {
     return this.shape;
+  }
+
+  getPoseNodeRef() {
+    return this.poseNodeRef;
+  }
+
+  setPoseNodeRef(poseNodeRef) {
+    this.poseNodeRef = poseNodeRef;
+    this.modelComp = null;
+    this.poseNodeIdx = -1;
+    this.modelMat = null;
+    this.poseNodeMat = null;
+    return this;
   }
 
   setShape(shape) {
@@ -27821,8 +27924,25 @@ class ColliderComponent extends Component {
         this.globalMat = this.transformComp.getGlobalMat().mul(this.localMat);
       }
     }
-    if (this.globalMat==null) {
-      this.globalMat = this.transformComp.getGlobalMat().mul(this.localMat);
+    if (this.poseNodeRef==null) {
+      if (this.globalMat==null) {
+        this.globalMat = this.transformComp.getGlobalMat().mul(this.localMat);
+      }
+    }
+    else {
+      if (this.modelComp==null) {
+        this.modelComp = this.actor().getComponentByKey("ModelComponent", this.poseNodeRef.getComponentKey());
+        this.poseNodeIdx = -1;
+        for (let i = 0; i<this.modelComp.getPose().getNodes().size()&&this.poseNodeIdx==-1; ++i) {
+          if (this.modelComp.getPose().getNode(i).getId().equals(this.poseNodeRef.getNodeId())) {
+            this.poseNodeIdx = i;
+          }
+        }
+        Guard.beTrue(this.poseNodeIdx!=-1, "unable to find pose node: %s", this.poseNodeRef.getNodeId());
+      }
+      this.modelMat = this.modelComp.getGlobalMat();
+      this.poseNodeMat = this.modelComp.getPose().getNode(this.poseNodeIdx).getNodeTansform();
+      this.globalMat = this.modelMat.mul(this.poseNodeMat.mul(this.localMat));
     }
     if (this.volume==null) {
       if (this.shape.equals(ColliderShape.SPHERE)) {
@@ -27831,14 +27951,17 @@ class ColliderComponent extends Component {
       }
       else if (this.shape.equals(ColliderShape.BOX)) {
         let p = Vec3.create(this.globalMat.m03(), this.globalMat.m13(), this.globalMat.m23());
-        let dirX = Vec3.create(this.globalMat.m00(), this.globalMat.m10(), this.globalMat.m20());
-        let dirY = Vec3.create(this.globalMat.m01(), this.globalMat.m11(), this.globalMat.m21());
-        let dirZ = Vec3.create(this.globalMat.m02(), this.globalMat.m12(), this.globalMat.m22());
+        let dirX = Vec3.createNormalized(this.globalMat.m00(), this.globalMat.m10(), this.globalMat.m20());
+        let dirY = Vec3.createNormalized(this.globalMat.m01(), this.globalMat.m11(), this.globalMat.m21());
+        let dirZ = Vec3.createNormalized(this.globalMat.m02(), this.globalMat.m12(), this.globalMat.m22());
         this.volume = CollisionBox.create(p, dirX, dirY, dirZ, this.ex, this.ey, this.ez);
       }
       else if (this.shape.equals(ColliderShape.CAPSULE)) {
-        let p1 = this.globalMat.mul(Vec3.create(0, this.height/2-this.radius, 0));
-        let p2 = this.globalMat.mul(Vec3.create(0, this.radius-this.height/2, 0));
+        let z = Vec3.create(this.globalMat.m03(), this.globalMat.m13(), this.globalMat.m23());
+        let hh = this.height/2-this.radius;
+        let dirY = Vec3.createNormalized(this.globalMat.m01(), this.globalMat.m11(), this.globalMat.m21());
+        let p1 = z.add(dirY.scale(hh));
+        let p2 = z.add(dirY.scale(-hh));
         this.volume = CollisionCapsule.create(p1, p2, this.radius);
       }
       else {
@@ -29669,8 +29792,24 @@ class ComponentPrefab {
     return this.properties.containsKey(key)?Formats.parseFloat(this.properties.get(key)):def;
   }
 
-  getString(key) {
+  getString() {
+    if (arguments.length===1&& typeof arguments[0]==="string") {
+      return this.getString_1_string(arguments[0]);
+    }
+    else if (arguments.length===2&& typeof arguments[0]==="string"&& typeof arguments[1]==="string") {
+      return this.getString_2_string_string(arguments[0], arguments[1]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  getString_1_string(key) {
     return this.properties.get(key);
+  }
+
+  getString_2_string_string(key, def) {
+    return this.properties.getOrDefault(key, def);
   }
 
   getVec3() {
@@ -29998,13 +30137,13 @@ class ComponentPrefab {
 
   toLatestVersion() {
     if (this.type.equals(ComponentPrefabType.SPHERE_COLLIDER)&&this.version==1) {
-      return ComponentPrefab.sphereCollider(this.key, true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getRotQuaternion("rot", Quaternion.ZERO_ROT), this.getFloat("radius"));
+      return ComponentPrefab.sphereCollider(this.key, true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), ColliderZone.EMPTY, this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getRotQuaternion("rot", Quaternion.ZERO_ROT), this.getFloat("radius"));
     }
     if (this.type.equals(ComponentPrefabType.BOX_COLLIDER)&&this.version==1) {
-      return ComponentPrefab.boxCollider(this.key, true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getRotQuaternion("rot", Quaternion.ZERO_ROT), this.getVec3("size"));
+      return ComponentPrefab.boxCollider(this.key, true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), ColliderZone.EMPTY, this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getRotQuaternion("rot", Quaternion.ZERO_ROT), this.getVec3("size"));
     }
     if (this.type.equals(ComponentPrefabType.CAPSULE_COLLIDER)&&this.version==1) {
-      return ComponentPrefab.capsuleCollider(this.key, true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getRotQuaternion("rot", Quaternion.ZERO_ROT), this.getFloat("height"), this.getFloat("radius"));
+      return ComponentPrefab.capsuleCollider(this.key, true, this.getBoolean("trigger"), this.getCollisionLayer("layer"), ColliderZone.EMPTY, this.getPhysicalMaterialId("materialId"), this.getVec3("pos", Vec3.ZERO), this.getRotQuaternion("rot", Quaternion.ZERO_ROT), this.getFloat("height"), this.getFloat("radius"));
     }
     return this;
   }
@@ -30050,7 +30189,13 @@ class ComponentPrefab {
       else if (this.version==2) {
         let pos = this.getVec3("pos", Vec3.ZERO);
         let rot = this.getRotQuaternion("rot", Quaternion.ZERO_ROT);
-        return ColliderComponent.create(this.key).setShape(ColliderShape.SPHERE).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setRadius(Formats.parseFloat(this.properties.get("radius")));
+        let componentKey = this.getString("poseNodeRef.componentKey", "");
+        let nodeId = this.getString("poseNodeRef.nodeId", "");
+        let poseNodeRef = null;
+        if (Strings.isNotEmpty(componentKey)&&Strings.isNotEmpty(nodeId)) {
+          poseNodeRef = ColliderPoseNodeRef.create(ComponentKey.of(componentKey), ArmatureNodeId.of(nodeId));
+        }
+        return ColliderComponent.create(this.key).setShape(ColliderShape.SPHERE).setPoseNodeRef(poseNodeRef).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setZone(ColliderZone.of(this.properties.getOrDefault("zone", ""))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setRadius(Formats.parseFloat(this.properties.get("radius")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -30065,7 +30210,13 @@ class ComponentPrefab {
       else if (this.version==2) {
         let pos = this.getVec3("pos", Vec3.ZERO);
         let rot = this.getRotQuaternion("rot", Quaternion.ZERO_ROT);
-        return ColliderComponent.create(this.key).setShape(ColliderShape.BOX).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setSize(Jsons.toVec3(this.properties.get("size")));
+        let componentKey = this.getString("poseNodeRef.componentKey", "");
+        let nodeId = this.getString("poseNodeRef.nodeId", "");
+        let poseNodeRef = null;
+        if (Strings.isNotEmpty(componentKey)&&Strings.isNotEmpty(nodeId)) {
+          poseNodeRef = ColliderPoseNodeRef.create(ComponentKey.of(componentKey), ArmatureNodeId.of(nodeId));
+        }
+        return ColliderComponent.create(this.key).setShape(ColliderShape.BOX).setPoseNodeRef(poseNodeRef).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setZone(ColliderZone.of(this.properties.getOrDefault("zone", ""))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setSize(Jsons.toVec3(this.properties.get("size")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -30080,7 +30231,13 @@ class ComponentPrefab {
       else if (this.version==2) {
         let pos = this.getVec3("pos", Vec3.ZERO);
         let rot = this.getRotQuaternion("rot", Quaternion.ZERO_ROT);
-        return ColliderComponent.create(this.key).setShape(ColliderShape.CAPSULE).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setHeight(Formats.parseFloat(this.properties.get("height"))).setRadius(Formats.parseFloat(this.properties.get("radius")));
+        let componentKey = this.getString("poseNodeRef.componentKey", "");
+        let nodeId = this.getString("poseNodeRef.nodeId", "");
+        let poseNodeRef = null;
+        if (Strings.isNotEmpty(componentKey)&&Strings.isNotEmpty(nodeId)) {
+          poseNodeRef = ColliderPoseNodeRef.create(ComponentKey.of(componentKey), ArmatureNodeId.of(nodeId));
+        }
+        return ColliderComponent.create(this.key).setShape(ColliderShape.CAPSULE).setPoseNodeRef(poseNodeRef).setActive(Formats.parseBoolean(this.properties.get("active"))).setTrigger(Formats.parseBoolean(this.properties.get("trigger"))).setLayer(CollisionLayer.of(this.properties.get("layer"))).setZone(ColliderZone.of(this.properties.getOrDefault("zone", ""))).setMaterialId(PhysicalMaterialId.of(this.properties.get("materialId"))).setPos(pos).setRot(rot).setHeight(Formats.parseFloat(this.properties.get("height"))).setRadius(Formats.parseFloat(this.properties.get("radius")));
       }
       else {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
@@ -30252,32 +30409,32 @@ class ComponentPrefab {
     return res;
   }
 
-  static sphereCollider(key, active, trigger, layer, materialId, pos, rot, radius) {
+  static sphereCollider(key, active, trigger, layer, zone, materialId, pos, rot, radius) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.SPHERE_COLLIDER;
     res.key = key;
     res.version = 2;
-    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "radius", String.valueOf(radius));
+    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "zone", zone.zone(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "radius", String.valueOf(radius));
     res.guardInvariants();
     return res;
   }
 
-  static boxCollider(key, active, trigger, layer, materialId, pos, rot, size) {
+  static boxCollider(key, active, trigger, layer, zone, materialId, pos, rot, size) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.BOX_COLLIDER;
     res.key = key;
     res.version = 2;
-    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "size", Jsons.toJson(size));
+    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "zone", zone.zone(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "size", Jsons.toJson(size));
     res.guardInvariants();
     return res;
   }
 
-  static capsuleCollider(key, active, trigger, layer, materialId, pos, rot, height, radius) {
+  static capsuleCollider(key, active, trigger, layer, zone, materialId, pos, rot, height, radius) {
     let res = new ComponentPrefab();
     res.type = ComponentPrefabType.CAPSULE_COLLIDER;
     res.key = key;
     res.version = 2;
-    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "height", String.valueOf(height), "radius", String.valueOf(radius));
+    res.properties = Dut.immutableMap("active", String.valueOf(active), "trigger", String.valueOf(trigger), "layer", layer.id(), "zone", zone.zone(), "materialId", materialId.id(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "height", String.valueOf(height), "radius", String.valueOf(radius));
     res.guardInvariants();
     return res;
   }
@@ -30519,6 +30676,52 @@ const ColliderShape = Object.freeze({
     return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
   }
 });
+class ColliderZone {
+  static EMPTY = ColliderZone.of("");
+  static HEAD = ColliderZone.of("HEAD");
+  static BODY = ColliderZone.of("BODY");
+  mZone;
+  constructor() {
+  }
+
+  getClass() {
+    return "ColliderZone";
+  }
+
+  guardInvariants() {
+  }
+
+  zone() {
+    return this.mZone;
+  }
+
+  hashCode() {
+    return this.mZone.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ColliderZone)) {
+      return false;
+    }
+    let other = obj;
+    return other.mZone.equals(this.mZone);
+  }
+
+  toString() {
+  }
+
+  static of(zone) {
+    let res = new ColliderZone();
+    res.mZone = zone;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ColliderZone = ColliderZone;
 class CollisionSphere {
   pos;
   radius;
@@ -30845,9 +31048,15 @@ class CollisionBox {
 }
 classRegistry.CollisionBox = CollisionBox;
 class CollisionLayer {
-  static WALL = CollisionLayer.of("WALL");
+  static WORLD = CollisionLayer.of("WORLD");
   static OBJECT = CollisionLayer.of("OBJECT");
-  static CHARACTER = CollisionLayer.of("CHARACTER");
+  static BODY = CollisionLayer.of("BODY");
+  static HURTBOX = CollisionLayer.of("HURTBOX");
+  static HITBOX = CollisionLayer.of("HITBOX");
+  static PROJECTILE = CollisionLayer.of("PROJECTILE");
+  static EXPLOSION = CollisionLayer.of("EXPLOSION");
+  static TRIGGER = CollisionLayer.of("TRIGGER");
+  static SENSOR = CollisionLayer.of("SENSOR");
   mId;
   constructor() {
   }
@@ -30891,7 +31100,6 @@ class CollisionLayer {
 }
 classRegistry.CollisionLayer = CollisionLayer;
 class CollisionLayerMatrix {
-  def;
   matrix;
   constructor() {
   }
@@ -30904,80 +31112,23 @@ class CollisionLayerMatrix {
   }
 
   canCollide(l1, l2) {
-    if (this.matrix.containsKey(l1)) {
-      let map = this.matrix.get(l1);
-      if (map.containsKey(l2)) {
-        return map.get(l2);
-      }
+    return this.matrix.get(l1).get(l2);
+  }
+
+  plusLayer(layer, self, collisions) {
+    Guard.beFalse(this.matrix.containsKey(layer), "matrix already contains layer: %s", layer);
+    for (let cl of collisions) {
+      Guard.beTrue(this.matrix.containsKey(cl), "matrix must contain the referred layer: "+cl);
     }
-    return this.def;
-  }
-
-  withDef(def) {
     let res = new CollisionLayerMatrix();
-    res.def = def;
-    res.matrix = this.matrix;
-    res.guardInvariants();
-    return res;
-  }
-
-  withValue(l1, l2, canCollide) {
-    let res = new CollisionLayerMatrix();
-    res.def = this.def;
     res.matrix = new HashMap();
-    let col1 = false;
-    let col2 = false;
-    for (let layer of this.matrix.keySet()) {
-      if (layer.equals(l1)) {
-        col1 = true;
-        let subl = Dut.copyMap(this.matrix.get(layer));
-        subl.put(l2, canCollide);
-        res.matrix.put(layer, Collections.unmodifiableMap(subl));
-      }
-      if (layer.equals(l2)) {
-        col2 = true;
-        let subl = Dut.copyMap(this.matrix.get(layer));
-        subl.put(l1, canCollide);
-        res.matrix.put(layer, Collections.unmodifiableMap(subl));
-      }
-      if (!layer.equals(l1)&&!layer.equals(l2)) {
-        res.matrix.put(layer, this.matrix.get(layer));
-      }
+    let newL = new HashMap();
+    newL.put(layer, self);
+    for (let lay of this.matrix.keySet()) {
+      res.matrix.put(lay, Dut.immutableMapPlusEntry(this.matrix.get(lay), layer, collisions.contains(lay)));
+      newL.put(lay, collisions.contains(lay));
     }
-    if (!col1) {
-      res.matrix.put(l1, Dut.immutableMap(l2, canCollide));
-    }
-    if (!col2) {
-      res.matrix.put(l2, Dut.immutableMap(l1, canCollide));
-    }
-    res.matrix = Collections.unmodifiableMap(res.matrix);
-    res.guardInvariants();
-    return res;
-  }
-
-  withDefValue(l1, l2) {
-    let res = new CollisionLayerMatrix();
-    res.def = this.def;
-    res.matrix = new HashMap();
-    for (let layer of this.matrix.keySet()) {
-      if (layer.equals(l1)) {
-        let subl = Dut.copyMap(this.matrix.get(layer));
-        subl.remove(l2);
-        if (!subl.isEmpty()) {
-          res.matrix.put(layer, Collections.unmodifiableMap(subl));
-        }
-      }
-      else if (layer.equals(l2)) {
-        let subl = Dut.copyMap(this.matrix.get(layer));
-        subl.remove(l1);
-        if (!subl.isEmpty()) {
-          res.matrix.put(layer, Collections.unmodifiableMap(subl));
-        }
-      }
-      else {
-        res.matrix.put(layer, this.matrix.get(layer));
-      }
-    }
+    res.matrix.put(layer, newL);
     res.matrix = Collections.unmodifiableMap(res.matrix);
     res.guardInvariants();
     return res;
@@ -30994,16 +31145,15 @@ class CollisionLayerMatrix {
   toString() {
   }
 
-  static create() {
+  static empty() {
     let res = new CollisionLayerMatrix();
-    res.def = true;
     res.matrix = Collections.emptyMap();
     res.guardInvariants();
     return res;
   }
 
   static standard() {
-    return CollisionLayerMatrix.create().withDef(true).withValue(CollisionLayer.WALL, CollisionLayer.WALL, false).withValue(CollisionLayer.WALL, CollisionLayer.OBJECT, true).withValue(CollisionLayer.WALL, CollisionLayer.CHARACTER, true).withValue(CollisionLayer.OBJECT, CollisionLayer.OBJECT, true).withValue(CollisionLayer.OBJECT, CollisionLayer.CHARACTER, true).withValue(CollisionLayer.CHARACTER, CollisionLayer.CHARACTER, true);
+    return CollisionLayerMatrix.empty().plusLayer(CollisionLayer.WORLD, false, Collections.emptySet()).plusLayer(CollisionLayer.OBJECT, true, Dut.set(CollisionLayer.WORLD)).plusLayer(CollisionLayer.BODY, true, Dut.set(CollisionLayer.WORLD, CollisionLayer.OBJECT)).plusLayer(CollisionLayer.HURTBOX, false, Collections.emptySet()).plusLayer(CollisionLayer.HITBOX, false, Dut.set(CollisionLayer.OBJECT, CollisionLayer.HURTBOX)).plusLayer(CollisionLayer.PROJECTILE, false, Dut.set(CollisionLayer.WORLD, CollisionLayer.OBJECT, CollisionLayer.HURTBOX)).plusLayer(CollisionLayer.EXPLOSION, false, Dut.set(CollisionLayer.WORLD, CollisionLayer.OBJECT, CollisionLayer.HURTBOX)).plusLayer(CollisionLayer.TRIGGER, false, Dut.set(CollisionLayer.BODY)).plusLayer(CollisionLayer.SENSOR, false, Dut.set(CollisionLayer.WORLD, CollisionLayer.BODY));
   }
 
 }
@@ -31570,13 +31720,13 @@ class BroadphaseCollisionManager {
     let excls = this.exclusions.keySet();
     let res = new ArrayList();
     for (let actorId of candidates) {
-      if (excls.contains(CollisionExclusion.create(collider.actor().getId(), actorId))) {
+      if (excls.contains(CollisionExclusion.create(collider.getActor().getId(), actorId))) {
         continue;
       }
       let cols = this.actorColliders.get(actorId);
       for (let i = 0; i<cols.size(); ++i) {
         let ca = cols.get(i);
-        if (ca==collider||ca.actor().equals(collider.actor())) {
+        if (ca==collider||ca.getActor().equals(collider.getActor())) {
           continue;
         }
         if (this.layerMatrix.canCollide(ca.getLayer(), collider.getLayer())) {
@@ -31595,13 +31745,13 @@ class BroadphaseCollisionManager {
     let excls = this.exclusions.keySet();
     let res = new ArrayList();
     for (let actorId of candidates) {
-      if (excls.contains(CollisionExclusion.create(collider.actor().getId(), actorId))) {
+      if (excls.contains(CollisionExclusion.create(collider.getActor().getId(), actorId))) {
         continue;
       }
       let cols = this.actorColliders.get(actorId);
       for (let i = 0; i<cols.size(); ++i) {
         let ca = cols.get(i);
-        if (ca==collider||ca.actor().equals(collider.actor())) {
+        if (ca==collider||ca.getActor().equals(collider.getActor())) {
           continue;
         }
         if (this.layerMatrix.canCollide(ca.getLayer(), collider.getLayer())) {
@@ -31790,11 +31940,11 @@ class Contact {
   }
 
   getRigidBodyA() {
-    return this.colliderA.actor().getComponent("RigidBodyComponent");
+    return this.colliderA.getActor().getComponent("RigidBodyComponent");
   }
 
   getRigidBodyB() {
-    return this.colliderB.actor().getComponent("RigidBodyComponent");
+    return this.colliderB.getActor().getComponent("RigidBodyComponent");
   }
 
   getColliderA() {
@@ -33926,6 +34076,7 @@ const DebugRenderRealm = Object.freeze({
 class RenderRequest {
   static NORMAL = RenderRequest.create(Collections.emptySet());
   static DEBUG_LIGHT = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.COLLIDER));
+  static DEBUG_COLLIDER = RenderRequest.create(Dut.set(DebugRenderRealm.COLLIDER));
   static DEBUG_JOINT = RenderRequest.create(Dut.set(DebugRenderRealm.JOINT));
   static DEBUG_FULL = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.SPACE_PARTITIONING, DebugRenderRealm.COLLIDER, DebugRenderRealm.CONTACT_POINT, DebugRenderRealm.JOINT));
   debugRenderRealms;
