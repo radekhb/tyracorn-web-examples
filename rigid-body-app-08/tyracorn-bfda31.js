@@ -1306,6 +1306,16 @@ class Collections {
     }
 
     /**
+     * Placeholder for unmodifiable set.
+     * 
+     * @param {HashSet} set input set
+     * @returns {HashSet} unmodifiable set
+     */
+    static unmodifiableSet(set) {
+        return set;
+    }
+
+    /**
      * Returns empty map.
      * 
      * @returns {HashMap} empty map
