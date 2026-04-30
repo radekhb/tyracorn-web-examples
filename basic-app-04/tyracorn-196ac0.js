@@ -21571,6 +21571,51 @@ class MeshAnimationCollection {
 
 }
 classRegistry.MeshAnimationCollection = MeshAnimationCollection;
+class MeshAnimationPlayConfig {
+  static PLAY = MeshAnimationPlayConfig.play();
+  static RESTART = MeshAnimationPlayConfig.play().withStartTime(0);
+  startTime;
+  constructor() {
+  }
+
+  getClass() {
+    return "MeshAnimationPlayConfig";
+  }
+
+  guardInvariants() {
+  }
+
+  getStartTime() {
+    return this.startTime;
+  }
+
+  withStartTime(startTime) {
+    let res = new MeshAnimationPlayConfig();
+    res.startTime = startTime;
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static play() {
+    let res = new MeshAnimationPlayConfig();
+    res.startTime = null;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.MeshAnimationPlayConfig = MeshAnimationPlayConfig;
 class MeshAnimationPlayer {
   collection;
   animationKey = null;
@@ -21593,19 +21638,20 @@ class MeshAnimationPlayer {
     return MeshAnimationStep.create(this.animationKey, this.time, this.isEnd(), this.getInterpolation(), this.getPose(), triggers);
   }
 
-  play(key) {
-    if (this.animationKey.equals(key)) {
-      return ;
+  play(key, config) {
+    if (config.getStartTime()==null) {
+      if (this.animationKey.equals(key)) {
+        return ;
+      }
+      this.animationKey = key;
+      this.animation = this.collection.getAnimation(key);
+      this.time = 0;
     }
-    this.animationKey = key;
-    this.animation = this.collection.getAnimation(key);
-    this.time = 0;
-  }
-
-  playFromStart(key) {
-    this.animationKey = key;
-    this.animation = this.collection.getAnimation(key);
-    this.time = 0;
+    else {
+      this.animationKey = key;
+      this.animation = this.collection.getAnimation(key);
+      this.time = config.getStartTime();
+    }
   }
 
   isEnd() {
