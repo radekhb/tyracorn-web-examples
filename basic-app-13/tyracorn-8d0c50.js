@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-15";
-const assetsDirName = "/assets-866cb7";
+const basePath = "/tyracorn-web-examples/basic-app-13";
+const assetsDirName = "/assets-737589";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -31107,6 +31107,7 @@ class CollisionLayer {
   static WORLD = CollisionLayer.of("WORLD");
   static OBJECT = CollisionLayer.of("OBJECT");
   static BODY = CollisionLayer.of("BODY");
+  static BODY_DEAD = CollisionLayer.of("BODY_DEAD");
   static HURTBOX = CollisionLayer.of("HURTBOX");
   static HITBOX = CollisionLayer.of("HITBOX");
   static PROJECTILE = CollisionLayer.of("PROJECTILE");
@@ -31209,7 +31210,7 @@ class CollisionLayerMatrix {
   }
 
   static standard() {
-    return CollisionLayerMatrix.empty().plusLayer(CollisionLayer.WORLD, false, Collections.emptySet()).plusLayer(CollisionLayer.OBJECT, true, Dut.set(CollisionLayer.WORLD)).plusLayer(CollisionLayer.BODY, true, Dut.set(CollisionLayer.WORLD, CollisionLayer.OBJECT)).plusLayer(CollisionLayer.HURTBOX, false, Collections.emptySet()).plusLayer(CollisionLayer.HITBOX, false, Dut.set(CollisionLayer.OBJECT, CollisionLayer.HURTBOX)).plusLayer(CollisionLayer.PROJECTILE, false, Dut.set(CollisionLayer.WORLD, CollisionLayer.OBJECT, CollisionLayer.HURTBOX)).plusLayer(CollisionLayer.EXPLOSION, false, Dut.set(CollisionLayer.WORLD, CollisionLayer.OBJECT, CollisionLayer.HURTBOX)).plusLayer(CollisionLayer.TRIGGER, false, Dut.set(CollisionLayer.BODY)).plusLayer(CollisionLayer.SENSOR, false, Dut.set(CollisionLayer.WORLD, CollisionLayer.BODY));
+    return CollisionLayerMatrix.empty().plusLayer(CollisionLayer.WORLD, false, Collections.emptySet()).plusLayer(CollisionLayer.OBJECT, true, Dut.set(CollisionLayer.WORLD)).plusLayer(CollisionLayer.BODY, true, Dut.set(CollisionLayer.WORLD, CollisionLayer.OBJECT)).plusLayer(CollisionLayer.BODY_DEAD, false, Dut.set(CollisionLayer.WORLD)).plusLayer(CollisionLayer.HURTBOX, false, Collections.emptySet()).plusLayer(CollisionLayer.HITBOX, false, Dut.set(CollisionLayer.OBJECT, CollisionLayer.HURTBOX)).plusLayer(CollisionLayer.PROJECTILE, false, Dut.set(CollisionLayer.WORLD, CollisionLayer.OBJECT, CollisionLayer.HURTBOX)).plusLayer(CollisionLayer.EXPLOSION, false, Dut.set(CollisionLayer.WORLD, CollisionLayer.OBJECT, CollisionLayer.HURTBOX)).plusLayer(CollisionLayer.TRIGGER, false, Dut.set(CollisionLayer.BODY)).plusLayer(CollisionLayer.SENSOR, false, Dut.set(CollisionLayer.WORLD, CollisionLayer.BODY));
   }
 
 }
@@ -34514,421 +34515,209 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class PlayUis {
-  static ARROW_UP = UiComponentTrait.of("ARROW_UP");
-  static ARROW_DOWN = UiComponentTrait.of("ARROW_DOWN");
-  static ARROW_LEFT = UiComponentTrait.of("ARROW_LEFT");
-  static ARROW_RIGHT = UiComponentTrait.of("ARROW_RIGHT");
-  static BRAKE = UiComponentTrait.of("BRAKE");
-  static PUNCH = UiComponentTrait.of("PUNCH");
-  static WALK_RUN = UiComponentTrait.of("WALK_RUN");
-  constructor() {
-  }
-
-  getClass() {
-    return "PlayUis";
-  }
-
-  static createUiSizeFnc() {
-    return UiSizeFncs.identity();
-  }
-
-  static createDefaultStyler() {
-    let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
-    let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
-    let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
-    let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
-    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-30")).setH2Font(FontId.of("kenny-thick-26")).setH3Font(FontId.of("kenny-thick-24")).setExtraLargeTextFont(FontId.of("kenny-mini-22")).setLargeTextFont(FontId.of("kenny-mini-20")).setMediumTextFont(FontId.of("kenny-mini-18")).setSmallTextFont(FontId.of("kenny-mini-16")).setButtonLabelFont(FontId.of("kenny-mini-18")).setFieldLabelFont(FontId.of("kenny-mini-16")).setFieldValueFont(FontId.of("kenny-mini-16")).setSelectItemTextFont(FontId.of("kenny-mini-18")).setSelectItemHeight(20).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
-  }
-
-  static create916Panel() {
-    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setRegionFnc((t) => {
-  if (t.aspect()>9/16) {
-    return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
-  }
-  else {
-    return Rect2.create(0, 0, t.width(), t.height());
-  }
-});
-  }
-
-  static createExitButton(action) {
-    return Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
-  }
-
-  static createPauseButton(action) {
-    return Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
-  }
-
-}
-classRegistry.PlayUis = PlayUis;
-class GamePad extends UiComponent {
-  leftJoystick;
-  rightJoystick;
+class CustomLabel extends UiComponent {
+  container;
+  text;
+  posFnc;
+  font;
+  alignment;
+  containerSize;
+  pos;
   constructor() {
     super();
   }
 
   getClass() {
-    return "GamePad";
+    return "CustomLabel";
   }
 
   guardInvariants() {
-  }
-
-  getLeftDir() {
-    return this.leftJoystick.getDir();
-  }
-
-  getRightDir() {
-    return this.rightJoystick.getDir();
   }
 
   init(container) {
-    this.leftJoystick.init(container);
-    this.rightJoystick.init(container);
+    this.container = container;
   }
 
   move(dt) {
-    this.leftJoystick.move(dt);
-    this.rightJoystick.move(dt);
   }
 
   draw(painter) {
-    this.leftJoystick.draw(painter);
-    this.rightJoystick.draw(painter);
+    let color = null;
+    painter.drawText(this.text, this.pos, this.alignment, this.font, color);
   }
 
   onContainerResize(size) {
-    this.leftJoystick.onContainerResize(size);
-    this.rightJoystick.onContainerResize(size);
+    this.containerSize = size;
+    this.pos = Functions.apply(this.posFnc, size);
   }
 
-  onTouchStart(id, pos, size) {
-    this.leftJoystick.onTouchStart(id, pos, size);
-    this.rightJoystick.onTouchStart(id, pos, size);
-    return false;
+  getText() {
+    return this.text;
   }
 
-  onTouchMove(id, pos, size) {
-    this.leftJoystick.onTouchMove(id, pos, size);
-    this.rightJoystick.onTouchMove(id, pos, size);
-    return false;
+  setText(text) {
+    Guard.notNull(text, "text cannot be null");
+    this.text = text;
+    return this;
   }
 
-  onTouchEnd(id, pos, size, cancel) {
-    this.leftJoystick.onTouchEnd(id, pos, size, cancel);
-    this.rightJoystick.onTouchEnd(id, pos, size, cancel);
-    return false;
+  getPosFnc() {
+    return this.posFnc;
   }
 
-  onKeyPressed(key) {
-    this.leftJoystick.onKeyPressed(key);
-    this.rightJoystick.onKeyPressed(key);
-    return false;
+  setPosFnc(posFnc) {
+    Guard.notNull(posFnc, "posFnc cannot be null");
+    this.posFnc = posFnc;
+    this.onContainerResize(this.containerSize);
+    return this;
   }
 
-  onKeyReleased(key) {
-    this.leftJoystick.onKeyReleased(key);
-    this.rightJoystick.onKeyReleased(key);
-    return false;
+  getFont() {
+    return this.font;
   }
 
-  toString() {
+  setFont(font) {
+    Guard.notNull(font, "font cannot be null");
+    this.font = font;
+    return this;
   }
 
-  static create(drivers) {
-    let res = new GamePad();
-    res.leftJoystick = Joystick.create().setRegionFnc((s) => {
-  if (s.width()>s.height()) {
-    let h5 = s.height()*0.05;
-    let h30 = s.height()*0.3;
-    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(h5, s.height()-h5-size, size, size);
-  }
-  else {
-    let h2 = s.height()*0.02;
-    let h5 = s.height()*0.05;
-    let h20 = s.height()*0.2;
-    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(h2, s.height()-h5-size, size, size);
-  }
-}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("W"), KeyCodeMatchers.upperCharacter("S"), KeyCodeMatchers.upperCharacter("A"), KeyCodeMatchers.upperCharacter("D"));
-    res.rightJoystick = Joystick.create().setRegionFnc((s) => {
-  if (s.width()>s.height()) {
-    let h5 = s.height()*0.05;
-    let h30 = s.height()*0.3;
-    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(s.width()-h5-size, s.height()-h5-size, size, size);
-  }
-  else {
-    let h2 = s.height()*0.02;
-    let h5 = s.height()*0.05;
-    let h20 = s.height()*0.2;
-    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(s.width()-h2-size, s.height()-h5-size, size, size);
-  }
-}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("I"), KeyCodeMatchers.upperCharacter("K"), KeyCodeMatchers.upperCharacter("J"), KeyCodeMatchers.upperCharacter("L"));
-    res.guardInvariants();
-    return res;
+  getAlignment() {
+    return this.alignment;
   }
 
-}
-classRegistry.GamePad = GamePad;
-class FreeCameraController {
-  initCamera;
-  pos;
-  rotX;
-  rotY;
-  moveSpeed;
-  rotSpeed;
-  gamePad;
-  constructor() {
-  }
-
-  getClass() {
-    return "FreeCameraController";
-  }
-
-  guardInvariants() {
-  }
-
-  getPos() {
-    return this.pos;
-  }
-
-  getTarget() {
-    let rxMat = Mat33.rotX(this.rotX);
-    let ryMat = Mat33.rotY(this.rotY);
-    return ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
-  }
-
-  getCamera() {
-    let rxMat = Mat33.rotX(this.rotX);
-    let ryMat = Mat33.rotY(this.rotY);
-    let target = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
-    let up = ryMat.mul(rxMat.mul(Vec3.create(0, 1, 0)));
-    return this.initCamera.lookAt(this.pos, target, up);
-  }
-
-  move(dt) {
-    let moveDir = this.gamePad.getLeftDir();
-    let rotDir = this.gamePad.getRightDir();
-    let rxMat = Mat33.rotX(this.rotX);
-    let ryMat = Mat33.rotY(this.rotY);
-    let fwd = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).normalize().scale(moveDir.y()*this.moveSpeed*dt);
-    let right = ryMat.mul(rxMat.mul(Vec3.create(1, 0, 0))).normalize().scale(moveDir.x()*this.moveSpeed*dt);
-    this.pos = this.pos.add(fwd).add(right);
-    this.rotX = this.rotX+rotDir.y()*this.rotSpeed*dt;
-    if (this.rotX>FMath.PI/2) {
-      this.rotX = FMath.PI/2;
-    }
-    if (this.rotX<-FMath.PI/2) {
-      this.rotX = -FMath.PI/2;
-    }
-    this.rotY = this.rotY-rotDir.x()*this.rotSpeed*dt;
-    while (this.rotY>FMath.PI) {
-      this.rotY = this.rotY-2*FMath.PI;
-    }
-    while (this.rotY<-FMath.PI) {
-      this.rotY = this.rotY+2*FMath.PI;
-    }
-  }
-
-  setPersp(fovy, aspect, near, far) {
-    this.initCamera = this.initCamera.withPersp(fovy, aspect, near, far);
+  setAlignment(alignment) {
+    Guard.notNull(alignment, "alignment cannot be null");
+    this.alignment = alignment;
+    return this;
   }
 
   toString() {
   }
 
-  static create(initCamera, gamePad, moveSpeed, rotSpeed) {
-    let res = new FreeCameraController();
-    res.initCamera = initCamera;
-    res.pos = initCamera.getPos();
-    let fwd = Vec3.create(-initCamera.getView().m20(), -initCamera.getView().m21(), -initCamera.getView().m22());
-    let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
-    res.rotX = FMath.asin(fwd.y());
-    res.rotY = fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y());
-    res.moveSpeed = moveSpeed;
-    res.rotSpeed = rotSpeed;
-    res.gamePad = gamePad;
+  static create() {
+    let res = new CustomLabel();
+    res.text = "";
+    res.alignment = TextAlignment.CENTER;
+    res.posFnc = UiPosFncs.center();
+    res.font = FontId.DEFAULT;
+    res.containerSize = Size2.create(1, 1);
+    res.pos = Functions.apply(res.posFnc, res.containerSize);
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.FreeCameraController = FreeCameraController;
-class BoxMeshFactory {
-  constructor() {
-  }
-
-  getClass() {
-    return "BoxMeshFactory";
-  }
-
-  static rgbBox() {
-    if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&&arguments[3] instanceof Rgb) {
-      return BoxMeshFactory.rgbBox_4_Rgb_Rgb_Rgb_Rgb(arguments[0], arguments[1], arguments[2], arguments[3]);
-    }
-    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
-      return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static rgbBox_3_number_number_number(r, g, b) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static rgbaBox(c1, c2, c3, c4, a) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static fabricBox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.fabric(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelBox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelSkybox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, -1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22))).toMesh();
-    return res;
-  }
-
-  static modelBoxDeformed1() {
-    let en = Vec2.create(1, -1).normalize();
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelBoxDeformed2() {
-    let en = Vec2.create(-1, -1).normalize();
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.floatValues(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-}
-classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp15 extends TyracornScreen {
-  groundModel = null;
-  box1Model = null;
-  shadow1 = ShadowBufferId.of("shadow1");
+classRegistry.CustomLabel = CustomLabel;
+class BasicApp13 extends TyracornScreen {
   time = 0;
-  inputs = InputCache.create();
   ui;
-  camera;
-  armature;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp15";
+    return "BasicApp13";
   }
 
   move(drivers, screenManager, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
-    let aspect = this.inputs.getSize2(InputCacheDisplayListener.DEFAULT_KEY, Size2.create(1, 1)).aspect();
-    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
-    this.camera.setPersp(fovy, aspect, 1.0, 50.0);
-    this.camera.move(dt);
-    this.ui.move(dt);
-    let angleFact = FMath.abs(FMath.sin(this.time/3));
-    let pose = this.armature.getPose(Dut.map(ArmatureNodeId.of("node-1"), Mat44.rotZ(angleFact*FMath.PI_QUARTER), ArmatureNodeId.of("node-2"), Mat44.transofm(Vec3.create(1, 0, 0), Quaternion.rotZ(angleFact*FMath.PI_QUARTER)), ArmatureNodeId.of("node-3"), Mat44.transofm(Vec3.create(1, 0, 0), Quaternion.rotZ(angleFact*FMath.PI_QUARTER))));
-    let dirLightColor = LightColor.create(Rgb.gray(0.5), Rgb.gray(0.5), Rgb.WHITE);
-    let dirLightDir = Vec3.create(0.6, -1, -0.2).normalize();
-    let dirLightPos = dirLightDir.scale(-5);
-    let dirLightShadowMap = ShadowMap.createDir(this.shadow1, dirLightPos, dirLightDir, 13, 20);
-    let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
-    let smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
-    this.renderSceneShaow(smapRndr, pose);
-    smapRndr.end();
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(this.camera.getCamera(), dirLight));
-    this.renderScene(objRnderer, pose);
-    objRnderer.end();
-    gDriver.clearBuffers(BufferId.DEPTH);
     let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
     uiRenderer.render(this.ui);
     uiRenderer.end();
   }
 
   load(drivers, screenManager, properties) {
-    let assets = drivers.getDriver("AssetManager");
     let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
     res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/box-01.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/fonts-extra")));
     return res;
   }
 
   init(drivers, screenManager, properties) {
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
     let assets = drivers.getDriver("AssetManager");
-    let boxMeshId = MeshId.of("box-mesh");
-    let riggeMeshId = MeshId.of("rigged-mesh");
-    assets.put(boxMeshId, BoxMeshFactory.modelBox());
-    assets.put(riggeMeshId, this.createRiggedMesh());
-    let boxDiffuse = TextureId.of("tex_box_01_d");
-    let boxSpecular = TextureId.of("tex_box_01_s");
-    assets.put(MaterialId.of("brass"), Material.BRASS);
-    assets.put(MaterialId.of("wood-box"), Material.BLACK.withShininess(50).plusTexture(TextureAttachment.diffuse(boxDiffuse)).plusTexture(TextureAttachment.specular(boxSpecular)));
-    assets.put(this.shadow1, ShadowBuffer.create(2048, 2048));
-    this.groundModel = Model.simple(boxMeshId, MaterialId.of("brass"));
-    this.box1Model = Model.simple(riggeMeshId, MaterialId.of("wood-box"));
-    let node1 = ArmatureNodeId.of("node-1");
-    let node2 = ArmatureNodeId.of("node-2");
-    let node3 = ArmatureNodeId.of("node-3");
-    this.armature = Armature.empty().plusNode(ArmatureNode.create(node1, null, Mat44.IDENTITY, Mat44.IDENTITY)).plusNode(ArmatureNode.create(node2, node1, Mat44.trans(1, 0, 0), Mat44.trans(-1, 0, 0))).plusNode(ArmatureNode.create(node3, node2, Mat44.trans(1, 0, 0), Mat44.trans(-2, 0, 0)));
-    this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
-    let gamePad = GamePad.create(drivers);
-    this.ui.addComponent(gamePad);
-    let cam = Camera.persp(FMath.toRadians(60.0), 1, 0.1, 1000.0).lookAt(Vec3.create(0.0, 1, 4), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0));
-    this.camera = FreeCameraController.create(cam, gamePad, 3, 1);
+    let sizes = Dut.immutableList(12, 14, 16, 20, 24, 32, 48, 64, 72, 80);
+    Fonts.prepareScaledFonts(assets, Dut.copySet(sizes));
+    const fontIdBasess = Dut.immutableList("rubik-regular-", "rubik-bold-", "nobile-regular-", "kenny-blocks-", "kenny-future-", "kenny-future-square-", "kenny-bold-", "kenny-space-", "kenny-mini-", "kenny-thick-");
+    const label = CustomLabel.create().setText("Tyracorn").setFont(FontId.of("rubik-regular-32")).setPosFnc(UiPosFncs.center()).setAlignment(TextAlignment.CENTER);
+    const fontLabel = Label.create().setText("rubik-regular-32").setPosFnc(UiPosFncs.center(0, 160)).setAlignment(TextAlignment.CENTER_TOP);
+    let fontAct = (evtSource) => {
+      let oldFontId = label.getFont().id();
+      let oldSize = this.getFontSize(oldFontId);
+      let oldFontIdBase = this.getFontBase(oldFontId)+"-";
+      let newIdx = fontIdBasess.indexOf(oldFontIdBase)+1;
+      if (newIdx>=fontIdBasess.size()) {
+        newIdx = 0;
+      }
+      label.setFont(FontId.of(fontIdBasess.get(newIdx)+oldSize));
+      fontLabel.setText(fontIdBasess.get(newIdx)+oldSize);
+    };
+    const alignemnts = Dut.immutableList(TextAlignment.LEFT_TOP, TextAlignment.CENTER_TOP, TextAlignment.RIGHT_TOP, TextAlignment.LEFT_CENTER, TextAlignment.CENTER, TextAlignment.RIGHT_CENTER, TextAlignment.LEFT_BASE, TextAlignment.CENTER_BASE, TextAlignment.RIGHT_BASE, TextAlignment.LEFT_BOTTOM, TextAlignment.CENTER_BOTTOM, TextAlignment.RIGHT_BOTTOM);
+    let alignAct = (evtSource) => {
+      let idx = alignemnts.indexOf(label.getAlignment())+1;
+      if (idx>=alignemnts.size()) {
+        idx = 0;
+      }
+      label.setAlignment(alignemnts.get(idx));
+    };
+    const texts = Dut.immutableList("Tyracorn", "Hello World!!!", "I love you");
+    let textAct = (evtSource) => {
+      let idx = texts.indexOf(label.getText())+1;
+      if (idx>=texts.size()) {
+        idx = 0;
+      }
+      label.setText(texts.get(idx));
+    };
+    let sizeAct = (evtSource) => {
+      let oldFontId = label.getFont().id();
+      let oldSize = this.getFontSize(oldFontId);
+      let oldFontIdBase = this.getFontBase(oldFontId)+"-";
+      let newIdx = sizes.indexOf(oldSize)+1;
+      if (newIdx>=sizes.size()) {
+        newIdx = 0;
+      }
+      label.setFont(FontId.of(oldFontIdBase+sizes.get(newIdx)));
+      fontLabel.setText(oldFontIdBase+sizes.get(newIdx));
+    };
+    this.ui.addComponent(Panel.create().setRegionFnc(UiRegionFncs.center(5, 5)));
+    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(-130, 80, 120, 30)).setText("Font").addOnClickAction(fontAct));
+    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(10, 80, 120, 30)).setText("Alignment").addOnClickAction(alignAct));
+    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(-130, 120, 120, 30)).setText("Text").addOnClickAction(textAct));
+    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(10, 120, 120, 30)).setText("Size").addOnClickAction(sizeAct));
+    this.ui.addComponent(label);
+    this.ui.addComponent(fontLabel);
+    if (drivers.getPlatform().isExitable()) {
+      this.ui.addComponent(PlayUis.createExitButton(UiEventActions.exitApp(screenManager)));
+    }
     this.ui.subscribe(drivers);
-    let dlist = InputCacheDisplayListener.create(this.inputs);
-    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
-    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
   }
 
   leave(drivers) {
     this.ui.unsubscribe(drivers);
   }
 
-  renderScene(renderer, pose) {
-    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1Model, Interpolation.ZERO, pose, Mat44.trans(0, 0, 0));
-  }
-
-  renderSceneShaow(renderer, pose) {
-    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1Model, Interpolation.ZERO, pose, Mat44.trans(0, 0, 0));
-  }
-
-  createRiggedMesh() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.riggedModel(Dut.list(this.rmVert(-0.5, -0.5, 0, 0, 0, 1, 0, 0, 0, -1, -1, -1, 1, 0, 0, 0), this.rmVert(-0.5, 0.5, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, 1, 0, 0, 0), this.rmVert(0.5, -0.5, 0, 0, 0, 1, 1, 0, 0, 1, -1, -1, 0.75, 0.25, 0, 0), this.rmVert(0.5, 0.5, 0, 0, 0, 1, 1, 1, 0, 1, -1, -1, 0.75, 0.25, 0, 0), this.rmVert(1.5, -0.5, 0, 0, 0, 1, 2, 0, 1, 2, -1, -1, 0.5, 0.5, 0, 0), this.rmVert(1.5, 0.5, 0, 0, 0, 1, 2, 1, 1, 2, -1, -1, 0.5, 0.5, 0, 0), this.rmVert(2.5, -0.5, 0, 0, 0, 1, 3, 0, 2, -1, -1, -1, 1, 0, 0, 0), this.rmVert(2.5, 0.5, 0, 0, 0, 1, 3, 1, 2, -1, -1, -1, 1, 0, 0, 0))), Dut.list(Face.triangle(0, 2, 3), Face.triangle(0, 3, 1), Face.triangle(2, 4, 5), Face.triangle(2, 5, 3), Face.triangle(4, 6, 7), Face.triangle(4, 7, 5))).toMesh();
+  getFontBase(fontName) {
+    let parts = fontName.split("-");
+    let res = parts[0];
+    for (let i = 1; i<parts.length-1; ++i) {
+      res = res+"-"+parts[i];
+    }
     return res;
   }
 
-  rmVert(x, y, z, nx, ny, nz, tu, tv, bidx1, bidx2, bidx3, bidx4, bw1, bw2, bw3, bw4) {
-    return Vertex.create(Dut.list(Float.valueOf(x), Float.valueOf(y), Float.valueOf(z), Float.valueOf(nx), Float.valueOf(ny), Float.valueOf(nz), Float.valueOf(tu), Float.valueOf(tv), Short.valueOf(bidx1), Short.valueOf(bidx2), Short.valueOf(bidx3), Short.valueOf(bidx4), Float.valueOf(bw1), Float.valueOf(bw2), Float.valueOf(bw3), Float.valueOf(bw4)));
+  getFontSize(fontName) {
+    let parts = fontName.split("-");
+    let resStr = parts[parts.length-1];
+    return Integer.parseInt(resStr);
   }
 
 }
-classRegistry.BasicApp15 = BasicApp15;
+classRegistry.BasicApp13 = BasicApp13;
 
 
 // -------------------------------------
@@ -35311,7 +35100,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp15());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp13());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

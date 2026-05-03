@@ -31107,6 +31107,7 @@ class CollisionLayer {
   static WORLD = CollisionLayer.of("WORLD");
   static OBJECT = CollisionLayer.of("OBJECT");
   static BODY = CollisionLayer.of("BODY");
+  static BODY_DEAD = CollisionLayer.of("BODY_DEAD");
   static HURTBOX = CollisionLayer.of("HURTBOX");
   static HITBOX = CollisionLayer.of("HITBOX");
   static PROJECTILE = CollisionLayer.of("PROJECTILE");
@@ -31209,7 +31210,7 @@ class CollisionLayerMatrix {
   }
 
   static standard() {
-    return CollisionLayerMatrix.empty().plusLayer(CollisionLayer.WORLD, false, Collections.emptySet()).plusLayer(CollisionLayer.OBJECT, true, Dut.set(CollisionLayer.WORLD)).plusLayer(CollisionLayer.BODY, true, Dut.set(CollisionLayer.WORLD, CollisionLayer.OBJECT)).plusLayer(CollisionLayer.HURTBOX, false, Collections.emptySet()).plusLayer(CollisionLayer.HITBOX, false, Dut.set(CollisionLayer.OBJECT, CollisionLayer.HURTBOX)).plusLayer(CollisionLayer.PROJECTILE, false, Dut.set(CollisionLayer.WORLD, CollisionLayer.OBJECT, CollisionLayer.HURTBOX)).plusLayer(CollisionLayer.EXPLOSION, false, Dut.set(CollisionLayer.WORLD, CollisionLayer.OBJECT, CollisionLayer.HURTBOX)).plusLayer(CollisionLayer.TRIGGER, false, Dut.set(CollisionLayer.BODY)).plusLayer(CollisionLayer.SENSOR, false, Dut.set(CollisionLayer.WORLD, CollisionLayer.BODY));
+    return CollisionLayerMatrix.empty().plusLayer(CollisionLayer.WORLD, false, Collections.emptySet()).plusLayer(CollisionLayer.OBJECT, true, Dut.set(CollisionLayer.WORLD)).plusLayer(CollisionLayer.BODY, true, Dut.set(CollisionLayer.WORLD, CollisionLayer.OBJECT)).plusLayer(CollisionLayer.BODY_DEAD, false, Dut.set(CollisionLayer.WORLD)).plusLayer(CollisionLayer.HURTBOX, false, Collections.emptySet()).plusLayer(CollisionLayer.HITBOX, false, Dut.set(CollisionLayer.OBJECT, CollisionLayer.HURTBOX)).plusLayer(CollisionLayer.PROJECTILE, false, Dut.set(CollisionLayer.WORLD, CollisionLayer.OBJECT, CollisionLayer.HURTBOX)).plusLayer(CollisionLayer.EXPLOSION, false, Dut.set(CollisionLayer.WORLD, CollisionLayer.OBJECT, CollisionLayer.HURTBOX)).plusLayer(CollisionLayer.TRIGGER, false, Dut.set(CollisionLayer.BODY)).plusLayer(CollisionLayer.SENSOR, false, Dut.set(CollisionLayer.WORLD, CollisionLayer.BODY));
   }
 
 }
