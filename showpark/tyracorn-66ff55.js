@@ -38434,6 +38434,7 @@ const CharacterAction = Object.freeze({
   LAND: createCharacterAction("LAND"),
   ATTACK: createCharacterAction("ATTACK"),
   BLOCK: createCharacterAction("BLOCK"),
+  TIRED: createCharacterAction("TIRED"),
   HIT: createCharacterAction("HIT"),
   DEATH: createCharacterAction("DEATH"),
 
@@ -38512,7 +38513,9 @@ classRegistry.CharacterAttackConfig = CharacterAttackConfig;
 class CharacterConfig {
   maxHealth = 100;
   maxStamina = 100;
-  staminaRecoveryRatio = 10;
+  staminaRecovery = 20;
+  staminaTiredRecovery = 0;
+  blockStamina = 18;
   airFriction = 3;
   groundFriction = 200;
   walkForce = 300;
@@ -38522,7 +38525,9 @@ class CharacterConfig {
   turnSpeed = 4*FMath.PI;
   jumpUpImpulse = 100;
   landVelocity = 15;
-  attacks = Dut.immutableMap("attack-jab", CharacterAttackConfig.create(1, 2, 10, 20, 10), "attack-cross", CharacterAttackConfig.create(1.5, 2.5, 20, 30, 15), "attack-kick", CharacterAttackConfig.create(5, 10, 40, 60, 40));
+  attacks = Dut.immutableMap("attack-jab", CharacterAttackConfig.create(1, 2, 10, 20, 20), "attack-cross", CharacterAttackConfig.create(1.5, 2.5, 20, 30, 20), "attack-kick", CharacterAttackConfig.create(5, 10, 40, 60, 40), "attack-special", CharacterAttackConfig.create(20, 30, 60, 80, 60));
+  blockDamageRatio = 0.1;
+  shakeDamage = 2;
   constructor() {
   }
 
@@ -38541,8 +38546,16 @@ class CharacterConfig {
     return this.maxStamina;
   }
 
-  getStaminaRecoveryRatio() {
-    return this.staminaRecoveryRatio;
+  getStaminaRecovery() {
+    return this.staminaRecovery;
+  }
+
+  getStaminaTiredRecovery() {
+    return this.staminaTiredRecovery;
+  }
+
+  getBlockStamina() {
+    return this.blockStamina;
   }
 
   getAirFriction() {
@@ -38587,6 +38600,14 @@ class CharacterConfig {
 
   getAttack(attack) {
     return this.attacks.get(attack);
+  }
+
+  getBlockDamageRatio() {
+    return this.blockDamageRatio;
+  }
+
+  getShakeDamage() {
+    return this.shakeDamage;
   }
 
   hashCode() {
@@ -38666,8 +38687,17 @@ class CharacterState {
     return this;
   }
 
+  reduceStamina(delta) {
+    this.stamina = FMath.max(0, this.stamina-delta);
+    return this;
+  }
+
   actionEquals(act) {
     return this.action.equals(act);
+  }
+
+  actionNotEquals(act) {
+    return !this.action.equals(act);
   }
 
   getAction() {
@@ -38743,13 +38773,8 @@ class Fighting2BaseFighterBehavior extends Behavior {
   }
 
   move(dt, inputs) {
-    let input = this.inputBehavior.getInput();
-    let turnable = this.handleState(input);
-    if (turnable) {
-      let turnDiff = this.state.getTargetTurn()-this.state.getTurn();
-      let maxTurn = dt*this.config.getTurnSpeed();
-      this.state.setTurn(FMath.abs(turnDiff)<maxTurn?this.state.getTargetTurn():this.state.getTurn()+FMath.signum(turnDiff)*maxTurn);
-    }
+    let chInput = this.inputBehavior.getInput();
+    this.handleState(dt, chInput);
     let actors = this.sensor.getDetectedActors();
     for (let act of actors) {
       let tc = act.getComponent("TransformComponent");
@@ -38808,9 +38833,10 @@ class Fighting2BaseFighterBehavior extends Behavior {
         return ;
       }
       let hit = event;
-      this.state.changeHealth(-hit.getDamage());
+      let damage = hit.getDamage()*(this.state.actionNotEquals(CharacterAction.BLOCK)?1:this.config.getBlockDamageRatio());
+      this.state.changeHealth(-damage);
       this.rigidBody.applyImpulse(hit.getPos(), hit.getDir().scale(hit.getImpulse()));
-      if (!this.state.actionEquals(CharacterAction.HIT)&&hit.getDamage()>2) {
+      if (this.state.actionNotEquals(CharacterAction.HIT)&&this.state.actionNotEquals(CharacterAction.BLOCK)&&hit.getDamage()>this.config.getShakeDamage()) {
         if (hit.getZones().contains(ColliderZone.HEAD)) {
           this.animationPlayer.play(MeshAnimationKey.of("hit-head"), MeshAnimationPlayConfig.PLAY);
           this.state.setAction(CharacterAction.HIT);
@@ -38827,13 +38853,20 @@ class Fighting2BaseFighterBehavior extends Behavior {
     return this.state;
   }
 
-  handleState(input) {
-    if (this.grounded.isGrounded()&&this.state.getHealth()<=0&&!this.state.actionEquals(CharacterAction.DEATH)) {
+  handleState(dt, input) {
+    if (this.grounded.isGrounded()&&this.state.getHealth()<=0&&this.state.actionNotEquals(CharacterAction.DEATH)) {
       this.state.setAction(CharacterAction.DEATH);
       this.animationPlayer.play(MeshAnimationKey.of(Randoms.nextFloat(0, 1)<0.5?"death-fall-backward":"death-fall-forward"), MeshAnimationPlayConfig.PLAY);
       let collider = this.actor().getComponentByKey("ColliderComponent", ComponentKey.of("body-collider"));
       collider.setLayer(CollisionLayer.BODY_DEAD);
     }
+    if (this.state.actionNotEquals(CharacterAction.DEATH)) {
+      this.state.setStamina(FMath.min(this.config.getMaxStamina(), this.state.getStamina()+dt*this.config.getStaminaRecovery()));
+    }
+    let turnable = true;
+    let attack = false;
+    let block = false;
+    let tired = false;
     if (this.state.actionEquals(CharacterAction.IDLE)) {
       this.animationPlayer.play(MeshAnimationKey.of("idle"), MeshAnimationPlayConfig.PLAY);
       if (!this.grounded.isGrounded()) {
@@ -38849,23 +38882,12 @@ class Fighting2BaseFighterBehavior extends Behavior {
       else if (this.isRunDirection(input)) {
         this.state.setAction(CharacterAction.RUN);
       }
-      else if (input.isPunch()) {
-        this.state.setAction(CharacterAction.ATTACK);
-        this.animationPlayer.play(MeshAnimationKey.of(Randoms.nextFloat(0, 1)<0.7?"fight-jab":"fight-cross"), MeshAnimationPlayConfig.PLAY);
-      }
-      else if (input.isKick()) {
-        this.state.setAction(CharacterAction.ATTACK);
-        this.animationPlayer.play(MeshAnimationKey.of("fight-kick"), MeshAnimationPlayConfig.PLAY);
-      }
-      else if (input.isSpecial()) {
-        this.state.setAction(CharacterAction.ATTACK);
-        this.animationPlayer.play(MeshAnimationKey.of("backflip"), MeshAnimationPlayConfig.PLAY);
+      else if (input.isAttack()) {
+        attack = true;
       }
       else if (input.isBlock()) {
-        this.state.setAction(CharacterAction.BLOCK);
-        this.animationPlayer.play(MeshAnimationKey.of("spell-double-idle"), MeshAnimationPlayConfig.PLAY);
+        block = true;
       }
-      return true;
     }
     else if (this.state.actionEquals(CharacterAction.CROUCH_IDLE)) {
       this.animationPlayer.play(MeshAnimationKey.of("crouch-idle"), MeshAnimationPlayConfig.PLAY);
@@ -38878,23 +38900,12 @@ class Fighting2BaseFighterBehavior extends Behavior {
       else if (this.isRunDirection(input)) {
         this.state.setAction(CharacterAction.CROUCH_WALK);
       }
-      else if (input.isPunch()) {
-        this.state.setAction(CharacterAction.ATTACK);
-        this.animationPlayer.play(MeshAnimationKey.of(Randoms.nextFloat(0, 1)<0.7?"fight-jab":"fight-cross"), MeshAnimationPlayConfig.PLAY);
-      }
-      else if (input.isKick()) {
-        this.state.setAction(CharacterAction.ATTACK);
-        this.animationPlayer.play(MeshAnimationKey.of("fight-kick"), MeshAnimationPlayConfig.PLAY);
-      }
-      else if (input.isSpecial()) {
-        this.state.setAction(CharacterAction.ATTACK);
-        this.animationPlayer.play(MeshAnimationKey.of("backflip"), MeshAnimationPlayConfig.PLAY);
+      else if (input.isAttack()) {
+        attack = true;
       }
       else if (input.isBlock()) {
-        this.state.setAction(CharacterAction.BLOCK);
-        this.animationPlayer.play(MeshAnimationKey.of("spell-double-idle"), MeshAnimationPlayConfig.PLAY);
+        block = true;
       }
-      return true;
     }
     else if (this.state.actionEquals(CharacterAction.RUN)) {
       this.animationPlayer.play(MeshAnimationKey.of(this.isForwardDirInput(input)?"jog-forward":"jog-backward"), MeshAnimationPlayConfig.PLAY);
@@ -38911,26 +38922,15 @@ class Fighting2BaseFighterBehavior extends Behavior {
       else if (this.isCrouchDirection(input)) {
         this.state.setAction(CharacterAction.CROUCH_WALK);
       }
-      else if (input.isPunch()) {
-        this.state.setAction(CharacterAction.ATTACK);
-        this.animationPlayer.play(MeshAnimationKey.of(Randoms.nextFloat(0, 1)<0.7?"fight-jab":"fight-cross"), MeshAnimationPlayConfig.PLAY);
-      }
-      else if (input.isKick()) {
-        this.state.setAction(CharacterAction.ATTACK);
-        this.animationPlayer.play(MeshAnimationKey.of("fight-kick"), MeshAnimationPlayConfig.PLAY);
-      }
-      else if (input.isSpecial()) {
-        this.state.setAction(CharacterAction.ATTACK);
-        this.animationPlayer.play(MeshAnimationKey.of("backflip"), MeshAnimationPlayConfig.PLAY);
+      else if (input.isAttack()) {
+        attack = true;
       }
       else if (input.isBlock()) {
-        this.state.setAction(CharacterAction.BLOCK);
-        this.animationPlayer.play(MeshAnimationKey.of("spell-double-idle"), MeshAnimationPlayConfig.PLAY);
+        block = true;
       }
       else {
         this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*this.config.getRunForce(), 0, 0));
       }
-      return true;
     }
     else if (this.state.actionEquals(CharacterAction.CROUCH_WALK)) {
       this.animationPlayer.play(MeshAnimationKey.of(this.isForwardDirInput(input)?"crouch-forward":"crouch-backward"), MeshAnimationPlayConfig.PLAY);
@@ -38947,26 +38947,15 @@ class Fighting2BaseFighterBehavior extends Behavior {
         this.rigidBody.applyImpulse(Vec3.ZERO, Vec3.UP.scale(this.config.getJumpUpImpulse()));
         this.state.setAction(CharacterAction.FLY);
       }
-      else if (input.isPunch()) {
-        this.state.setAction(CharacterAction.ATTACK);
-        this.animationPlayer.play(MeshAnimationKey.of(Randoms.nextFloat(0, 1)<0.7?"fight-jab":"fight-cross"), MeshAnimationPlayConfig.PLAY);
-      }
-      else if (input.isKick()) {
-        this.state.setAction(CharacterAction.ATTACK);
-        this.animationPlayer.play(MeshAnimationKey.of("fight-kick"), MeshAnimationPlayConfig.PLAY);
-      }
-      else if (input.isSpecial()) {
-        this.state.setAction(CharacterAction.ATTACK);
-        this.animationPlayer.play(MeshAnimationKey.of("backflip"), MeshAnimationPlayConfig.PLAY);
+      else if (input.isAttack()) {
+        attack = true;
       }
       else if (input.isBlock()) {
-        this.state.setAction(CharacterAction.BLOCK);
-        this.animationPlayer.play(MeshAnimationKey.of("spell-double-idle"), MeshAnimationPlayConfig.PLAY);
+        block = true;
       }
       else {
         this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*this.config.getCrouchWalkForce(), 0, 0));
       }
-      return true;
     }
     else if (this.state.actionEquals(CharacterAction.JUMP)) {
       this.animationPlayer.play(MeshAnimationKey.of("jump-start"), MeshAnimationPlayConfig.PLAY);
@@ -38979,7 +38968,6 @@ class Fighting2BaseFighterBehavior extends Behavior {
       else if (input.getMoveDir().x()!=0) {
         this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*this.config.getAirForce(), 0, 0));
       }
-      return true;
     }
     else if (this.state.actionEquals(CharacterAction.FLY)) {
       this.animationPlayer.play(MeshAnimationKey.of("jump-fly"), MeshAnimationPlayConfig.PLAY);
@@ -38989,14 +38977,12 @@ class Fighting2BaseFighterBehavior extends Behavior {
       else if (input.getMoveDir().x()!=0) {
         this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*this.config.getAirForce(), 0, 0));
       }
-      return true;
     }
     else if (this.state.actionEquals(CharacterAction.LAND)) {
       this.animationPlayer.play(MeshAnimationKey.of("jump-land"), MeshAnimationPlayConfig.PLAY);
       if (this.animationPlayer.isEnd()) {
         this.state.setAction(this.isCrouchDirection(input)?CharacterAction.CROUCH_IDLE:CharacterAction.IDLE);
       }
-      return true;
     }
     else if (this.state.actionEquals(CharacterAction.ATTACK)) {
       if (!this.grounded.isGrounded()) {
@@ -39005,29 +38991,78 @@ class Fighting2BaseFighterBehavior extends Behavior {
       if (this.animationPlayer.isEnd()) {
         this.state.setAction(this.isCrouchDirection(input)?CharacterAction.CROUCH_IDLE:CharacterAction.IDLE);
       }
-      return true;
     }
     else if (this.state.actionEquals(CharacterAction.BLOCK)) {
       this.animationPlayer.play(MeshAnimationKey.of("spell-double-idle"), MeshAnimationPlayConfig.PLAY);
+      this.state.reduceStamina(dt*this.config.getBlockStamina());
       if (!this.grounded.isGrounded()) {
         this.state.setAction(CharacterAction.FLY);
       }
       if (!input.isBlock()) {
         this.state.setAction(this.isCrouchDirection(input)?CharacterAction.CROUCH_IDLE:CharacterAction.IDLE);
       }
-      return true;
+    }
+    else if (this.state.actionEquals(CharacterAction.TIRED)) {
+      if (this.state.getStaminaRatio()>0.2) {
+        this.state.setAction(CharacterAction.IDLE);
+      }
+      turnable = false;
     }
     else if (this.state.actionEquals(CharacterAction.HIT)) {
       if (this.animationPlayer.isEnd()) {
         this.state.setAction(CharacterAction.IDLE);
       }
-      return false;
+      turnable = false;
     }
     else if (this.state.actionEquals(CharacterAction.DEATH)) {
-      return false;
+      turnable = false;
     }
     else {
       throw new Error("unknown state: "+this.state.toString());
+    }
+    if (attack) {
+      if (input.isPunch()) {
+        let jab = Randoms.nextFloat(0, 1)<0.7;
+        let ac = this.config.getAttack(jab?"attack-jab":"attack-cross");
+        if (this.state.getStamina()>ac.getStamina()) {
+          this.state.reduceStamina(ac.getStamina());
+          this.state.setAction(CharacterAction.ATTACK);
+          this.animationPlayer.play(MeshAnimationKey.of(jab?"fight-jab":"fight-cross"), MeshAnimationPlayConfig.PLAY);
+        }
+      }
+      else if (input.isKick()) {
+        let ac = this.config.getAttack("attack-kick");
+        if (this.state.getStamina()>ac.getStamina()) {
+          this.state.reduceStamina(ac.getStamina());
+          this.state.setAction(CharacterAction.ATTACK);
+          this.animationPlayer.play(MeshAnimationKey.of("fight-kick"), MeshAnimationPlayConfig.PLAY);
+        }
+      }
+      else if (input.isSpecial()) {
+        let ac = this.config.getAttack("attack-special");
+        if (this.state.getStamina()>ac.getStamina()) {
+          this.state.reduceStamina(ac.getStamina());
+          this.state.setAction(CharacterAction.ATTACK);
+          this.animationPlayer.play(MeshAnimationKey.of("backflip"), MeshAnimationPlayConfig.PLAY);
+        }
+      }
+    }
+    if (block) {
+      if (input.isBlock()) {
+        this.state.setAction(CharacterAction.BLOCK);
+        this.animationPlayer.play(MeshAnimationKey.of("spell-double-idle"), MeshAnimationPlayConfig.PLAY);
+      }
+    }
+    if (this.state.getStamina()<=0) {
+      if (this.config.getStaminaTiredRecovery()>0) {
+        this.state.setAction(CharacterAction.TIRED);
+        this.animationPlayer.play(MeshAnimationKey.of("idle-tired"), MeshAnimationPlayConfig.PLAY);
+      }
+    }
+    if (turnable) {
+      let turnDiff = this.state.getTargetTurn()-this.state.getTurn();
+      let maxTurn = dt*this.config.getTurnSpeed();
+      this.state.setTurn(FMath.abs(turnDiff)<maxTurn?this.state.getTargetTurn():this.state.getTurn()+FMath.signum(turnDiff)*maxTurn);
     }
   }
 
@@ -39255,6 +39290,10 @@ class FightingCharacterInput {
 
   isSpecial() {
     return this.special;
+  }
+
+  isAttack() {
+    return this.punch||this.kick||this.special;
   }
 
   isBlock() {
