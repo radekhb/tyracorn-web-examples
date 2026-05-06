@@ -39153,8 +39153,150 @@ class Fighting2BaseFighterBehavior extends Behavior {
 
 }
 classRegistry.Fighting2BaseFighterBehavior = Fighting2BaseFighterBehavior;
+class Fighting2CharacterAiConfig {
+  reactionTimeInterval = Interval2.create(0.2, 0.2);
+  attackCooldownInterval = Interval2.create(0.4, 0.95);
+  aggression = 0.6;
+  blockChance = 0.3;
+  jumpChance = 0.05;
+  crouchChance = 0.08;
+  kickChance = 0.25;
+  specialChance = 0.1;
+  attackDistance = 1.5;
+  engageDistance = 2;
+  retreatDistance = 0.45;
+  blockDistance = 1.7;
+  idleMoveChance = 0.2;
+  crouchTimeInterval = Interval2.create(0.2, 0.2);
+  constructor() {
+  }
+
+  getClass() {
+    return "Fighting2CharacterAiConfig";
+  }
+
+  guardInvariants() {
+  }
+
+  getReactionTimeInterval() {
+    return this.reactionTimeInterval;
+  }
+
+  getRandomReactionTime() {
+    return Randoms.nextFloat(this.reactionTimeInterval.min(), this.reactionTimeInterval.max());
+  }
+
+  getAttackCooldownInterval() {
+    return this.attackCooldownInterval;
+  }
+
+  getRandomAttackCooldown() {
+    return Randoms.nextFloat(this.attackCooldownInterval.min(), this.attackCooldownInterval.max());
+  }
+
+  getAggression() {
+    return this.aggression;
+  }
+
+  getBlockChance() {
+    return this.blockChance;
+  }
+
+  getJumpChance() {
+    return this.jumpChance;
+  }
+
+  getCrouchChance() {
+    return this.crouchChance;
+  }
+
+  getKickChance() {
+    return this.kickChance;
+  }
+
+  getSpecialChance() {
+    return this.specialChance;
+  }
+
+  getAttackDistance() {
+    return this.attackDistance;
+  }
+
+  getEngageDistance() {
+    return this.engageDistance;
+  }
+
+  getRetreatDistance() {
+    return this.retreatDistance;
+  }
+
+  getBlockDistance() {
+    return this.blockDistance;
+  }
+
+  getIdleMoveChance() {
+    return this.idleMoveChance;
+  }
+
+  getCrouchTimeInterval() {
+    return this.crouchTimeInterval;
+  }
+
+  getRandomCrouchTime() {
+    return Randoms.nextFloat(this.crouchTimeInterval.min(), this.crouchTimeInterval.max());
+  }
+
+  withDifficultyLevel(level) {
+    let res = new Fighting2CharacterAiConfig();
+    let clamped = FMath.clamp(level, 0, 1);
+    res.reactionTimeInterval = Interval2.create(this.lerp(0.45, 0.08, clamped), this.lerp(0.45, 0.08, clamped));
+    res.attackCooldownInterval = Interval2.create(this.lerp(1.1, 0.2, clamped), this.lerp(1.1, 0.2, clamped));
+    res.aggression = this.lerp(0.3, 0.92, clamped);
+    res.blockChance = this.lerp(0.15, 0.65, clamped);
+    res.jumpChance = this.lerp(0.02, 0.12, clamped);
+    res.crouchChance = this.lerp(0.03, 0.2, clamped);
+    res.kickChance = this.lerp(0.2, 0.35, clamped);
+    res.specialChance = this.lerp(0.05, 0.25, clamped);
+    res.attackDistance = this.lerp(1.1, 1.9, clamped);
+    res.engageDistance = this.lerp(2.8, 1.5, clamped);
+    res.retreatDistance = this.lerp(0.6, 0.3, clamped);
+    res.blockDistance = this.lerp(1.3, 2.2, clamped);
+    res.idleMoveChance = this.idleMoveChance;
+    res.crouchTimeInterval = this.crouchTimeInterval;
+    return res;
+  }
+
+  lerp(min, max, t) {
+    return min+(max-min)*t;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new Fighting2CharacterAiConfig();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.Fighting2CharacterAiConfig = Fighting2CharacterAiConfig;
 class Fighting2CharacterInputBehavior extends Behavior {
-  useController = false;
+  inputType = Fighting2CharacterInputType.NONE;
+  sensor;
+  transform;
+  thinkTimer = 0;
+  attackCooldown = 0;
+  crouchTimer = 0;
+  aiConfig = Fighting2CharacterAiConfig.create();
   input = FightingCharacterInput.create(Vec2.ZERO, false, false, false, false);
   constructor(key) {
     super(key);
@@ -39168,19 +39310,109 @@ class Fighting2CharacterInputBehavior extends Behavior {
   }
 
   init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.sensor = this.actor().getComponent("ActorDetectionSensor");
   }
 
   move(dt, inputs) {
-    if (this.useController) {
+    this.thinkTimer = FMath.max(0, this.thinkTimer-dt);
+    this.attackCooldown = FMath.max(0, this.attackCooldown-dt);
+    this.crouchTimer = FMath.max(0, this.crouchTimer-dt);
+    if (this.inputType.equals(Fighting2CharacterInputType.CONTROLLER)) {
       this.input = FightingCharacterInput.create(inputs.getVec2("moveDir", Vec2.ZERO), inputs.getBoolean("action3", false), inputs.getBoolean("action2", false), inputs.getBoolean("action1", false), inputs.getBoolean("action4", false));
     }
-    else {
+    else if (this.inputType.equals(Fighting2CharacterInputType.AI)) {
+      this.input = this.solveAiInput();
+    }
+    else if (this.inputType.equals(Fighting2CharacterInputType.NONE)) {
       this.input = FightingCharacterInput.create(Vec2.ZERO, false, false, false, false);
+    }
+    else {
+      throw new Error("unsupported input type, implement me: "+this.inputType);
     }
   }
 
-  setUseController(useController) {
-    this.useController = useController;
+  solveAiInput() {
+    if (this.thinkTimer>0) {
+      return this.input;
+    }
+    this.thinkTimer = this.aiConfig.getRandomReactionTime();
+    let target = this.findClosestTarget();
+    if (target==null) {
+      return FightingCharacterInput.create(Vec2.ZERO, false, false, false, false);
+    }
+    let targetTransform = target.getComponent("TransformComponent");
+    let dx = targetTransform.getPos().x()-this.transform.getPos().x();
+    let absDx = FMath.abs(dx);
+    let moveX = 0;
+    if (absDx>this.aiConfig.getEngageDistance()) {
+      moveX = FMath.signum(dx);
+    }
+    else if (absDx<this.aiConfig.getRetreatDistance()) {
+      moveX = -FMath.signum(dx);
+    }
+    else if (Randoms.nextFloat(0, 1)<this.aiConfig.getIdleMoveChance()) {
+      moveX = Randoms.nextFloat(-1, 1)>=0?1:-1;
+    }
+    let moveY = 0;
+    if (this.crouchTimer>0) {
+      moveY = -1;
+    }
+    else if (Randoms.nextFloat(0, 1)<this.aiConfig.getJumpChance()) {
+      moveY = 1;
+    }
+    else if (Randoms.nextFloat(0, 1)<this.aiConfig.getCrouchChance()) {
+      moveY = -1;
+      this.crouchTimer = this.aiConfig.getRandomCrouchTime();
+    }
+    let punch = false;
+    let kick = false;
+    let special = false;
+    let block = false;
+    if (absDx<=this.aiConfig.getBlockDistance()&&Randoms.nextFloat(0, 1)<this.aiConfig.getBlockChance()) {
+      block = true;
+    }
+    if (this.attackCooldown<=0&&absDx<=this.aiConfig.getAttackDistance()&&Randoms.nextFloat(0, 1)<this.aiConfig.getAggression()) {
+      let moveRnd = Randoms.nextFloat(0, 1);
+      if (moveRnd<this.aiConfig.getSpecialChance()) {
+        special = true;
+      }
+      else if (moveRnd<this.aiConfig.getSpecialChance()+this.aiConfig.getKickChance()) {
+        kick = true;
+      }
+      else {
+        punch = true;
+      }
+      this.attackCooldown = this.aiConfig.getRandomAttackCooldown();
+    }
+    return FightingCharacterInput.create(Vec2.create(moveX, moveY), punch, kick, special, block);
+  }
+
+  findClosestTarget() {
+    if (this.sensor==null) {
+      return null;
+    }
+    let detectedActors = this.sensor.getDetectedActors();
+    let closest = null;
+    let minDist = Float.MAX_VALUE;
+    for (let detAct of detectedActors) {
+      let tc = detAct.getComponent("TransformComponent");
+      let dist = FMath.abs(tc.getPos().x()-this.transform.getPos().x());
+      if (dist<minDist) {
+        minDist = dist;
+        closest = detAct;
+      }
+    }
+    return closest;
+  }
+
+  setInputType(inputType) {
+    this.inputType = inputType;
+    return this;
+  }
+
+  setAiDifficulyLevel(level) {
+    this.aiConfig = this.aiConfig.withDifficultyLevel(level);
     return this;
   }
 
@@ -39199,6 +39431,55 @@ class Fighting2CharacterInputBehavior extends Behavior {
 
 }
 classRegistry.Fighting2CharacterInputBehavior = Fighting2CharacterInputBehavior;
+const createFighting2CharacterInputType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const Fighting2CharacterInputType = Object.freeze({
+  NONE: createFighting2CharacterInputType("NONE"),
+  CONTROLLER: createFighting2CharacterInputType("CONTROLLER"),
+  AI: createFighting2CharacterInputType("AI"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
 class Fighting2World01 extends TyracornScreen {
   time = 0;
   world;
@@ -39206,6 +39487,7 @@ class Fighting2World01 extends TyracornScreen {
   ui;
   controller;
   paused = false;
+  enemyDifficulty = 0.55;
   constructor() {
     super();
   }
@@ -39302,13 +39584,13 @@ class Fighting2World01 extends TyracornScreen {
   spawnPlayer(assets) {
     let prefab = assets.get("ActorPrefab", ActorPrefabId.of("fighter-base"));
     let req = CreateActorRequest.create(prefab, ActorId.of("player"), Vec3.create(0, 3, 0), Quaternion.ZERO_ROT);
-    return this.world.constructActor(req).addTag(WorldActors.PLAYER_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.ENEMY_TAG)).addComponent(Fighting2CharacterInputBehavior.create(ComponentKey.random()).setUseController(true)).addComponent(Fighting2BaseFighterBehavior.create(ComponentKey.random()));
+    return this.world.constructActor(req).addTag(WorldActors.PLAYER_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.ENEMY_TAG)).addComponent(Fighting2CharacterInputBehavior.create(ComponentKey.random()).setInputType(Fighting2CharacterInputType.CONTROLLER)).addComponent(Fighting2BaseFighterBehavior.create(ComponentKey.random()));
   }
 
   spawnEnemy(assets) {
     let prefab = assets.get("ActorPrefab", ActorPrefabId.of("fighter-base"));
     let req = CreateActorRequest.create(prefab, null, Vec3.create(10, 3, 0), Quaternion.ZERO_ROT);
-    return this.world.constructActor(req).addTag(WorldActors.ENEMY_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.PLAYER_TAG)).addComponent(Fighting2CharacterInputBehavior.create(ComponentKey.random()).setUseController(false)).addComponent(Fighting2BaseFighterBehavior.create(ComponentKey.random()));
+    return this.world.constructActor(req).addTag(WorldActors.ENEMY_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.PLAYER_TAG)).addComponent(Fighting2CharacterInputBehavior.create(ComponentKey.random()).setInputType(Fighting2CharacterInputType.AI).setAiDifficulyLevel(this.enemyDifficulty)).addComponent(Fighting2BaseFighterBehavior.create(ComponentKey.random()));
   }
 
 }
