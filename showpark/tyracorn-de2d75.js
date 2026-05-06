@@ -39394,7 +39394,7 @@ class Fighting2CharacterInputBehavior extends Behavior {
     }
     let detectedActors = this.sensor.getDetectedActors();
     let closest = null;
-    let minDist = Float.MAX_VALUE;
+    let minDist = Float.POSITIVE_INFINITY;
     for (let detAct of detectedActors) {
       let tc = detAct.getComponent("TransformComponent");
       let dist = FMath.abs(tc.getPos().x()-this.transform.getPos().x());
