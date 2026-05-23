@@ -38545,7 +38545,6 @@ const CharacterAiAction = Object.freeze({
   JUMP: createCharacterAiAction("JUMP"),
   ATTACK: createCharacterAiAction("ATTACK"),
   BLOCK: createCharacterAiAction("BLOCK"),
-,
 
   valueOf(description) {
     if (typeof description !== 'string') {
@@ -39732,7 +39731,7 @@ class Fighting2CharacterAi2 {
   grounded;
   attackDistance;
   plan = Collections.emptyList();
-  step = 0;
+  stepIdx = 0;
   stepTime = 0;
   blockingDecisionTimeout = 0;
   constructor() {
@@ -39759,7 +39758,7 @@ class Fighting2CharacterAi2 {
     let target = this.findClosestTarget();
     if (target==null) {
       this.plan = Collections.emptyList();
-      this.step = 0;
+      this.stepIdx = 0;
       this.stepTime = 0;
       this.blockingDecisionTimeout = 0;
       return FightingCharacterInput.create(Vec2.ZERO, false, false, false, false);
@@ -39781,12 +39780,12 @@ class Fighting2CharacterAi2 {
       }
     }
     while (true) {
-      if (this.step<this.plan.size()&&this.stepTime>=this.plan.get(this.step).getMaxTime()) {
-        this.step = this.step+1;
+      if (this.stepIdx<this.plan.size()&&this.stepTime>=this.plan.get(this.stepIdx).getMaxTime()) {
+        this.stepIdx = this.stepIdx+1;
         this.stepTime = 0;
       }
-      if (this.plan.isEmpty()||this.step>=this.plan.size()) {
-        this.step = 0;
+      if (this.plan.isEmpty()||this.stepIdx>=this.plan.size()) {
+        this.stepIdx = 0;
         this.stepTime = 0;
         this.plan = Collections.emptyList();
         let rnd = Randoms.nextFloat(0, this.config.getActionChancesSum());
@@ -39816,14 +39815,14 @@ class Fighting2CharacterAi2 {
           this.plan = Dut.list(CharacterAiStep.create(CharacterAiAction.WAIT, this.config.getRandomThinkingTime(), null, 0, 0));
         }
       }
-      let currentStep = this.plan.get(this.step);
+      let currentStep = this.plan.get(this.stepIdx);
       if (currentStep.actionEquals(CharacterAiAction.WAIT)) {
         return FightingCharacterInput.create(Vec2.ZERO, false, false, false, false);
       }
       else if (currentStep.actionEquals(CharacterAiAction.RUN)) {
         let targetDst = currentStep.getDistance();
         if (targetDst.isInside(absDst)) {
-          this.step = this.step+1;
+          this.stepIdx = this.stepIdx+1;
           this.stepTime = 0;
         }
         if (absDst<targetDst.min()) {
@@ -39836,21 +39835,21 @@ class Fighting2CharacterAi2 {
       else if (currentStep.actionEquals(CharacterAiAction.ENSURE_SPEED)) {
         let vel = this.rigidBody.getVelocity();
         if (FMath.trunc(FMath.signum(vel.x()))==currentStep.getDirection()&&FMath.abs(vel.x())>currentStep.getSpeed()) {
-          this.step = this.step+1;
+          this.stepIdx = this.stepIdx+1;
           this.stepTime = 0;
         }
         return FightingCharacterInput.create(Vec2.create(currentStep.getDirection(), 0), false, false, false, false);
       }
       else if (currentStep.actionEquals(CharacterAiAction.JUMP)) {
         if (this.grounded.isGrounded()&&!this.grounded.isGroundedBefore()) {
-          this.step = this.step+1;
+          this.stepIdx = this.stepIdx+1;
           this.stepTime = 0;
         }
         return FightingCharacterInput.create(Vec2.create(currentStep.getDirection(), 1), false, false, false, false);
       }
       else if (currentStep.actionEquals(CharacterAiAction.ATTACK)) {
         if (this.characterState.actionEquals(CharacterAction.ATTACK)) {
-          this.step = this.step+1;
+          this.stepIdx = this.stepIdx+1;
           this.stepTime = 0;
         }
         let att = Randoms.nextInt(0, 3);
@@ -39888,8 +39887,8 @@ class Fighting2CharacterAi2 {
   }
 
   isBlockingPlan() {
-    for (let this.step of this.plan) {
-      if (this.step.getAction().equals(CharacterAiAction.BLOCK)) {
+    for (let step of this.plan) {
+      if (step.getAction().equals(CharacterAiAction.BLOCK)) {
         return true;
       }
     }
@@ -39986,7 +39985,7 @@ class Fighting2CharacterAi2Config {
     res.engageChance = this.lerp(0.05, 0.3, clamped);
     res.disengageChance = this.lerp(0.2, 0.05, clamped);
     res.attackChance = this.lerp(0.1, 0.6, clamped);
-    res.jumpOverChance = this.lerp(0.f, 0.4, clamped);
+    res.jumpOverChance = this.lerp(0.1, 0.4, clamped);
     res.jumpBackChance = this.lerp(0.4, 0.1, clamped);
     res.blockChance = this.lerp(0.05, 0.9, clamped);
     return res;
