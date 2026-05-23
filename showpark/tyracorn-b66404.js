@@ -40241,7 +40241,7 @@ class Fighting2World01 extends TyracornScreen {
   spawnEnemy(assets) {
     let prefab = assets.get("ActorPrefab", ActorPrefabId.of("fighter-base"));
     let req = CreateActorRequest.create(prefab, null, Vec3.create(10, 3, 0), Quaternion.ZERO_ROT);
-    return this.world.constructActor(req).addTag(WorldActors.ENEMY_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.PLAYER_TAG)).addComponent(Fighting2CharacterInputBehavior.create(ComponentKey.random()).setInputType(Fighting2CharacterInputType.NONE).setAiDifficulyLevel(this.enemyDifficulty)).addComponent(Fighting2BaseFighterBehavior.create(ComponentKey.random()));
+    return this.world.constructActor(req).addTag(WorldActors.ENEMY_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.PLAYER_TAG)).addComponent(Fighting2CharacterInputBehavior.create(ComponentKey.random()).setInputType(Fighting2CharacterInputType.AI).setAiDifficulyLevel(this.enemyDifficulty)).addComponent(Fighting2BaseFighterBehavior.create(ComponentKey.random()));
   }
 
 }
