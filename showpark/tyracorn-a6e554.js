@@ -8,7 +8,7 @@ let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
 const basePath = "/tyracorn-web-examples/showpark";
-const assetsDirName = "/assets-bf05fd";
+const assetsDirName = "/assets-435723";
 const localStoragePrefix = "showpark.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -40241,7 +40241,7 @@ class Fighting2World01 extends TyracornScreen {
   spawnEnemy(assets) {
     let prefab = assets.get("ActorPrefab", ActorPrefabId.of("fighter-base"));
     let req = CreateActorRequest.create(prefab, null, Vec3.create(10, 3, 0), Quaternion.ZERO_ROT);
-    return this.world.constructActor(req).addTag(WorldActors.ENEMY_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.PLAYER_TAG)).addComponent(Fighting2CharacterInputBehavior.create(ComponentKey.random()).setInputType(Fighting2CharacterInputType.AI).setAiDifficulyLevel(this.enemyDifficulty)).addComponent(Fighting2BaseFighterBehavior.create(ComponentKey.random()));
+    return this.world.constructActor(req).addTag(WorldActors.ENEMY_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.PLAYER_TAG)).addComponent(Fighting2CharacterInputBehavior.create(ComponentKey.random()).setInputType(Fighting2CharacterInputType.NONE).setAiDifficulyLevel(this.enemyDifficulty)).addComponent(Fighting2BaseFighterBehavior.create(ComponentKey.random()));
   }
 
 }
@@ -40467,16 +40467,25 @@ class GroundedBehavior extends Behavior {
     }
     let contacts = this.world().collisions().withColliderContacts(this.collider);
     let bestCollisionPt = bottomY+2*this.delta;
+    let conp = null;
     for (let cont of contacts) {
       if (cont.getColliderB().getLayer().equals(CollisionLayer.WORLD)) {
         for (let cp of cont.getContactPoints()) {
           if (cp.getPosA().y()<bestCollisionPt) {
             bestCollisionPt = cp.getPosA().y();
+            conp = cp;
           }
         }
       }
     }
-    this.grounded = bestCollisionPt<=bottomY+this.delta;
+    let normalOk = false;
+    if (conp!=null) {
+      let dot = FMath.abs(Vec3.DOWN.dot(conp.getNormal()));
+      if (dot>0.71) {
+        normalOk = true;
+      }
+    }
+    this.grounded = normalOk&&bestCollisionPt<=bottomY+this.delta;
     this.fallVelocity = this.nextFallVelocity;
     this.nextFallVelocity = this.nextFallVelocity=this.grounded?Vec3.ZERO:this.rigidBody.getVelocity();
   }
