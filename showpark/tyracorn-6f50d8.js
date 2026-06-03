@@ -8,7 +8,7 @@ let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
 const basePath = "/tyracorn-web-examples/showpark";
-const assetsDirName = "/assets-b2363d";
+const assetsDirName = "/assets-892afa";
 const localStoragePrefix = "showpark.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -29685,6 +29685,165 @@ class RpGeneratorComponent extends Component {
 
 }
 classRegistry.RpGeneratorComponent = RpGeneratorComponent;
+const createGroundedType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const GroundedType = Object.freeze({
+  CONTACT: createGroundedType("CONTACT"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class GroundedComponent extends Behavior {
+  grounded = false;
+  type = GroundedType.CONTACT;
+  colliderKey = ComponentKey.of("collider");
+  maxUpVelocity = 1;
+  maxCpHeight = 0.5;
+  minCpNormalDot = FMath.cos(FMath.PI_QUARTER);
+  transform;
+  rigidBody;
+  collider;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "GroundedComponent";
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
+    this.collider = this.actor().getComponentByKey("ColliderComponent", this.colliderKey);
+  }
+
+  move(dt, inputs) {
+    let vel = this.rigidBody.getVelocity();
+    if (vel.y()>this.maxUpVelocity) {
+      this.grounded = false;
+      return ;
+    }
+    let pos = this.transform.getPos();
+    let volume = this.collider.getVolume();
+    if (this.type.equals(GroundedType.CONTACT)) {
+      let bottomY = pos.y();
+      if (volume instanceof CollisionCapsule) {
+        let capsule = volume;
+        bottomY = FMath.min(capsule.getPivot1().y(), capsule.getPivot2().y())-capsule.getRadius();
+      }
+      else {
+        throw new Error("unsupported volume for ground testing: "+volume);
+      }
+      let contacts = this.world().collisions().withColliderContacts(this.collider);
+      let bestCollisionHeight = bottomY+2*this.maxCpHeight;
+      let bestContact = null;
+      let bestContactPoint = null;
+      for (let cont of contacts) {
+        if (cont.getColliderB().getLayer().equals(CollisionLayer.WORLD)) {
+          for (let cp of cont.getContactPoints()) {
+            if (cp.getPosA().y()<bestCollisionHeight) {
+              bestContact = cont;
+              bestCollisionHeight = cp.getPosA().y();
+              bestContactPoint = cp;
+            }
+          }
+        }
+      }
+      let normalOk = false;
+      if (bestContactPoint!=null) {
+        let dot = FMath.abs(Vec3.DOWN.dot(bestContactPoint.getNormal()));
+        if (dot>this.minCpNormalDot) {
+          normalOk = true;
+        }
+      }
+      this.grounded = normalOk&&bestCollisionHeight<=bottomY+this.maxCpHeight;
+    }
+    else {
+      throw new Error("unsupported grounded type algorithm, implement me: "+this.type);
+    }
+  }
+
+  isGrounded() {
+    return this.grounded;
+  }
+
+  setType(type) {
+    Guard.notNull(type, "type cannot be null");
+    this.type = type;
+    return this;
+  }
+
+  setColliderKey(colliderKey) {
+    Guard.notNull(colliderKey, "colliderKey cannot be null");
+    this.colliderKey = colliderKey;
+    return this;
+  }
+
+  setMaxUpVelocity(maxUpVelocity) {
+    Guard.positive(maxUpVelocity, "maxUpVelocity must be positive");
+    this.maxUpVelocity = maxUpVelocity;
+    return this;
+  }
+
+  setMaxCpHeight(maxCpHeight) {
+    Guard.positive(maxCpHeight, "maxCpHeight must be positive");
+    this.maxCpHeight = maxCpHeight;
+    return this;
+  }
+
+  setMinCpNormalDot(minCpNormalDot) {
+    this.minCpNormalDot = minCpNormalDot;
+    return this;
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    return new GroundedComponent(key);
+  }
+
+}
+classRegistry.GroundedComponent = GroundedComponent;
 const createComponentPrefabRotType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -29779,6 +29938,7 @@ const ComponentPrefabType = Object.freeze({
   POI: createComponentPrefabType("POI"),
   RP_GENERATOR: createComponentPrefabType("RP_GENERATOR"),
   SKYBOX: createComponentPrefabType("SKYBOX"),
+  GROUNDED: createComponentPrefabType("GROUNDED"),
   SCRIPT: createComponentPrefabType("SCRIPT"),
 
   valueOf(description) {
@@ -30426,6 +30586,14 @@ class ComponentPrefab {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
       }
     }
+    else if (this.type.equals(ComponentPrefabType.GROUNDED)) {
+      if (this.version==1) {
+        return GroundedComponent.create(this.key).setType(GroundedType.valueOf(this.getString("type"))).setColliderKey(ComponentKey.of(this.getString("colliderKey"))).setMaxUpVelocity(this.getFloat("maxUpVelocity")).setMaxCpHeight(this.getFloat("maxCpHeight")).setMinCpNormalDot(FMath.cos(FMath.toRadians(this.getFloat("maxCpNormalAngDeg"))));
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
     else if (this.type.equals(ComponentPrefabType.SCRIPT)) {
       if (this.version==1) {
         let res = Reflections.createClass(this.properties.get("className"), this.key);
@@ -30629,6 +30797,16 @@ class ComponentPrefab {
     res.key = key;
     res.version = 1;
     res.properties = Dut.immutableMap("active", String.valueOf(active), "weight", String.valueOf(weight), "groups", Jsons.stringListToJson(Dut.copyImmutableList(Dut.copySortedSet(groups))), "shape", shape.name(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "radius", String.valueOf(radius), "size", Jsons.toJson(size));
+    res.guardInvariants();
+    return res;
+  }
+
+  static grounded(key, type, colliderKey, maxUpVelocity, maxCpHeight, maxCpNormalAngDeg) {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.GROUNDED;
+    res.key = key;
+    res.version = 1;
+    res.properties = Dut.immutableMap("type", type.name(), "colliderKey", colliderKey.key(), "maxUpVelocity", String.valueOf(maxUpVelocity), "maxCpHeight", String.valueOf(maxCpHeight), "maxCpNormalAngDeg", String.valueOf(maxCpNormalAngDeg));
     res.guardInvariants();
     return res;
   }
@@ -34163,6 +34341,7 @@ class RenderRequest {
   static DEBUG_LIGHT = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.COLLIDER));
   static DEBUG_COLLIDER = RenderRequest.create(Dut.set(DebugRenderRealm.COLLIDER));
   static DEBUG_JOINT = RenderRequest.create(Dut.set(DebugRenderRealm.JOINT));
+  static DEBUG_CONTACT_POINT = RenderRequest.create(Dut.set(DebugRenderRealm.CONTACT_POINT));
   static DEBUG_FULL = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.SPACE_PARTITIONING, DebugRenderRealm.COLLIDER, DebugRenderRealm.CONTACT_POINT, DebugRenderRealm.JOINT));
   debugRenderRealms;
   constructor() {
@@ -34600,7 +34779,7 @@ class MenuScreen extends TyracornScreen {
     audioTab.addComponent(MenuUis.createLeftMediumBtn("Simple", 5, false, UiEventActions.showScreen(screenManager, new AudioDemo01())));
     fightingTab.addComponent(MenuUis.createOverlayPanel(4, 4, true));
     fightingTab.addComponent(MenuUis.createTitleLabel("Fighting", 4));
-    fightingTab.addComponent(MenuUis.createLeftMediumBtn("1-1 2D", 5, false, UiEventActions.showScreen(screenManager, new Fighting2World01(0.5))));
+    fightingTab.addComponent(MenuUis.createLeftMediumBtn("Combat 2D", 5, false, UiEventActions.showScreen(screenManager, new Fighting2World01(0.5))));
     panel916.addComponent(Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(MenuUis.createPreviousTabBtnRegionFnc(4)).setText("<").addOnClickAction(UiEventActions.previousTab(tabs)));
     panel916.addComponent(Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(MenuUis.createNextTabBtnRegionFnc(4)).setText(">").addOnClickAction(UiEventActions.nextTab(tabs)));
     if (drivers.getPlatform().isExitable()) {
@@ -38401,7 +38580,7 @@ class CameraShiftBehavior extends Behavior {
   move(dt, inputs) {
     let targetId = this.cameraController.getTargetId();
     if (this.world().actors().exists(targetId)) {
-      let tracked = this.world().actors().get(targetId).getComponent("Fighting2BaseFighterBehavior");
+      let tracked = this.world().actors().get(targetId).getComponent("CharacterBehavior");
       let tt = tracked.getState().getTargetTurn();
       let asc = this.cameraFovy.getDisplaySize().aspect();
       if (tt!=this.targetTurn||this.aspect!=asc) {
@@ -38543,6 +38722,7 @@ const CharacterAiAction = Object.freeze({
   RUN: createCharacterAiAction("RUN"),
   ENSURE_SPEED: createCharacterAiAction("ENSURE_SPEED"),
   JUMP: createCharacterAiAction("JUMP"),
+  FLY: createCharacterAiAction("FLY"),
   ATTACK: createCharacterAiAction("ATTACK"),
   BLOCK: createCharacterAiAction("BLOCK"),
 
@@ -38828,6 +39008,79 @@ class CharacterAttackConfig {
 
 }
 classRegistry.CharacterAttackConfig = CharacterAttackConfig;
+class CharacterBehavior extends Behavior {
+  config = CharacterConfig.create();
+  state = CharacterState.create();
+  transform;
+  rigidBody;
+  grounded;
+  fallVelocity = Vec3.ZERO;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "CharacterBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
+    this.grounded = this.actor().getComponent("GroundedComponent");
+    this.state.setConfig(this.config);
+    this.state.setAction(CharacterAction.IDLE);
+  }
+
+  move(dt, inputs) {
+    if (!this.grounded.isGrounded()) {
+      this.fallVelocity = this.rigidBody.getVelocity();
+    }
+  }
+
+  lateMove(dt, inputs) {
+  }
+
+  onEvent(type, event) {
+  }
+
+  getConfig() {
+    return this.config;
+  }
+
+  getState() {
+    return this.state;
+  }
+
+  getPos() {
+    return this.transform.getPos();
+  }
+
+  getVelocity() {
+    return this.rigidBody.getVelocity();
+  }
+
+  isGrounded() {
+    return this.grounded.isGrounded();
+  }
+
+  getFallVelocity() {
+    return this.fallVelocity;
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new CharacterBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CharacterBehavior = CharacterBehavior;
 class CharacterConfig {
   maxHealth = 100;
   maxStamina = 100;
@@ -39100,13 +39353,11 @@ class CharacterState {
 }
 classRegistry.CharacterState = CharacterState;
 class Fighting2BaseFighterBehavior extends Behavior {
-  config = CharacterConfig.create();
-  state = CharacterState.create();
+  character;
   animationPlayer;
   transform;
   model;
   rigidBody;
-  grounded;
   sensor;
   inputBehavior;
   constructor(key) {
@@ -39121,42 +39372,42 @@ class Fighting2BaseFighterBehavior extends Behavior {
   }
 
   init() {
+    this.character = this.actor().getComponent("CharacterBehavior");
     this.transform = this.actor().getComponent("TransformComponent");
     this.model = this.actor().getComponent("ModelComponent");
     this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-    this.grounded = this.actor().getComponent("GroundedBehavior");
     this.sensor = this.actor().getComponent("ActorDetectionSensor");
     this.inputBehavior = this.actor().getComponent("Fighting2CharacterInputBehavior");
     let animCol = this.world().assets().get("MeshAnimationCollection", MeshAnimationCollectionId.of(this.model.getModelId().id()));
     this.animationPlayer = MeshAnimationPlayer.create(animCol, MeshAnimationKey.of("idle"));
-    this.state.setConfig(this.config);
-    this.state.setAction(CharacterAction.IDLE);
   }
 
   move(dt, inputs) {
     let chInput = this.inputBehavior.getInput();
     this.handleState(dt, chInput);
+    let config = this.character.getConfig();
+    let state = this.character.getState();
     let actors = this.sensor.getDetectedActors();
     for (let act of actors) {
       let tc = act.getComponent("TransformComponent");
       let otherX = tc.getPos().x();
       let x = this.transform.getPos().x();
       if (otherX>=x) {
-        this.state.setTargetTurn(FMath.PI_HALF);
+        state.setTargetTurn(FMath.PI_HALF);
       }
       else {
-        this.state.setTargetTurn(-FMath.PI_HALF);
+        state.setTargetTurn(-FMath.PI_HALF);
       }
     }
     let vx = this.rigidBody.getVelocity().x();
     let vz = this.rigidBody.getVelocity().z();
-    let friction = this.grounded.isGrounded()?this.config.getGroundFriction():this.config.getAirFriction();
+    let friction = this.character.isGrounded()?config.getGroundFriction():config.getAirFriction();
     this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
     let stepStartTime = this.animationPlayer.getTime();
     let step = this.animationPlayer.move(dt);
-    if (this.state.actionEquals(CharacterAction.ATTACK)) {
-      let ac = this.state.getAttack();
-      if ((!this.state.isAttackHit()||!ac.isSingleHit())&&ac.isHitTime(stepStartTime, step.getTime())) {
+    if (state.actionEquals(CharacterAction.ATTACK)) {
+      let ac = state.getAttack();
+      if ((!state.isAttackHit()||!ac.isSingleHit())&&ac.isHitTime(stepStartTime, step.getTime())) {
         let actorHits = new HashMap();
         let actorHitPos = new HashMap();
         for (let hbKey of ac.getHitBoxes()) {
@@ -39171,7 +39422,7 @@ class Fighting2BaseFighterBehavior extends Behavior {
           }
         }
         if (!actorHits.isEmpty()) {
-          this.state.setAttackHit(true);
+          state.setAttackHit(true);
           let hitDir = this.transform.toGlobalRot(Vec3.FORWARD);
           for (let actorId of actorHits.keySet()) {
             let hitPos = actorHitPos.get(actorId);
@@ -39185,7 +39436,7 @@ class Fighting2BaseFighterBehavior extends Behavior {
     }
     this.model.setInterpolation(step.getInterpolation());
     this.model.setPose(step.getPose());
-    this.transform.setRot(Quaternion.rotY(this.state.getTurn()));
+    this.transform.setRot(Quaternion.rotY(state.getTurn()));
   }
 
   lateMove(dt, inputs) {
@@ -39197,62 +39448,58 @@ class Fighting2BaseFighterBehavior extends Behavior {
 
   onEvent(type, event) {
     if (type.equals(WorldActors.HIT_RECEIVED_EVENT)) {
-      if (this.state.actionEquals(CharacterAction.HIT)||this.state.actionEquals(CharacterAction.DEATH)) {
+      let config = this.character.getConfig();
+      let state = this.character.getState();
+      if (state.actionEquals(CharacterAction.HIT)||state.actionEquals(CharacterAction.DEATH)) {
         return ;
       }
       let hit = event;
-      let damage = hit.getDamage()*(this.state.actionNotEquals(CharacterAction.BLOCK)?1:this.config.getBlockDamageRatio());
-      this.state.changeHealth(-damage);
+      let damage = hit.getDamage()*(state.actionNotEquals(CharacterAction.BLOCK)?1:config.getBlockDamageRatio());
+      state.changeHealth(-damage);
       this.rigidBody.applyImpulse(hit.getPos(), hit.getDir().scale(hit.getImpulse()));
-      if (this.state.actionNotEquals(CharacterAction.HIT)&&this.state.actionNotEquals(CharacterAction.BLOCK)&&hit.getDamage()>this.config.getShakeDamage()) {
+      if (state.actionNotEquals(CharacterAction.HIT)&&state.actionNotEquals(CharacterAction.BLOCK)&&hit.getDamage()>config.getShakeDamage()) {
         if (hit.getZones().contains(ColliderZone.HEAD)) {
           this.animationPlayer.play(MeshAnimationKey.of("hit-head"), MeshAnimationPlayConfig.PLAY);
-          this.state.setAction(CharacterAction.HIT);
+          state.setAction(CharacterAction.HIT);
         }
         else {
-          this.state.setAction(CharacterAction.HIT);
+          state.setAction(CharacterAction.HIT);
           this.animationPlayer.play(MeshAnimationKey.of("hit-stomach"), MeshAnimationPlayConfig.PLAY);
         }
       }
     }
   }
 
-  getConfig() {
-    return this.config;
-  }
-
-  getState() {
-    return this.state;
-  }
-
   handleState(dt, input) {
-    if (this.grounded.isGrounded()&&this.state.getHealth()<=0&&this.state.actionNotEquals(CharacterAction.DEATH)) {
-      this.state.setAction(CharacterAction.DEATH);
+    let config = this.character.getConfig();
+    let state = this.character.getState();
+    if (this.character.isGrounded()&&state.getHealth()<=0&&state.actionNotEquals(CharacterAction.DEATH)) {
+      state.setAction(CharacterAction.DEATH);
       this.animationPlayer.play(MeshAnimationKey.of(Randoms.nextFloat(0, 1)<0.5?"death-fall-backward":"death-fall-forward"), MeshAnimationPlayConfig.PLAY);
       let collider = this.actor().getComponentByKey("ColliderComponent", ComponentKey.of("body-collider"));
       collider.setLayer(CollisionLayer.BODY_DEAD);
     }
-    if (this.state.actionNotEquals(CharacterAction.DEATH)) {
-      this.state.setStamina(FMath.min(this.config.getMaxStamina(), this.state.getStamina()+dt*this.config.getStaminaRecovery()));
+    if (state.actionNotEquals(CharacterAction.DEATH)) {
+      state.setStamina(FMath.min(config.getMaxStamina(), state.getStamina()+dt*config.getStaminaRecovery()));
     }
     let turnable = true;
     let attack = false;
     let block = false;
     let tired = false;
-    if (this.state.actionEquals(CharacterAction.IDLE)) {
+    if (state.actionEquals(CharacterAction.IDLE)) {
       this.animationPlayer.play(MeshAnimationKey.of("idle"), MeshAnimationPlayConfig.PLAY);
-      if (!this.grounded.isGrounded()) {
-        this.state.setAction(CharacterAction.FLY);
+      if (!this.character.isGrounded()) {
+        state.setAction(CharacterAction.FLY);
       }
       else if (this.isJumpDirection(input)) {
-        this.rigidBody.applyImpulse(Vec3.ZERO, Vec3.UP.scale(this.config.getJumpUpImpulse()));
-        this.state.setAction(CharacterAction.JUMP);
+        this.rigidBody.applyImpulse(Vec3.ZERO, Vec3.UP.scale(config.getJumpUpImpulse()));
+        state.setAction(CharacterAction.JUMP);
       }
       else if (this.isCrouchDirection(input)) {
-        this.state.setAction(CharacterAction.CROUCH_IDLE);
+        state.setAction(CharacterAction.CROUCH_IDLE);
       }
       else if (this.isRunDirection(input)) {
-        this.state.setAction(CharacterAction.RUN);
+        state.setAction(CharacterAction.RUN);
       }
       else if (input.isAttack()) {
         attack = true;
@@ -39261,16 +39508,16 @@ class Fighting2BaseFighterBehavior extends Behavior {
         block = true;
       }
     }
-    else if (this.state.actionEquals(CharacterAction.CROUCH_IDLE)) {
+    else if (state.actionEquals(CharacterAction.CROUCH_IDLE)) {
       this.animationPlayer.play(MeshAnimationKey.of("crouch-idle"), MeshAnimationPlayConfig.PLAY);
-      if (!this.grounded.isGrounded()) {
-        this.state.setAction(CharacterAction.FLY);
+      if (!this.character.isGrounded()) {
+        state.setAction(CharacterAction.FLY);
       }
       else if (!this.isCrouchDirection(input)) {
-        this.state.setAction(CharacterAction.IDLE);
+        state.setAction(CharacterAction.IDLE);
       }
       else if (this.isRunDirection(input)) {
-        this.state.setAction(CharacterAction.CROUCH_WALK);
+        state.setAction(CharacterAction.CROUCH_WALK);
       }
       else if (input.isAttack()) {
         attack = true;
@@ -39279,20 +39526,20 @@ class Fighting2BaseFighterBehavior extends Behavior {
         block = true;
       }
     }
-    else if (this.state.actionEquals(CharacterAction.RUN)) {
+    else if (state.actionEquals(CharacterAction.RUN)) {
       this.animationPlayer.play(MeshAnimationKey.of(this.isForwardDirInput(input)?"jog-forward":"jog-backward"), MeshAnimationPlayConfig.PLAY);
-      if (!this.grounded.isGrounded()) {
-        this.state.setAction(CharacterAction.FLY);
+      if (!this.character.isGrounded()) {
+        state.setAction(CharacterAction.FLY);
       }
       else if (!this.isRunDirection(input)) {
-        this.state.setAction(CharacterAction.IDLE);
+        state.setAction(CharacterAction.IDLE);
       }
       else if (this.isJumpDirection(input)) {
-        this.rigidBody.applyImpulse(Vec3.ZERO, Vec3.UP.scale(this.config.getJumpUpImpulse()));
-        this.state.setAction(CharacterAction.FLY);
+        this.rigidBody.applyImpulse(Vec3.ZERO, Vec3.UP.scale(config.getJumpUpImpulse()));
+        state.setAction(CharacterAction.FLY);
       }
       else if (this.isCrouchDirection(input)) {
-        this.state.setAction(CharacterAction.CROUCH_WALK);
+        state.setAction(CharacterAction.CROUCH_WALK);
       }
       else if (input.isAttack()) {
         attack = true;
@@ -39301,23 +39548,23 @@ class Fighting2BaseFighterBehavior extends Behavior {
         block = true;
       }
       else {
-        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*this.config.getRunForce(), 0, 0));
+        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*config.getRunForce(), 0, 0));
       }
     }
-    else if (this.state.actionEquals(CharacterAction.CROUCH_WALK)) {
+    else if (state.actionEquals(CharacterAction.CROUCH_WALK)) {
       this.animationPlayer.play(MeshAnimationKey.of(this.isForwardDirInput(input)?"crouch-forward":"crouch-backward"), MeshAnimationPlayConfig.PLAY);
-      if (!this.grounded.isGrounded()) {
-        this.state.setAction(CharacterAction.FLY);
+      if (!this.character.isGrounded()) {
+        state.setAction(CharacterAction.FLY);
       }
       else if (!this.isCrouchDirection(input)) {
-        this.state.setAction(CharacterAction.RUN);
+        state.setAction(CharacterAction.RUN);
       }
       else if (!this.isRunDirection(input)) {
-        this.state.setAction(CharacterAction.CROUCH_IDLE);
+        state.setAction(CharacterAction.CROUCH_IDLE);
       }
       else if (this.isJumpDirection(input)) {
-        this.rigidBody.applyImpulse(Vec3.ZERO, Vec3.UP.scale(this.config.getJumpUpImpulse()));
-        this.state.setAction(CharacterAction.FLY);
+        this.rigidBody.applyImpulse(Vec3.ZERO, Vec3.UP.scale(config.getJumpUpImpulse()));
+        state.setAction(CharacterAction.FLY);
       }
       else if (input.isAttack()) {
         attack = true;
@@ -39326,120 +39573,121 @@ class Fighting2BaseFighterBehavior extends Behavior {
         block = true;
       }
       else {
-        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*this.config.getCrouchWalkForce(), 0, 0));
+        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*config.getCrouchWalkForce(), 0, 0));
       }
     }
-    else if (this.state.actionEquals(CharacterAction.JUMP)) {
+    else if (state.actionEquals(CharacterAction.JUMP)) {
       this.animationPlayer.play(MeshAnimationKey.of("jump-start"), MeshAnimationPlayConfig.PLAY);
       if (this.animationPlayer.isEnd()) {
-        this.state.setAction(CharacterAction.FLY);
+        state.setAction(CharacterAction.FLY);
       }
-      else if (this.grounded.isGrounded()&&!this.grounded.isGroundedBefore()) {
-        this.state.setAction(-this.grounded.getFallVelocity().y()>this.config.getLandVelocity()?CharacterAction.LAND:CharacterAction.IDLE);
+      else if (this.character.isGrounded()) {
+        state.setAction(-this.character.getFallVelocity().y()>config.getLandVelocity()?CharacterAction.LAND:CharacterAction.IDLE);
       }
       else if (input.getMoveDir().x()!=0) {
-        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*this.config.getAirForce(), 0, 0));
+        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*config.getAirForce(), 0, 0));
       }
     }
-    else if (this.state.actionEquals(CharacterAction.FLY)) {
+    else if (state.actionEquals(CharacterAction.FLY)) {
       this.animationPlayer.play(MeshAnimationKey.of("jump-fly"), MeshAnimationPlayConfig.PLAY);
-      if (this.grounded.isGrounded()) {
-        this.state.setAction(-this.grounded.getFallVelocity().y()>this.config.getLandVelocity()?CharacterAction.LAND:CharacterAction.IDLE);
+      if (this.character.isGrounded()) {
+        state.setAction(-this.character.getFallVelocity().y()>config.getLandVelocity()?CharacterAction.LAND:CharacterAction.IDLE);
       }
       else if (input.getMoveDir().x()!=0) {
-        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*this.config.getAirForce(), 0, 0));
+        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*config.getAirForce(), 0, 0));
       }
     }
-    else if (this.state.actionEquals(CharacterAction.LAND)) {
+    else if (state.actionEquals(CharacterAction.LAND)) {
       this.animationPlayer.play(MeshAnimationKey.of("jump-land"), MeshAnimationPlayConfig.PLAY);
       if (this.animationPlayer.isEnd()) {
-        this.state.setAction(this.isCrouchDirection(input)?CharacterAction.CROUCH_IDLE:CharacterAction.IDLE);
+        state.setAction(this.isCrouchDirection(input)?CharacterAction.CROUCH_IDLE:CharacterAction.IDLE);
       }
     }
-    else if (this.state.actionEquals(CharacterAction.ATTACK)) {
-      if (!this.grounded.isGrounded()) {
-        this.state.setAction(CharacterAction.FLY);
+    else if (state.actionEquals(CharacterAction.ATTACK)) {
+      if (!this.character.isGrounded()) {
+        state.setAction(CharacterAction.FLY);
       }
       if (this.animationPlayer.isEnd()) {
-        this.state.setAction(this.isCrouchDirection(input)?CharacterAction.CROUCH_IDLE:CharacterAction.IDLE);
+        state.setAction(this.isCrouchDirection(input)?CharacterAction.CROUCH_IDLE:CharacterAction.IDLE);
       }
     }
-    else if (this.state.actionEquals(CharacterAction.BLOCK)) {
+    else if (state.actionEquals(CharacterAction.BLOCK)) {
       this.animationPlayer.play(MeshAnimationKey.of("spell-double-idle"), MeshAnimationPlayConfig.PLAY);
-      this.state.reduceStamina(dt*this.config.getBlockStamina());
-      if (!this.grounded.isGrounded()) {
-        this.state.setAction(CharacterAction.FLY);
+      state.reduceStamina(dt*config.getBlockStamina());
+      if (!this.character.isGrounded()) {
+        state.setAction(CharacterAction.FLY);
       }
       if (!input.isBlock()) {
-        this.state.setAction(this.isCrouchDirection(input)?CharacterAction.CROUCH_IDLE:CharacterAction.IDLE);
+        state.setAction(this.isCrouchDirection(input)?CharacterAction.CROUCH_IDLE:CharacterAction.IDLE);
       }
     }
-    else if (this.state.actionEquals(CharacterAction.TIRED)) {
-      if (this.state.getStaminaRatio()>0.2) {
-        this.state.setAction(CharacterAction.IDLE);
+    else if (state.actionEquals(CharacterAction.TIRED)) {
+      if (state.getStaminaRatio()>0.2) {
+        state.setAction(CharacterAction.IDLE);
       }
       turnable = false;
     }
-    else if (this.state.actionEquals(CharacterAction.HIT)) {
+    else if (state.actionEquals(CharacterAction.HIT)) {
       if (this.animationPlayer.isEnd()) {
-        this.state.setAction(CharacterAction.IDLE);
+        state.setAction(CharacterAction.IDLE);
       }
       turnable = false;
     }
-    else if (this.state.actionEquals(CharacterAction.DEATH)) {
+    else if (state.actionEquals(CharacterAction.DEATH)) {
       turnable = false;
     }
     else {
-      throw new Error("unknown state: "+this.state.toString());
+      throw new Error("unknown state: "+state.toString());
     }
     if (attack) {
       if (input.isPunch()) {
         let jab = Randoms.nextFloat(0, 1)<0.7;
-        let ac = this.config.getAttack(jab?"jab":"cross");
-        if (this.state.getStamina()>ac.getStamina()) {
-          this.state.reduceStamina(ac.getStamina()).setAction(CharacterAction.ATTACK).setAttack(ac).setAttackHit(false);
+        let ac = config.getAttack(jab?"jab":"cross");
+        if (state.getStamina()>ac.getStamina()) {
+          state.reduceStamina(ac.getStamina()).setAction(CharacterAction.ATTACK).setAttack(ac).setAttackHit(false);
           this.animationPlayer.play(ac.getAnimationKey(), MeshAnimationPlayConfig.PLAY);
         }
       }
       else if (input.isKick()) {
-        let ac = this.config.getAttack("kick");
-        if (this.state.getStamina()>ac.getStamina()) {
-          this.state.reduceStamina(ac.getStamina()).setAction(CharacterAction.ATTACK).setAttack(ac).setAttackHit(false);
+        let ac = config.getAttack("kick");
+        if (state.getStamina()>ac.getStamina()) {
+          state.reduceStamina(ac.getStamina()).setAction(CharacterAction.ATTACK).setAttack(ac).setAttackHit(false);
           this.animationPlayer.play(ac.getAnimationKey(), MeshAnimationPlayConfig.PLAY);
         }
       }
       else if (input.isSpecial()) {
-        let ac = this.config.getAttack("special");
-        if (this.state.getStamina()>ac.getStamina()) {
-          this.state.reduceStamina(ac.getStamina()).setAction(CharacterAction.ATTACK).setAttack(ac).setAttackHit(false);
+        let ac = config.getAttack("special");
+        if (state.getStamina()>ac.getStamina()) {
+          state.reduceStamina(ac.getStamina()).setAction(CharacterAction.ATTACK).setAttack(ac).setAttackHit(false);
           this.animationPlayer.play(ac.getAnimationKey(), MeshAnimationPlayConfig.PLAY);
         }
       }
     }
     if (block) {
       if (input.isBlock()) {
-        this.state.setAction(CharacterAction.BLOCK);
+        state.setAction(CharacterAction.BLOCK);
         this.animationPlayer.play(MeshAnimationKey.of("spell-double-idle"), MeshAnimationPlayConfig.PLAY);
       }
     }
-    if (this.state.getStamina()<=0) {
-      if (this.config.getStaminaTiredRecovery()>0) {
-        this.state.setAction(CharacterAction.TIRED);
+    if (state.getStamina()<=0) {
+      if (config.getStaminaTiredRecovery()>0) {
+        state.setAction(CharacterAction.TIRED);
         this.animationPlayer.play(MeshAnimationKey.of("idle-tired"), MeshAnimationPlayConfig.PLAY);
       }
     }
     if (turnable) {
-      let turnDiff = this.state.getTargetTurn()-this.state.getTurn();
-      let maxTurn = dt*this.config.getTurnSpeed();
-      this.state.setTurn(FMath.abs(turnDiff)<maxTurn?this.state.getTargetTurn():this.state.getTurn()+FMath.signum(turnDiff)*maxTurn);
+      let turnDiff = state.getTargetTurn()-state.getTurn();
+      let maxTurn = dt*config.getTurnSpeed();
+      state.setTurn(FMath.abs(turnDiff)<maxTurn?state.getTargetTurn():state.getTurn()+FMath.signum(turnDiff)*maxTurn);
     }
   }
 
   isForwardDirInput(input) {
-    if (this.state.getTargetTurn()==FMath.PI_HALF) {
+    let targetTurn = this.character.getState().getTargetTurn();
+    if (targetTurn==FMath.PI_HALF) {
       return input.getMoveDir().x()>0;
     }
-    else if (this.state.getTargetTurn()==-FMath.PI_HALF) {
+    else if (targetTurn==-FMath.PI_HALF) {
       return input.getMoveDir().x()<0;
     }
     else {
@@ -39721,14 +39969,9 @@ class Fighting2CharacterAi1Config {
 }
 classRegistry.Fighting2CharacterAi1Config = Fighting2CharacterAi1Config;
 class Fighting2CharacterAi2 {
-  actor;
+  character;
   config = Fighting2CharacterAi2Config.create();
-  characterConfig;
-  characterState;
   sensor;
-  transform;
-  rigidBody;
-  grounded;
   attackDistance;
   plan = Collections.emptyList();
   stepIdx = 0;
@@ -39745,16 +39988,6 @@ class Fighting2CharacterAi2 {
   }
 
   solveInput(dt) {
-    if (this.transform==null) {
-      this.transform = this.actor.getComponent("TransformComponent");
-      this.rigidBody = this.actor.getComponent("RigidBodyComponent");
-      this.sensor = this.actor.getComponent("ActorDetectionSensor");
-      this.grounded = this.actor.getComponent("GroundedBehavior");
-      let behav = this.actor.getComponent("Fighting2BaseFighterBehavior");
-      this.characterConfig = behav.getConfig();
-      this.characterState = behav.getState();
-      this.attackDistance = this.characterConfig.getAttackDistance(0.95);
-    }
     let target = this.findClosestTarget();
     if (target==null) {
       this.plan = Collections.emptyList();
@@ -39765,13 +39998,13 @@ class Fighting2CharacterAi2 {
     }
     this.stepTime = this.stepTime+dt;
     this.blockingDecisionTimeout = FMath.max(0, this.blockingDecisionTimeout-dt);
-    let targetBehav = target.getComponent("Fighting2BaseFighterBehavior");
+    let targetBehav = target.getComponent("CharacterBehavior");
     let targetTransform = target.getComponent("TransformComponent");
     let targetConfig = targetBehav.getConfig();
     let targetState = targetBehav.getState();
     let dangerDst = targetConfig.getAttackDistance(1.1);
     let targetPos = targetTransform.getPos();
-    let dst = targetPos.x()-this.transform.getPos().x();
+    let dst = targetPos.x()-this.character.getPos().x();
     let absDst = FMath.abs(dst);
     if (targetState.actionEquals(CharacterAction.ATTACK)&&this.blockingDecisionTimeout==0&&dangerDst.isInside(absDst)) {
       this.blockingDecisionTimeout = this.config.getRandomBlockDecisionCooldownTime();
@@ -39779,6 +40012,7 @@ class Fighting2CharacterAi2 {
         this.plan = Dut.list(CharacterAiStep.create(CharacterAiAction.WAIT, this.config.getRandomBlockReactionTime(), null, 0, 0), CharacterAiStep.create(CharacterAiAction.BLOCK, this.config.getRandomBlockTime(), null, 0, 0));
       }
     }
+    let characterConfig = this.character.getConfig();
     while (true) {
       if (this.stepIdx<this.plan.size()&&this.stepTime>=this.plan.get(this.stepIdx).getMaxTime()) {
         this.stepIdx = this.stepIdx+1;
@@ -39804,12 +40038,12 @@ class Fighting2CharacterAi2 {
         rnd = rnd-this.config.getJumpOverChance();
         if (this.plan.isEmpty()&&rnd<0) {
           let direction = FMath.trunc(FMath.signum(dst));
-          this.plan = Dut.list(CharacterAiStep.create(CharacterAiAction.RUN, this.config.getRandomThinkingTime()*2, this.characterConfig.getJumpOverDistance(), 0, 0), CharacterAiStep.create(CharacterAiAction.ENSURE_SPEED, this.config.getRandomThinkingTime()*2, null, direction, this.characterConfig.getJumpOverMinSpeed()), CharacterAiStep.create(CharacterAiAction.JUMP, this.config.getRandomThinkingTime()*2, null, direction, 0));
+          this.plan = Dut.list(CharacterAiStep.create(CharacterAiAction.RUN, this.config.getRandomThinkingTime()*2, characterConfig.getJumpOverDistance(), 0, 0), CharacterAiStep.create(CharacterAiAction.ENSURE_SPEED, this.config.getRandomThinkingTime()*2, null, direction, characterConfig.getJumpOverMinSpeed()), CharacterAiStep.create(CharacterAiAction.JUMP, this.config.getRandomThinkingTime()*2, null, direction, 0), CharacterAiStep.create(CharacterAiAction.FLY, this.config.getRandomThinkingTime()*2, null, direction, 0));
         }
         rnd = rnd-this.config.getJumpBackChance();
         if (this.plan.isEmpty()&&rnd<0) {
           let direction = -FMath.trunc(FMath.signum(dst));
-          this.plan = Dut.list(CharacterAiStep.create(CharacterAiAction.ENSURE_SPEED, this.config.getRandomThinkingTime()*2, null, direction, this.characterConfig.getJumpOverMinSpeed()), CharacterAiStep.create(CharacterAiAction.JUMP, this.config.getRandomThinkingTime()*2, null, direction, 0));
+          this.plan = Dut.list(CharacterAiStep.create(CharacterAiAction.ENSURE_SPEED, this.config.getRandomThinkingTime()*2, null, direction, characterConfig.getJumpOverMinSpeed()), CharacterAiStep.create(CharacterAiAction.JUMP, this.config.getRandomThinkingTime()*2, null, direction, 0), CharacterAiStep.create(CharacterAiAction.FLY, this.config.getRandomThinkingTime()*2, null, direction, 0));
         }
         if (this.plan.isEmpty()) {
           this.plan = Dut.list(CharacterAiStep.create(CharacterAiAction.WAIT, this.config.getRandomThinkingTime(), null, 0, 0));
@@ -39833,7 +40067,7 @@ class Fighting2CharacterAi2 {
         }
       }
       else if (currentStep.actionEquals(CharacterAiAction.ENSURE_SPEED)) {
-        let vel = this.rigidBody.getVelocity();
+        let vel = this.character.getVelocity();
         if (FMath.trunc(FMath.signum(vel.x()))==currentStep.getDirection()&&FMath.abs(vel.x())>currentStep.getSpeed()) {
           this.stepIdx = this.stepIdx+1;
           this.stepTime = 0;
@@ -39841,14 +40075,19 @@ class Fighting2CharacterAi2 {
         return FightingCharacterInput.create(Vec2.create(currentStep.getDirection(), 0), false, false, false, false);
       }
       else if (currentStep.actionEquals(CharacterAiAction.JUMP)) {
-        if (this.grounded.isGrounded()&&!this.grounded.isGroundedBefore()) {
+        this.stepIdx = this.stepIdx+1;
+        this.stepTime = 0;
+        return FightingCharacterInput.create(Vec2.create(currentStep.getDirection(), 1), false, false, false, false);
+      }
+      else if (currentStep.actionEquals(CharacterAiAction.FLY)) {
+        if (this.character.isGrounded()) {
           this.stepIdx = this.stepIdx+1;
           this.stepTime = 0;
         }
-        return FightingCharacterInput.create(Vec2.create(currentStep.getDirection(), 1), false, false, false, false);
+        return FightingCharacterInput.create(Vec2.create(currentStep.getDirection(), 0), false, false, false, false);
       }
       else if (currentStep.actionEquals(CharacterAiAction.ATTACK)) {
-        if (this.characterState.actionEquals(CharacterAction.ATTACK)) {
+        if (this.character.getState().actionEquals(CharacterAction.ATTACK)) {
           this.stepIdx = this.stepIdx+1;
           this.stepTime = 0;
         }
@@ -39877,7 +40116,7 @@ class Fighting2CharacterAi2 {
     let minDist = Float.POSITIVE_INFINITY;
     for (let detAct of detectedActors) {
       let tc = detAct.getComponent("TransformComponent");
-      let dist = FMath.abs(tc.getPos().x()-this.transform.getPos().x());
+      let dist = FMath.abs(tc.getPos().x()-this.character.getPos().x());
       if (dist<minDist) {
         minDist = dist;
         closest = detAct;
@@ -39900,7 +40139,9 @@ class Fighting2CharacterAi2 {
 
   static create(actor) {
     let res = new Fighting2CharacterAi2();
-    res.actor = actor;
+    res.character = actor.getComponent("CharacterBehavior");
+    res.sensor = actor.getComponent("ActorDetectionSensor");
+    res.attackDistance = res.character.getConfig().getAttackDistance(0.95);
     res.guardInvariants();
     return res;
   }
@@ -40195,7 +40436,7 @@ class Fighting2World01 extends TyracornScreen {
 }));
     this.controller = Platformer2CharacterController.create(drivers);
     this.ui.addComponent(this.controller);
-    this.ui.addComponent(FightingStateCharacterIndicator.create().setState(player.getComponent("Fighting2BaseFighterBehavior").getState()).setRegionFnc((s) => {
+    this.ui.addComponent(FightingStateCharacterIndicator.create().setState(player.getComponent("CharacterBehavior").getState()).setRegionFnc((s) => {
   let h2 = s.height()*0.02;
   let h5 = s.height()*0.05;
   let h30 = s.height()*0.3;
@@ -40206,7 +40447,7 @@ class Fighting2World01 extends TyracornScreen {
   let width = FMath.min(h30, w30);
   return Rect2.create(offsetX, offsetY, width, h5);
 }).setFlip(false));
-    this.ui.addComponent(FightingStateCharacterIndicator.create().setState(enemy.getComponent("Fighting2BaseFighterBehavior").getState()).setRegionFnc((s) => {
+    this.ui.addComponent(FightingStateCharacterIndicator.create().setState(enemy.getComponent("CharacterBehavior").getState()).setRegionFnc((s) => {
   let h2 = s.height()*0.02;
   let h5 = s.height()*0.05;
   let h30 = s.height()*0.3;
@@ -40235,13 +40476,13 @@ class Fighting2World01 extends TyracornScreen {
   spawnPlayer(assets) {
     let prefab = assets.get("ActorPrefab", ActorPrefabId.of("fighter-base"));
     let req = CreateActorRequest.create(prefab, ActorId.of("player"), Vec3.create(0, 3, 0), Quaternion.ZERO_ROT);
-    return this.world.constructActor(req).addTag(WorldActors.PLAYER_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.ENEMY_TAG)).addComponent(Fighting2CharacterInputBehavior.create(ComponentKey.random()).setInputType(Fighting2CharacterInputType.CONTROLLER)).addComponent(Fighting2BaseFighterBehavior.create(ComponentKey.random()));
+    return this.world.constructActor(req).addTag(WorldActors.PLAYER_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.ENEMY_TAG)).addComponent(CharacterBehavior.create(ComponentKey.random())).addComponent(Fighting2CharacterInputBehavior.create(ComponentKey.random()).setInputType(Fighting2CharacterInputType.CONTROLLER)).addComponent(Fighting2BaseFighterBehavior.create(ComponentKey.random()));
   }
 
   spawnEnemy(assets) {
     let prefab = assets.get("ActorPrefab", ActorPrefabId.of("fighter-base"));
     let req = CreateActorRequest.create(prefab, null, Vec3.create(10, 3, 0), Quaternion.ZERO_ROT);
-    return this.world.constructActor(req).addTag(WorldActors.ENEMY_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.PLAYER_TAG)).addComponent(Fighting2CharacterInputBehavior.create(ComponentKey.random()).setInputType(Fighting2CharacterInputType.AI).setAiDifficulyLevel(this.enemyDifficulty)).addComponent(Fighting2BaseFighterBehavior.create(ComponentKey.random()));
+    return this.world.constructActor(req).addTag(WorldActors.ENEMY_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.PLAYER_TAG)).addComponent(CharacterBehavior.create(ComponentKey.random())).addComponent(Fighting2CharacterInputBehavior.create(ComponentKey.random()).setInputType(Fighting2CharacterInputType.AI).setAiDifficulyLevel(this.enemyDifficulty)).addComponent(Fighting2BaseFighterBehavior.create(ComponentKey.random()));
   }
 
 }
@@ -40429,103 +40670,6 @@ class FightingStateCharacterIndicator extends UiComponent {
 
 }
 classRegistry.FightingStateCharacterIndicator = FightingStateCharacterIndicator;
-class GroundedBehavior extends Behavior {
-  grounded = false;
-  groundedBefore = false;
-  fallVelocity = Vec3.ZERO;
-  nextFallVelocity = Vec3.ZERO;
-  colliderKey;
-  delta = 0.5;
-  transform;
-  rigidBody;
-  collider;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "GroundedBehavior";
-  }
-
-  init() {
-    this.transform = this.actor().getComponent("TransformComponent");
-    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-    this.collider = this.actor().getComponentByKey("ColliderComponent", this.colliderKey);
-  }
-
-  move(dt, inputs) {
-    this.groundedBefore = this.grounded;
-    let pos = this.transform.getPos();
-    let volume = this.collider.getVolume();
-    let bottomY = pos.y();
-    if (volume instanceof CollisionCapsule) {
-      let capsule = volume;
-      bottomY = FMath.min(capsule.getPivot1().y(), capsule.getPivot2().y())-capsule.getRadius();
-    }
-    else {
-      throw new Error("unsupported volume for ground testing: "+volume);
-    }
-    let contacts = this.world().collisions().withColliderContacts(this.collider);
-    let bestCollisionPt = bottomY+2*this.delta;
-    let conp = null;
-    for (let cont of contacts) {
-      if (cont.getColliderB().getLayer().equals(CollisionLayer.WORLD)) {
-        for (let cp of cont.getContactPoints()) {
-          if (cp.getPosA().y()<bestCollisionPt) {
-            bestCollisionPt = cp.getPosA().y();
-            conp = cp;
-          }
-        }
-      }
-    }
-    let normalOk = false;
-    if (conp!=null) {
-      let dot = FMath.abs(Vec3.DOWN.dot(conp.getNormal()));
-      if (dot>0.71) {
-        normalOk = true;
-      }
-    }
-    this.grounded = normalOk&&bestCollisionPt<=bottomY+this.delta;
-    this.fallVelocity = this.nextFallVelocity;
-    this.nextFallVelocity = this.nextFallVelocity=this.grounded?Vec3.ZERO:this.rigidBody.getVelocity();
-  }
-
-  isGrounded() {
-    return this.grounded;
-  }
-
-  isGroundedBefore() {
-    return this.groundedBefore;
-  }
-
-  getFallVelocity() {
-    return this.fallVelocity;
-  }
-
-  setColliderKey(colliderKey) {
-    this.colliderKey = colliderKey;
-    return this;
-  }
-
-  setDelta(delta) {
-    this.delta = delta;
-    return this;
-  }
-
-  setPrefabProperties(idMapping, properties) {
-    this.colliderKey = ComponentKey.of(properties.get("colliderKey"));
-    this.delta = Float.parseFloat(properties.getOrDefault("delta", "0.5"));
-  }
-
-  toString() {
-  }
-
-  static create(key) {
-    return new GroundedBehavior(key);
-  }
-
-}
-classRegistry.GroundedBehavior = GroundedBehavior;
 class HitEvent {
   pos;
   dir;

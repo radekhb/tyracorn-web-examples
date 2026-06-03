@@ -29685,6 +29685,165 @@ class RpGeneratorComponent extends Component {
 
 }
 classRegistry.RpGeneratorComponent = RpGeneratorComponent;
+const createGroundedType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const GroundedType = Object.freeze({
+  CONTACT: createGroundedType("CONTACT"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class GroundedComponent extends Behavior {
+  grounded = false;
+  type = GroundedType.CONTACT;
+  colliderKey = ComponentKey.of("collider");
+  maxUpVelocity = 1;
+  maxCpHeight = 0.5;
+  minCpNormalDot = FMath.cos(FMath.PI_QUARTER);
+  transform;
+  rigidBody;
+  collider;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "GroundedComponent";
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
+    this.collider = this.actor().getComponentByKey("ColliderComponent", this.colliderKey);
+  }
+
+  move(dt, inputs) {
+    let vel = this.rigidBody.getVelocity();
+    if (vel.y()>this.maxUpVelocity) {
+      this.grounded = false;
+      return ;
+    }
+    let pos = this.transform.getPos();
+    let volume = this.collider.getVolume();
+    if (this.type.equals(GroundedType.CONTACT)) {
+      let bottomY = pos.y();
+      if (volume instanceof CollisionCapsule) {
+        let capsule = volume;
+        bottomY = FMath.min(capsule.getPivot1().y(), capsule.getPivot2().y())-capsule.getRadius();
+      }
+      else {
+        throw new Error("unsupported volume for ground testing: "+volume);
+      }
+      let contacts = this.world().collisions().withColliderContacts(this.collider);
+      let bestCollisionHeight = bottomY+2*this.maxCpHeight;
+      let bestContact = null;
+      let bestContactPoint = null;
+      for (let cont of contacts) {
+        if (cont.getColliderB().getLayer().equals(CollisionLayer.WORLD)) {
+          for (let cp of cont.getContactPoints()) {
+            if (cp.getPosA().y()<bestCollisionHeight) {
+              bestContact = cont;
+              bestCollisionHeight = cp.getPosA().y();
+              bestContactPoint = cp;
+            }
+          }
+        }
+      }
+      let normalOk = false;
+      if (bestContactPoint!=null) {
+        let dot = FMath.abs(Vec3.DOWN.dot(bestContactPoint.getNormal()));
+        if (dot>this.minCpNormalDot) {
+          normalOk = true;
+        }
+      }
+      this.grounded = normalOk&&bestCollisionHeight<=bottomY+this.maxCpHeight;
+    }
+    else {
+      throw new Error("unsupported grounded type algorithm, implement me: "+this.type);
+    }
+  }
+
+  isGrounded() {
+    return this.grounded;
+  }
+
+  setType(type) {
+    Guard.notNull(type, "type cannot be null");
+    this.type = type;
+    return this;
+  }
+
+  setColliderKey(colliderKey) {
+    Guard.notNull(colliderKey, "colliderKey cannot be null");
+    this.colliderKey = colliderKey;
+    return this;
+  }
+
+  setMaxUpVelocity(maxUpVelocity) {
+    Guard.positive(maxUpVelocity, "maxUpVelocity must be positive");
+    this.maxUpVelocity = maxUpVelocity;
+    return this;
+  }
+
+  setMaxCpHeight(maxCpHeight) {
+    Guard.positive(maxCpHeight, "maxCpHeight must be positive");
+    this.maxCpHeight = maxCpHeight;
+    return this;
+  }
+
+  setMinCpNormalDot(minCpNormalDot) {
+    this.minCpNormalDot = minCpNormalDot;
+    return this;
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    return new GroundedComponent(key);
+  }
+
+}
+classRegistry.GroundedComponent = GroundedComponent;
 const createComponentPrefabRotType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -29779,6 +29938,7 @@ const ComponentPrefabType = Object.freeze({
   POI: createComponentPrefabType("POI"),
   RP_GENERATOR: createComponentPrefabType("RP_GENERATOR"),
   SKYBOX: createComponentPrefabType("SKYBOX"),
+  GROUNDED: createComponentPrefabType("GROUNDED"),
   SCRIPT: createComponentPrefabType("SCRIPT"),
 
   valueOf(description) {
@@ -30426,6 +30586,14 @@ class ComponentPrefab {
         throw new Error("unsupported version: "+this.type+"; "+this.version);
       }
     }
+    else if (this.type.equals(ComponentPrefabType.GROUNDED)) {
+      if (this.version==1) {
+        return GroundedComponent.create(this.key).setType(GroundedType.valueOf(this.getString("type"))).setColliderKey(ComponentKey.of(this.getString("colliderKey"))).setMaxUpVelocity(this.getFloat("maxUpVelocity")).setMaxCpHeight(this.getFloat("maxCpHeight")).setMinCpNormalDot(FMath.cos(FMath.toRadians(this.getFloat("maxCpNormalAngDeg"))));
+      }
+      else {
+        throw new Error("unsupported version: "+this.type+"; "+this.version);
+      }
+    }
     else if (this.type.equals(ComponentPrefabType.SCRIPT)) {
       if (this.version==1) {
         let res = Reflections.createClass(this.properties.get("className"), this.key);
@@ -30629,6 +30797,16 @@ class ComponentPrefab {
     res.key = key;
     res.version = 1;
     res.properties = Dut.immutableMap("active", String.valueOf(active), "weight", String.valueOf(weight), "groups", Jsons.stringListToJson(Dut.copyImmutableList(Dut.copySortedSet(groups))), "shape", shape.name(), "pos", Jsons.toJson(pos), "rot", Jsons.toJson(rot), "rot.type", ComponentPrefabRotType.QUATERNION.name(), "radius", String.valueOf(radius), "size", Jsons.toJson(size));
+    res.guardInvariants();
+    return res;
+  }
+
+  static grounded(key, type, colliderKey, maxUpVelocity, maxCpHeight, maxCpNormalAngDeg) {
+    let res = new ComponentPrefab();
+    res.type = ComponentPrefabType.GROUNDED;
+    res.key = key;
+    res.version = 1;
+    res.properties = Dut.immutableMap("type", type.name(), "colliderKey", colliderKey.key(), "maxUpVelocity", String.valueOf(maxUpVelocity), "maxCpHeight", String.valueOf(maxCpHeight), "maxCpNormalAngDeg", String.valueOf(maxCpNormalAngDeg));
     res.guardInvariants();
     return res;
   }
@@ -34163,6 +34341,7 @@ class RenderRequest {
   static DEBUG_LIGHT = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.COLLIDER));
   static DEBUG_COLLIDER = RenderRequest.create(Dut.set(DebugRenderRealm.COLLIDER));
   static DEBUG_JOINT = RenderRequest.create(Dut.set(DebugRenderRealm.JOINT));
+  static DEBUG_CONTACT_POINT = RenderRequest.create(Dut.set(DebugRenderRealm.CONTACT_POINT));
   static DEBUG_FULL = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.SPACE_PARTITIONING, DebugRenderRealm.COLLIDER, DebugRenderRealm.CONTACT_POINT, DebugRenderRealm.JOINT));
   debugRenderRealms;
   constructor() {
