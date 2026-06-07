@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-16";
-const assetsDirName = "/assets-c1d628";
+const basePath = "/tyracorn-web-examples/basic-app-10";
+const assetsDirName = "/assets-866cb7";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -25225,6 +25225,51 @@ class QueuedActorTree {
 
 }
 classRegistry.QueuedActorTree = QueuedActorTree;
+class ActorMessageType {
+  static OUTSPACE = ActorMessageType.create("OUTSPACE");
+  static HIT_RECEIVED = ActorMessageType.create("HIT_RECEIVED");
+  type;
+  constructor() {
+  }
+
+  getClass() {
+    return "ActorMessageType";
+  }
+
+  guardInvariants() {
+  }
+
+  getType() {
+    return this.type;
+  }
+
+  hashCode() {
+    return this.type.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ActorMessageType)) {
+      return false;
+    }
+    let other = obj;
+    return other.type.equals(this.type);
+  }
+
+  toString() {
+  }
+
+  static create(type) {
+    let res = new ActorMessageType();
+    res.type = type;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ActorMessageType = ActorMessageType;
 class ActorId extends RefId {
   static TYPE = RefIdType.of("ACTOR_ID");
   static ROOT = ActorId.of("ROOT");
@@ -25455,22 +25500,17 @@ class Actor {
     return this;
   }
 
-  broadcastDomainUpdate(source, domain, upward, downward) {
+  broadcastDomainUpdate(source, domain, impactChildren) {
     for (let i = 0; i<this.components.size(); ++i) {
       if (this.components.get(i).equals(source)) {
         continue;
       }
-      this.components.get(i).onDomainEvent(domain, PropagationType.LOCAL);
+      this.components.get(i).onDomainUpdate(domain);
     }
-    if (upward) {
-      if (!this.id.equals(ActorId.ROOT)) {
-        this.mWorld.actors().parent(this.id).broadcastDomainUpdateUpward(source, domain);
-      }
-    }
-    if (downward) {
+    if (impactChildren) {
       let childrens = this.mWorld.actors().children(this.id);
       for (let i = 0; i<childrens.size(); ++i) {
-        childrens.get(i).broadcastDomainUpdateDownward(source, domain);
+        childrens.get(i).broadcastDomainUpdateToChildren(source, domain);
       }
     }
     for (let list of this.listeners) {
@@ -25479,38 +25519,28 @@ class Actor {
     return this;
   }
 
-  broadcastDomainUpdateUpward(source, domain) {
+  broadcastDomainUpdateToChildren(source, domain) {
     let ok = true;
     for (let i = 0; i<this.components.size()&&ok; ++i) {
       if (this.components.get(i).equals(source)) {
         continue;
       }
-      ok = !this.components.get(i).onDomainEvent(domain, PropagationType.UPWARD);
+      ok = !this.components.get(i).onDomainUpdate(domain);
     }
-    if (ok&&!this.id.equals(ActorId.ROOT)) {
-      this.mWorld.actors().parent(this.id).broadcastDomainUpdateUpward(source, domain);
-    }
-  }
-
-  broadcastDomainUpdateDownward(source, domain) {
-    let ok = true;
-    for (let i = 0; i<this.components.size()&&ok; ++i) {
-      if (this.components.get(i).equals(source)) {
-        continue;
-      }
-      ok = !this.components.get(i).onDomainEvent(domain, PropagationType.DOWNWARD);
+    for (let list of this.listeners) {
+      list.onDomainUpdate(this, domain);
     }
     if (ok) {
       let childrens = this.mWorld.actors().children(this.id);
       for (let i = 0; i<childrens.size(); ++i) {
-        childrens.get(i).broadcastDomainUpdateDownward(source, domain);
+        childrens.get(i).broadcastDomainUpdateToChildren(source, domain);
       }
     }
   }
 
-  broadcastEvent(type, event) {
+  sendMessage(type, message) {
     for (let i = 0; i<this.components.size(); ++i) {
-      this.components.get(i).onEvent(type, event);
+      this.components.get(i).onMessage(type, message);
     }
     return this;
   }
@@ -25562,50 +25592,6 @@ class Actors {
 
 }
 classRegistry.Actors = Actors;
-class ActorEventType {
-  static OUTSPACE = ActorEventType.create("OUTSPACE");
-  type;
-  constructor() {
-  }
-
-  getClass() {
-    return "ActorEventType";
-  }
-
-  guardInvariants() {
-  }
-
-  getType() {
-    return this.type;
-  }
-
-  hashCode() {
-    return this.type.hashCode();
-  }
-
-  equals(obj) {
-    if (obj==null) {
-      return false;
-    }
-    if (!(obj instanceof ActorEventType)) {
-      return false;
-    }
-    let other = obj;
-    return other.type.equals(this.type);
-  }
-
-  toString() {
-  }
-
-  static create(type) {
-    let res = new ActorEventType();
-    res.type = type;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.ActorEventType = ActorEventType;
 class ActorActions {
   constructor() {
   }
@@ -25685,55 +25671,6 @@ class ActorDomain {
 
 }
 classRegistry.ActorDomain = ActorDomain;
-const createPropagationType = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const PropagationType = Object.freeze({
-  LOCAL: createPropagationType("LOCAL"),
-  UPWARD: createPropagationType("UPWARD"),
-  DOWNWARD: createPropagationType("DOWNWARD"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
 class ActorPrefabId extends RefId {
   static TYPE = RefIdType.of("ACTOR_PREFAB_ID");
   mId;
@@ -26170,53 +26107,6 @@ class ComponentEffect {
 
 }
 classRegistry.ComponentEffect = ComponentEffect;
-class ComponentFeature {
-  static AABB_PRODUCER = ComponentFeature.create("AABB_PRODUCER");
-  static COLLIDER = ComponentFeature.create("COLLIDER");
-  static COLLISION_EXCLUSION_PRODUCER = ComponentFeature.create("COLLISION_EXCLUSION_PRODUCER");
-  static RIGID_BODY_JOINT = ComponentFeature.create("RIGID_BODY_JOINT");
-  mFeature;
-  constructor() {
-  }
-
-  getClass() {
-    return "ComponentFeature";
-  }
-
-  guardInvariants() {
-  }
-
-  feature() {
-    return this.mFeature;
-  }
-
-  hashCode() {
-    return this.mFeature.hashCode();
-  }
-
-  equals(obj) {
-    if (obj==null) {
-      return false;
-    }
-    if (!(obj instanceof ComponentFeature)) {
-      return false;
-    }
-    let other = obj;
-    return other.mFeature.equals(this.mFeature);
-  }
-
-  toString() {
-  }
-
-  static create(feature) {
-    let res = new ComponentFeature();
-    res.mFeature = feature;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.ComponentFeature = ComponentFeature;
 class ComponentKey {
   static TRANSFORM = ComponentKey.of("TRANSFORM");
   static RIGID_BODY = ComponentKey.of("RIGID_BODY");
@@ -26327,22 +26217,22 @@ class Component {
     return Collections.emptySet();
   }
 
-  getFeatures() {
+  getLocalAabb() {
+    return Aabb3.ZERO;
+  }
+
+  getCollisionExclusions() {
     return Collections.emptySet();
   }
 
-  hasFeature(feature) {
-    return this.getFeatures().contains(feature);
-  }
-
-  onDomainEvent(domain, propagationType) {
+  onDomainUpdate(domain) {
     return false;
   }
 
   onRemove() {
   }
 
-  onEvent(type, event) {
+  onMessage(type, message) {
   }
 
   actor() {
@@ -26357,15 +26247,19 @@ class Component {
     return this.mActor.world();
   }
 
-  broadcastDomainUpdate(domain, upward, downward) {
+  broadcastDomainUpdate(domain, impactChildren) {
     if (this.mActor!=null) {
-      this.mActor.broadcastDomainUpdate(this, domain, upward, downward);
+      this.mActor.broadcastDomainUpdate(this, domain, impactChildren);
     }
   }
 
-  sendEvent(targetId, type, event) {
+  sendMessage(targetId, type, message) {
     if (this.world().actors().exists(targetId)) {
-      this.world().actors().get(targetId).broadcastEvent(type, event);
+      this.world().actors().get(targetId).sendMessage(type, message);
+      return true;
+    }
+    else {
+      return false;
     }
   }
 
@@ -26412,7 +26306,7 @@ class TransformComponent extends Component {
     return "TransformComponent";
   }
 
-  onDomainEvent(domain, propagationType) {
+  onDomainUpdate(domain) {
     if (domain.equals(ActorDomain.TRANSFORM)) {
       if (this.actor().hasEffect(ComponentEffect.ABSOLUTE_COORDINATES)) {
         return true;
@@ -26454,7 +26348,7 @@ class TransformComponent extends Component {
     this.globalMat = null;
     this.globalMatInv = null;
     this.globalAabb = null;
-    this.broadcastDomainUpdate(ActorDomain.TRANSFORM, false, true);
+    this.broadcastDomainUpdate(ActorDomain.TRANSFORM, true);
     return this;
   }
 
@@ -26472,7 +26366,7 @@ class TransformComponent extends Component {
     this.globalMat = null;
     this.globalMatInv = null;
     this.globalAabb = null;
-    this.broadcastDomainUpdate(ActorDomain.TRANSFORM, false, true);
+    this.broadcastDomainUpdate(ActorDomain.TRANSFORM, true);
     return this;
   }
 
@@ -26497,7 +26391,7 @@ class TransformComponent extends Component {
     this.globalMat = null;
     this.globalMatInv = null;
     this.globalAabb = null;
-    this.broadcastDomainUpdate(ActorDomain.TRANSFORM, false, true);
+    this.broadcastDomainUpdate(ActorDomain.TRANSFORM, true);
     return this;
   }
 
@@ -26510,7 +26404,7 @@ class TransformComponent extends Component {
     this.globalMat = null;
     this.globalMatInv = null;
     this.globalAabb = null;
-    this.broadcastDomainUpdate(ActorDomain.TRANSFORM, false, true);
+    this.broadcastDomainUpdate(ActorDomain.TRANSFORM, true);
     return this;
   }
 
@@ -26524,7 +26418,7 @@ class TransformComponent extends Component {
     this.globalMat = null;
     this.globalMatInv = null;
     this.globalAabb = null;
-    this.broadcastDomainUpdate(ActorDomain.TRANSFORM, false, true);
+    this.broadcastDomainUpdate(ActorDomain.TRANSFORM, true);
     return this;
   }
 
@@ -26553,7 +26447,7 @@ class TransformComponent extends Component {
     this.globalMat = null;
     this.globalMatInv = null;
     this.globalAabb = null;
-    this.broadcastDomainUpdate(ActorDomain.TRANSFORM, false, true);
+    this.broadcastDomainUpdate(ActorDomain.TRANSFORM, true);
     return this;
   }
 
@@ -26600,12 +26494,12 @@ class TransformComponent extends Component {
   getGlobalAabb() {
     this.syncCache(false);
     if (this.localAabb==null) {
-      this.localAabb = Aabb3.create(Vec3.ZERO, Vec3.ZERO);
+      this.localAabb = Aabb3.ZERO;
       let cmps = this.actor().getComponents();
       for (let i = 0; i<cmps.size(); ++i) {
         let cmp = cmps.get(i);
-        if (cmp.hasFeature(ComponentFeature.AABB_PRODUCER)) {
-          let cmpLocalAabb = (cmp).getLocalAabb();
+        let cmpLocalAabb = cmp.getLocalAabb();
+        if (!Aabb3.ZERO.equals(cmpLocalAabb)) {
           this.localAabb = this.localAabb.union(cmpLocalAabb);
         }
       }
@@ -26689,7 +26583,6 @@ class AutoRotateComponent extends Behavior {
 }
 classRegistry.AutoRotateComponent = AutoRotateComponent;
 class ModelComponent extends Component {
-  static FEATURES = Dut.immutableSet(ComponentFeature.AABB_PRODUCER);
   modelId;
   transform;
   interpolation;
@@ -26713,14 +26606,10 @@ class ModelComponent extends Component {
 
   init() {
     this.transformComp = this.actor().getComponent("TransformComponent");
-    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false);
   }
 
-  getFeatures() {
-    return ModelComponent.FEATURES;
-  }
-
-  onDomainEvent(domain, propagationType) {
+  onDomainUpdate(domain) {
     if (domain.equals(ActorDomain.TRANSFORM)) {
       this.globalMat = null;
     }
@@ -26735,7 +26624,7 @@ class ModelComponent extends Component {
     Guard.notNull(modelId, "modelId cannot be null");
     this.modelId = modelId;
     this.localAabb = null;
-    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false);
     return this;
   }
 
@@ -26748,7 +26637,7 @@ class ModelComponent extends Component {
     this.transform = transform;
     this.localAabb = null;
     this.globalMat = null;
-    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false);
     return this;
   }
 
@@ -26759,7 +26648,7 @@ class ModelComponent extends Component {
   setInterpolation(interpolation) {
     Guard.notNull(interpolation, "interpolation cannot be null");
     this.interpolation = interpolation;
-    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false);
     return this;
   }
 
@@ -26770,7 +26659,7 @@ class ModelComponent extends Component {
   setPose(pose) {
     Guard.notNull(pose, "pose cannot be null");
     this.pose = pose;
-    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false);
     return this;
   }
 
@@ -26780,7 +26669,7 @@ class ModelComponent extends Component {
 
   setVisible(visible) {
     this.visible = visible;
-    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false);
     return this;
   }
 
@@ -26790,7 +26679,7 @@ class ModelComponent extends Component {
 
   setCastShadows(castShadows) {
     this.castShadows = castShadows;
-    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false);
     return this;
   }
 
@@ -26800,7 +26689,7 @@ class ModelComponent extends Component {
 
   setReceiveShadows(receiveShadows) {
     this.receiveShadows = receiveShadows;
-    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false);
     return this;
   }
 
@@ -27472,10 +27361,10 @@ class SkyboxComponent extends Component {
 
   init() {
     this.transformComp = this.actor().getComponent("TransformComponent");
-    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false);
   }
 
-  onDomainEvent(domain, propagationType) {
+  onDomainUpdate(domain) {
     if (domain.equals(ActorDomain.TRANSFORM)) {
       this.globalMat = null;
     }
@@ -27489,7 +27378,7 @@ class SkyboxComponent extends Component {
   setModelId(modelId) {
     Guard.notNull(modelId, "modelId cannot be null");
     this.modelId = modelId;
-    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false);
     return this;
   }
 
@@ -27501,7 +27390,7 @@ class SkyboxComponent extends Component {
     Guard.notNull(transform, "transform cannot be null");
     this.transform = transform;
     this.globalMat = null;
-    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false);
     return this;
   }
 
@@ -27511,7 +27400,7 @@ class SkyboxComponent extends Component {
 
   setVisible(visible) {
     this.visible = visible;
-    this.broadcastDomainUpdate(ActorDomain.VISUAL, false, false);
+    this.broadcastDomainUpdate(ActorDomain.VISUAL, false);
     return this;
   }
 
@@ -27628,7 +27517,7 @@ class WorldComponent extends Behavior {
           rb.applyTorque(dragTorque);
         }
         if (!this.boundary.isInside(rb.getPos())) {
-          fncActor.broadcastEvent(ActorEventType.OUTSPACE, null);
+          fncActor.sendMessage(ActorMessageType.OUTSPACE, null);
         }
       }
       else {
@@ -27636,7 +27525,7 @@ class WorldComponent extends Behavior {
         if (tc!=null) {
           let pos = tc.toGlobal(Vec3.ZERO);
           if (!this.boundary.isInside(pos)) {
-            fncActor.broadcastEvent(ActorEventType.OUTSPACE, null);
+            fncActor.sendMessage(ActorMessageType.OUTSPACE, null);
           }
         }
       }
@@ -27709,7 +27598,6 @@ class ColliderPoseNodeRef {
 }
 classRegistry.ColliderPoseNodeRef = ColliderPoseNodeRef;
 class ColliderComponent extends Component {
-  static FEATURES = Dut.immutableSet(ComponentFeature.AABB_PRODUCER, ComponentFeature.COLLIDER);
   active = true;
   trigger = false;
   layer;
@@ -27746,14 +27634,10 @@ class ColliderComponent extends Component {
 
   init() {
     this.transformComp = this.actor().getComponent("TransformComponent");
-    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false);
   }
 
-  getFeatures() {
-    return ColliderComponent.FEATURES;
-  }
-
-  onDomainEvent(domain, propagationType) {
+  onDomainUpdate(domain) {
     if (domain.equals(ActorDomain.TRANSFORM)) {
       this.globalMat = null;
       this.volume = null;
@@ -27777,7 +27661,7 @@ class ColliderComponent extends Component {
 
   setActive(active) {
     this.active = active;
-    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false);
     return this;
   }
 
@@ -27787,7 +27671,7 @@ class ColliderComponent extends Component {
 
   setTrigger(trigger) {
     this.trigger = trigger;
-    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false);
     return this;
   }
 
@@ -27798,7 +27682,7 @@ class ColliderComponent extends Component {
   setLayer(layer) {
     Guard.notNull(layer, "layer cannot be null");
     this.layer = layer;
-    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false);
     return this;
   }
 
@@ -27809,7 +27693,7 @@ class ColliderComponent extends Component {
   setZone(zone) {
     Guard.notNull(zone, "zone cannot be null");
     this.zone = zone;
-    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false);
     return this;
   }
 
@@ -27854,7 +27738,7 @@ class ColliderComponent extends Component {
     this.globalMat = null;
     this.volume = null;
     this.localAabb = null;
-    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false);
     return this;
   }
 
@@ -27872,7 +27756,7 @@ class ColliderComponent extends Component {
     this.globalMat = null;
     this.volume = null;
     this.localAabb = null;
-    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false);
     return this;
   }
 
@@ -27897,7 +27781,7 @@ class ColliderComponent extends Component {
     this.shape = shape;
     this.volume = null;
     this.localAabb = null;
-    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false);
     return this;
   }
 
@@ -27909,7 +27793,7 @@ class ColliderComponent extends Component {
     this.radius = radius;
     this.volume = null;
     this.localAabb = null;
-    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false);
     return this;
   }
 
@@ -27935,7 +27819,7 @@ class ColliderComponent extends Component {
     this.ez = size.z()/2;
     this.volume = null;
     this.localAabb = null;
-    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false);
     return this;
   }
 
@@ -27951,7 +27835,7 @@ class ColliderComponent extends Component {
     this.height = height;
     this.volume = null;
     this.localAabb = null;
-    this.broadcastDomainUpdate(ActorDomain.COLLISION, false, false);
+    this.broadcastDomainUpdate(ActorDomain.COLLISION, false);
     return this;
   }
 
@@ -28118,7 +28002,7 @@ class RigidBodyComponent extends Component {
     this.localInertia = null;
   }
 
-  onDomainEvent(domain, propagationType) {
+  onDomainUpdate(domain) {
     if (domain.equals(ActorDomain.TRANSFORM)) {
       this.inverseInertia = null;
     }
@@ -28381,6 +28265,17 @@ class RigidBodyComponent extends Component {
 
 }
 classRegistry.RigidBodyComponent = RigidBodyComponent;
+class RigidBodyJointComponent extends Behavior {
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "RigidBodyJointComponent";
+  }
+
+}
+classRegistry.RigidBodyJointComponent = RigidBodyJointComponent;
 class SpringComponent extends Behavior {
   static SQR_ZERO_DST = 0.01*0.01;
   actorA;
@@ -28552,8 +28447,7 @@ class BallSocketJointConfig {
 
 }
 classRegistry.BallSocketJointConfig = BallSocketJointConfig;
-class BallSocketJointComponent extends Behavior {
-  static FEATURES = Dut.immutableSet(ComponentFeature.COLLISION_EXCLUSION_PRODUCER, ComponentFeature.RIGID_BODY_JOINT);
+class BallSocketJointComponent extends RigidBodyJointComponent {
   localPosA;
   localPosB;
   rigidBodyA;
@@ -28584,15 +28478,8 @@ class BallSocketJointComponent extends Behavior {
     this.localPosA = this.rigidBodyA.toLocal(this.config.getPos());
     this.localPosB = this.rigidBodyB.toLocal(this.config.getPos());
     this.collisionExclusions = Dut.immutableSet(CollisionExclusion.create(this.config.getActorA(), this.config.getActorB()));
-    this.broadcastDomainUpdate(ActorDomain.COLLISION_EXCLUSION, false, false);
+    this.broadcastDomainUpdate(ActorDomain.COLLISION_EXCLUSION, false);
     this.config = null;
-  }
-
-  getFeatures() {
-    return BallSocketJointComponent.FEATURES;
-  }
-
-  move(dt, inputs) {
   }
 
   getCollisionExclusions() {
@@ -28730,8 +28617,7 @@ class HingeJointConfig {
 
 }
 classRegistry.HingeJointConfig = HingeJointConfig;
-class HingeJointComponent extends Behavior {
-  static FEATURES = Dut.immutableSet(ComponentFeature.COLLISION_EXCLUSION_PRODUCER, ComponentFeature.RIGID_BODY_JOINT);
+class HingeJointComponent extends RigidBodyJointComponent {
   rigidBodyA;
   rigidBodyB;
   collisionExclusions = Collections.emptySet();
@@ -28772,15 +28658,8 @@ class HingeJointComponent extends Behavior {
       this.q0Conjs.add(this.rigidBodyA.getRot().conj().mul(this.rigidBodyB.getRot().mul(rot)));
     }
     this.collisionExclusions = Dut.immutableSet(CollisionExclusion.create(this.config.getActorA(), this.config.getActorB()));
-    this.broadcastDomainUpdate(ActorDomain.COLLISION_EXCLUSION, false, false);
+    this.broadcastDomainUpdate(ActorDomain.COLLISION_EXCLUSION, false);
     this.config = null;
-  }
-
-  getFeatures() {
-    return HingeJointComponent.FEATURES;
-  }
-
-  move(dt, inputs) {
   }
 
   getCollisionExclusions() {
@@ -28937,8 +28816,7 @@ class PrismaticJointConfig {
 
 }
 classRegistry.PrismaticJointConfig = PrismaticJointConfig;
-class PrismaticJointComponent extends Behavior {
-  static FEATURES = Dut.immutableSet(ComponentFeature.COLLISION_EXCLUSION_PRODUCER, ComponentFeature.RIGID_BODY_JOINT);
+class PrismaticJointComponent extends RigidBodyJointComponent {
   rigidBodyA;
   rigidBodyB;
   collisionExclusions;
@@ -28975,15 +28853,8 @@ class PrismaticJointComponent extends Behavior {
     this.localDirB = this.rigidBodyB.toLocalRot(this.config.getDir()).normalize();
     this.q0 = this.rigidBodyA.getRot().conj().mul(this.rigidBodyB.getRot());
     this.collisionExclusions = Dut.immutableSet(CollisionExclusion.create(this.config.getActorA(), this.config.getActorB()));
-    this.broadcastDomainUpdate(ActorDomain.COLLISION_EXCLUSION, false, false);
+    this.broadcastDomainUpdate(ActorDomain.COLLISION_EXCLUSION, false);
     this.config = null;
-  }
-
-  getFeatures() {
-    return PrismaticJointComponent.FEATURES;
-  }
-
-  move(dt, inputs) {
   }
 
   getCollisionExclusions() {
@@ -29143,8 +29014,7 @@ class FixedJointConfig {
 
 }
 classRegistry.FixedJointConfig = FixedJointConfig;
-class FixedJointComponent extends Behavior {
-  static FEATURES = Dut.immutableSet(ComponentFeature.COLLISION_EXCLUSION_PRODUCER, ComponentFeature.RIGID_BODY_JOINT);
+class FixedJointComponent extends RigidBodyJointComponent {
   actorA;
   actorB;
   rigidBodyA;
@@ -29182,15 +29052,8 @@ class FixedJointComponent extends Behavior {
     this.localPosB = this.rigidBodyB.toLocal(pos);
     this.q0 = this.rigidBodyA.getRot().conj().mul(this.rigidBodyB.getRot());
     this.collisionExclusions = Dut.immutableSet(CollisionExclusion.create(this.actorA, this.actorB));
-    this.broadcastDomainUpdate(ActorDomain.COLLISION_EXCLUSION, false, false);
+    this.broadcastDomainUpdate(ActorDomain.COLLISION_EXCLUSION, false);
     this.config = null;
-  }
-
-  getFeatures() {
-    return FixedJointComponent.FEATURES;
-  }
-
-  move(dt, inputs) {
   }
 
   getCollisionExclusions() {
@@ -29315,8 +29178,8 @@ class RemoveOnOutspaceComponent extends Component {
   guardInvariants() {
   }
 
-  onEvent(type, event) {
-    if (type.equals(ActorEventType.OUTSPACE)) {
+  onMessage(type, message) {
+    if (type.equals(ActorMessageType.OUTSPACE)) {
       this.world().actors().remove(this.actor().getId());
     }
   }
@@ -29450,7 +29313,6 @@ const RpGeneratorShape = Object.freeze({
   }
 });
 class RpGeneratorComponent extends Component {
-  static FEATURES = Dut.immutableSet(ComponentFeature.AABB_PRODUCER);
   active = true;
   weight = 1;
   groups = Collections.emptySet();
@@ -29480,11 +29342,7 @@ class RpGeneratorComponent extends Component {
     this.transformComp = this.actor().getComponent("TransformComponent");
   }
 
-  getFeatures() {
-    return RpGeneratorComponent.FEATURES;
-  }
-
-  onDomainEvent(domain, propagationType) {
+  onDomainUpdate(domain) {
     if (domain.equals(ActorDomain.TRANSFORM)) {
       this.globalMat = null;
     }
@@ -32045,16 +31903,13 @@ class BroadphaseCollisionManager {
     let actColliders = new ArrayList();
     let actExclusions = new HashSet();
     for (let comp of actor.getComponents()) {
-      if (comp.hasFeature(ComponentFeature.COLLIDER)) {
+      if (comp instanceof ColliderComponent) {
         let collider = comp;
         if (collider.isActive()) {
           actColliders.add(comp);
         }
       }
-      if (comp.hasFeature(ComponentFeature.COLLISION_EXCLUSION_PRODUCER)) {
-        let compExcls = (comp).getCollisionExclusions();
-        actExclusions.addAll(compExcls);
-      }
+      actExclusions.addAll(comp.getCollisionExclusions());
     }
     this.actors.put(id, actor);
     this.actorColliders.put(id, actColliders);
@@ -33282,7 +33137,7 @@ class RigidBodies {
   let cmps = actor.getComponents();
   for (let i = 0; i<cmps.size(); ++i) {
     let comp = cmps.get(i);
-    if (comp.hasFeature(ComponentFeature.RIGID_BODY_JOINT)) {
+    if (comp instanceof RigidBodyJointComponent) {
       res.add(comp);
     }
   }
@@ -34883,73 +34738,90 @@ class GamePad extends UiComponent {
 
 }
 classRegistry.GamePad = GamePad;
-class FreeCameraBehavior extends Behavior {
-  moveDirInput = "moveDir";
-  rotDirInput = "rotDir";
-  moveSpeed = 3;
-  rotSpeed = 1;
-  constructor(key) {
-    super(key);
+class FreeCameraController {
+  initCamera;
+  pos;
+  rotX;
+  rotY;
+  moveSpeed;
+  rotSpeed;
+  gamePad;
+  constructor() {
   }
 
   getClass() {
-    return "FreeCameraBehavior";
+    return "FreeCameraController";
   }
 
   guardInvariants() {
   }
 
-  move(dt, inputs) {
-    let moveDir = inputs.getVec2(this.moveDirInput, Vec2.ZERO);
-    let rotDir = inputs.getVec2(this.rotDirInput, Vec2.ZERO);
-    let tc = this.actor().getComponent("TransformComponent");
-    let rot = tc.getRot();
-    if (!moveDir.equals(Vec2.ZERO)) {
-      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize().scale(moveDir.y()*this.moveSpeed*dt);
-      let right = rot.rotate(Vec3.create(1, 0, 0)).normalize().scale(moveDir.x()*this.moveSpeed*dt);
-      tc.move(fwd.add(right));
+  getPos() {
+    return this.pos;
+  }
+
+  getTarget() {
+    let rxMat = Mat33.rotX(this.rotX);
+    let ryMat = Mat33.rotY(this.rotY);
+    return ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
+  }
+
+  getCamera() {
+    let rxMat = Mat33.rotX(this.rotX);
+    let ryMat = Mat33.rotY(this.rotY);
+    let target = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
+    let up = ryMat.mul(rxMat.mul(Vec3.create(0, 1, 0)));
+    return this.initCamera.lookAt(this.pos, target, up);
+  }
+
+  move(dt) {
+    let moveDir = this.gamePad.getLeftDir();
+    let rotDir = this.gamePad.getRightDir();
+    let rxMat = Mat33.rotX(this.rotX);
+    let ryMat = Mat33.rotY(this.rotY);
+    let fwd = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).normalize().scale(moveDir.y()*this.moveSpeed*dt);
+    let right = ryMat.mul(rxMat.mul(Vec3.create(1, 0, 0))).normalize().scale(moveDir.x()*this.moveSpeed*dt);
+    this.pos = this.pos.add(fwd).add(right);
+    this.rotX = this.rotX+rotDir.y()*this.rotSpeed*dt;
+    if (this.rotX>FMath.PI/2) {
+      this.rotX = FMath.PI/2;
     }
-    if (!rotDir.equals(Vec2.ZERO)) {
-      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize();
-      let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
-      let rotX = FMath.asin(fwd.y())+rotDir.y()*this.rotSpeed*dt;
-      let rotY = (fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y()))-rotDir.x()*this.rotSpeed*dt;
-      let rx = Quaternion.rot(1, 0, 0, rotX);
-      let ry = Quaternion.rot(0, 1, 0, rotY);
-      tc.setRot(ry.mul(rx));
+    if (this.rotX<-FMath.PI/2) {
+      this.rotX = -FMath.PI/2;
+    }
+    this.rotY = this.rotY-rotDir.x()*this.rotSpeed*dt;
+    while (this.rotY>FMath.PI) {
+      this.rotY = this.rotY-2*FMath.PI;
+    }
+    while (this.rotY<-FMath.PI) {
+      this.rotY = this.rotY+2*FMath.PI;
     }
   }
 
-  static create() {
-    if (arguments.length===1&&arguments[0] instanceof ComponentKey) {
-      return FreeCameraBehavior.create_1_ComponentKey(arguments[0]);
-    }
-    else if (arguments.length===5&&arguments[0] instanceof ComponentKey&& typeof arguments[1]==="string"&& typeof arguments[2]==="string"&& typeof arguments[3]==="number"&& typeof arguments[4]==="number") {
-      return FreeCameraBehavior.create_5_ComponentKey_string_string_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
+  setPersp(fovy, aspect, near, far) {
+    this.initCamera = this.initCamera.withPersp(fovy, aspect, near, far);
   }
 
-  static create_1_ComponentKey(key) {
-    let res = new FreeCameraBehavior(key);
-    res.guardInvariants();
-    return res;
+  toString() {
   }
 
-  static create_5_ComponentKey_string_string_number_number(key, moveDirInput, rotDirInput, moveSpeed, rotSpeed) {
-    let res = new FreeCameraBehavior(key);
-    res.moveDirInput = moveDirInput;
-    res.rotDirInput = rotDirInput;
+  static create(initCamera, gamePad, moveSpeed, rotSpeed) {
+    let res = new FreeCameraController();
+    res.initCamera = initCamera;
+    res.pos = initCamera.getPos();
+    let fwd = Vec3.create(-initCamera.getView().m20(), -initCamera.getView().m21(), -initCamera.getView().m22());
+    let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
+    res.rotX = FMath.asin(fwd.y());
+    res.rotY = fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y());
     res.moveSpeed = moveSpeed;
     res.rotSpeed = rotSpeed;
+    res.gamePad = gamePad;
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.FreeCameraBehavior = FreeCameraBehavior;
+classRegistry.FreeCameraController = FreeCameraController;
 class BoxMeshFactory {
   constructor() {
   }
@@ -35014,166 +34886,97 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class PlayAnimationBehavior extends Behavior {
-  player;
-  model;
-  cooldown = 3;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "PlayAnimationBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.model = this.actor().getComponent("ModelComponent");
-  }
-
-  move(dt, inputs) {
-    let step = this.player.move(dt);
-    this.model.setInterpolation(step.getInterpolation()).setPose(step.getPose());
-    if (step.isEnd()) {
-      this.cooldown = this.cooldown-dt;
-      if (this.cooldown<0) {
-        this.player.play(step.getKey(), MeshAnimationPlayConfig.RESTART);
-      }
-    }
-    else {
-      this.cooldown = 3;
-    }
-  }
-
-  static create(key, player) {
-    let res = new PlayAnimationBehavior(key);
-    res.player = player;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.PlayAnimationBehavior = PlayAnimationBehavior;
-class BasicApp16 extends TyracornScreen {
+class BasicApp10 extends TyracornScreen {
+  groundModel = null;
+  box1Model = null;
+  shadow1 = ShadowBufferId.of("shadow1");
   time = 0;
-  world;
   inputs = InputCache.create();
   ui;
-  gamePad;
-  paused = false;
+  camera;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp16";
+    return "BasicApp10";
   }
 
   move(drivers, screenManager, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
-    if (this.paused&&this.ui.getNumLayers()==1) {
-      this.ui.pushLayer();
-      this.ui.addComponent(Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setRegionFnc(UiRegionFncs.full()));
-      let menuPanel = Panel.create().setRegionFnc(UiRegionFncs.center(250, 250));
-      this.ui.addComponent(menuPanel);
-      menuPanel.addComponent(Label.create().addTrait(UiComponentTrait.H1).setAlignment(TextAlignment.CENTER_TOP).setPosFnc(UiPosFncs.centerTop(40)).setText("Pause"));
-      menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(100, 150, 30)).setText("Resume").addOnClickAction((evtSource) => {
-  this.paused = false;
-  this.ui.popLayer();
-}));
-      if (drivers.getPlatform().isExitable()) {
-        menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(150, 150, 30)).setText("Exit").addOnClickAction(UiEventActions.exitApp(screenManager)));
-      }
-    }
+    let aspect = this.inputs.getSize2(InputCacheDisplayListener.DEFAULT_KEY, Size2.create(1, 1)).aspect();
+    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
+    this.camera.setPersp(fovy, aspect, 1.0, 50.0);
+    this.camera.move(dt);
+    this.ui.move(dt);
+    let t = Math.abs(Math.sin(this.time));
+    let dirLightColor = LightColor.create(Rgb.gray(0.5), Rgb.gray(0.5), Rgb.WHITE);
+    let dirLightDir = Vec3.create(FMath.sin(this.time/5), -1, FMath.cos(this.time/5)).normalize();
+    let dirLightPos = dirLightDir.scale(-5);
+    let dirLightShadowMap = ShadowMap.createDir(this.shadow1, dirLightPos, dirLightDir, 13, 20);
+    let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
+    let smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
+    this.renderSceneShaow(smapRndr, t);
+    smapRndr.end();
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    if (!this.paused) {
-      this.inputs.put("moveDir", this.gamePad.getLeftDir());
-      this.inputs.put("rotDir", this.gamePad.getRightDir());
-      this.world.move(dt, this.inputs);
-    }
-    this.world.render(RenderRequest.NORMAL);
+    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(this.camera.getCamera(), dirLight));
+    this.renderScene(objRnderer, t);
+    objRnderer.end();
     gDriver.clearBuffers(BufferId.DEPTH);
     let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
     uiRenderer.render(this.ui);
     uiRenderer.end();
   }
 
   load(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/primitives.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")), assets.resolveAsync(Path.of("asset:packages/characters/base-human.tap")));
+    let res = new ArrayList();
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/box-01.tap")));
+    return res;
   }
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 30));
+    let modelBox = MeshId.of("modelBox");
+    let modelBoxAnimated = MeshId.of("modelBox-animated");
+    assets.put(modelBox, BoxMeshFactory.modelBox());
+    assets.put(modelBoxAnimated, BoxMeshFactory.modelBox().plusMeshFrames(BoxMeshFactory.modelBoxDeformed1()).plusMeshFrames(BoxMeshFactory.modelBoxDeformed2()));
+    let boxDiffuse = TextureId.of("tex_box_01_d");
+    let boxSpecular = TextureId.of("tex_box_01_s");
     assets.put(MaterialId.of("brass"), Material.BRASS);
-    assets.put(MaterialId.of("copper"), Material.COPPER);
-    assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
-    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
-    let groundModelId = ModelId.of("ground");
-    assets.put(groundModelId, groundModel);
-    const wallColMatId = PhysicalMaterialId.of("wall");
-    assets.put(wallColMatId, PhysicalMaterial.simple(0.6, 1.8, 1.8));
-    this.world = RigidBodyWorld.create(drivers);
-    let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create(ComponentKey.WORLD).setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-30, -30, -30, 30, 30, 30)));
-    this.world.actors().add(ActorId.ROOT, worldActor);
-    let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create(ComponentKey.TRANSFORM)).addComponent(SkyboxComponent.create(ComponentKey.SKYBOX).setModelId(ModelId.of("skybox-1")).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create(ComponentKey.AUTO_ROTATE).setAngularVelocity(Vec3.create(0, 0.1, 0)));
-    this.world.actors().add(ActorId.ROOT, skybox);
-    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(20, 1, 20)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 2, 22)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, ground);
-    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(2, 5, 5), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
-    this.world.actors().add(ActorId.ROOT, light);
-    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 4, 5), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create(ComponentKey.random(), "moveDir", "rotDir", 5, 1)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY));
-    this.world.actors().add(ActorId.ROOT, camera);
-    let animations = assets.get("MeshAnimationCollection", MeshAnimationCollectionId.of("base-human"));
-    let player = MeshAnimationPlayer.create(animations, animations.getAnimations().get(0).getKey());
-    let model = assets.get("Model", ModelId.of("base-human"));
-    let character = Actor.create("character").setName("character").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(ModelId.of("base-human")).setPose(model.getArmature().getBasePose())).addComponent(ColliderComponent.create(ComponentKey.random()).setShape(ColliderShape.SPHERE).setPoseNodeRef(ColliderPoseNodeRef.create(ComponentKey.MODEL_1, ArmatureNodeId.of("DEF-head"))).setPos(0, 0.1, 0).setRadius(0.15)).addComponent(ColliderComponent.create(ComponentKey.random()).setShape(ColliderShape.BOX).setPoseNodeRef(ColliderPoseNodeRef.create(ComponentKey.MODEL_1, ArmatureNodeId.of("DEF-spine.002"))).setPos(0, 0.1, 0).setSize(0.3, 0.7, 0.2)).addComponent(ColliderComponent.create(ComponentKey.random()).setShape(ColliderShape.CAPSULE).setPoseNodeRef(ColliderPoseNodeRef.create(ComponentKey.MODEL_1, ArmatureNodeId.of("DEF-shin.R"))).setPos(0, 0.25, 0).setRadius(0.075).setHeight(0.6)).addComponent(PlayAnimationBehavior.create(ComponentKey.random(), player));
-    this.world.actors().add(ActorId.ROOT, character);
+    assets.put(MaterialId.of("wood-box"), Material.BLACK.withShininess(50).plusTexture(TextureAttachment.diffuse(boxDiffuse)).plusTexture(TextureAttachment.specular(boxSpecular)));
+    assets.put(this.shadow1, ShadowBuffer.create(2048, 2048));
+    this.groundModel = Model.simple(modelBox, MaterialId.of("brass"));
+    this.box1Model = Model.simple(modelBoxAnimated, MaterialId.of("wood-box"));
     this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
-    this.gamePad = GamePad.create(drivers);
-    this.ui.addComponent(this.gamePad);
-    let items = new ArrayList();
-    for (let anim of animations.getAnimations()) {
-      items.add(DropdownItem.create(anim.getKey().key(), anim.getKey().key()));
-    }
-    let animationDropdown = Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(10, 10, 160, 40)).setLabelText("Animation").addItems(items).setSelected(items.get(0)).addOnChangeAction((dd) => {
-  let dropdown = dd;
-  let value = dropdown.getSelected().getValue();
-  player.play(MeshAnimationKey.of(value), MeshAnimationPlayConfig.RESTART);
-});
-    this.ui.addComponent(animationDropdown);
-    this.ui.addComponent(Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction((evt) => {
-  this.paused = true;
-}));
+    let gamePad = GamePad.create(drivers);
+    this.ui.addComponent(gamePad);
+    let cam = Camera.persp(FMath.toRadians(60.0), 1, 0.1, 1000.0).lookAt(Vec3.create(0.0, 1, 4), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0));
+    this.camera = FreeCameraController.create(cam, gamePad, 3, 1);
     this.ui.subscribe(drivers);
     let dlist = InputCacheDisplayListener.create(this.inputs);
     screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
     drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
   }
 
-  pause(drivers) {
-    this.paused = true;
-  }
-
   leave(drivers) {
     this.ui.unsubscribe(drivers);
-    this.world.destroy(drivers);
   }
 
-  getRandomVelocity() {
-    let vx = Randoms.nextFloat(0, 2)-1;
-    let vy = Randoms.nextFloat(0, 2)-1;
-    let vz = Randoms.nextFloat(0, 2)-1;
-    return Vec3.create(vx, vy, vz);
+  renderScene(renderer, t) {
+    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    renderer.render(this.box1Model, Interpolation.create(0, 1, t), ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
+  }
+
+  renderSceneShaow(renderer, t) {
+    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    renderer.render(this.box1Model, Interpolation.create(0, 1, t), ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
   }
 
 }
-classRegistry.BasicApp16 = BasicApp16;
+classRegistry.BasicApp10 = BasicApp10;
 
 
 // -------------------------------------
@@ -35556,7 +35359,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp16());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp10());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
