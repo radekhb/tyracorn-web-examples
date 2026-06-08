@@ -7,7 +7,7 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-03";
+const basePath = "/tyracorn-web-examples/basic-app-04";
 const assetsDirName = "/null";
 const localStoragePrefix = "app.";
 let mouseDown = false;
@@ -19933,7 +19933,7 @@ class TextField extends UiComponent {
   }
 
   onKeyPressed(key) {
-    return false;
+    return this.focused;
   }
 
   onKeyReleased(key) {
@@ -22608,7 +22608,7 @@ class AssetGroup {
   toManagerStrict(am) {
     for (let key of this.cache.keySet()) {
       if (am.containsKey(key)) {
-        throw new Error("bank already contains "+key.toString());
+        throw new Error("bank already contains "+key.id());
       }
     }
     for (let key of this.cache.keySet()) {
@@ -25227,6 +25227,7 @@ class QueuedActorTree {
 classRegistry.QueuedActorTree = QueuedActorTree;
 class ActorMessageType {
   static OUTSPACE = ActorMessageType.create("OUTSPACE");
+  static CAMERA_SHAKE = ActorMessageType.create("CAMERA_SHAKE");
   static HIT_RECEIVED = ActorMessageType.create("HIT_RECEIVED");
   type;
   constructor() {
@@ -27263,6 +27264,13 @@ class CameraControllerComponent extends Behavior {
     this.transform.lookAt(newPos.add(posShake), newLookAt.add(targetShake), this.up);
     this.cameraPos = newPos;
     this.cameraLookAt = newLookAt;
+  }
+
+  onMessage(type, message) {
+    if (type.equals(ActorMessageType.CAMERA_SHAKE)) {
+      let shakeMsg = message;
+      this.shake(shakeMsg);
+    }
   }
 
   setMode(mode) {
@@ -34641,16 +34649,17 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp03 extends TyracornApp {
+class BasicApp04 extends TyracornApp {
   box = MeshId.of("box");
   whiteBox = MeshId.of("white-box");
+  shadow1 = ShadowBufferId.of("shadow1");
   time = 0;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp03";
+    return "BasicApp04";
   }
 
   move(drivers, dt) {
@@ -34658,31 +34667,25 @@ class BasicApp03 extends TyracornApp {
     let gDriver = drivers.getDriver("GraphicsDriver");
     let aspect = gDriver.getScreenViewport().getAspect();
     let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
-    let m = 2*FMath.sin(this.time/3);
-    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 7), Vec3.ZERO, Vec3.create(0, 1, 0));
-    let dirLight = Light.directional(LightColor.create(Rgb.gray(0.4), Rgb.gray(0.6), Rgb.gray(0.6)), Vec3.create(-0.3, -0.8, -0.4).normalize());
-    let pointLight = Light.pointQadratic(LightColor.create(Rgb.BLACK, Rgb.BLUE, Rgb.WHITE), Vec3.create(0, 0, 3.6), 4);
+    let cam = Camera.persp(fovy, aspect, 0.1, 1000.0).lookAt(Vec3.create(1.0, 3.5, 4.5), Vec3.create(2.0, 0.0, 0.0), Vec3.create(0, 1, 0));
+    let dirLight = Light.directional(LightColor.create(Rgb.gray(0.75), Rgb.BLACK, Rgb.BLACK), Vec3.create(1, -1, 0));
+    let shadowLightPos = Vec3.create(-3+3*Math.sin(this.time), 2, -1);
+    let shadowLightDir = Vec3.create(1.5, -1, 0.6).normalize();
     let spotLightColor = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
     let spotLightCone = LightCone.create(FMath.PI/9, FMath.PI/6);
-    let spotLight1 = Light.spotQuadratic(spotLightColor, Vec3.create(0, 2, 0), Vec3.create(0.4+m, -1, 0.2).normalize(), 8, spotLightCone);
-    let spotLight2 = Light.spotQuadratic(spotLightColor, Vec3.create(0, 2, 0), Vec3.create(0.4, -1, 0.2+m/2).normalize(), 8, spotLightCone);
+    let spotLightShadowMap = ShadowMap.createSpot(this.shadow1, shadowLightPos, shadowLightDir, spotLightCone.getOutTheta(), 1, 32);
+    let spotLight = Light.spotQuadratic(spotLightColor, shadowLightPos, shadowLightDir, 16, spotLightCone, spotLightShadowMap);
+    let smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight));
+    smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
+    smapRndr.end();
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let objRenderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, dirLight, pointLight, spotLight1, spotLight2));
-    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.WHITE_PLASTIC);
-    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3), Material.GOLD);
-    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3), Material.SILVER);
-    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3), Material.COPPER);
-    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0), Material.GOLD);
-    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.SILVER);
-    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0), Material.COPPER);
-    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3), Material.GOLD);
-    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3), Material.SILVER);
-    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3), Material.WHITE_PLASTIC);
-    objRenderer.end();
+    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, dirLight, spotLight));
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.CHROME);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.SILVER);
+    objRnderer.end();
     let crndr = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
-    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(pointLight.getPos()).mul(Mat44.scale(0.05)));
-    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight1.getPos()).mul(Mat44.scale(0.05)));
-    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight2.getPos()).mul(Mat44.scale(0.05)));
+    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight.getPos()).mul(Mat44.scale(0.05)));
     crndr.end();
   }
 
@@ -34690,6 +34693,7 @@ class BasicApp03 extends TyracornApp {
     let assets = drivers.getDriver("AssetManager");
     assets.put(this.box, BoxMeshFactory.fabricBox());
     assets.put(this.whiteBox, BoxMeshFactory.rgbBox(1, 1, 1));
+    assets.put(this.shadow1, ShadowBuffer.create(1024, 1024));
     return Collections.emptyList();
   }
 
@@ -34697,7 +34701,7 @@ class BasicApp03 extends TyracornApp {
   }
 
 }
-classRegistry.BasicApp03 = BasicApp03;
+classRegistry.BasicApp04 = BasicApp04;
 
 
 // -------------------------------------
@@ -35080,7 +35084,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = new BasicApp03();
+    tyracornApp = new BasicApp04();
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
