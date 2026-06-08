@@ -24193,7 +24193,9 @@ class TapPrefabs {
     try {
       os.write(TapBytes.stringToBytesBigEndian(prefab.getLocalId().id()));
       os.write(TapBytes.stringToBytesBigEndian(prefab.getName()));
-      let tagsString = prefab.getTags().stream().map(t->t.tag()).sorted().collect(Collectors.toList());
+      let tagsString = prefab.getTags().stream().map((t) => {
+  return t.tag();
+}).sorted().collect(Collectors.toList());
       os.write(TapBytes.stringToBytesBigEndian(Jsons.stringListToJson(tagsString)));
       os.write(TapBytes.intToBytesBigEndian(prefab.getComponents().size()));
       for (let cp of prefab.getComponents()) {
