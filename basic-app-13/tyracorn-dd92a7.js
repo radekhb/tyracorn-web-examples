@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/audio-app-01";
-const assetsDirName = "/assets-a382d2";
+const basePath = "/tyracorn-web-examples/basic-app-13";
+const assetsDirName = "/assets-737589";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -24193,7 +24193,8 @@ class TapPrefabs {
     try {
       os.write(TapBytes.stringToBytesBigEndian(prefab.getLocalId().id()));
       os.write(TapBytes.stringToBytesBigEndian(prefab.getName()));
-      os.write(TapBytes.stringToBytesBigEndian(Jsons.stringListToJson(Dut.copyList(Dut.copySortedSet(prefab.getTags())))));
+      let tagsString = prefab.getTags().stream().map(t->t.tag()).sorted().collect(Collectors.toList());
+      os.write(TapBytes.stringToBytesBigEndian(Jsons.stringListToJson(tagsString)));
       os.write(TapBytes.intToBytesBigEndian(prefab.getComponents().size()));
       for (let cp of prefab.getComponents()) {
         os.write(TapBytes.stringToBytesBigEndian(cp.getType().name()));
@@ -24214,7 +24215,11 @@ class TapPrefabs {
   static readPrefab(reader) {
     let localId = reader.readString();
     let name = reader.readString();
-    let tags = Jsons.toStringList(reader.readString());
+    let tagsString = Jsons.toStringList(reader.readString());
+    let tags = new ArrayList();
+    for (let tstr of tagsString) {
+      tags.add(ActorTag.of(tstr));
+    }
     let numCmps = reader.readInt();
     let cmps = new ArrayList();
     for (let i = 0; i<numCmps; ++i) {
@@ -24239,7 +24244,11 @@ class TapPrefabs {
   static readPrefabV1(reader) {
     let localId = reader.readString();
     let name = reader.readString();
-    let tags = Jsons.toStringList(reader.readString());
+    let tagsString = Jsons.toStringList(reader.readString());
+    let tags = new ArrayList();
+    for (let tstr of tagsString) {
+      tags.add(ActorTag.of(tstr));
+    }
     let numCmps = reader.readInt();
     let cmps = new ArrayList();
     for (let i = 0; i<numCmps; ++i) {
@@ -25271,6 +25280,49 @@ class ActorMessageType {
 
 }
 classRegistry.ActorMessageType = ActorMessageType;
+class ActorTag {
+  mTag;
+  constructor() {
+  }
+
+  getClass() {
+    return "ActorTag";
+  }
+
+  guardInvariants() {
+  }
+
+  tag() {
+    return this.mTag;
+  }
+
+  hashCode() {
+    return this.mTag.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ActorTag)) {
+      return false;
+    }
+    let other = obj;
+    return other.mTag.equals(this.mTag);
+  }
+
+  toString() {
+  }
+
+  static of(tag) {
+    let res = new ActorTag();
+    res.mTag = tag;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ActorTag = ActorTag;
 class ActorId extends RefId {
   static TYPE = RefIdType.of("ACTOR_ID");
   static ROOT = ActorId.of("ROOT");
@@ -25471,13 +25523,13 @@ class Actor {
   }
 
   addTag(tag) {
-    Guard.notEmpty(tag, "tag cannot be empty");
+    Guard.notNull(tag, "tag cannot be null");
     this.tags.add(tag);
     return this;
   }
 
   addTags(tags) {
-    Guard.notEmptyStringCollection(tags, "tag cannot have empty element");
+    Guard.notNullCollection(tags, "tags cannot have null element");
     this.tags.addAll(tags);
     return this;
   }
@@ -25829,6 +25881,17 @@ class ActorPrefab {
     res.localId = this.localId;
     res.name = name;
     res.tags = this.tags;
+    res.components = this.components;
+    res.children = this.children;
+    res.guardInvariants();
+    return res;
+  }
+
+  plusTag(tag) {
+    let res = new ActorPrefab();
+    res.localId = this.localId;
+    res.name = this.name;
+    res.tags = Dut.immutableSetPlusItem(this.tags, tag);
     res.components = this.components;
     res.children = this.children;
     res.guardInvariants();
@@ -34585,21 +34648,115 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class AudioApp01 extends TyracornScreen {
-  static MUSIC_PLAYBACK_ID = PlaybackId.of("music");
+class CustomLabel extends UiComponent {
+  container;
+  text;
+  posFnc;
+  font;
+  alignment;
+  containerSize;
+  pos;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "CustomLabel";
+  }
+
+  guardInvariants() {
+  }
+
+  init(container) {
+    this.container = container;
+  }
+
+  move(dt) {
+  }
+
+  draw(painter) {
+    let color = null;
+    painter.drawText(this.text, this.pos, this.alignment, this.font, color);
+  }
+
+  onContainerResize(size) {
+    this.containerSize = size;
+    this.pos = Functions.apply(this.posFnc, size);
+  }
+
+  getText() {
+    return this.text;
+  }
+
+  setText(text) {
+    Guard.notNull(text, "text cannot be null");
+    this.text = text;
+    return this;
+  }
+
+  getPosFnc() {
+    return this.posFnc;
+  }
+
+  setPosFnc(posFnc) {
+    Guard.notNull(posFnc, "posFnc cannot be null");
+    this.posFnc = posFnc;
+    this.onContainerResize(this.containerSize);
+    return this;
+  }
+
+  getFont() {
+    return this.font;
+  }
+
+  setFont(font) {
+    Guard.notNull(font, "font cannot be null");
+    this.font = font;
+    return this;
+  }
+
+  getAlignment() {
+    return this.alignment;
+  }
+
+  setAlignment(alignment) {
+    Guard.notNull(alignment, "alignment cannot be null");
+    this.alignment = alignment;
+    return this;
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new CustomLabel();
+    res.text = "";
+    res.alignment = TextAlignment.CENTER;
+    res.posFnc = UiPosFncs.center();
+    res.font = FontId.DEFAULT;
+    res.containerSize = Size2.create(1, 1);
+    res.pos = Functions.apply(res.posFnc, res.containerSize);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CustomLabel = CustomLabel;
+class BasicApp13 extends TyracornScreen {
+  time = 0;
   ui;
   constructor() {
     super();
   }
 
   getClass() {
-    return "AudioApp01";
+    return "BasicApp13";
   }
 
   move(drivers, screenManager, dt) {
+    this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    gDriver.clearBuffers(BufferId.DEPTH);
     let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
     this.ui.move(dt);
     uiRenderer.render(this.ui);
@@ -34610,51 +34767,63 @@ class AudioApp01 extends TyracornScreen {
     let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
     res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/sounds.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/fonts-extra")));
     return res;
   }
 
   init(drivers, screenManager, properties) {
-    let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(12, 14, 20, 24, 26, 28));
-    let audio = drivers.getDriver("AudioDriver");
-    let mixer = audio.getMixer();
     this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
-    let uiTop = -100;
-    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Audio").setAlignment(TextAlignment.CENTER_TOP));
-    let musicVol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+65)).setText("0.3").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(musicVol);
-    let musicVolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+50, 30, 30)).setText("-").addOnClickAction(this.getChangeMusicVolumeAction(mixer, musicVol, -0.1));
-    this.ui.addComponent(musicVolDownBtn);
-    let musicVolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+50, 30, 30)).setText("+").addOnClickAction(this.getChangeMusicVolumeAction(mixer, musicVol, 0.1));
-    this.ui.addComponent(musicVolUpBtn);
-    let musicBtn = ToggleButton.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+50, 120, 30)).setText("Music");
-    musicBtn.addOnToggleAction(this.getToggleMusicAction(mixer, musicBtn, musicVol));
-    this.ui.addComponent(musicBtn);
-    let sound1Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+105)).setText("1.0").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(sound1Vol);
-    let sound1VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+90, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound1Vol, -0.1));
-    this.ui.addComponent(sound1VolDownBtn);
-    let sound1VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+90, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound1Vol, 0.1));
-    this.ui.addComponent(sound1VolUpBtn);
-    let sound1Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+90, 120, 30)).setText("Spell").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("spell1"), sound1Vol));
-    this.ui.addComponent(sound1Btn);
-    let sound2Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+145)).setText("1.0").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(sound2Vol);
-    let sound2VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+130, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound2Vol, -0.1));
-    this.ui.addComponent(sound2VolDownBtn);
-    let sound2VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+130, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound2Vol, 0.1));
-    this.ui.addComponent(sound2VolUpBtn);
-    let sound2Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+130, 120, 30)).setText("Magic").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("magic1"), sound2Vol));
-    this.ui.addComponent(sound2Btn);
-    let sound3Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+185)).setText("1.0").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(sound3Vol);
-    let sound3VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+170, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound3Vol, -0.1));
-    this.ui.addComponent(sound3VolDownBtn);
-    let sound3VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+170, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound3Vol, 0.1));
-    this.ui.addComponent(sound3VolUpBtn);
-    let sound3Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+170, 120, 30)).setText("Swing").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("swing1"), sound3Vol));
-    this.ui.addComponent(sound3Btn);
+    let assets = drivers.getDriver("AssetManager");
+    let sizes = Dut.immutableList(12, 14, 16, 20, 24, 32, 48, 64, 72, 80);
+    Fonts.prepareScaledFonts(assets, Dut.copySet(sizes));
+    const fontIdBasess = Dut.immutableList("rubik-regular-", "rubik-bold-", "nobile-regular-", "kenny-blocks-", "kenny-future-", "kenny-future-square-", "kenny-bold-", "kenny-space-", "kenny-mini-", "kenny-thick-");
+    const label = CustomLabel.create().setText("Tyracorn").setFont(FontId.of("rubik-regular-32")).setPosFnc(UiPosFncs.center()).setAlignment(TextAlignment.CENTER);
+    const fontLabel = Label.create().setText("rubik-regular-32").setPosFnc(UiPosFncs.center(0, 160)).setAlignment(TextAlignment.CENTER_TOP);
+    let fontAct = (evtSource) => {
+      let oldFontId = label.getFont().id();
+      let oldSize = this.getFontSize(oldFontId);
+      let oldFontIdBase = this.getFontBase(oldFontId)+"-";
+      let newIdx = fontIdBasess.indexOf(oldFontIdBase)+1;
+      if (newIdx>=fontIdBasess.size()) {
+        newIdx = 0;
+      }
+      label.setFont(FontId.of(fontIdBasess.get(newIdx)+oldSize));
+      fontLabel.setText(fontIdBasess.get(newIdx)+oldSize);
+    };
+    const alignemnts = Dut.immutableList(TextAlignment.LEFT_TOP, TextAlignment.CENTER_TOP, TextAlignment.RIGHT_TOP, TextAlignment.LEFT_CENTER, TextAlignment.CENTER, TextAlignment.RIGHT_CENTER, TextAlignment.LEFT_BASE, TextAlignment.CENTER_BASE, TextAlignment.RIGHT_BASE, TextAlignment.LEFT_BOTTOM, TextAlignment.CENTER_BOTTOM, TextAlignment.RIGHT_BOTTOM);
+    let alignAct = (evtSource) => {
+      let idx = alignemnts.indexOf(label.getAlignment())+1;
+      if (idx>=alignemnts.size()) {
+        idx = 0;
+      }
+      label.setAlignment(alignemnts.get(idx));
+    };
+    const texts = Dut.immutableList("Tyracorn", "Hello World!!!", "I love you");
+    let textAct = (evtSource) => {
+      let idx = texts.indexOf(label.getText())+1;
+      if (idx>=texts.size()) {
+        idx = 0;
+      }
+      label.setText(texts.get(idx));
+    };
+    let sizeAct = (evtSource) => {
+      let oldFontId = label.getFont().id();
+      let oldSize = this.getFontSize(oldFontId);
+      let oldFontIdBase = this.getFontBase(oldFontId)+"-";
+      let newIdx = sizes.indexOf(oldSize)+1;
+      if (newIdx>=sizes.size()) {
+        newIdx = 0;
+      }
+      label.setFont(FontId.of(oldFontIdBase+sizes.get(newIdx)));
+      fontLabel.setText(oldFontIdBase+sizes.get(newIdx));
+    };
+    this.ui.addComponent(Panel.create().setRegionFnc(UiRegionFncs.center(5, 5)));
+    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(-130, 80, 120, 30)).setText("Font").addOnClickAction(fontAct));
+    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(10, 80, 120, 30)).setText("Alignment").addOnClickAction(alignAct));
+    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(-130, 120, 120, 30)).setText("Text").addOnClickAction(textAct));
+    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(10, 120, 120, 30)).setText("Size").addOnClickAction(sizeAct));
+    this.ui.addComponent(label);
+    this.ui.addComponent(fontLabel);
     if (drivers.getPlatform().isExitable()) {
       this.ui.addComponent(PlayUis.createExitButton(UiEventActions.exitApp(screenManager)));
     }
@@ -34662,59 +34831,26 @@ class AudioApp01 extends TyracornScreen {
   }
 
   leave(drivers) {
-    drivers.getDriver("AudioDriver").getMixer().stop();
     this.ui.unsubscribe(drivers);
   }
 
-  getPlaySoundAction(mixer, soundId, volLabel) {
-    let res = (evtSource) => {
-      mixer.prepare(PlaybackId.of(Randoms.nextAlphabetic(10)), soundId).setVolume(Float.valueOf(volLabel.getText())).play();
-    };
+  getFontBase(fontName) {
+    let parts = fontName.split("-");
+    let res = parts[0];
+    for (let i = 1; i<parts.length-1; ++i) {
+      res = res+"-"+parts[i];
+    }
     return res;
   }
 
-  getChangeSoundVolumeAction(label, delta) {
-    let res = (evtSource) => {
-      let vol = Float.valueOf(label.getText());
-      vol = FMath.clamp(vol+delta, 0, 1);
-      label.setText(Formats.floatToFixedDecimals(vol, 1));
-    };
-    return res;
-  }
-
-  getChangeMusicVolumeAction(mixer, label, delta) {
-    let res = (evtSource) => {
-      let vol = Float.valueOf(label.getText());
-      vol = FMath.clamp(vol+delta, 0, 1);
-      label.setText(Formats.floatToFixedDecimals(vol, 1));
-      let control = mixer.getControlNonStrict(AudioApp01.MUSIC_PLAYBACK_ID);
-      if (control!=null) {
-        control.setVolume(vol);
-      }
-    };
-    return res;
-  }
-
-  getToggleMusicAction(mixer, button, volLabel) {
-    let res = (evtSource) => {
-      let control = mixer.getControlNonStrict(AudioApp01.MUSIC_PLAYBACK_ID);
-      if (control!=null) {
-        if (button.isToggledOn()) {
-          control.play();
-        }
-        else {
-          control.stop();
-        }
-      }
-      else if (button.isToggledOn()) {
-        mixer.prepare(AudioApp01.MUSIC_PLAYBACK_ID, SoundId.of("space-cadet")).setLoop(true).setVolume(Float.valueOf(volLabel.getText())).play();
-      }
-    };
-    return res;
+  getFontSize(fontName) {
+    let parts = fontName.split("-");
+    let resStr = parts[parts.length-1];
+    return Integer.parseInt(resStr);
   }
 
 }
-classRegistry.AudioApp01 = AudioApp01;
+classRegistry.BasicApp13 = BasicApp13;
 
 
 // -------------------------------------
@@ -35097,7 +35233,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new AudioApp01());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp13());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

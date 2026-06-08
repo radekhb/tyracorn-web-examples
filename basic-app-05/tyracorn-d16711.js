@@ -24193,7 +24193,8 @@ class TapPrefabs {
     try {
       os.write(TapBytes.stringToBytesBigEndian(prefab.getLocalId().id()));
       os.write(TapBytes.stringToBytesBigEndian(prefab.getName()));
-      os.write(TapBytes.stringToBytesBigEndian(Jsons.stringListToJson(Dut.copyList(Dut.copySortedSet(prefab.getTags())))));
+      let tagsString = prefab.getTags().stream().map(t->t.tag()).sorted().collect(Collectors.toList());
+      os.write(TapBytes.stringToBytesBigEndian(Jsons.stringListToJson(tagsString)));
       os.write(TapBytes.intToBytesBigEndian(prefab.getComponents().size()));
       for (let cp of prefab.getComponents()) {
         os.write(TapBytes.stringToBytesBigEndian(cp.getType().name()));
@@ -24214,7 +24215,11 @@ class TapPrefabs {
   static readPrefab(reader) {
     let localId = reader.readString();
     let name = reader.readString();
-    let tags = Jsons.toStringList(reader.readString());
+    let tagsString = Jsons.toStringList(reader.readString());
+    let tags = new ArrayList();
+    for (let tstr of tagsString) {
+      tags.add(ActorTag.of(tstr));
+    }
     let numCmps = reader.readInt();
     let cmps = new ArrayList();
     for (let i = 0; i<numCmps; ++i) {
@@ -24239,7 +24244,11 @@ class TapPrefabs {
   static readPrefabV1(reader) {
     let localId = reader.readString();
     let name = reader.readString();
-    let tags = Jsons.toStringList(reader.readString());
+    let tagsString = Jsons.toStringList(reader.readString());
+    let tags = new ArrayList();
+    for (let tstr of tagsString) {
+      tags.add(ActorTag.of(tstr));
+    }
     let numCmps = reader.readInt();
     let cmps = new ArrayList();
     for (let i = 0; i<numCmps; ++i) {
@@ -25271,6 +25280,49 @@ class ActorMessageType {
 
 }
 classRegistry.ActorMessageType = ActorMessageType;
+class ActorTag {
+  mTag;
+  constructor() {
+  }
+
+  getClass() {
+    return "ActorTag";
+  }
+
+  guardInvariants() {
+  }
+
+  tag() {
+    return this.mTag;
+  }
+
+  hashCode() {
+    return this.mTag.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof ActorTag)) {
+      return false;
+    }
+    let other = obj;
+    return other.mTag.equals(this.mTag);
+  }
+
+  toString() {
+  }
+
+  static of(tag) {
+    let res = new ActorTag();
+    res.mTag = tag;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ActorTag = ActorTag;
 class ActorId extends RefId {
   static TYPE = RefIdType.of("ACTOR_ID");
   static ROOT = ActorId.of("ROOT");
@@ -25471,13 +25523,13 @@ class Actor {
   }
 
   addTag(tag) {
-    Guard.notEmpty(tag, "tag cannot be empty");
+    Guard.notNull(tag, "tag cannot be null");
     this.tags.add(tag);
     return this;
   }
 
   addTags(tags) {
-    Guard.notEmptyStringCollection(tags, "tag cannot have empty element");
+    Guard.notNullCollection(tags, "tags cannot have null element");
     this.tags.addAll(tags);
     return this;
   }
@@ -25829,6 +25881,17 @@ class ActorPrefab {
     res.localId = this.localId;
     res.name = name;
     res.tags = this.tags;
+    res.components = this.components;
+    res.children = this.children;
+    res.guardInvariants();
+    return res;
+  }
+
+  plusTag(tag) {
+    let res = new ActorPrefab();
+    res.localId = this.localId;
+    res.name = this.name;
+    res.tags = Dut.immutableSetPlusItem(this.tags, tag);
     res.components = this.components;
     res.children = this.children;
     res.guardInvariants();
