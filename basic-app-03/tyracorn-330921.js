@@ -1774,6 +1774,17 @@ class Functions {
         action(actor);
     }
 
+    /**
+     * Returns whether actor matches.
+     *
+     * @param {ActorMatcher} matcher matcher
+     * @param {Actor} actor actor to test
+     * @return {Boolean} whether actor matches conditions in matcher
+     */
+    static actorMatches(matcher, actor) {
+        return matcher(actor);
+    }
+
 }
 /**
  * String builder.
@@ -11576,6 +11587,10 @@ class Texture {
 
   getHeight() {
     return this.height;
+  }
+
+  getAspect() {
+    return this.width/this.height;
   }
 
   getEndian() {
@@ -25679,6 +25694,22 @@ class ActorActions {
 
 }
 classRegistry.ActorActions = ActorActions;
+class ActorMatchers {
+  constructor() {
+  }
+
+  getClass() {
+    return "ActorMatchers";
+  }
+
+  static hasTag(tag) {
+    return (act) => {
+      return act.hasTag(tag);
+    };
+  }
+
+}
+classRegistry.ActorMatchers = ActorMatchers;
 class ActorDomain {
   static TRANSFORM = ActorDomain.create("TRANSFORM");
   static VISUAL = ActorDomain.create("VISUAL");
@@ -26322,11 +26353,18 @@ class Component {
   sendMessage(targetId, type, message) {
     if (this.world().actors().exists(targetId)) {
       this.world().actors().get(targetId).sendMessage(type, message);
-      return true;
     }
     else {
-      return false;
+      throw new Error("actor doesn't exists: "+targetId.id());
     }
+  }
+
+  broadcastMessage(matcher, type, message) {
+    this.world().actors().forEach(ActorId.ROOT, (act) => {
+  if (Functions.actorMatches(matcher, act)) {
+    act.sendMessage(type, message);
+  }
+});
   }
 
   hashCode() {
