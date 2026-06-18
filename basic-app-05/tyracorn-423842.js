@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-16";
-const assetsDirName = "/assets-c1d628";
+const basePath = "/tyracorn-web-examples/basic-app-05";
+const assetsDirName = "/null";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -20869,12 +20869,9 @@ classRegistry.KeyFrame = KeyFrame;
 class ArmaturePoseTrackChannel {
   nodeId;
   ticksPerSecond;
-  positionTicks;
-  positionValues;
-  rotationTicks;
-  rotationValues;
-  scalingTicks;
-  scalingValues;
+  positionKeys;
+  rotationKeys;
+  scalingKeys;
   constructor() {
   }
 
@@ -20894,30 +20891,15 @@ class ArmaturePoseTrackChannel {
   }
 
   getPositionKeys() {
-    let res = new ArrayList();
-    for (let i = 0; i<this.positionTicks.size(); ++i) {
-      let pos = Vec3.create(this.positionValues.get(i*3), this.positionValues.get(i*3+1), this.positionValues.get(i*3+2));
-      res.add(KeyFrame.create(this.positionTicks.get(i), pos));
-    }
-    return res;
+    return this.positionKeys;
   }
 
   getRotationKeys() {
-    let res = new ArrayList();
-    for (let i = 0; i<this.rotationTicks.size(); ++i) {
-      let rot = Quaternion.create(this.rotationValues.get(i*4), this.rotationValues.get(i*4+1), this.rotationValues.get(i*4+2), this.rotationValues.get(i*4+3));
-      res.add(KeyFrame.create(this.positionTicks.get(i), rot));
-    }
-    return res;
+    return this.rotationKeys;
   }
 
   getScalingKeys() {
-    let res = new ArrayList();
-    for (let i = 0; i<this.scalingTicks.size(); ++i) {
-      let scl = Vec3.create(this.scalingValues.get(i*3), this.scalingValues.get(i*3+1), this.scalingValues.get(i*3+2));
-      res.add(KeyFrame.create(this.scalingTicks.get(i), scl));
-    }
-    return res;
+    return this.scalingKeys;
   }
 
   getTransform(time) {
@@ -20928,112 +20910,106 @@ class ArmaturePoseTrackChannel {
   }
 
   minusRedundantKeys() {
-    let positionKeys = this.getPositionKeys();
-    let rotationKeys = this.getRotationKeys();
-    let scalingKeys = this.getScalingKeys();
     let newPositionKeys = new ArrayList();
     let newRotationKeys = new ArrayList();
     let newScalingKeys = new ArrayList();
-    for (let i = 0; i<positionKeys.size(); ++i) {
-      let pk = positionKeys.get(i).getValue();
-      if (i==0||i==positionKeys.size()-1) {
-        newPositionKeys.add(positionKeys.get(i));
+    for (let i = 0; i<this.positionKeys.size(); ++i) {
+      let pk = this.positionKeys.get(i).getValue();
+      if (i==0||i==this.positionKeys.size()-1) {
+        newPositionKeys.add(this.positionKeys.get(i));
       }
-      else if (!pk.equals(positionKeys.get(i-1).getValue())||!pk.equals(positionKeys.get(i+1).getValue())) {
-        newPositionKeys.add(positionKeys.get(i));
-      }
-    }
-    for (let i = 0; i<rotationKeys.size(); ++i) {
-      let rk = rotationKeys.get(i).getValue();
-      if (i==0||i==rotationKeys.size()-1) {
-        newRotationKeys.add(rotationKeys.get(i));
-      }
-      else if (!rk.equals(rotationKeys.get(i-1).getValue())||!rk.equals(rotationKeys.get(i+1).getValue())) {
-        newRotationKeys.add(rotationKeys.get(i));
+      else if (!pk.equals(this.positionKeys.get(i-1).getValue())||!pk.equals(this.positionKeys.get(i+1).getValue())) {
+        newPositionKeys.add(this.positionKeys.get(i));
       }
     }
-    for (let i = 0; i<scalingKeys.size(); ++i) {
-      let sk = scalingKeys.get(i).getValue();
-      if (i==0||i==scalingKeys.size()-1) {
-        newScalingKeys.add(scalingKeys.get(i));
+    for (let i = 0; i<this.rotationKeys.size(); ++i) {
+      let rk = this.rotationKeys.get(i).getValue();
+      if (i==0||i==this.rotationKeys.size()-1) {
+        newRotationKeys.add(this.rotationKeys.get(i));
       }
-      else if (!sk.equals(scalingKeys.get(i-1).getValue())||!sk.equals(scalingKeys.get(i+1).getValue())) {
-        newScalingKeys.add(scalingKeys.get(i));
+      else if (!rk.equals(this.rotationKeys.get(i-1).getValue())||!rk.equals(this.rotationKeys.get(i+1).getValue())) {
+        newRotationKeys.add(this.rotationKeys.get(i));
+      }
+    }
+    for (let i = 0; i<this.scalingKeys.size(); ++i) {
+      let sk = this.scalingKeys.get(i).getValue();
+      if (i==0||i==this.scalingKeys.size()-1) {
+        newScalingKeys.add(this.scalingKeys.get(i));
+      }
+      else if (!sk.equals(this.scalingKeys.get(i-1).getValue())||!sk.equals(this.scalingKeys.get(i+1).getValue())) {
+        newScalingKeys.add(this.scalingKeys.get(i));
       }
     }
     return ArmaturePoseTrackChannel.create(this.nodeId, this.ticksPerSecond, newPositionKeys, newRotationKeys, newScalingKeys);
   }
 
   getPosition(time) {
-    if (this.positionTicks.size()==1||time<=this.getTickTime(this.positionTicks.get(0))) {
-      return Vec3.create(this.positionValues.get(0), this.positionValues.get(1), this.positionValues.get(2));
+    if (this.positionKeys.size()==1||time<=this.positionKeys.get(0).getTime(this.ticksPerSecond)) {
+      return this.positionKeys.get(0).getValue();
     }
-    if (time>=this.getTickTime(this.positionTicks.get(this.positionTicks.size()-1))) {
-      return Vec3.create(this.positionValues.get(this.positionValues.size()-3), this.positionValues.get(this.positionValues.size()-2), this.positionValues.get(this.positionValues.size()-1));
+    if (time>=this.positionKeys.get(this.positionKeys.size()-1).getTime(this.ticksPerSecond)) {
+      return this.positionKeys.get(this.positionKeys.size()-1).getValue();
     }
-    let start = -1;
-    let end = -1;
-    for (let i = 0; i<this.positionTicks.size(); ++i) {
-      let tick = this.positionTicks.get(i);
-      let tickTime = this.getTickTime(tick);
-      if (tickTime<=time) {
-        start = i;
+    let start = null;
+    let end = null;
+    for (let kf of this.positionKeys) {
+      let keyTime = kf.getTime(this.ticksPerSecond);
+      if (keyTime<=time) {
+        start = kf;
       }
       else {
-        end = i;
+        end = kf;
         break;
       }
     }
-    let t = (time-this.getTickTime(this.positionTicks.get(start)))/(this.getTickTime(this.positionTicks.get(end))-this.getTickTime(this.positionTicks.get(start)));
-    return this.interpolatePos(start*3, end*3, t);
+    let t = (time-start.getTime(this.ticksPerSecond))/(end.getTime(this.ticksPerSecond)-start.getTime(this.ticksPerSecond));
+    return Vec3.interpolate(start.getValue(), end.getValue(), t);
   }
 
   getRotation(time) {
-    if (this.rotationTicks.size()==1||time<=this.getTickTime(this.rotationTicks.get(0))) {
-      return Quaternion.create(this.rotationValues.get(0), this.rotationValues.get(1), this.rotationValues.get(2), this.rotationValues.get(3));
+    if (this.rotationKeys.size()==1||time<=this.rotationKeys.get(0).getTime(this.ticksPerSecond)) {
+      return this.rotationKeys.get(0).getValue();
     }
-    if (time>=this.getTickTime(this.rotationTicks.get(this.rotationTicks.size()-1))) {
-      return Quaternion.create(this.rotationValues.get(this.rotationValues.size()-4), this.rotationValues.get(this.rotationValues.size()-3), this.rotationValues.get(this.rotationValues.size()-2), this.rotationValues.get(this.rotationValues.size()-1));
+    if (time>=this.rotationKeys.get(this.rotationKeys.size()-1).getTime(this.ticksPerSecond)) {
+      return this.rotationKeys.get(this.rotationKeys.size()-1).getValue();
     }
-    let start = -1;
-    let end = -1;
-    for (let i = 0; i<this.rotationTicks.size(); ++i) {
-      let tick = this.rotationTicks.get(i);
-      let tickTime = this.getTickTime(tick);
-      if (tickTime<=time) {
-        start = i;
+    let start = null;
+    let end = null;
+    for (let kf of this.rotationKeys) {
+      let keyTime = kf.getTime(this.ticksPerSecond);
+      if (keyTime<=time) {
+        start = kf;
       }
       else {
-        end = i;
+        end = kf;
         break;
       }
     }
-    let t = (time-this.getTickTime(this.rotationTicks.get(start)))/(this.getTickTime(this.rotationTicks.get(end))-this.getTickTime(this.rotationTicks.get(start)));
-    return this.interpolateNormalizeRot(start*4, end*4, t);
+    let t = (time-start.getTime(this.ticksPerSecond))/(end.getTime(this.ticksPerSecond)-start.getTime(this.ticksPerSecond));
+    return Quaternion.interpolate(start.getValue(), end.getValue(), t).normalize();
   }
 
   getScaling(time) {
-    if (this.scalingTicks.size()==1||time<=this.getTickTime(this.scalingTicks.get(0))) {
-      return Vec3.create(this.scalingValues.get(0), this.scalingValues.get(1), this.scalingValues.get(2));
+    if (this.scalingKeys.size()==1||time<=this.scalingKeys.get(0).getTime(this.ticksPerSecond)) {
+      return this.scalingKeys.get(0).getValue();
     }
-    if (time>=this.getTickTime(this.scalingTicks.get(this.scalingTicks.size()-1))) {
-      return Vec3.create(this.scalingValues.get(this.scalingValues.size()-3), this.scalingValues.get(this.scalingValues.size()-2), this.scalingValues.get(this.scalingValues.size()-1));
+    if (time>=this.scalingKeys.get(this.scalingKeys.size()-1).getTime(this.ticksPerSecond)) {
+      return this.scalingKeys.get(this.scalingKeys.size()-1).getValue();
     }
-    let start = -1;
-    let end = -1;
-    for (let i = 0; i<this.scalingTicks.size(); ++i) {
-      let tick = this.scalingTicks.get(i);
-      let tickTime = this.getTickTime(tick);
-      if (tickTime<=time) {
-        start = i;
+    let start = null;
+    let end = null;
+    for (let kf of this.scalingKeys) {
+      let keyTime = kf.getTime(this.ticksPerSecond);
+      if (keyTime<=time) {
+        start = kf;
       }
       else {
-        end = i;
+        end = kf;
         break;
       }
     }
-    let t = (time-this.getTickTime(this.scalingTicks.get(start)))/(this.getTickTime(this.scalingTicks.get(end))-this.getTickTime(this.scalingTicks.get(start)));
-    return this.interpolateScaling(start*3, end*3, t);
+    let t = (time-start.getTime(this.ticksPerSecond))/(end.getTime(this.ticksPerSecond)-start.getTime(this.ticksPerSecond));
+    return Vec3.interpolate(start.getValue(), end.getValue(), t);
   }
 
   hashCode() {
@@ -21048,68 +21024,12 @@ class ArmaturePoseTrackChannel {
   }
 
   static create(nodeId, ticksPerSecond, positionKeys, rotationKeys, scalingKeys) {
-    let positionTicks = new ArrayList();
-    let positionValues = new ArrayList();
-    let rotationTicks = new ArrayList();
-    let rotationValues = new ArrayList();
-    let scalingTicks = new ArrayList();
-    let scalingValues = new ArrayList();
-    for (let kf of positionKeys) {
-      positionTicks.add(kf.getTick());
-      positionValues.add(kf.getValue().x());
-      positionValues.add(kf.getValue().y());
-      positionValues.add(kf.getValue().z());
-    }
-    for (let kf of rotationKeys) {
-      rotationTicks.add(kf.getTick());
-      rotationValues.add(kf.getValue().a());
-      rotationValues.add(kf.getValue().b());
-      rotationValues.add(kf.getValue().c());
-      rotationValues.add(kf.getValue().d());
-    }
-    for (let kf of scalingKeys) {
-      scalingTicks.add(kf.getTick());
-      scalingValues.add(kf.getValue().x());
-      scalingValues.add(kf.getValue().y());
-      scalingValues.add(kf.getValue().z());
-    }
-    return ArmaturePoseTrackChannel.createRaw(nodeId, ticksPerSecond, positionTicks, positionValues, rotationTicks, rotationValues, scalingTicks, scalingValues);
-  }
-
-  getTickTime(tick) {
-    return tick/this.ticksPerSecond;
-  }
-
-  interpolatePos(aIdx, bIdx, t) {
-    let ti = 1-t;
-    return Vec3.create(ti*this.positionValues.get(aIdx)+t*this.positionValues.get(bIdx), ti*this.positionValues.get(aIdx+1)+t*this.positionValues.get(bIdx+1), ti*this.positionValues.get(aIdx+2)+t*this.positionValues.get(bIdx+2));
-  }
-
-  interpolateNormalizeRot(aIdx, bIdx, t) {
-    let ti = 1-t;
-    let a = ti*this.rotationValues.get(aIdx)+t*this.rotationValues.get(bIdx);
-    let b = ti*this.rotationValues.get(aIdx+1)+t*this.rotationValues.get(bIdx+1);
-    let c = ti*this.rotationValues.get(aIdx+2)+t*this.rotationValues.get(bIdx+2);
-    let d = ti*this.rotationValues.get(aIdx+3)+t*this.rotationValues.get(bIdx+3);
-    let mag = FMath.sqrt(a*a+b*b+c*c+d*d);
-    return Quaternion.create(a/mag, b/mag, c/mag, d/mag);
-  }
-
-  interpolateScaling(aIdx, bIdx, t) {
-    let ti = 1-t;
-    return Vec3.create(ti*this.scalingValues.get(aIdx)+t*this.scalingValues.get(bIdx), ti*this.scalingValues.get(aIdx+1)+t*this.scalingValues.get(bIdx+1), ti*this.scalingValues.get(aIdx+2)+t*this.scalingValues.get(bIdx+2));
-  }
-
-  static createRaw(nodeId, ticksPerSecond, positionTicks, positionValues, rotationTicks, rotationValues, scalingTicks, scalingValues) {
     let res = new ArmaturePoseTrackChannel();
     res.nodeId = nodeId;
     res.ticksPerSecond = ticksPerSecond;
-    res.positionTicks = Dut.copyImmutableList(positionTicks);
-    res.positionValues = Dut.copyImmutableList(positionValues);
-    res.rotationTicks = Dut.copyImmutableList(rotationTicks);
-    res.rotationValues = Dut.copyImmutableList(rotationValues);
-    res.scalingTicks = Dut.copyImmutableList(scalingTicks);
-    res.scalingValues = Dut.copyImmutableList(scalingValues);
+    res.positionKeys = Dut.copyImmutableList(positionKeys);
+    res.rotationKeys = Dut.copyImmutableList(rotationKeys);
+    res.scalingKeys = Dut.copyImmutableList(scalingKeys);
     res.guardInvariants();
     return res;
   }
@@ -24004,36 +23924,28 @@ class TapMeshAnimationCollections {
           for (let j = 0; j<numChannels; ++j) {
             let nodeId = ArmatureNodeId.of(reader.readString());
             let channelTps = reader.readInt();
-            let posTicks = new ArrayList();
-            let posValues = new ArrayList();
-            let rotTicks = new ArrayList();
-            let rotValues = new ArrayList();
-            let sclTicks = new ArrayList();
-            let sclValues = new ArrayList();
+            let posKeys = new ArrayList();
+            let rotKeys = new ArrayList();
+            let sclKeys = new ArrayList();
             let numPosKeys = reader.readInt();
             for (let k = 0; k<numPosKeys; ++k) {
-              posTicks.add(reader.readInt());
-              posValues.add(reader.readFloat());
-              posValues.add(reader.readFloat());
-              posValues.add(reader.readFloat());
+              let kftick = reader.readInt();
+              let kfVal = Vec3.create(reader.readFloat(), reader.readFloat(), reader.readFloat());
+              posKeys.add(KeyFrame.create(kftick, kfVal));
             }
             let numRotKeys = reader.readInt();
             for (let k = 0; k<numRotKeys; ++k) {
-              rotTicks.add(reader.readInt());
-              rotValues.add(reader.readFloat());
-              rotValues.add(reader.readFloat());
-              rotValues.add(reader.readFloat());
-              rotValues.add(reader.readFloat());
+              let kftick = reader.readInt();
+              let kfVal = Quaternion.create(reader.readFloat(), reader.readFloat(), reader.readFloat(), reader.readFloat());
+              rotKeys.add(KeyFrame.create(kftick, kfVal));
             }
             let numSclKeys = reader.readInt();
             for (let k = 0; k<numSclKeys; ++k) {
-              sclTicks.add(reader.readInt());
-              sclValues.add(reader.readFloat());
-              sclValues.add(reader.readFloat());
-              sclValues.add(reader.readFloat());
+              let kftick = reader.readInt();
+              let kfVal = Vec3.create(reader.readFloat(), reader.readFloat(), reader.readFloat());
+              sclKeys.add(KeyFrame.create(kftick, kfVal));
             }
-            let channel = ArmaturePoseTrackChannel.createRaw(nodeId, channelTps, posTicks, posValues, rotTicks, rotValues, sclTicks, sclValues);
-            poseTrack = poseTrack.plusChannel(channel);
+            poseTrack = poseTrack.plusChannel(ArmaturePoseTrackChannel.create(nodeId, channelTps, posKeys, rotKeys, sclKeys));
           }
           animation = animation.withPoseTrack(poseTrack);
           let numTriggerTicks = reader.readInt();
@@ -34851,234 +34763,6 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class PlayUis {
-  static ARROW_UP = UiComponentTrait.of("ARROW_UP");
-  static ARROW_DOWN = UiComponentTrait.of("ARROW_DOWN");
-  static ARROW_LEFT = UiComponentTrait.of("ARROW_LEFT");
-  static ARROW_RIGHT = UiComponentTrait.of("ARROW_RIGHT");
-  static BRAKE = UiComponentTrait.of("BRAKE");
-  static PUNCH = UiComponentTrait.of("PUNCH");
-  static WALK_RUN = UiComponentTrait.of("WALK_RUN");
-  constructor() {
-  }
-
-  getClass() {
-    return "PlayUis";
-  }
-
-  static createUiSizeFnc() {
-    return UiSizeFncs.identity();
-  }
-
-  static createDefaultStyler() {
-    let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
-    let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
-    let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
-    let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
-    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-30")).setH2Font(FontId.of("kenny-thick-26")).setH3Font(FontId.of("kenny-thick-24")).setExtraLargeTextFont(FontId.of("kenny-mini-22")).setLargeTextFont(FontId.of("kenny-mini-20")).setMediumTextFont(FontId.of("kenny-mini-18")).setSmallTextFont(FontId.of("kenny-mini-16")).setButtonLabelFont(FontId.of("kenny-mini-18")).setFieldLabelFont(FontId.of("kenny-mini-16")).setFieldValueFont(FontId.of("kenny-mini-16")).setSelectItemTextFont(FontId.of("kenny-mini-18")).setSelectItemHeight(20).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
-  }
-
-  static create916Panel() {
-    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setRegionFnc((t) => {
-  if (t.aspect()>9/16) {
-    return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
-  }
-  else {
-    return Rect2.create(0, 0, t.width(), t.height());
-  }
-});
-  }
-
-  static createExitButton(action) {
-    return Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
-  }
-
-  static createPauseButton(action) {
-    return Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
-  }
-
-}
-classRegistry.PlayUis = PlayUis;
-class GamePad extends UiComponent {
-  leftJoystick;
-  rightJoystick;
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "GamePad";
-  }
-
-  guardInvariants() {
-  }
-
-  getLeftDir() {
-    return this.leftJoystick.getDir();
-  }
-
-  getRightDir() {
-    return this.rightJoystick.getDir();
-  }
-
-  init(container) {
-    this.leftJoystick.init(container);
-    this.rightJoystick.init(container);
-  }
-
-  move(dt) {
-    this.leftJoystick.move(dt);
-    this.rightJoystick.move(dt);
-  }
-
-  draw(painter) {
-    this.leftJoystick.draw(painter);
-    this.rightJoystick.draw(painter);
-  }
-
-  onContainerResize(size) {
-    this.leftJoystick.onContainerResize(size);
-    this.rightJoystick.onContainerResize(size);
-  }
-
-  onTouchStart(id, pos, size) {
-    this.leftJoystick.onTouchStart(id, pos, size);
-    this.rightJoystick.onTouchStart(id, pos, size);
-    return false;
-  }
-
-  onTouchMove(id, pos, size) {
-    this.leftJoystick.onTouchMove(id, pos, size);
-    this.rightJoystick.onTouchMove(id, pos, size);
-    return false;
-  }
-
-  onTouchEnd(id, pos, size, cancel) {
-    this.leftJoystick.onTouchEnd(id, pos, size, cancel);
-    this.rightJoystick.onTouchEnd(id, pos, size, cancel);
-    return false;
-  }
-
-  onKeyPressed(key) {
-    this.leftJoystick.onKeyPressed(key);
-    this.rightJoystick.onKeyPressed(key);
-    return false;
-  }
-
-  onKeyReleased(key) {
-    this.leftJoystick.onKeyReleased(key);
-    this.rightJoystick.onKeyReleased(key);
-    return false;
-  }
-
-  toString() {
-  }
-
-  static create(drivers) {
-    let res = new GamePad();
-    res.leftJoystick = Joystick.create().setRegionFnc((s) => {
-  if (s.width()>s.height()) {
-    let h5 = s.height()*0.05;
-    let h30 = s.height()*0.3;
-    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(h5, s.height()-h5-size, size, size);
-  }
-  else {
-    let h2 = s.height()*0.02;
-    let h5 = s.height()*0.05;
-    let h20 = s.height()*0.2;
-    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(h2, s.height()-h5-size, size, size);
-  }
-}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("W"), KeyCodeMatchers.upperCharacter("S"), KeyCodeMatchers.upperCharacter("A"), KeyCodeMatchers.upperCharacter("D"));
-    res.rightJoystick = Joystick.create().setRegionFnc((s) => {
-  if (s.width()>s.height()) {
-    let h5 = s.height()*0.05;
-    let h30 = s.height()*0.3;
-    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(s.width()-h5-size, s.height()-h5-size, size, size);
-  }
-  else {
-    let h2 = s.height()*0.02;
-    let h5 = s.height()*0.05;
-    let h20 = s.height()*0.2;
-    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(s.width()-h2-size, s.height()-h5-size, size, size);
-  }
-}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("I"), KeyCodeMatchers.upperCharacter("K"), KeyCodeMatchers.upperCharacter("J"), KeyCodeMatchers.upperCharacter("L"));
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.GamePad = GamePad;
-class FreeCameraBehavior extends Behavior {
-  moveDirInput = "moveDir";
-  rotDirInput = "rotDir";
-  moveSpeed = 3;
-  rotSpeed = 1;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "FreeCameraBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  move(dt, inputs) {
-    let moveDir = inputs.getVec2(this.moveDirInput, Vec2.ZERO);
-    let rotDir = inputs.getVec2(this.rotDirInput, Vec2.ZERO);
-    let tc = this.actor().getComponent("TransformComponent");
-    let rot = tc.getRot();
-    if (!moveDir.equals(Vec2.ZERO)) {
-      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize().scale(moveDir.y()*this.moveSpeed*dt);
-      let right = rot.rotate(Vec3.create(1, 0, 0)).normalize().scale(moveDir.x()*this.moveSpeed*dt);
-      tc.move(fwd.add(right));
-    }
-    if (!rotDir.equals(Vec2.ZERO)) {
-      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize();
-      let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
-      let rotX = FMath.asin(fwd.y())+rotDir.y()*this.rotSpeed*dt;
-      let rotY = (fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y()))-rotDir.x()*this.rotSpeed*dt;
-      let rx = Quaternion.rot(1, 0, 0, rotX);
-      let ry = Quaternion.rot(0, 1, 0, rotY);
-      tc.setRot(ry.mul(rx));
-    }
-  }
-
-  static create() {
-    if (arguments.length===1&&arguments[0] instanceof ComponentKey) {
-      return FreeCameraBehavior.create_1_ComponentKey(arguments[0]);
-    }
-    else if (arguments.length===5&&arguments[0] instanceof ComponentKey&& typeof arguments[1]==="string"&& typeof arguments[2]==="string"&& typeof arguments[3]==="number"&& typeof arguments[4]==="number") {
-      return FreeCameraBehavior.create_5_ComponentKey_string_string_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  static create_1_ComponentKey(key) {
-    let res = new FreeCameraBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-  static create_5_ComponentKey_string_string_number_number(key, moveDirInput, rotDirInput, moveSpeed, rotSpeed) {
-    let res = new FreeCameraBehavior(key);
-    res.moveDirInput = moveDirInput;
-    res.rotDirInput = rotDirInput;
-    res.moveSpeed = moveSpeed;
-    res.rotSpeed = rotSpeed;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FreeCameraBehavior = FreeCameraBehavior;
 class BoxMeshFactory {
   constructor() {
   }
@@ -35143,166 +34827,135 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class PlayAnimationBehavior extends Behavior {
-  player;
-  model;
-  cooldown = 3;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "PlayAnimationBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.model = this.actor().getComponent("ModelComponent");
-  }
-
-  move(dt, inputs) {
-    let step = this.player.move(dt);
-    this.model.setInterpolation(step.getInterpolation()).setPose(step.getPose());
-    if (step.isEnd()) {
-      this.cooldown = this.cooldown-dt;
-      if (this.cooldown<0) {
-        this.player.play(step.getKey(), MeshAnimationPlayConfig.RESTART);
-      }
-    }
-    else {
-      this.cooldown = 3;
-    }
-  }
-
-  static create(key, player) {
-    let res = new PlayAnimationBehavior(key);
-    res.player = player;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.PlayAnimationBehavior = PlayAnimationBehavior;
-class BasicApp16 extends TyracornScreen {
+class BasicApp05 extends TyracornApp {
+  box = MeshId.of("box");
+  whiteBox = MeshId.of("white-box");
+  shadow1 = ShadowBufferId.of("shadow1");
+  shadow2 = ShadowBufferId.of("shadow2");
+  shadow3 = ShadowBufferId.of("shadow3");
   time = 0;
-  world;
-  inputs = InputCache.create();
-  ui;
-  gamePad;
-  paused = false;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp16";
+    return "BasicApp05";
   }
 
-  move(drivers, screenManager, dt) {
+  move(drivers, dt) {
+    let dirLightEnabled = true;
+    let spotLight1Enabled = true;
+    let spotLight2Enabled = true;
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
-    if (this.paused&&this.ui.getNumLayers()==1) {
-      this.ui.pushLayer();
-      this.ui.addComponent(Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setRegionFnc(UiRegionFncs.full()));
-      let menuPanel = Panel.create().setRegionFnc(UiRegionFncs.center(250, 250));
-      this.ui.addComponent(menuPanel);
-      menuPanel.addComponent(Label.create().addTrait(UiComponentTrait.H1).setAlignment(TextAlignment.CENTER_TOP).setPosFnc(UiPosFncs.centerTop(40)).setText("Pause"));
-      menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(100, 150, 30)).setText("Resume").addOnClickAction((evtSource) => {
-  this.paused = false;
-  this.ui.popLayer();
-}));
-      if (drivers.getPlatform().isExitable()) {
-        menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(150, 150, 30)).setText("Exit").addOnClickAction(UiEventActions.exitApp(screenManager)));
-      }
+    let aspect = gDriver.getScreenViewport().getAspect();
+    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
+    let m = 2*FMath.sin(this.time/3);
+    let cam = Camera.persp(fovy, aspect, 0.1, 1000.0).lookAt(Vec3.create(m, 2, 7), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0));
+    let dirLightColor = LightColor.create(Rgb.gray(0.4), Rgb.gray(0.6), Rgb.gray(0.6));
+    let dirLightDir = Vec3.create(0.2*FMath.cos(this.time/4), -1, 0.4).normalize();
+    let dirLightPos = Vec3.create(0, 5, 0);
+    let dirLightShadowMap = ShadowMap.createDir(this.shadow1, dirLightPos, dirLightDir, 10, 10);
+    let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
+    let spotLight1Pos = Vec3.create(0, 2, 0);
+    let spotLight1Dir = Vec3.create(0.4+m, -1, -0.2).normalize();
+    let spotLight1Color = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
+    let spotLight1Cone = LightCone.create(FMath.PI/9, FMath.PI/6);
+    let spotLight1ShadowMap = ShadowMap.createSpot(this.shadow2, spotLight1Pos, spotLight1Dir, spotLight1Cone.getOutTheta(), 1, 8);
+    let spotLight1 = Light.spotQuadratic(spotLight1Color, spotLight1Pos, spotLight1Dir, 8, spotLight1Cone, spotLight1ShadowMap);
+    let spotLight2Pos = Vec3.create(0, 2, 0);
+    let spotLight2Dir = Vec3.create(0.4, -1, -0.2+m/2).normalize();
+    let spotLight2Color = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
+    let spotLight2Cone = LightCone.create(FMath.PI/9, FMath.PI/6);
+    let spotLight2ShadowMap = ShadowMap.createSpot(this.shadow3, spotLight2Pos, spotLight2Dir, spotLight2Cone.getOutTheta(), 1, 8);
+    let spotLight2 = Light.spotQuadratic(spotLight2Color, spotLight2Pos, spotLight2Dir, 8, spotLight2Cone, spotLight2ShadowMap);
+    let smapRndr = null;
+    if (dirLightEnabled) {
+      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3));
+      smapRndr.end();
+    }
+    if (spotLight1Enabled) {
+      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight1));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3));
+      smapRndr.end();
+    }
+    if (spotLight2Enabled) {
+      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight2));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3));
+      smapRndr.end();
     }
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    if (!this.paused) {
-      this.inputs.put("moveDir", this.gamePad.getLeftDir());
-      this.inputs.put("rotDir", this.gamePad.getRightDir());
-      this.world.move(dt, this.inputs);
+    let lights = new ArrayList();
+    if (dirLightEnabled) {
+      lights.add(dirLight);
     }
-    this.world.render(RenderRequest.NORMAL);
-    gDriver.clearBuffers(BufferId.DEPTH);
-    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
-    uiRenderer.render(this.ui);
-    uiRenderer.end();
-  }
-
-  load(drivers, screenManager, properties) {
-    let assets = drivers.getDriver("AssetManager");
-    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/primitives.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")), assets.resolveAsync(Path.of("asset:packages/characters/base-human.tap")));
-  }
-
-  init(drivers, screenManager, properties) {
-    let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 30));
-    assets.put(MaterialId.of("brass"), Material.BRASS);
-    assets.put(MaterialId.of("copper"), Material.COPPER);
-    assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
-    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
-    let groundModelId = ModelId.of("ground");
-    assets.put(groundModelId, groundModel);
-    const wallColMatId = PhysicalMaterialId.of("wall");
-    assets.put(wallColMatId, PhysicalMaterial.simple(0.6, 1.8, 1.8));
-    this.world = RigidBodyWorld.create(drivers);
-    let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create(ComponentKey.WORLD).setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-30, -30, -30, 30, 30, 30)));
-    this.world.actors().add(ActorId.ROOT, worldActor);
-    let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create(ComponentKey.TRANSFORM)).addComponent(SkyboxComponent.create(ComponentKey.SKYBOX).setModelId(ModelId.of("skybox-1")).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create(ComponentKey.AUTO_ROTATE).setAngularVelocity(Vec3.create(0, 0.1, 0)));
-    this.world.actors().add(ActorId.ROOT, skybox);
-    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(20, 1, 20)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 2, 22)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, ground);
-    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(2, 5, 5), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
-    this.world.actors().add(ActorId.ROOT, light);
-    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 4, 5), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create(ComponentKey.random(), "moveDir", "rotDir", 5, 1)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY));
-    this.world.actors().add(ActorId.ROOT, camera);
-    let animations = assets.get("MeshAnimationCollection", MeshAnimationCollectionId.of("base-human"));
-    let player = MeshAnimationPlayer.create(animations, animations.getAnimations().get(0).getKey());
-    let model = assets.get("Model", ModelId.of("base-human"));
-    let character = Actor.create("character").setName("character").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(ModelId.of("base-human")).setPose(model.getArmature().getBasePose())).addComponent(ColliderComponent.create(ComponentKey.random()).setShape(ColliderShape.SPHERE).setPoseNodeRef(ColliderPoseNodeRef.create(ComponentKey.MODEL_1, ArmatureNodeId.of("DEF-head"))).setPos(0, 0.1, 0).setRadius(0.15)).addComponent(ColliderComponent.create(ComponentKey.random()).setShape(ColliderShape.BOX).setPoseNodeRef(ColliderPoseNodeRef.create(ComponentKey.MODEL_1, ArmatureNodeId.of("DEF-spine.002"))).setPos(0, 0.1, 0).setSize(0.3, 0.7, 0.2)).addComponent(ColliderComponent.create(ComponentKey.random()).setShape(ColliderShape.CAPSULE).setPoseNodeRef(ColliderPoseNodeRef.create(ComponentKey.MODEL_1, ArmatureNodeId.of("DEF-shin.R"))).setPos(0, 0.25, 0).setRadius(0.075).setHeight(0.6)).addComponent(PlayAnimationBehavior.create(ComponentKey.random(), player));
-    this.world.actors().add(ActorId.ROOT, character);
-    this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
-    this.gamePad = GamePad.create(drivers);
-    this.ui.addComponent(this.gamePad);
-    let items = new ArrayList();
-    for (let anim of animations.getAnimations()) {
-      items.add(DropdownItem.create(anim.getKey().key(), anim.getKey().key()));
+    if (spotLight1Enabled) {
+      lights.add(spotLight1);
     }
-    let animationDropdown = Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(10, 10, 160, 40)).setLabelText("Animation").addItems(items).setSelected(items.get(0)).addOnChangeAction((dd) => {
-  let dropdown = dd;
-  let value = dropdown.getSelected().getValue();
-  player.play(MeshAnimationKey.of(value), MeshAnimationPlayConfig.RESTART);
-});
-    this.ui.addComponent(animationDropdown);
-    this.ui.addComponent(Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction((evt) => {
-  this.paused = true;
-}));
-    this.ui.subscribe(drivers);
-    let dlist = InputCacheDisplayListener.create(this.inputs);
-    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
-    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
+    if (spotLight2Enabled) {
+      lights.add(spotLight2);
+    }
+    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, lights));
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.WHITE_PLASTIC.withAmbient(Rgb.gray(0.3)));
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3), Material.GOLD);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3), Material.SILVER);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3), Material.COPPER);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0), Material.GOLD);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.SILVER);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0), Material.COPPER);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3), Material.GOLD);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3), Material.SILVER);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3), Material.WHITE_PLASTIC);
+    objRnderer.end();
+    let crndr = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
+    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight1.getPos()).mul(Mat44.scale(0.05)));
+    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight2.getPos()).mul(Mat44.scale(0.05)));
+    crndr.end();
   }
 
-  pause(drivers) {
-    this.paused = true;
+  init(drivers, properties) {
+    let assets = drivers.getDriver("AssetManager");
+    assets.put(this.box, BoxMeshFactory.fabricBox());
+    assets.put(this.whiteBox, BoxMeshFactory.rgbBox(1, 1, 1));
+    assets.put(this.shadow1, ShadowBuffer.create(1024, 1024));
+    assets.put(this.shadow2, ShadowBuffer.create(1024, 1024));
+    assets.put(this.shadow3, ShadowBuffer.create(1024, 1024));
+    return Collections.emptyList();
   }
 
-  leave(drivers) {
-    this.ui.unsubscribe(drivers);
-    this.world.destroy(drivers);
-  }
-
-  getRandomVelocity() {
-    let vx = Randoms.nextFloat(0, 2)-1;
-    let vy = Randoms.nextFloat(0, 2)-1;
-    let vz = Randoms.nextFloat(0, 2)-1;
-    return Vec3.create(vx, vy, vz);
+  close(drivers) {
   }
 
 }
-classRegistry.BasicApp16 = BasicApp16;
+classRegistry.BasicApp05 = BasicApp05;
 
 
 // -------------------------------------
@@ -35685,7 +35338,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp16());
+    tyracornApp = new BasicApp05();
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

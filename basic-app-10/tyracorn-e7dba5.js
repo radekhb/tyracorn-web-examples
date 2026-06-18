@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-01";
-const assetsDirName = "/null";
+const basePath = "/tyracorn-web-examples/basic-app-10";
+const assetsDirName = "/assets-866cb7";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -20869,12 +20869,9 @@ classRegistry.KeyFrame = KeyFrame;
 class ArmaturePoseTrackChannel {
   nodeId;
   ticksPerSecond;
-  positionTicks;
-  positionValues;
-  rotationTicks;
-  rotationValues;
-  scalingTicks;
-  scalingValues;
+  positionKeys;
+  rotationKeys;
+  scalingKeys;
   constructor() {
   }
 
@@ -20894,30 +20891,15 @@ class ArmaturePoseTrackChannel {
   }
 
   getPositionKeys() {
-    let res = new ArrayList();
-    for (let i = 0; i<this.positionTicks.size(); ++i) {
-      let pos = Vec3.create(this.positionValues.get(i*3), this.positionValues.get(i*3+1), this.positionValues.get(i*3+2));
-      res.add(KeyFrame.create(this.positionTicks.get(i), pos));
-    }
-    return res;
+    return this.positionKeys;
   }
 
   getRotationKeys() {
-    let res = new ArrayList();
-    for (let i = 0; i<this.rotationTicks.size(); ++i) {
-      let rot = Quaternion.create(this.rotationValues.get(i*4), this.rotationValues.get(i*4+1), this.rotationValues.get(i*4+2), this.rotationValues.get(i*4+3));
-      res.add(KeyFrame.create(this.positionTicks.get(i), rot));
-    }
-    return res;
+    return this.rotationKeys;
   }
 
   getScalingKeys() {
-    let res = new ArrayList();
-    for (let i = 0; i<this.scalingTicks.size(); ++i) {
-      let scl = Vec3.create(this.scalingValues.get(i*3), this.scalingValues.get(i*3+1), this.scalingValues.get(i*3+2));
-      res.add(KeyFrame.create(this.scalingTicks.get(i), scl));
-    }
-    return res;
+    return this.scalingKeys;
   }
 
   getTransform(time) {
@@ -20928,112 +20910,106 @@ class ArmaturePoseTrackChannel {
   }
 
   minusRedundantKeys() {
-    let positionKeys = this.getPositionKeys();
-    let rotationKeys = this.getRotationKeys();
-    let scalingKeys = this.getScalingKeys();
     let newPositionKeys = new ArrayList();
     let newRotationKeys = new ArrayList();
     let newScalingKeys = new ArrayList();
-    for (let i = 0; i<positionKeys.size(); ++i) {
-      let pk = positionKeys.get(i).getValue();
-      if (i==0||i==positionKeys.size()-1) {
-        newPositionKeys.add(positionKeys.get(i));
+    for (let i = 0; i<this.positionKeys.size(); ++i) {
+      let pk = this.positionKeys.get(i).getValue();
+      if (i==0||i==this.positionKeys.size()-1) {
+        newPositionKeys.add(this.positionKeys.get(i));
       }
-      else if (!pk.equals(positionKeys.get(i-1).getValue())||!pk.equals(positionKeys.get(i+1).getValue())) {
-        newPositionKeys.add(positionKeys.get(i));
-      }
-    }
-    for (let i = 0; i<rotationKeys.size(); ++i) {
-      let rk = rotationKeys.get(i).getValue();
-      if (i==0||i==rotationKeys.size()-1) {
-        newRotationKeys.add(rotationKeys.get(i));
-      }
-      else if (!rk.equals(rotationKeys.get(i-1).getValue())||!rk.equals(rotationKeys.get(i+1).getValue())) {
-        newRotationKeys.add(rotationKeys.get(i));
+      else if (!pk.equals(this.positionKeys.get(i-1).getValue())||!pk.equals(this.positionKeys.get(i+1).getValue())) {
+        newPositionKeys.add(this.positionKeys.get(i));
       }
     }
-    for (let i = 0; i<scalingKeys.size(); ++i) {
-      let sk = scalingKeys.get(i).getValue();
-      if (i==0||i==scalingKeys.size()-1) {
-        newScalingKeys.add(scalingKeys.get(i));
+    for (let i = 0; i<this.rotationKeys.size(); ++i) {
+      let rk = this.rotationKeys.get(i).getValue();
+      if (i==0||i==this.rotationKeys.size()-1) {
+        newRotationKeys.add(this.rotationKeys.get(i));
       }
-      else if (!sk.equals(scalingKeys.get(i-1).getValue())||!sk.equals(scalingKeys.get(i+1).getValue())) {
-        newScalingKeys.add(scalingKeys.get(i));
+      else if (!rk.equals(this.rotationKeys.get(i-1).getValue())||!rk.equals(this.rotationKeys.get(i+1).getValue())) {
+        newRotationKeys.add(this.rotationKeys.get(i));
+      }
+    }
+    for (let i = 0; i<this.scalingKeys.size(); ++i) {
+      let sk = this.scalingKeys.get(i).getValue();
+      if (i==0||i==this.scalingKeys.size()-1) {
+        newScalingKeys.add(this.scalingKeys.get(i));
+      }
+      else if (!sk.equals(this.scalingKeys.get(i-1).getValue())||!sk.equals(this.scalingKeys.get(i+1).getValue())) {
+        newScalingKeys.add(this.scalingKeys.get(i));
       }
     }
     return ArmaturePoseTrackChannel.create(this.nodeId, this.ticksPerSecond, newPositionKeys, newRotationKeys, newScalingKeys);
   }
 
   getPosition(time) {
-    if (this.positionTicks.size()==1||time<=this.getTickTime(this.positionTicks.get(0))) {
-      return Vec3.create(this.positionValues.get(0), this.positionValues.get(1), this.positionValues.get(2));
+    if (this.positionKeys.size()==1||time<=this.positionKeys.get(0).getTime(this.ticksPerSecond)) {
+      return this.positionKeys.get(0).getValue();
     }
-    if (time>=this.getTickTime(this.positionTicks.get(this.positionTicks.size()-1))) {
-      return Vec3.create(this.positionValues.get(this.positionValues.size()-3), this.positionValues.get(this.positionValues.size()-2), this.positionValues.get(this.positionValues.size()-1));
+    if (time>=this.positionKeys.get(this.positionKeys.size()-1).getTime(this.ticksPerSecond)) {
+      return this.positionKeys.get(this.positionKeys.size()-1).getValue();
     }
-    let start = -1;
-    let end = -1;
-    for (let i = 0; i<this.positionTicks.size(); ++i) {
-      let tick = this.positionTicks.get(i);
-      let tickTime = this.getTickTime(tick);
-      if (tickTime<=time) {
-        start = i;
+    let start = null;
+    let end = null;
+    for (let kf of this.positionKeys) {
+      let keyTime = kf.getTime(this.ticksPerSecond);
+      if (keyTime<=time) {
+        start = kf;
       }
       else {
-        end = i;
+        end = kf;
         break;
       }
     }
-    let t = (time-this.getTickTime(this.positionTicks.get(start)))/(this.getTickTime(this.positionTicks.get(end))-this.getTickTime(this.positionTicks.get(start)));
-    return this.interpolatePos(start*3, end*3, t);
+    let t = (time-start.getTime(this.ticksPerSecond))/(end.getTime(this.ticksPerSecond)-start.getTime(this.ticksPerSecond));
+    return Vec3.interpolate(start.getValue(), end.getValue(), t);
   }
 
   getRotation(time) {
-    if (this.rotationTicks.size()==1||time<=this.getTickTime(this.rotationTicks.get(0))) {
-      return Quaternion.create(this.rotationValues.get(0), this.rotationValues.get(1), this.rotationValues.get(2), this.rotationValues.get(3));
+    if (this.rotationKeys.size()==1||time<=this.rotationKeys.get(0).getTime(this.ticksPerSecond)) {
+      return this.rotationKeys.get(0).getValue();
     }
-    if (time>=this.getTickTime(this.rotationTicks.get(this.rotationTicks.size()-1))) {
-      return Quaternion.create(this.rotationValues.get(this.rotationValues.size()-4), this.rotationValues.get(this.rotationValues.size()-3), this.rotationValues.get(this.rotationValues.size()-2), this.rotationValues.get(this.rotationValues.size()-1));
+    if (time>=this.rotationKeys.get(this.rotationKeys.size()-1).getTime(this.ticksPerSecond)) {
+      return this.rotationKeys.get(this.rotationKeys.size()-1).getValue();
     }
-    let start = -1;
-    let end = -1;
-    for (let i = 0; i<this.rotationTicks.size(); ++i) {
-      let tick = this.rotationTicks.get(i);
-      let tickTime = this.getTickTime(tick);
-      if (tickTime<=time) {
-        start = i;
+    let start = null;
+    let end = null;
+    for (let kf of this.rotationKeys) {
+      let keyTime = kf.getTime(this.ticksPerSecond);
+      if (keyTime<=time) {
+        start = kf;
       }
       else {
-        end = i;
+        end = kf;
         break;
       }
     }
-    let t = (time-this.getTickTime(this.rotationTicks.get(start)))/(this.getTickTime(this.rotationTicks.get(end))-this.getTickTime(this.rotationTicks.get(start)));
-    return this.interpolateNormalizeRot(start*4, end*4, t);
+    let t = (time-start.getTime(this.ticksPerSecond))/(end.getTime(this.ticksPerSecond)-start.getTime(this.ticksPerSecond));
+    return Quaternion.interpolate(start.getValue(), end.getValue(), t).normalize();
   }
 
   getScaling(time) {
-    if (this.scalingTicks.size()==1||time<=this.getTickTime(this.scalingTicks.get(0))) {
-      return Vec3.create(this.scalingValues.get(0), this.scalingValues.get(1), this.scalingValues.get(2));
+    if (this.scalingKeys.size()==1||time<=this.scalingKeys.get(0).getTime(this.ticksPerSecond)) {
+      return this.scalingKeys.get(0).getValue();
     }
-    if (time>=this.getTickTime(this.scalingTicks.get(this.scalingTicks.size()-1))) {
-      return Vec3.create(this.scalingValues.get(this.scalingValues.size()-3), this.scalingValues.get(this.scalingValues.size()-2), this.scalingValues.get(this.scalingValues.size()-1));
+    if (time>=this.scalingKeys.get(this.scalingKeys.size()-1).getTime(this.ticksPerSecond)) {
+      return this.scalingKeys.get(this.scalingKeys.size()-1).getValue();
     }
-    let start = -1;
-    let end = -1;
-    for (let i = 0; i<this.scalingTicks.size(); ++i) {
-      let tick = this.scalingTicks.get(i);
-      let tickTime = this.getTickTime(tick);
-      if (tickTime<=time) {
-        start = i;
+    let start = null;
+    let end = null;
+    for (let kf of this.scalingKeys) {
+      let keyTime = kf.getTime(this.ticksPerSecond);
+      if (keyTime<=time) {
+        start = kf;
       }
       else {
-        end = i;
+        end = kf;
         break;
       }
     }
-    let t = (time-this.getTickTime(this.scalingTicks.get(start)))/(this.getTickTime(this.scalingTicks.get(end))-this.getTickTime(this.scalingTicks.get(start)));
-    return this.interpolateScaling(start*3, end*3, t);
+    let t = (time-start.getTime(this.ticksPerSecond))/(end.getTime(this.ticksPerSecond)-start.getTime(this.ticksPerSecond));
+    return Vec3.interpolate(start.getValue(), end.getValue(), t);
   }
 
   hashCode() {
@@ -21048,68 +21024,12 @@ class ArmaturePoseTrackChannel {
   }
 
   static create(nodeId, ticksPerSecond, positionKeys, rotationKeys, scalingKeys) {
-    let positionTicks = new ArrayList();
-    let positionValues = new ArrayList();
-    let rotationTicks = new ArrayList();
-    let rotationValues = new ArrayList();
-    let scalingTicks = new ArrayList();
-    let scalingValues = new ArrayList();
-    for (let kf of positionKeys) {
-      positionTicks.add(kf.getTick());
-      positionValues.add(kf.getValue().x());
-      positionValues.add(kf.getValue().y());
-      positionValues.add(kf.getValue().z());
-    }
-    for (let kf of rotationKeys) {
-      rotationTicks.add(kf.getTick());
-      rotationValues.add(kf.getValue().a());
-      rotationValues.add(kf.getValue().b());
-      rotationValues.add(kf.getValue().c());
-      rotationValues.add(kf.getValue().d());
-    }
-    for (let kf of scalingKeys) {
-      scalingTicks.add(kf.getTick());
-      scalingValues.add(kf.getValue().x());
-      scalingValues.add(kf.getValue().y());
-      scalingValues.add(kf.getValue().z());
-    }
-    return ArmaturePoseTrackChannel.createRaw(nodeId, ticksPerSecond, positionTicks, positionValues, rotationTicks, rotationValues, scalingTicks, scalingValues);
-  }
-
-  getTickTime(tick) {
-    return tick/this.ticksPerSecond;
-  }
-
-  interpolatePos(aIdx, bIdx, t) {
-    let ti = 1-t;
-    return Vec3.create(ti*this.positionValues.get(aIdx)+t*this.positionValues.get(bIdx), ti*this.positionValues.get(aIdx+1)+t*this.positionValues.get(bIdx+1), ti*this.positionValues.get(aIdx+2)+t*this.positionValues.get(bIdx+2));
-  }
-
-  interpolateNormalizeRot(aIdx, bIdx, t) {
-    let ti = 1-t;
-    let a = ti*this.rotationValues.get(aIdx)+t*this.rotationValues.get(bIdx);
-    let b = ti*this.rotationValues.get(aIdx+1)+t*this.rotationValues.get(bIdx+1);
-    let c = ti*this.rotationValues.get(aIdx+2)+t*this.rotationValues.get(bIdx+2);
-    let d = ti*this.rotationValues.get(aIdx+3)+t*this.rotationValues.get(bIdx+3);
-    let mag = FMath.sqrt(a*a+b*b+c*c+d*d);
-    return Quaternion.create(a/mag, b/mag, c/mag, d/mag);
-  }
-
-  interpolateScaling(aIdx, bIdx, t) {
-    let ti = 1-t;
-    return Vec3.create(ti*this.scalingValues.get(aIdx)+t*this.scalingValues.get(bIdx), ti*this.scalingValues.get(aIdx+1)+t*this.scalingValues.get(bIdx+1), ti*this.scalingValues.get(aIdx+2)+t*this.scalingValues.get(bIdx+2));
-  }
-
-  static createRaw(nodeId, ticksPerSecond, positionTicks, positionValues, rotationTicks, rotationValues, scalingTicks, scalingValues) {
     let res = new ArmaturePoseTrackChannel();
     res.nodeId = nodeId;
     res.ticksPerSecond = ticksPerSecond;
-    res.positionTicks = Dut.copyImmutableList(positionTicks);
-    res.positionValues = Dut.copyImmutableList(positionValues);
-    res.rotationTicks = Dut.copyImmutableList(rotationTicks);
-    res.rotationValues = Dut.copyImmutableList(rotationValues);
-    res.scalingTicks = Dut.copyImmutableList(scalingTicks);
-    res.scalingValues = Dut.copyImmutableList(scalingValues);
+    res.positionKeys = Dut.copyImmutableList(positionKeys);
+    res.rotationKeys = Dut.copyImmutableList(rotationKeys);
+    res.scalingKeys = Dut.copyImmutableList(scalingKeys);
     res.guardInvariants();
     return res;
   }
@@ -24004,36 +23924,28 @@ class TapMeshAnimationCollections {
           for (let j = 0; j<numChannels; ++j) {
             let nodeId = ArmatureNodeId.of(reader.readString());
             let channelTps = reader.readInt();
-            let posTicks = new ArrayList();
-            let posValues = new ArrayList();
-            let rotTicks = new ArrayList();
-            let rotValues = new ArrayList();
-            let sclTicks = new ArrayList();
-            let sclValues = new ArrayList();
+            let posKeys = new ArrayList();
+            let rotKeys = new ArrayList();
+            let sclKeys = new ArrayList();
             let numPosKeys = reader.readInt();
             for (let k = 0; k<numPosKeys; ++k) {
-              posTicks.add(reader.readInt());
-              posValues.add(reader.readFloat());
-              posValues.add(reader.readFloat());
-              posValues.add(reader.readFloat());
+              let kftick = reader.readInt();
+              let kfVal = Vec3.create(reader.readFloat(), reader.readFloat(), reader.readFloat());
+              posKeys.add(KeyFrame.create(kftick, kfVal));
             }
             let numRotKeys = reader.readInt();
             for (let k = 0; k<numRotKeys; ++k) {
-              rotTicks.add(reader.readInt());
-              rotValues.add(reader.readFloat());
-              rotValues.add(reader.readFloat());
-              rotValues.add(reader.readFloat());
-              rotValues.add(reader.readFloat());
+              let kftick = reader.readInt();
+              let kfVal = Quaternion.create(reader.readFloat(), reader.readFloat(), reader.readFloat(), reader.readFloat());
+              rotKeys.add(KeyFrame.create(kftick, kfVal));
             }
             let numSclKeys = reader.readInt();
             for (let k = 0; k<numSclKeys; ++k) {
-              sclTicks.add(reader.readInt());
-              sclValues.add(reader.readFloat());
-              sclValues.add(reader.readFloat());
-              sclValues.add(reader.readFloat());
+              let kftick = reader.readInt();
+              let kfVal = Vec3.create(reader.readFloat(), reader.readFloat(), reader.readFloat());
+              sclKeys.add(KeyFrame.create(kftick, kfVal));
             }
-            let channel = ArmaturePoseTrackChannel.createRaw(nodeId, channelTps, posTicks, posValues, rotTicks, rotValues, sclTicks, sclValues);
-            poseTrack = poseTrack.plusChannel(channel);
+            poseTrack = poseTrack.plusChannel(ArmaturePoseTrackChannel.create(nodeId, channelTps, posKeys, rotKeys, sclKeys));
           }
           animation = animation.withPoseTrack(poseTrack);
           let numTriggerTicks = reader.readInt();
@@ -34851,6 +34763,251 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
+class PlayUis {
+  static ARROW_UP = UiComponentTrait.of("ARROW_UP");
+  static ARROW_DOWN = UiComponentTrait.of("ARROW_DOWN");
+  static ARROW_LEFT = UiComponentTrait.of("ARROW_LEFT");
+  static ARROW_RIGHT = UiComponentTrait.of("ARROW_RIGHT");
+  static BRAKE = UiComponentTrait.of("BRAKE");
+  static PUNCH = UiComponentTrait.of("PUNCH");
+  static WALK_RUN = UiComponentTrait.of("WALK_RUN");
+  constructor() {
+  }
+
+  getClass() {
+    return "PlayUis";
+  }
+
+  static createUiSizeFnc() {
+    return UiSizeFncs.identity();
+  }
+
+  static createDefaultStyler() {
+    let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
+    let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
+    let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
+    let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
+    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-30")).setH2Font(FontId.of("kenny-thick-26")).setH3Font(FontId.of("kenny-thick-24")).setExtraLargeTextFont(FontId.of("kenny-mini-22")).setLargeTextFont(FontId.of("kenny-mini-20")).setMediumTextFont(FontId.of("kenny-mini-18")).setSmallTextFont(FontId.of("kenny-mini-16")).setButtonLabelFont(FontId.of("kenny-mini-18")).setFieldLabelFont(FontId.of("kenny-mini-16")).setFieldValueFont(FontId.of("kenny-mini-16")).setSelectItemTextFont(FontId.of("kenny-mini-18")).setSelectItemHeight(20).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
+  }
+
+  static create916Panel() {
+    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setRegionFnc((t) => {
+  if (t.aspect()>9/16) {
+    return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
+  }
+  else {
+    return Rect2.create(0, 0, t.width(), t.height());
+  }
+});
+  }
+
+  static createExitButton(action) {
+    return Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
+  }
+
+  static createPauseButton(action) {
+    return Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
+  }
+
+}
+classRegistry.PlayUis = PlayUis;
+class GamePad extends UiComponent {
+  leftJoystick;
+  rightJoystick;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "GamePad";
+  }
+
+  guardInvariants() {
+  }
+
+  getLeftDir() {
+    return this.leftJoystick.getDir();
+  }
+
+  getRightDir() {
+    return this.rightJoystick.getDir();
+  }
+
+  init(container) {
+    this.leftJoystick.init(container);
+    this.rightJoystick.init(container);
+  }
+
+  move(dt) {
+    this.leftJoystick.move(dt);
+    this.rightJoystick.move(dt);
+  }
+
+  draw(painter) {
+    this.leftJoystick.draw(painter);
+    this.rightJoystick.draw(painter);
+  }
+
+  onContainerResize(size) {
+    this.leftJoystick.onContainerResize(size);
+    this.rightJoystick.onContainerResize(size);
+  }
+
+  onTouchStart(id, pos, size) {
+    this.leftJoystick.onTouchStart(id, pos, size);
+    this.rightJoystick.onTouchStart(id, pos, size);
+    return false;
+  }
+
+  onTouchMove(id, pos, size) {
+    this.leftJoystick.onTouchMove(id, pos, size);
+    this.rightJoystick.onTouchMove(id, pos, size);
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    this.leftJoystick.onTouchEnd(id, pos, size, cancel);
+    this.rightJoystick.onTouchEnd(id, pos, size, cancel);
+    return false;
+  }
+
+  onKeyPressed(key) {
+    this.leftJoystick.onKeyPressed(key);
+    this.rightJoystick.onKeyPressed(key);
+    return false;
+  }
+
+  onKeyReleased(key) {
+    this.leftJoystick.onKeyReleased(key);
+    this.rightJoystick.onKeyReleased(key);
+    return false;
+  }
+
+  toString() {
+  }
+
+  static create(drivers) {
+    let res = new GamePad();
+    res.leftJoystick = Joystick.create().setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h30 = s.height()*0.3;
+    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h5, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h2, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("W"), KeyCodeMatchers.upperCharacter("S"), KeyCodeMatchers.upperCharacter("A"), KeyCodeMatchers.upperCharacter("D"));
+    res.rightJoystick = Joystick.create().setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h30 = s.height()*0.3;
+    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(s.width()-h5-size, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(s.width()-h2-size, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("I"), KeyCodeMatchers.upperCharacter("K"), KeyCodeMatchers.upperCharacter("J"), KeyCodeMatchers.upperCharacter("L"));
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.GamePad = GamePad;
+class FreeCameraController {
+  initCamera;
+  pos;
+  rotX;
+  rotY;
+  moveSpeed;
+  rotSpeed;
+  gamePad;
+  constructor() {
+  }
+
+  getClass() {
+    return "FreeCameraController";
+  }
+
+  guardInvariants() {
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getTarget() {
+    let rxMat = Mat33.rotX(this.rotX);
+    let ryMat = Mat33.rotY(this.rotY);
+    return ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
+  }
+
+  getCamera() {
+    let rxMat = Mat33.rotX(this.rotX);
+    let ryMat = Mat33.rotY(this.rotY);
+    let target = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
+    let up = ryMat.mul(rxMat.mul(Vec3.create(0, 1, 0)));
+    return this.initCamera.lookAt(this.pos, target, up);
+  }
+
+  move(dt) {
+    let moveDir = this.gamePad.getLeftDir();
+    let rotDir = this.gamePad.getRightDir();
+    let rxMat = Mat33.rotX(this.rotX);
+    let ryMat = Mat33.rotY(this.rotY);
+    let fwd = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).normalize().scale(moveDir.y()*this.moveSpeed*dt);
+    let right = ryMat.mul(rxMat.mul(Vec3.create(1, 0, 0))).normalize().scale(moveDir.x()*this.moveSpeed*dt);
+    this.pos = this.pos.add(fwd).add(right);
+    this.rotX = this.rotX+rotDir.y()*this.rotSpeed*dt;
+    if (this.rotX>FMath.PI/2) {
+      this.rotX = FMath.PI/2;
+    }
+    if (this.rotX<-FMath.PI/2) {
+      this.rotX = -FMath.PI/2;
+    }
+    this.rotY = this.rotY-rotDir.x()*this.rotSpeed*dt;
+    while (this.rotY>FMath.PI) {
+      this.rotY = this.rotY-2*FMath.PI;
+    }
+    while (this.rotY<-FMath.PI) {
+      this.rotY = this.rotY+2*FMath.PI;
+    }
+  }
+
+  setPersp(fovy, aspect, near, far) {
+    this.initCamera = this.initCamera.withPersp(fovy, aspect, near, far);
+  }
+
+  toString() {
+  }
+
+  static create(initCamera, gamePad, moveSpeed, rotSpeed) {
+    let res = new FreeCameraController();
+    res.initCamera = initCamera;
+    res.pos = initCamera.getPos();
+    let fwd = Vec3.create(-initCamera.getView().m20(), -initCamera.getView().m21(), -initCamera.getView().m22());
+    let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
+    res.rotX = FMath.asin(fwd.y());
+    res.rotY = fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y());
+    res.moveSpeed = moveSpeed;
+    res.rotSpeed = rotSpeed;
+    res.gamePad = gamePad;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FreeCameraController = FreeCameraController;
 class BoxMeshFactory {
   constructor() {
   }
@@ -34915,56 +35072,97 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp01 extends TyracornApp {
-  box1 = MeshId.of("box1");
-  box2 = MeshId.of("box2");
-  box3 = MeshId.of("box3");
-  boxT = MeshId.of("boxT");
+class BasicApp10 extends TyracornScreen {
+  groundModel = null;
+  box1Model = null;
+  shadow1 = ShadowBufferId.of("shadow1");
   time = 0;
+  inputs = InputCache.create();
+  ui;
+  camera;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp01";
+    return "BasicApp10";
   }
 
-  move(drivers, dt) {
+  move(drivers, screenManager, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
-    let aspect = gDriver.getScreenViewport().getAspect();
+    let aspect = this.inputs.getSize2(InputCacheDisplayListener.DEFAULT_KEY, Size2.create(1, 1)).aspect();
     let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
-    let m = 2*FMath.sin(this.time/3);
-    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 7), Vec3.ZERO, Vec3.create(0, 1, 0));
+    this.camera.setPersp(fovy, aspect, 1.0, 50.0);
+    this.camera.move(dt);
+    this.ui.move(dt);
+    let t = Math.abs(Math.sin(this.time));
+    let dirLightColor = LightColor.create(Rgb.gray(0.5), Rgb.gray(0.5), Rgb.WHITE);
+    let dirLightDir = Vec3.create(FMath.sin(this.time/5), -1, FMath.cos(this.time/5)).normalize();
+    let dirLightPos = dirLightDir.scale(-5);
+    let dirLightShadowMap = ShadowMap.createDir(this.shadow1, dirLightPos, dirLightDir, 13, 20);
+    let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
+    let smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
+    this.renderSceneShaow(smapRndr, t);
+    smapRndr.end();
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let renderer = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
-    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(-4, 0, -2).mul(Mat44.rotX(this.time/2)));
-    renderer.render(this.box2, Interpolation.ZERO, Mat44.trans(-4, 0, 0).mul(Mat44.rotY(this.time/1)));
-    renderer.render(this.box3, Interpolation.ZERO, Mat44.trans(-4, 0, 2).mul(Mat44.rotZ(this.time/0.4)));
-    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(-2, 0, 0));
-    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(-2, 0, 2), BlendType.ALPHA);
-    renderer.render(this.box2, Interpolation.ZERO, Mat44.trans(0, 0, 0));
-    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(0, 0, 2), BlendType.ADDITIVE);
-    renderer.render(this.box3, Interpolation.ZERO, Mat44.trans(2, 0, 0));
-    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(2, 0, 2), BlendType.MULTIPLICATIVE);
-    renderer.end();
+    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(this.camera.getCamera(), dirLight));
+    this.renderScene(objRnderer, t);
+    objRnderer.end();
+    gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
   }
 
-  init(drivers, properties) {
+  load(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    assets.put(this.box1, BoxMeshFactory.rgbBox(Rgb.RED, Rgb.GREEN, Rgb.BLUE, Rgb.WHITE));
-    assets.put(this.box2, BoxMeshFactory.rgbBox(Rgb.GREEN, Rgb.GREEN, Rgb.create(1, 1, 0), Rgb.BLUE));
-    assets.put(this.box3, BoxMeshFactory.rgbBox(Rgb.create(1, 0, 1), Rgb.GREEN, Rgb.create(0, 1, 1), Rgb.BLUE));
-    assets.put(this.boxT, BoxMeshFactory.rgbaBox(Rgb.WHITE, Rgb.BLUE, Rgb.create(1, 0, 1), Rgb.RED, 0.5));
-    return Collections.emptyList();
+    let res = new ArrayList();
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/box-01.tap")));
+    return res;
   }
 
-  close(drivers) {
+  init(drivers, screenManager, properties) {
+    let assets = drivers.getDriver("AssetManager");
+    let modelBox = MeshId.of("modelBox");
+    let modelBoxAnimated = MeshId.of("modelBox-animated");
+    assets.put(modelBox, BoxMeshFactory.modelBox());
+    assets.put(modelBoxAnimated, BoxMeshFactory.modelBox().plusMeshFrames(BoxMeshFactory.modelBoxDeformed1()).plusMeshFrames(BoxMeshFactory.modelBoxDeformed2()));
+    let boxDiffuse = TextureId.of("tex_box_01_d");
+    let boxSpecular = TextureId.of("tex_box_01_s");
+    assets.put(MaterialId.of("brass"), Material.BRASS);
+    assets.put(MaterialId.of("wood-box"), Material.BLACK.withShininess(50).plusTexture(TextureAttachment.diffuse(boxDiffuse)).plusTexture(TextureAttachment.specular(boxSpecular)));
+    assets.put(this.shadow1, ShadowBuffer.create(2048, 2048));
+    this.groundModel = Model.simple(modelBox, MaterialId.of("brass"));
+    this.box1Model = Model.simple(modelBoxAnimated, MaterialId.of("wood-box"));
+    this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
+    let gamePad = GamePad.create(drivers);
+    this.ui.addComponent(gamePad);
+    let cam = Camera.persp(FMath.toRadians(60.0), 1, 0.1, 1000.0).lookAt(Vec3.create(0.0, 1, 4), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0));
+    this.camera = FreeCameraController.create(cam, gamePad, 3, 1);
+    this.ui.subscribe(drivers);
+    let dlist = InputCacheDisplayListener.create(this.inputs);
+    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
+    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+  }
+
+  renderScene(renderer, t) {
+    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    renderer.render(this.box1Model, Interpolation.create(0, 1, t), ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
+  }
+
+  renderSceneShaow(renderer, t) {
+    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    renderer.render(this.box1Model, Interpolation.create(0, 1, t), ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
   }
 
 }
-classRegistry.BasicApp01 = BasicApp01;
+classRegistry.BasicApp10 = BasicApp10;
 
 
 // -------------------------------------
@@ -35347,7 +35545,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = new BasicApp01();
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp10());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

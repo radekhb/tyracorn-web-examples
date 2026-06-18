@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-13";
-const assetsDirName = "/assets-737589";
+const basePath = "/tyracorn-web-examples/pwa-test-app";
+const assetsDirName = "/assets-fba731";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -20869,12 +20869,9 @@ classRegistry.KeyFrame = KeyFrame;
 class ArmaturePoseTrackChannel {
   nodeId;
   ticksPerSecond;
-  positionTicks;
-  positionValues;
-  rotationTicks;
-  rotationValues;
-  scalingTicks;
-  scalingValues;
+  positionKeys;
+  rotationKeys;
+  scalingKeys;
   constructor() {
   }
 
@@ -20894,30 +20891,15 @@ class ArmaturePoseTrackChannel {
   }
 
   getPositionKeys() {
-    let res = new ArrayList();
-    for (let i = 0; i<this.positionTicks.size(); ++i) {
-      let pos = Vec3.create(this.positionValues.get(i*3), this.positionValues.get(i*3+1), this.positionValues.get(i*3+2));
-      res.add(KeyFrame.create(this.positionTicks.get(i), pos));
-    }
-    return res;
+    return this.positionKeys;
   }
 
   getRotationKeys() {
-    let res = new ArrayList();
-    for (let i = 0; i<this.rotationTicks.size(); ++i) {
-      let rot = Quaternion.create(this.rotationValues.get(i*4), this.rotationValues.get(i*4+1), this.rotationValues.get(i*4+2), this.rotationValues.get(i*4+3));
-      res.add(KeyFrame.create(this.positionTicks.get(i), rot));
-    }
-    return res;
+    return this.rotationKeys;
   }
 
   getScalingKeys() {
-    let res = new ArrayList();
-    for (let i = 0; i<this.scalingTicks.size(); ++i) {
-      let scl = Vec3.create(this.scalingValues.get(i*3), this.scalingValues.get(i*3+1), this.scalingValues.get(i*3+2));
-      res.add(KeyFrame.create(this.scalingTicks.get(i), scl));
-    }
-    return res;
+    return this.scalingKeys;
   }
 
   getTransform(time) {
@@ -20928,112 +20910,106 @@ class ArmaturePoseTrackChannel {
   }
 
   minusRedundantKeys() {
-    let positionKeys = this.getPositionKeys();
-    let rotationKeys = this.getRotationKeys();
-    let scalingKeys = this.getScalingKeys();
     let newPositionKeys = new ArrayList();
     let newRotationKeys = new ArrayList();
     let newScalingKeys = new ArrayList();
-    for (let i = 0; i<positionKeys.size(); ++i) {
-      let pk = positionKeys.get(i).getValue();
-      if (i==0||i==positionKeys.size()-1) {
-        newPositionKeys.add(positionKeys.get(i));
+    for (let i = 0; i<this.positionKeys.size(); ++i) {
+      let pk = this.positionKeys.get(i).getValue();
+      if (i==0||i==this.positionKeys.size()-1) {
+        newPositionKeys.add(this.positionKeys.get(i));
       }
-      else if (!pk.equals(positionKeys.get(i-1).getValue())||!pk.equals(positionKeys.get(i+1).getValue())) {
-        newPositionKeys.add(positionKeys.get(i));
-      }
-    }
-    for (let i = 0; i<rotationKeys.size(); ++i) {
-      let rk = rotationKeys.get(i).getValue();
-      if (i==0||i==rotationKeys.size()-1) {
-        newRotationKeys.add(rotationKeys.get(i));
-      }
-      else if (!rk.equals(rotationKeys.get(i-1).getValue())||!rk.equals(rotationKeys.get(i+1).getValue())) {
-        newRotationKeys.add(rotationKeys.get(i));
+      else if (!pk.equals(this.positionKeys.get(i-1).getValue())||!pk.equals(this.positionKeys.get(i+1).getValue())) {
+        newPositionKeys.add(this.positionKeys.get(i));
       }
     }
-    for (let i = 0; i<scalingKeys.size(); ++i) {
-      let sk = scalingKeys.get(i).getValue();
-      if (i==0||i==scalingKeys.size()-1) {
-        newScalingKeys.add(scalingKeys.get(i));
+    for (let i = 0; i<this.rotationKeys.size(); ++i) {
+      let rk = this.rotationKeys.get(i).getValue();
+      if (i==0||i==this.rotationKeys.size()-1) {
+        newRotationKeys.add(this.rotationKeys.get(i));
       }
-      else if (!sk.equals(scalingKeys.get(i-1).getValue())||!sk.equals(scalingKeys.get(i+1).getValue())) {
-        newScalingKeys.add(scalingKeys.get(i));
+      else if (!rk.equals(this.rotationKeys.get(i-1).getValue())||!rk.equals(this.rotationKeys.get(i+1).getValue())) {
+        newRotationKeys.add(this.rotationKeys.get(i));
+      }
+    }
+    for (let i = 0; i<this.scalingKeys.size(); ++i) {
+      let sk = this.scalingKeys.get(i).getValue();
+      if (i==0||i==this.scalingKeys.size()-1) {
+        newScalingKeys.add(this.scalingKeys.get(i));
+      }
+      else if (!sk.equals(this.scalingKeys.get(i-1).getValue())||!sk.equals(this.scalingKeys.get(i+1).getValue())) {
+        newScalingKeys.add(this.scalingKeys.get(i));
       }
     }
     return ArmaturePoseTrackChannel.create(this.nodeId, this.ticksPerSecond, newPositionKeys, newRotationKeys, newScalingKeys);
   }
 
   getPosition(time) {
-    if (this.positionTicks.size()==1||time<=this.getTickTime(this.positionTicks.get(0))) {
-      return Vec3.create(this.positionValues.get(0), this.positionValues.get(1), this.positionValues.get(2));
+    if (this.positionKeys.size()==1||time<=this.positionKeys.get(0).getTime(this.ticksPerSecond)) {
+      return this.positionKeys.get(0).getValue();
     }
-    if (time>=this.getTickTime(this.positionTicks.get(this.positionTicks.size()-1))) {
-      return Vec3.create(this.positionValues.get(this.positionValues.size()-3), this.positionValues.get(this.positionValues.size()-2), this.positionValues.get(this.positionValues.size()-1));
+    if (time>=this.positionKeys.get(this.positionKeys.size()-1).getTime(this.ticksPerSecond)) {
+      return this.positionKeys.get(this.positionKeys.size()-1).getValue();
     }
-    let start = -1;
-    let end = -1;
-    for (let i = 0; i<this.positionTicks.size(); ++i) {
-      let tick = this.positionTicks.get(i);
-      let tickTime = this.getTickTime(tick);
-      if (tickTime<=time) {
-        start = i;
+    let start = null;
+    let end = null;
+    for (let kf of this.positionKeys) {
+      let keyTime = kf.getTime(this.ticksPerSecond);
+      if (keyTime<=time) {
+        start = kf;
       }
       else {
-        end = i;
+        end = kf;
         break;
       }
     }
-    let t = (time-this.getTickTime(this.positionTicks.get(start)))/(this.getTickTime(this.positionTicks.get(end))-this.getTickTime(this.positionTicks.get(start)));
-    return this.interpolatePos(start*3, end*3, t);
+    let t = (time-start.getTime(this.ticksPerSecond))/(end.getTime(this.ticksPerSecond)-start.getTime(this.ticksPerSecond));
+    return Vec3.interpolate(start.getValue(), end.getValue(), t);
   }
 
   getRotation(time) {
-    if (this.rotationTicks.size()==1||time<=this.getTickTime(this.rotationTicks.get(0))) {
-      return Quaternion.create(this.rotationValues.get(0), this.rotationValues.get(1), this.rotationValues.get(2), this.rotationValues.get(3));
+    if (this.rotationKeys.size()==1||time<=this.rotationKeys.get(0).getTime(this.ticksPerSecond)) {
+      return this.rotationKeys.get(0).getValue();
     }
-    if (time>=this.getTickTime(this.rotationTicks.get(this.rotationTicks.size()-1))) {
-      return Quaternion.create(this.rotationValues.get(this.rotationValues.size()-4), this.rotationValues.get(this.rotationValues.size()-3), this.rotationValues.get(this.rotationValues.size()-2), this.rotationValues.get(this.rotationValues.size()-1));
+    if (time>=this.rotationKeys.get(this.rotationKeys.size()-1).getTime(this.ticksPerSecond)) {
+      return this.rotationKeys.get(this.rotationKeys.size()-1).getValue();
     }
-    let start = -1;
-    let end = -1;
-    for (let i = 0; i<this.rotationTicks.size(); ++i) {
-      let tick = this.rotationTicks.get(i);
-      let tickTime = this.getTickTime(tick);
-      if (tickTime<=time) {
-        start = i;
+    let start = null;
+    let end = null;
+    for (let kf of this.rotationKeys) {
+      let keyTime = kf.getTime(this.ticksPerSecond);
+      if (keyTime<=time) {
+        start = kf;
       }
       else {
-        end = i;
+        end = kf;
         break;
       }
     }
-    let t = (time-this.getTickTime(this.rotationTicks.get(start)))/(this.getTickTime(this.rotationTicks.get(end))-this.getTickTime(this.rotationTicks.get(start)));
-    return this.interpolateNormalizeRot(start*4, end*4, t);
+    let t = (time-start.getTime(this.ticksPerSecond))/(end.getTime(this.ticksPerSecond)-start.getTime(this.ticksPerSecond));
+    return Quaternion.interpolate(start.getValue(), end.getValue(), t).normalize();
   }
 
   getScaling(time) {
-    if (this.scalingTicks.size()==1||time<=this.getTickTime(this.scalingTicks.get(0))) {
-      return Vec3.create(this.scalingValues.get(0), this.scalingValues.get(1), this.scalingValues.get(2));
+    if (this.scalingKeys.size()==1||time<=this.scalingKeys.get(0).getTime(this.ticksPerSecond)) {
+      return this.scalingKeys.get(0).getValue();
     }
-    if (time>=this.getTickTime(this.scalingTicks.get(this.scalingTicks.size()-1))) {
-      return Vec3.create(this.scalingValues.get(this.scalingValues.size()-3), this.scalingValues.get(this.scalingValues.size()-2), this.scalingValues.get(this.scalingValues.size()-1));
+    if (time>=this.scalingKeys.get(this.scalingKeys.size()-1).getTime(this.ticksPerSecond)) {
+      return this.scalingKeys.get(this.scalingKeys.size()-1).getValue();
     }
-    let start = -1;
-    let end = -1;
-    for (let i = 0; i<this.scalingTicks.size(); ++i) {
-      let tick = this.scalingTicks.get(i);
-      let tickTime = this.getTickTime(tick);
-      if (tickTime<=time) {
-        start = i;
+    let start = null;
+    let end = null;
+    for (let kf of this.scalingKeys) {
+      let keyTime = kf.getTime(this.ticksPerSecond);
+      if (keyTime<=time) {
+        start = kf;
       }
       else {
-        end = i;
+        end = kf;
         break;
       }
     }
-    let t = (time-this.getTickTime(this.scalingTicks.get(start)))/(this.getTickTime(this.scalingTicks.get(end))-this.getTickTime(this.scalingTicks.get(start)));
-    return this.interpolateScaling(start*3, end*3, t);
+    let t = (time-start.getTime(this.ticksPerSecond))/(end.getTime(this.ticksPerSecond)-start.getTime(this.ticksPerSecond));
+    return Vec3.interpolate(start.getValue(), end.getValue(), t);
   }
 
   hashCode() {
@@ -21048,68 +21024,12 @@ class ArmaturePoseTrackChannel {
   }
 
   static create(nodeId, ticksPerSecond, positionKeys, rotationKeys, scalingKeys) {
-    let positionTicks = new ArrayList();
-    let positionValues = new ArrayList();
-    let rotationTicks = new ArrayList();
-    let rotationValues = new ArrayList();
-    let scalingTicks = new ArrayList();
-    let scalingValues = new ArrayList();
-    for (let kf of positionKeys) {
-      positionTicks.add(kf.getTick());
-      positionValues.add(kf.getValue().x());
-      positionValues.add(kf.getValue().y());
-      positionValues.add(kf.getValue().z());
-    }
-    for (let kf of rotationKeys) {
-      rotationTicks.add(kf.getTick());
-      rotationValues.add(kf.getValue().a());
-      rotationValues.add(kf.getValue().b());
-      rotationValues.add(kf.getValue().c());
-      rotationValues.add(kf.getValue().d());
-    }
-    for (let kf of scalingKeys) {
-      scalingTicks.add(kf.getTick());
-      scalingValues.add(kf.getValue().x());
-      scalingValues.add(kf.getValue().y());
-      scalingValues.add(kf.getValue().z());
-    }
-    return ArmaturePoseTrackChannel.createRaw(nodeId, ticksPerSecond, positionTicks, positionValues, rotationTicks, rotationValues, scalingTicks, scalingValues);
-  }
-
-  getTickTime(tick) {
-    return tick/this.ticksPerSecond;
-  }
-
-  interpolatePos(aIdx, bIdx, t) {
-    let ti = 1-t;
-    return Vec3.create(ti*this.positionValues.get(aIdx)+t*this.positionValues.get(bIdx), ti*this.positionValues.get(aIdx+1)+t*this.positionValues.get(bIdx+1), ti*this.positionValues.get(aIdx+2)+t*this.positionValues.get(bIdx+2));
-  }
-
-  interpolateNormalizeRot(aIdx, bIdx, t) {
-    let ti = 1-t;
-    let a = ti*this.rotationValues.get(aIdx)+t*this.rotationValues.get(bIdx);
-    let b = ti*this.rotationValues.get(aIdx+1)+t*this.rotationValues.get(bIdx+1);
-    let c = ti*this.rotationValues.get(aIdx+2)+t*this.rotationValues.get(bIdx+2);
-    let d = ti*this.rotationValues.get(aIdx+3)+t*this.rotationValues.get(bIdx+3);
-    let mag = FMath.sqrt(a*a+b*b+c*c+d*d);
-    return Quaternion.create(a/mag, b/mag, c/mag, d/mag);
-  }
-
-  interpolateScaling(aIdx, bIdx, t) {
-    let ti = 1-t;
-    return Vec3.create(ti*this.scalingValues.get(aIdx)+t*this.scalingValues.get(bIdx), ti*this.scalingValues.get(aIdx+1)+t*this.scalingValues.get(bIdx+1), ti*this.scalingValues.get(aIdx+2)+t*this.scalingValues.get(bIdx+2));
-  }
-
-  static createRaw(nodeId, ticksPerSecond, positionTicks, positionValues, rotationTicks, rotationValues, scalingTicks, scalingValues) {
     let res = new ArmaturePoseTrackChannel();
     res.nodeId = nodeId;
     res.ticksPerSecond = ticksPerSecond;
-    res.positionTicks = Dut.copyImmutableList(positionTicks);
-    res.positionValues = Dut.copyImmutableList(positionValues);
-    res.rotationTicks = Dut.copyImmutableList(rotationTicks);
-    res.rotationValues = Dut.copyImmutableList(rotationValues);
-    res.scalingTicks = Dut.copyImmutableList(scalingTicks);
-    res.scalingValues = Dut.copyImmutableList(scalingValues);
+    res.positionKeys = Dut.copyImmutableList(positionKeys);
+    res.rotationKeys = Dut.copyImmutableList(rotationKeys);
+    res.scalingKeys = Dut.copyImmutableList(scalingKeys);
     res.guardInvariants();
     return res;
   }
@@ -24004,36 +23924,28 @@ class TapMeshAnimationCollections {
           for (let j = 0; j<numChannels; ++j) {
             let nodeId = ArmatureNodeId.of(reader.readString());
             let channelTps = reader.readInt();
-            let posTicks = new ArrayList();
-            let posValues = new ArrayList();
-            let rotTicks = new ArrayList();
-            let rotValues = new ArrayList();
-            let sclTicks = new ArrayList();
-            let sclValues = new ArrayList();
+            let posKeys = new ArrayList();
+            let rotKeys = new ArrayList();
+            let sclKeys = new ArrayList();
             let numPosKeys = reader.readInt();
             for (let k = 0; k<numPosKeys; ++k) {
-              posTicks.add(reader.readInt());
-              posValues.add(reader.readFloat());
-              posValues.add(reader.readFloat());
-              posValues.add(reader.readFloat());
+              let kftick = reader.readInt();
+              let kfVal = Vec3.create(reader.readFloat(), reader.readFloat(), reader.readFloat());
+              posKeys.add(KeyFrame.create(kftick, kfVal));
             }
             let numRotKeys = reader.readInt();
             for (let k = 0; k<numRotKeys; ++k) {
-              rotTicks.add(reader.readInt());
-              rotValues.add(reader.readFloat());
-              rotValues.add(reader.readFloat());
-              rotValues.add(reader.readFloat());
-              rotValues.add(reader.readFloat());
+              let kftick = reader.readInt();
+              let kfVal = Quaternion.create(reader.readFloat(), reader.readFloat(), reader.readFloat(), reader.readFloat());
+              rotKeys.add(KeyFrame.create(kftick, kfVal));
             }
             let numSclKeys = reader.readInt();
             for (let k = 0; k<numSclKeys; ++k) {
-              sclTicks.add(reader.readInt());
-              sclValues.add(reader.readFloat());
-              sclValues.add(reader.readFloat());
-              sclValues.add(reader.readFloat());
+              let kftick = reader.readInt();
+              let kfVal = Vec3.create(reader.readFloat(), reader.readFloat(), reader.readFloat());
+              sclKeys.add(KeyFrame.create(kftick, kfVal));
             }
-            let channel = ArmaturePoseTrackChannel.createRaw(nodeId, channelTps, posTicks, posValues, rotTicks, rotValues, sclTicks, sclValues);
-            poseTrack = poseTrack.plusChannel(channel);
+            poseTrack = poseTrack.plusChannel(ArmaturePoseTrackChannel.create(nodeId, channelTps, posKeys, rotKeys, sclKeys));
           }
           animation = animation.withPoseTrack(poseTrack);
           let numTriggerTicks = reader.readInt();
@@ -34851,117 +34763,24 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class CustomLabel extends UiComponent {
-  container;
-  text;
-  posFnc;
-  font;
-  alignment;
-  containerSize;
-  pos;
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "CustomLabel";
-  }
-
-  guardInvariants() {
-  }
-
-  init(container) {
-    this.container = container;
-  }
-
-  move(dt) {
-  }
-
-  draw(painter) {
-    let color = null;
-    painter.drawText(this.text, this.pos, this.alignment, this.font, color);
-  }
-
-  onContainerResize(size) {
-    this.containerSize = size;
-    this.pos = Functions.apply(this.posFnc, size);
-  }
-
-  getText() {
-    return this.text;
-  }
-
-  setText(text) {
-    Guard.notNull(text, "text cannot be null");
-    this.text = text;
-    return this;
-  }
-
-  getPosFnc() {
-    return this.posFnc;
-  }
-
-  setPosFnc(posFnc) {
-    Guard.notNull(posFnc, "posFnc cannot be null");
-    this.posFnc = posFnc;
-    this.onContainerResize(this.containerSize);
-    return this;
-  }
-
-  getFont() {
-    return this.font;
-  }
-
-  setFont(font) {
-    Guard.notNull(font, "font cannot be null");
-    this.font = font;
-    return this;
-  }
-
-  getAlignment() {
-    return this.alignment;
-  }
-
-  setAlignment(alignment) {
-    Guard.notNull(alignment, "alignment cannot be null");
-    this.alignment = alignment;
-    return this;
-  }
-
-  toString() {
-  }
-
-  static create() {
-    let res = new CustomLabel();
-    res.text = "";
-    res.alignment = TextAlignment.CENTER;
-    res.posFnc = UiPosFncs.center();
-    res.font = FontId.DEFAULT;
-    res.containerSize = Size2.create(1, 1);
-    res.pos = Functions.apply(res.posFnc, res.containerSize);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.CustomLabel = CustomLabel;
-class BasicApp13 extends TyracornScreen {
-  time = 0;
+class PwaTestApp extends TyracornScreen {
   ui;
+  storedValuesKey = LocalDataKey.of("values");
+  storedValues;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp13";
+    return "PwaTestApp";
   }
 
   move(drivers, screenManager, dt) {
-    this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
     this.ui.move(dt);
+    gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
     uiRenderer.render(this.ui);
     uiRenderer.end();
   }
@@ -34970,66 +34789,41 @@ class BasicApp13 extends TyracornScreen {
     let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
     res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/fonts-extra")));
     return res;
   }
 
   init(drivers, screenManager, properties) {
-    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
+    let platform = drivers.getPlatform();
     let assets = drivers.getDriver("AssetManager");
-    let sizes = Dut.immutableList(12, 14, 16, 20, 24, 32, 48, 64, 72, 80);
-    Fonts.prepareScaledFonts(assets, Dut.copySet(sizes));
-    const fontIdBasess = Dut.immutableList("rubik-regular-", "rubik-bold-", "nobile-regular-", "kenny-blocks-", "kenny-future-", "kenny-future-square-", "kenny-bold-", "kenny-space-", "kenny-mini-", "kenny-thick-");
-    const label = CustomLabel.create().setText("Tyracorn").setFont(FontId.of("rubik-regular-32")).setPosFnc(UiPosFncs.center()).setAlignment(TextAlignment.CENTER);
-    const fontLabel = Label.create().setText("rubik-regular-32").setPosFnc(UiPosFncs.center(0, 160)).setAlignment(TextAlignment.CENTER_TOP);
-    let fontAct = (evtSource) => {
-      let oldFontId = label.getFont().id();
-      let oldSize = this.getFontSize(oldFontId);
-      let oldFontIdBase = this.getFontBase(oldFontId)+"-";
-      let newIdx = fontIdBasess.indexOf(oldFontIdBase)+1;
-      if (newIdx>=fontIdBasess.size()) {
-        newIdx = 0;
+    let lds = drivers.getDriver("LocalDataStorage");
+    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 28));
+    this.ui = StretchUi.create(UiSizeFncs.scale(0.7));
+    let ldsString = lds.exists(this.storedValuesKey)?lds.loadString(this.storedValuesKey):"{\"listSelect1\":\"item0\"}";
+    this.storedValues = JsonObjects.parse(ldsString);
+    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Select 1").setAlignment(TextAlignment.LEFT_TOP));
+    let listSelect1Items = Dut.list(ListSelectItem.create("item0", "Item 1"), ListSelectItem.create("item1", "Item 2"), ListSelectItem.create("item2", "Item 3"), ListSelectItem.create("item3", "Item 4"), ListSelectItem.create("item4", "Item 5"), ListSelectItem.create("item5", "Item 6"), ListSelectItem.create("item6", "Item 7"), ListSelectItem.create("item7", "Item 8"), ListSelectItem.create("item8", "Item 9"), ListSelectItem.create("item9", "Item 10"), ListSelectItem.create("item10", "Item 11"), ListSelectItem.create("item11", "Item 12"), ListSelectItem.create("item12", "Item 13"), ListSelectItem.create("item13", "Item 14"), ListSelectItem.create("item14", "Item 15"), ListSelectItem.create("item15", "Item 16"), ListSelectItem.create("item16", "Item 17"), ListSelectItem.create("item17", "Item 18"), ListSelectItem.create("item18", "Item 19"), ListSelectItem.create("item19", "Item 20"), ListSelectItem.create("item20", "Item 21"), ListSelectItem.create("item21", "Item 22"), ListSelectItem.create("item22", "Item 23"), ListSelectItem.create("item23", "Item 24"), ListSelectItem.create("item24", "Item 25"), ListSelectItem.create("item25", "Item 26"), ListSelectItem.create("item26", "Item 27"), ListSelectItem.create("item27", "Item 28"), ListSelectItem.create("item28", "Item 29"), ListSelectItem.create("item29", "Item 30"));
+    let listSelect1Value = this.storedValues.getString("listSelect1");
+    let listSelect1SelectedIdx = 0;
+    for (let i = 0; i<listSelect1Items.size(); ++i) {
+      if (listSelect1Items.get(i).getValue().equals(listSelect1Value)) {
+        listSelect1SelectedIdx = i;
+        break;
       }
-      label.setFont(FontId.of(fontIdBasess.get(newIdx)+oldSize));
-      fontLabel.setText(fontIdBasess.get(newIdx)+oldSize);
-    };
-    const alignemnts = Dut.immutableList(TextAlignment.LEFT_TOP, TextAlignment.CENTER_TOP, TextAlignment.RIGHT_TOP, TextAlignment.LEFT_CENTER, TextAlignment.CENTER, TextAlignment.RIGHT_CENTER, TextAlignment.LEFT_BASE, TextAlignment.CENTER_BASE, TextAlignment.RIGHT_BASE, TextAlignment.LEFT_BOTTOM, TextAlignment.CENTER_BOTTOM, TextAlignment.RIGHT_BOTTOM);
-    let alignAct = (evtSource) => {
-      let idx = alignemnts.indexOf(label.getAlignment())+1;
-      if (idx>=alignemnts.size()) {
-        idx = 0;
-      }
-      label.setAlignment(alignemnts.get(idx));
-    };
-    const texts = Dut.immutableList("Tyracorn", "Hello World!!!", "I love you");
-    let textAct = (evtSource) => {
-      let idx = texts.indexOf(label.getText())+1;
-      if (idx>=texts.size()) {
-        idx = 0;
-      }
-      label.setText(texts.get(idx));
-    };
-    let sizeAct = (evtSource) => {
-      let oldFontId = label.getFont().id();
-      let oldSize = this.getFontSize(oldFontId);
-      let oldFontIdBase = this.getFontBase(oldFontId)+"-";
-      let newIdx = sizes.indexOf(oldSize)+1;
-      if (newIdx>=sizes.size()) {
-        newIdx = 0;
-      }
-      label.setFont(FontId.of(oldFontIdBase+sizes.get(newIdx)));
-      fontLabel.setText(oldFontIdBase+sizes.get(newIdx));
-    };
-    this.ui.addComponent(Panel.create().setRegionFnc(UiRegionFncs.center(5, 5)));
-    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(-130, 80, 120, 30)).setText("Font").addOnClickAction(fontAct));
-    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(10, 80, 120, 30)).setText("Alignment").addOnClickAction(alignAct));
-    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(-130, 120, 120, 30)).setText("Text").addOnClickAction(textAct));
-    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(10, 120, 120, 30)).setText("Size").addOnClickAction(sizeAct));
-    this.ui.addComponent(label);
-    this.ui.addComponent(fontLabel);
-    if (drivers.getPlatform().isExitable()) {
-      this.ui.addComponent(PlayUis.createExitButton(UiEventActions.exitApp(screenManager)));
     }
+    this.ui.addComponent(ListSelect.create().setRegionFnc(UiRegionFncs.leftTop(10, 50, 200, 150)).addItems(listSelect1Items).setSelectedAt(listSelect1SelectedIdx, true).addOnSelectAction((src) => {
+  let ls = src;
+  let indexes = ls.getSelectedIndexes();
+  if (indexes.isEmpty()) {
+    return ;
+  }
+  let idx = indexes.get(0);
+  let item = ls.getItems().get(idx);
+  this.storedValues = this.storedValues.withString("listSelect1", item.getValue());
+  let storedStr = JsonObjects.toJson(this.storedValues);
+  lds.saveString(this.storedValuesKey, storedStr);
+  platform.logInfo("Updated listSelect1 value to "+item.getValue()+" at index "+idx);
+}));
+    this.ui.addComponent(Label.create().setText("Test Version 9").setPosFnc(UiPosFncs.rightBottom(10, 10)).setAlignment(TextAlignment.RIGHT_BOTTOM));
     this.ui.subscribe(drivers);
   }
 
@@ -35037,23 +34831,8 @@ class BasicApp13 extends TyracornScreen {
     this.ui.unsubscribe(drivers);
   }
 
-  getFontBase(fontName) {
-    let parts = fontName.split("-");
-    let res = parts[0];
-    for (let i = 1; i<parts.length-1; ++i) {
-      res = res+"-"+parts[i];
-    }
-    return res;
-  }
-
-  getFontSize(fontName) {
-    let parts = fontName.split("-");
-    let resStr = parts[parts.length-1];
-    return Integer.parseInt(resStr);
-  }
-
 }
-classRegistry.BasicApp13 = BasicApp13;
+classRegistry.PwaTestApp = PwaTestApp;
 
 
 // -------------------------------------
@@ -35436,7 +35215,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp13());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new PwaTestApp());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
