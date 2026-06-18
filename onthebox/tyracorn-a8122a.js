@@ -204,10 +204,6 @@ class ArrayList {
 
     // Update the length property and numeric indices
     _updateLength() {
-        // Remove old numeric properties
-        for (let i = this.length || 0; i < this._data.length + 10; i++) {
-            delete this[i];
-        }
 
         // Set length
         Object.defineProperty(this, 'length', {
@@ -217,6 +213,12 @@ class ArrayList {
             configurable: true
         });
 
+        // deleted as an experiment
+        /*
+        // Remove old numeric properties
+        for (let i = this.length || 0; i < this._data.length + 10; i++) {
+            delete this[i];
+        }
         // Create enumerable numeric properties for for...in iteration
         for (let i = 0; i < this._data.length; i++) {
             Object.defineProperty(this, i, {
@@ -228,6 +230,7 @@ class ArrayList {
                 configurable: true
             });
         }
+         */
     }
 
     // Add element to the end
@@ -9293,23 +9296,47 @@ class Mat44 {
     return res;
   }
 
-  static transofm(v, q) {
-    let bb = q.b()*q.b();
-    let cc = q.c()*q.c();
-    let dd = q.d()*q.d();
+  static transofm(pos, rot) {
+    let bb = rot.b()*rot.b();
+    let cc = rot.c()*rot.c();
+    let dd = rot.d()*rot.d();
     let res = new Mat44();
     res.mm00 = 1-2*cc-2*dd;
-    res.mm01 = 2*q.b()*q.c()-2*q.d()*q.a();
-    res.mm02 = 2*q.b()*q.d()+2*q.c()*q.a();
-    res.mm03 = v.x();
-    res.mm10 = 2*q.b()*q.c()+2*q.d()*q.a();
+    res.mm01 = 2*rot.b()*rot.c()-2*rot.d()*rot.a();
+    res.mm02 = 2*rot.b()*rot.d()+2*rot.c()*rot.a();
+    res.mm03 = pos.x();
+    res.mm10 = 2*rot.b()*rot.c()+2*rot.d()*rot.a();
     res.mm11 = 1-2*bb-2*dd;
-    res.mm12 = 2*q.c()*q.d()-2*q.b()*q.a();
-    res.mm13 = v.y();
-    res.mm20 = 2*q.b()*q.d()-2*q.c()*q.a();
-    res.mm21 = 2*q.c()*q.d()+2*q.b()*q.a();
+    res.mm12 = 2*rot.c()*rot.d()-2*rot.b()*rot.a();
+    res.mm13 = pos.y();
+    res.mm20 = 2*rot.b()*rot.d()-2*rot.c()*rot.a();
+    res.mm21 = 2*rot.c()*rot.d()+2*rot.b()*rot.a();
     res.mm22 = 1-2*bb-2*cc;
-    res.mm23 = v.z();
+    res.mm23 = pos.z();
+    res.mm30 = 0;
+    res.mm31 = 0;
+    res.mm32 = 0;
+    res.mm33 = 1;
+    return res;
+  }
+
+  static transofmScaled(pos, rot, scale) {
+    let bb = rot.b()*rot.b();
+    let cc = rot.c()*rot.c();
+    let dd = rot.d()*rot.d();
+    let res = new Mat44();
+    res.mm00 = scale.x()*(1-2*cc-2*dd);
+    res.mm01 = scale.y()*(2*rot.b()*rot.c()-2*rot.d()*rot.a());
+    res.mm02 = scale.z()*(2*rot.b()*rot.d()+2*rot.c()*rot.a());
+    res.mm03 = pos.x();
+    res.mm10 = scale.x()*(2*rot.b()*rot.c()+2*rot.d()*rot.a());
+    res.mm11 = scale.y()*(1-2*bb-2*dd);
+    res.mm12 = scale.z()*(2*rot.c()*rot.d()-2*rot.b()*rot.a());
+    res.mm13 = pos.y();
+    res.mm20 = scale.x()*(2*rot.b()*rot.d()-2*rot.c()*rot.a());
+    res.mm21 = scale.y()*(2*rot.c()*rot.d()+2*rot.b()*rot.a());
+    res.mm22 = scale.z()*(1-2*bb-2*cc);
+    res.mm23 = pos.z();
     res.mm30 = 0;
     res.mm31 = 0;
     res.mm32 = 0;
@@ -20877,12 +20904,43 @@ class ArmaturePoseTrackChannel {
 
   getTransform(time) {
     let pos = this.getPosition(time);
-    let posMat = Mat44.trans(pos);
     let rot = this.getRotation(time);
-    let rotMat = Mat44.rot(rot);
     let scaling = this.getScaling(time);
-    let scaleMat = Mat44.scale(scaling.x(), scaling.y(), scaling.z());
-    return posMat.mul(rotMat).mul(scaleMat);
+    return Mat44.transofmScaled(pos, rot, scaling);
+  }
+
+  minusRedundantKeys() {
+    let newPositionKeys = new ArrayList();
+    let newRotationKeys = new ArrayList();
+    let newScalingKeys = new ArrayList();
+    for (let i = 0; i<this.positionKeys.size(); ++i) {
+      let pk = this.positionKeys.get(i).getValue();
+      if (i==0||i==this.positionKeys.size()-1) {
+        newPositionKeys.add(this.positionKeys.get(i));
+      }
+      else if (!pk.equals(this.positionKeys.get(i-1).getValue())||!pk.equals(this.positionKeys.get(i+1).getValue())) {
+        newPositionKeys.add(this.positionKeys.get(i));
+      }
+    }
+    for (let i = 0; i<this.rotationKeys.size(); ++i) {
+      let rk = this.rotationKeys.get(i).getValue();
+      if (i==0||i==this.rotationKeys.size()-1) {
+        newRotationKeys.add(this.rotationKeys.get(i));
+      }
+      else if (!rk.equals(this.rotationKeys.get(i-1).getValue())||!rk.equals(this.rotationKeys.get(i+1).getValue())) {
+        newRotationKeys.add(this.rotationKeys.get(i));
+      }
+    }
+    for (let i = 0; i<this.scalingKeys.size(); ++i) {
+      let sk = this.scalingKeys.get(i).getValue();
+      if (i==0||i==this.scalingKeys.size()-1) {
+        newScalingKeys.add(this.scalingKeys.get(i));
+      }
+      else if (!sk.equals(this.scalingKeys.get(i-1).getValue())||!sk.equals(this.scalingKeys.get(i+1).getValue())) {
+        newScalingKeys.add(this.scalingKeys.get(i));
+      }
+    }
+    return ArmaturePoseTrackChannel.create(this.nodeId, this.ticksPerSecond, newPositionKeys, newRotationKeys, newScalingKeys);
   }
 
   getPosition(time) {
@@ -21016,6 +21074,14 @@ class ArmaturePoseTrack {
     res.channels = Dut.immutableListPlusItem(this.channels, channel);
     res.channelsByNodeId = Dut.immutableMapPlusEntry(this.channelsByNodeId, channel.getNodeId(), channel);
     res.guardInvariants();
+    return res;
+  }
+
+  minusRedundantChannelKeys() {
+    let res = ArmaturePoseTrack.empty(this.ticksPerSecond, this.armature);
+    for (let channel of this.channels) {
+      res = res.plusChannel(channel.minusRedundantKeys());
+    }
     return res;
   }
 
@@ -22792,6 +22858,15 @@ class Assets {
           }
           else if (type.equals("CREATE_CLIP_ANIMATION_COLLECTION")) {
             res = res.mergeStrict(Assets.parseCreateClipAnimationCollectionTask(taskJson));
+          }
+          else if (type.equals("MESH_ANIMATION_POSE_REDUNDANT_KEYS")) {
+            res = res.transform("MeshAnimationCollection", (mac) => {
+  let rrr = MeshAnimationCollection.empty();
+  for (let ma of mac.getAnimations()) {
+    rrr = rrr.plusAnimation(ma.withPoseTrack(ma.getPoseTrack().minusRedundantChannelKeys()));
+  }
+  return rrr;
+});
           }
           else if (type.equals("CREATE_PHYSICAL_MATERIAL")) {
             res = res.mergeStrict(Assets.parseCreatePhysicalMaterialTask(taskJson));

@@ -7,7 +7,7 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-05";
+const basePath = "/tyracorn-web-examples/basic-app-03";
 const assetsDirName = "/null";
 const localStoragePrefix = "app.";
 let mouseDown = false;
@@ -204,10 +204,6 @@ class ArrayList {
 
     // Update the length property and numeric indices
     _updateLength() {
-        // Remove old numeric properties
-        for (let i = this.length || 0; i < this._data.length + 10; i++) {
-            delete this[i];
-        }
 
         // Set length
         Object.defineProperty(this, 'length', {
@@ -217,6 +213,12 @@ class ArrayList {
             configurable: true
         });
 
+        // deleted as an experiment
+        /*
+        // Remove old numeric properties
+        for (let i = this.length || 0; i < this._data.length + 10; i++) {
+            delete this[i];
+        }
         // Create enumerable numeric properties for for...in iteration
         for (let i = 0; i < this._data.length; i++) {
             Object.defineProperty(this, i, {
@@ -228,6 +230,7 @@ class ArrayList {
                 configurable: true
             });
         }
+         */
     }
 
     // Add element to the end
@@ -9293,23 +9296,47 @@ class Mat44 {
     return res;
   }
 
-  static transofm(v, q) {
-    let bb = q.b()*q.b();
-    let cc = q.c()*q.c();
-    let dd = q.d()*q.d();
+  static transofm(pos, rot) {
+    let bb = rot.b()*rot.b();
+    let cc = rot.c()*rot.c();
+    let dd = rot.d()*rot.d();
     let res = new Mat44();
     res.mm00 = 1-2*cc-2*dd;
-    res.mm01 = 2*q.b()*q.c()-2*q.d()*q.a();
-    res.mm02 = 2*q.b()*q.d()+2*q.c()*q.a();
-    res.mm03 = v.x();
-    res.mm10 = 2*q.b()*q.c()+2*q.d()*q.a();
+    res.mm01 = 2*rot.b()*rot.c()-2*rot.d()*rot.a();
+    res.mm02 = 2*rot.b()*rot.d()+2*rot.c()*rot.a();
+    res.mm03 = pos.x();
+    res.mm10 = 2*rot.b()*rot.c()+2*rot.d()*rot.a();
     res.mm11 = 1-2*bb-2*dd;
-    res.mm12 = 2*q.c()*q.d()-2*q.b()*q.a();
-    res.mm13 = v.y();
-    res.mm20 = 2*q.b()*q.d()-2*q.c()*q.a();
-    res.mm21 = 2*q.c()*q.d()+2*q.b()*q.a();
+    res.mm12 = 2*rot.c()*rot.d()-2*rot.b()*rot.a();
+    res.mm13 = pos.y();
+    res.mm20 = 2*rot.b()*rot.d()-2*rot.c()*rot.a();
+    res.mm21 = 2*rot.c()*rot.d()+2*rot.b()*rot.a();
     res.mm22 = 1-2*bb-2*cc;
-    res.mm23 = v.z();
+    res.mm23 = pos.z();
+    res.mm30 = 0;
+    res.mm31 = 0;
+    res.mm32 = 0;
+    res.mm33 = 1;
+    return res;
+  }
+
+  static transofmScaled(pos, rot, scale) {
+    let bb = rot.b()*rot.b();
+    let cc = rot.c()*rot.c();
+    let dd = rot.d()*rot.d();
+    let res = new Mat44();
+    res.mm00 = scale.x()*(1-2*cc-2*dd);
+    res.mm01 = scale.y()*(2*rot.b()*rot.c()-2*rot.d()*rot.a());
+    res.mm02 = scale.z()*(2*rot.b()*rot.d()+2*rot.c()*rot.a());
+    res.mm03 = pos.x();
+    res.mm10 = scale.x()*(2*rot.b()*rot.c()+2*rot.d()*rot.a());
+    res.mm11 = scale.y()*(1-2*bb-2*dd);
+    res.mm12 = scale.z()*(2*rot.c()*rot.d()-2*rot.b()*rot.a());
+    res.mm13 = pos.y();
+    res.mm20 = scale.x()*(2*rot.b()*rot.d()-2*rot.c()*rot.a());
+    res.mm21 = scale.y()*(2*rot.c()*rot.d()+2*rot.b()*rot.a());
+    res.mm22 = scale.z()*(1-2*bb-2*cc);
+    res.mm23 = pos.z();
     res.mm30 = 0;
     res.mm31 = 0;
     res.mm32 = 0;
@@ -20877,12 +20904,43 @@ class ArmaturePoseTrackChannel {
 
   getTransform(time) {
     let pos = this.getPosition(time);
-    let posMat = Mat44.trans(pos);
     let rot = this.getRotation(time);
-    let rotMat = Mat44.rot(rot);
     let scaling = this.getScaling(time);
-    let scaleMat = Mat44.scale(scaling.x(), scaling.y(), scaling.z());
-    return posMat.mul(rotMat).mul(scaleMat);
+    return Mat44.transofmScaled(pos, rot, scaling);
+  }
+
+  minusRedundantKeys() {
+    let newPositionKeys = new ArrayList();
+    let newRotationKeys = new ArrayList();
+    let newScalingKeys = new ArrayList();
+    for (let i = 0; i<this.positionKeys.size(); ++i) {
+      let pk = this.positionKeys.get(i).getValue();
+      if (i==0||i==this.positionKeys.size()-1) {
+        newPositionKeys.add(this.positionKeys.get(i));
+      }
+      else if (!pk.equals(this.positionKeys.get(i-1).getValue())||!pk.equals(this.positionKeys.get(i+1).getValue())) {
+        newPositionKeys.add(this.positionKeys.get(i));
+      }
+    }
+    for (let i = 0; i<this.rotationKeys.size(); ++i) {
+      let rk = this.rotationKeys.get(i).getValue();
+      if (i==0||i==this.rotationKeys.size()-1) {
+        newRotationKeys.add(this.rotationKeys.get(i));
+      }
+      else if (!rk.equals(this.rotationKeys.get(i-1).getValue())||!rk.equals(this.rotationKeys.get(i+1).getValue())) {
+        newRotationKeys.add(this.rotationKeys.get(i));
+      }
+    }
+    for (let i = 0; i<this.scalingKeys.size(); ++i) {
+      let sk = this.scalingKeys.get(i).getValue();
+      if (i==0||i==this.scalingKeys.size()-1) {
+        newScalingKeys.add(this.scalingKeys.get(i));
+      }
+      else if (!sk.equals(this.scalingKeys.get(i-1).getValue())||!sk.equals(this.scalingKeys.get(i+1).getValue())) {
+        newScalingKeys.add(this.scalingKeys.get(i));
+      }
+    }
+    return ArmaturePoseTrackChannel.create(this.nodeId, this.ticksPerSecond, newPositionKeys, newRotationKeys, newScalingKeys);
   }
 
   getPosition(time) {
@@ -21016,6 +21074,14 @@ class ArmaturePoseTrack {
     res.channels = Dut.immutableListPlusItem(this.channels, channel);
     res.channelsByNodeId = Dut.immutableMapPlusEntry(this.channelsByNodeId, channel.getNodeId(), channel);
     res.guardInvariants();
+    return res;
+  }
+
+  minusRedundantChannelKeys() {
+    let res = ArmaturePoseTrack.empty(this.ticksPerSecond, this.armature);
+    for (let channel of this.channels) {
+      res = res.plusChannel(channel.minusRedundantKeys());
+    }
     return res;
   }
 
@@ -22792,6 +22858,15 @@ class Assets {
           }
           else if (type.equals("CREATE_CLIP_ANIMATION_COLLECTION")) {
             res = res.mergeStrict(Assets.parseCreateClipAnimationCollectionTask(taskJson));
+          }
+          else if (type.equals("MESH_ANIMATION_POSE_REDUNDANT_KEYS")) {
+            res = res.transform("MeshAnimationCollection", (mac) => {
+  let rrr = MeshAnimationCollection.empty();
+  for (let ma of mac.getAnimations()) {
+    rrr = rrr.plusAnimation(ma.withPoseTrack(ma.getPoseTrack().minusRedundantChannelKeys()));
+  }
+  return rrr;
+});
           }
           else if (type.equals("CREATE_PHYSICAL_MATERIAL")) {
             res = res.mergeStrict(Assets.parseCreatePhysicalMaterialTask(taskJson));
@@ -34752,115 +34827,46 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp05 extends TyracornApp {
+class BasicApp03 extends TyracornApp {
   box = MeshId.of("box");
   whiteBox = MeshId.of("white-box");
-  shadow1 = ShadowBufferId.of("shadow1");
-  shadow2 = ShadowBufferId.of("shadow2");
-  shadow3 = ShadowBufferId.of("shadow3");
   time = 0;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp05";
+    return "BasicApp03";
   }
 
   move(drivers, dt) {
-    let dirLightEnabled = true;
-    let spotLight1Enabled = true;
-    let spotLight2Enabled = true;
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
     let aspect = gDriver.getScreenViewport().getAspect();
     let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
     let m = 2*FMath.sin(this.time/3);
-    let cam = Camera.persp(fovy, aspect, 0.1, 1000.0).lookAt(Vec3.create(m, 2, 7), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0));
-    let dirLightColor = LightColor.create(Rgb.gray(0.4), Rgb.gray(0.6), Rgb.gray(0.6));
-    let dirLightDir = Vec3.create(0.2*FMath.cos(this.time/4), -1, 0.4).normalize();
-    let dirLightPos = Vec3.create(0, 5, 0);
-    let dirLightShadowMap = ShadowMap.createDir(this.shadow1, dirLightPos, dirLightDir, 10, 10);
-    let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
-    let spotLight1Pos = Vec3.create(0, 2, 0);
-    let spotLight1Dir = Vec3.create(0.4+m, -1, -0.2).normalize();
-    let spotLight1Color = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
-    let spotLight1Cone = LightCone.create(FMath.PI/9, FMath.PI/6);
-    let spotLight1ShadowMap = ShadowMap.createSpot(this.shadow2, spotLight1Pos, spotLight1Dir, spotLight1Cone.getOutTheta(), 1, 8);
-    let spotLight1 = Light.spotQuadratic(spotLight1Color, spotLight1Pos, spotLight1Dir, 8, spotLight1Cone, spotLight1ShadowMap);
-    let spotLight2Pos = Vec3.create(0, 2, 0);
-    let spotLight2Dir = Vec3.create(0.4, -1, -0.2+m/2).normalize();
-    let spotLight2Color = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
-    let spotLight2Cone = LightCone.create(FMath.PI/9, FMath.PI/6);
-    let spotLight2ShadowMap = ShadowMap.createSpot(this.shadow3, spotLight2Pos, spotLight2Dir, spotLight2Cone.getOutTheta(), 1, 8);
-    let spotLight2 = Light.spotQuadratic(spotLight2Color, spotLight2Pos, spotLight2Dir, 8, spotLight2Cone, spotLight2ShadowMap);
-    let smapRndr = null;
-    if (dirLightEnabled) {
-      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3));
-      smapRndr.end();
-    }
-    if (spotLight1Enabled) {
-      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight1));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3));
-      smapRndr.end();
-    }
-    if (spotLight2Enabled) {
-      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight2));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3));
-      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3));
-      smapRndr.end();
-    }
+    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 7), Vec3.ZERO, Vec3.create(0, 1, 0));
+    let dirLight = Light.directional(LightColor.create(Rgb.gray(0.4), Rgb.gray(0.6), Rgb.gray(0.6)), Vec3.create(-0.3, -0.8, -0.4).normalize());
+    let pointLight = Light.pointQadratic(LightColor.create(Rgb.BLACK, Rgb.BLUE, Rgb.WHITE), Vec3.create(0, 0, 3.6), 4);
+    let spotLightColor = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
+    let spotLightCone = LightCone.create(FMath.PI/9, FMath.PI/6);
+    let spotLight1 = Light.spotQuadratic(spotLightColor, Vec3.create(0, 2, 0), Vec3.create(0.4+m, -1, 0.2).normalize(), 8, spotLightCone);
+    let spotLight2 = Light.spotQuadratic(spotLightColor, Vec3.create(0, 2, 0), Vec3.create(0.4, -1, 0.2+m/2).normalize(), 8, spotLightCone);
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let lights = new ArrayList();
-    if (dirLightEnabled) {
-      lights.add(dirLight);
-    }
-    if (spotLight1Enabled) {
-      lights.add(spotLight1);
-    }
-    if (spotLight2Enabled) {
-      lights.add(spotLight2);
-    }
-    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, lights));
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.WHITE_PLASTIC.withAmbient(Rgb.gray(0.3)));
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3), Material.GOLD);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3), Material.SILVER);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3), Material.COPPER);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0), Material.GOLD);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.SILVER);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0), Material.COPPER);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3), Material.GOLD);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3), Material.SILVER);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3), Material.WHITE_PLASTIC);
-    objRnderer.end();
+    let objRenderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, dirLight, pointLight, spotLight1, spotLight2));
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.WHITE_PLASTIC);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3), Material.GOLD);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3), Material.SILVER);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3), Material.COPPER);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0), Material.GOLD);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.SILVER);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0), Material.COPPER);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3), Material.GOLD);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3), Material.SILVER);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3), Material.WHITE_PLASTIC);
+    objRenderer.end();
     let crndr = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
+    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(pointLight.getPos()).mul(Mat44.scale(0.05)));
     crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight1.getPos()).mul(Mat44.scale(0.05)));
     crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight2.getPos()).mul(Mat44.scale(0.05)));
     crndr.end();
@@ -34870,9 +34876,6 @@ class BasicApp05 extends TyracornApp {
     let assets = drivers.getDriver("AssetManager");
     assets.put(this.box, BoxMeshFactory.fabricBox());
     assets.put(this.whiteBox, BoxMeshFactory.rgbBox(1, 1, 1));
-    assets.put(this.shadow1, ShadowBuffer.create(1024, 1024));
-    assets.put(this.shadow2, ShadowBuffer.create(1024, 1024));
-    assets.put(this.shadow3, ShadowBuffer.create(1024, 1024));
     return Collections.emptyList();
   }
 
@@ -34880,7 +34883,7 @@ class BasicApp05 extends TyracornApp {
   }
 
 }
-classRegistry.BasicApp05 = BasicApp05;
+classRegistry.BasicApp03 = BasicApp03;
 
 
 // -------------------------------------
@@ -35263,7 +35266,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = new BasicApp05();
+    tyracornApp = new BasicApp03();
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
