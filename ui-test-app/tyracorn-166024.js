@@ -7,7 +7,7 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/pwa-test-app";
+const basePath = "/tyracorn-web-examples/ui-test-app";
 const assetsDirName = "/assets-fba731";
 const localStoragePrefix = "app.";
 let mouseDown = false;
@@ -199,38 +199,6 @@ class ArrayList {
             enumerable: false,
             configurable: true
         });
-        this._updateLength();
-    }
-
-    // Update the length property and numeric indices
-    _updateLength() {
-
-        // Set length
-        Object.defineProperty(this, 'length', {
-            value: this._data.length,
-            writable: false,
-            enumerable: false,
-            configurable: true
-        });
-
-        // deleted as an experiment
-        /*
-        // Remove old numeric properties
-        for (let i = this.length || 0; i < this._data.length + 10; i++) {
-            delete this[i];
-        }
-        // Create enumerable numeric properties for for...in iteration
-        for (let i = 0; i < this._data.length; i++) {
-            Object.defineProperty(this, i, {
-                get: () => this._data[i],
-                set: (value) => {
-                    this._data[i] = value;
-                },
-                enumerable: true,
-                configurable: true
-            });
-        }
-         */
     }
 
     // Add element to the end
@@ -239,7 +207,6 @@ class ArrayList {
             throw new Error("only single argument is supported, namely 'add(index, element)' overload is not supported");
         }
         this._data.push(element);
-        this._updateLength();
         return this;
     }
 
@@ -247,7 +214,6 @@ class ArrayList {
         for (const item of collection) {
             this._data.push(item);
         }
-        this._updateLength();
     }
 
     // Insert element at specific index
@@ -256,7 +222,6 @@ class ArrayList {
             throw new Error('Index out of bounds');
         }
         this._data.splice(index, 0, element);
-        this._updateLength();
         return this;
     }
 
@@ -266,7 +231,6 @@ class ArrayList {
             throw new Error('Index out of bounds');
         }
         const removed = this._data.splice(index, 1)[0];
-        this._updateLength();
         return removed;
     }
 
@@ -309,7 +273,6 @@ class ArrayList {
     // Clear all elements
     clear() {
         this._data = [];
-        this._updateLength();
         return this;
     }
 
@@ -34763,16 +34726,14 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class PwaTestApp extends TyracornScreen {
+class UiTestApp extends TyracornScreen {
   ui;
-  storedValuesKey = LocalDataKey.of("values");
-  storedValues;
   constructor() {
     super();
   }
 
   getClass() {
-    return "PwaTestApp";
+    return "UiTestApp";
   }
 
   move(drivers, screenManager, dt) {
@@ -34795,35 +34756,135 @@ class PwaTestApp extends TyracornScreen {
   init(drivers, screenManager, properties) {
     let platform = drivers.getPlatform();
     let assets = drivers.getDriver("AssetManager");
-    let lds = drivers.getDriver("LocalDataStorage");
     Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 28));
     this.ui = StretchUi.create(UiSizeFncs.scale(0.7));
-    let ldsString = lds.exists(this.storedValuesKey)?lds.loadString(this.storedValuesKey):"{\"listSelect1\":\"item0\"}";
-    this.storedValues = JsonObjects.parse(ldsString);
-    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Select 1").setAlignment(TextAlignment.LEFT_TOP));
-    let listSelect1Items = Dut.list(ListSelectItem.create("item0", "Item 1"), ListSelectItem.create("item1", "Item 2"), ListSelectItem.create("item2", "Item 3"), ListSelectItem.create("item3", "Item 4"), ListSelectItem.create("item4", "Item 5"), ListSelectItem.create("item5", "Item 6"), ListSelectItem.create("item6", "Item 7"), ListSelectItem.create("item7", "Item 8"), ListSelectItem.create("item8", "Item 9"), ListSelectItem.create("item9", "Item 10"), ListSelectItem.create("item10", "Item 11"), ListSelectItem.create("item11", "Item 12"), ListSelectItem.create("item12", "Item 13"), ListSelectItem.create("item13", "Item 14"), ListSelectItem.create("item14", "Item 15"), ListSelectItem.create("item15", "Item 16"), ListSelectItem.create("item16", "Item 17"), ListSelectItem.create("item17", "Item 18"), ListSelectItem.create("item18", "Item 19"), ListSelectItem.create("item19", "Item 20"), ListSelectItem.create("item20", "Item 21"), ListSelectItem.create("item21", "Item 22"), ListSelectItem.create("item22", "Item 23"), ListSelectItem.create("item23", "Item 24"), ListSelectItem.create("item24", "Item 25"), ListSelectItem.create("item25", "Item 26"), ListSelectItem.create("item26", "Item 27"), ListSelectItem.create("item27", "Item 28"), ListSelectItem.create("item28", "Item 29"), ListSelectItem.create("item29", "Item 30"));
-    let listSelect1Value = this.storedValues.getString("listSelect1");
-    let listSelect1SelectedIdx = 0;
-    for (let i = 0; i<listSelect1Items.size(); ++i) {
-      if (listSelect1Items.get(i).getValue().equals(listSelect1Value)) {
-        listSelect1SelectedIdx = i;
-        break;
-      }
-    }
-    this.ui.addComponent(ListSelect.create().setRegionFnc(UiRegionFncs.leftTop(10, 50, 200, 150)).addItems(listSelect1Items).setSelectedAt(listSelect1SelectedIdx, true).addOnSelectAction((src) => {
-  let ls = src;
-  let indexes = ls.getSelectedIndexes();
-  if (indexes.isEmpty()) {
-    return ;
-  }
-  let idx = indexes.get(0);
-  let item = ls.getItems().get(idx);
-  this.storedValues = this.storedValues.withString("listSelect1", item.getValue());
-  let storedStr = JsonObjects.toJson(this.storedValues);
-  lds.saveString(this.storedValuesKey, storedStr);
-  platform.logInfo("Updated listSelect1 value to "+item.getValue()+" at index "+idx);
+    let tabs = TabContainer.create().setRegionFnc(UiRegionFncs.fullFromTop(50));
+    this.ui.addComponent(tabs);
+    let navbar = TabNavbar.create().setTabContainer(tabs).setRegionFnc(UiRegionFncs.fullTop(50)).addTextTabLink("Labels").addTextTabLink("Buttons").addTextTabLink("Selects").addTextTabLink("Inputs");
+    this.ui.addComponent(navbar);
+    let labelsTab = Tab.create();
+    tabs.addTab(labelsTab);
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Example of H1 text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.H2).setPosFnc(UiPosFncs.leftTop(10, 50)).setText("Example of H2 text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.H3).setPosFnc(UiPosFncs.leftTop(10, 90)).setText("Example of H3 text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.XL).setPosFnc(UiPosFncs.leftTop(10, 130)).setText("Example of extra-large regular text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.L).setPosFnc(UiPosFncs.leftTop(10, 160)).setText("Example of large regular text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 190)).setText("Example of regular text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.S).setPosFnc(UiPosFncs.leftTop(10, 220)).setText("Example of small regular text").setAlignment(TextAlignment.LEFT_TOP));
+    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.XS).setPosFnc(UiPosFncs.leftTop(10, 250)).setText("Example of extra-small regular text").setAlignment(TextAlignment.LEFT_TOP));
+    let butonsTab = Tab.create();
+    tabs.addTab(butonsTab);
+    butonsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Regular buttons").setAlignment(TextAlignment.LEFT_TOP));
+    butonsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 40)).setText("Press by Q, H, G or Ctrl + E").setAlignment(TextAlignment.LEFT_TOP));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 20, 20)).addTrait(UiComponentTrait.XS).setText("XS").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).addOnClickAction((evt) => {
+  platform.logInfo("XS button - click");
 }));
-    this.ui.addComponent(Label.create().setText("Test Version 9").setPosFnc(UiPosFncs.rightBottom(10, 10)).setAlignment(TextAlignment.RIGHT_BOTTOM));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(40, 70, 20, 20)).addTrait(UiComponentTrait.HAMBURGER).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("H")).addOnClickAction((evt) => {
+  platform.logInfo("Hamburger button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(70, 70, 20, 20)).addTrait(UiComponentTrait.CROSS).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("G")).addOnClickAction((evt) => {
+  platform.logInfo("Cross button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 100, 50, 20)).addTrait(UiComponentTrait.S).setText("Small").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).addOnClickAction((evt) => {
+  platform.logInfo("S button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 130, 100, 20)).setText("Medium").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).addOnClickAction((evt) => {
+  platform.logInfo("M button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 160, 150, 20)).addTrait(UiComponentTrait.L).setText("Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.control(), KeyCodeMatchers.upperCharacter("E"))).addOnClickAction((evt) => {
+  platform.logInfo("L button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 190, 200, 20)).addTrait(UiComponentTrait.XL).setText("Extra Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.control(), KeyCodeMatchers.upperCharacter("E"))).addOnClickAction((evt) => {
+  platform.logInfo("XL button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 220, 100, 20)).setText("Disabled").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).setDisabled(true).addOnClickAction((evt) => {
+  platform.logInfo("Disabled button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(120, 220, 20, 20)).addTrait(UiComponentTrait.HAMBURGER).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("H")).setDisabled(true).addOnClickAction((evt) => {
+  platform.logInfo("Disabled hamburger button - click");
+}));
+    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(150, 220, 20, 20)).addTrait(UiComponentTrait.CROSS).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("G")).setDisabled(true).addOnClickAction((evt) => {
+  platform.logInfo("Disabled cross button - click");
+}));
+    butonsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(230, 10)).setText("Toggle buttons").setAlignment(TextAlignment.LEFT_TOP));
+    butonsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(230, 40)).setText("Toggle by Z or Shift + X").setAlignment(TextAlignment.LEFT_TOP));
+    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 70, 20, 20)).addTrait(UiComponentTrait.XS).setText("XS").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Z")).addOnToggleAction((evt) => {
+  platform.logInfo("XS toggle button - toggled");
+}));
+    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 100, 50, 20)).addTrait(UiComponentTrait.S).setText("Small").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Z")).addOnToggleAction((evt) => {
+  platform.logInfo("S toggle button - toggled");
+}));
+    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 130, 100, 20)).setText("Medium").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Z")).addOnToggleAction((evt) => {
+  platform.logInfo("M toggle button - toggled");
+}));
+    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 160, 150, 20)).addTrait(UiComponentTrait.L).setText("Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.shift(), KeyCodeMatchers.upperCharacter("X"))).addOnToggleAction((evt) => {
+  platform.logInfo("L toggle button - toggled");
+}));
+    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 190, 200, 20)).addTrait(UiComponentTrait.XL).setText("Extra Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.shift(), KeyCodeMatchers.upperCharacter("X"))).addOnToggleAction((evt) => {
+  platform.logInfo("XL toggle button - toggled");
+}));
+    butonsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(450, 10)).setText("Joystick").setAlignment(TextAlignment.LEFT_TOP));
+    butonsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(450, 40)).setText("Control by arrows or WSAD").setAlignment(TextAlignment.LEFT_TOP));
+    butonsTab.addComponent(Joystick.create().setRegionFnc(UiRegionFncs.leftTop(450, 70, 80, 80)).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD()));
+    butonsTab.addComponent(Joystick.create().addTrait(UiComponentTrait.SQUARE).setRegionFnc(UiRegionFncs.leftTop(450, 160, 80, 80)).setCircle(false).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD()));
+    let selectsTab = Tab.create();
+    tabs.addTab(selectsTab);
+    selectsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Few items").setAlignment(TextAlignment.LEFT_TOP));
+    selectsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 40)).setText("No srolling").setAlignment(TextAlignment.LEFT_TOP));
+    selectsTab.addComponent(ListSelect.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 200, 100)).addOnSelectAction((src) => {
+  platform.logInfo("Small list: "+(src).getSelectedIndexes().toString());
+}).addItem(ListSelectItem.create("item1", "Item 1")).addItem(ListSelectItem.create("item2", "Item 2")).addItem(ListSelectItem.create("item3", "Item 3 - string that is long enough to be clipped")));
+    selectsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(230, 10)).setText("Scrolling").setAlignment(TextAlignment.LEFT_TOP));
+    selectsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(230, 40)).setText("Necessary to scroll").setAlignment(TextAlignment.LEFT_TOP));
+    selectsTab.addComponent(ListSelect.create().setRegionFnc(UiRegionFncs.leftTop(230, 70, 200, 100)).addOnSelectAction((src) => {
+  platform.logInfo("Big list: "+(src).getSelectedIndexes().toString());
+}).addItem(ListSelectItem.create("item1", "Item 1")).addItem(ListSelectItem.create("item2", "Item 2")).addItem(ListSelectItem.create("item3", "Item 3")).addItem(ListSelectItem.create("item4", "Item 4")).addItem(ListSelectItem.create("item5", "Item 5")).addItem(ListSelectItem.create("item6", "Item 6")).addItem(ListSelectItem.create("item7", "Item 7")).addItem(ListSelectItem.create("item8", "Item 8")).addItem(ListSelectItem.create("item9", "Item 9")).addItem(ListSelectItem.create("item10", "Item 10")).addItem(ListSelectItem.create("item11", "Item 11")).addItem(ListSelectItem.create("item12", "Item 12")).addItem(ListSelectItem.create("item13", "Item 13")).addItem(ListSelectItem.create("item14", "Item 14")).addItem(ListSelectItem.create("item15", "Item 15")).addItem(ListSelectItem.create("item16", "Item 16")).addItem(ListSelectItem.create("item17", "Item 17")).addItem(ListSelectItem.create("item18", "Item 18")).addItem(ListSelectItem.create("item19", "Item 19")).addItem(ListSelectItem.create("item20", "Item 20")).addItem(ListSelectItem.create("item21", "Item 21")).addItem(ListSelectItem.create("item22", "Item 22")).addItem(ListSelectItem.create("item23", "Item 23")).addItem(ListSelectItem.create("item24", "Item 24")).addItem(ListSelectItem.create("item25", "Item 25")).addItem(ListSelectItem.create("item26", "Item 26")).addItem(ListSelectItem.create("item27", "Item 27")).addItem(ListSelectItem.create("item28", "Item 28")).addItem(ListSelectItem.create("item29", "Item 29")).addItem(ListSelectItem.create("item30", "Item 30")));
+    selectsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(450, 10)).setText("Dropdown").setAlignment(TextAlignment.LEFT_TOP));
+    selectsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(450, 40)).setText("Select item from dropdown").setAlignment(TextAlignment.LEFT_TOP));
+    selectsTab.addComponent(Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(450, 70, 100, 30)).setLabelText("Small tiems").setSelected(DropdownItem.create("", "")).addItem(DropdownItem.create("item1", "Item 1")).addItem(DropdownItem.create("item2", "Item 2")).addItem(DropdownItem.create("item3", "Item 3 - string that is long enough to be clipped")).addOnChangeAction((src) => {
+  platform.logInfo("Dropdown changed: "+(src).getSelected().getText());
+}));
+    selectsTab.addComponent(Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(450, 110, 100, 30)).setLabelText("Many tiems").setSelected(DropdownItem.create("", "")).addItem(DropdownItem.create("item1", "Item 1")).addItem(DropdownItem.create("item2", "Item 2")).addItem(DropdownItem.create("item3", "Item 3")).addItem(DropdownItem.create("item4", "Item 4")).addItem(DropdownItem.create("item5", "Item 5")).addItem(DropdownItem.create("item6", "Item 6")).addItem(DropdownItem.create("item7", "Item 7")).addItem(DropdownItem.create("item8", "Item 8")).addItem(DropdownItem.create("item9", "Item 9")).addItem(DropdownItem.create("item10", "Item 10")).addItem(DropdownItem.create("item11", "Item 11")).addItem(DropdownItem.create("item12", "Item 12")).addItem(DropdownItem.create("item13", "Item 13")).addItem(DropdownItem.create("item14", "Item 14")).addItem(DropdownItem.create("item15", "Item 15")).addItem(DropdownItem.create("item16", "Item 16")).addItem(DropdownItem.create("item17", "Item 17")).addItem(DropdownItem.create("item18", "Item 18")).addItem(DropdownItem.create("item19", "Item 19")).addItem(DropdownItem.create("item20", "Item 20")).addOnChangeAction((src) => {
+  platform.logInfo("Dropdown changed: "+(src).getSelected().getText());
+}));
+    selectsTab.addComponent(Panel.create().setRegionFnc(UiRegionFncs.leftTop(450, 150, 120, 50)).addComponent(Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(10, 10, 100, 30)).setLabelText("Dropdown in panel").setSelected(DropdownItem.create("", "")).addItem(DropdownItem.create("item1", "Item 1")).addItem(DropdownItem.create("item2", "Item 2")).addItem(DropdownItem.create("item3", "Item 3")).addItem(DropdownItem.create("item4", "Item 4")).addItem(DropdownItem.create("item5", "Item 5")).addItem(DropdownItem.create("item6", "Item 6")).addItem(DropdownItem.create("item7", "Item 7")).addItem(DropdownItem.create("item8", "Item 8")).addItem(DropdownItem.create("item9", "Item 9")).addItem(DropdownItem.create("item10", "Item 10")).addItem(DropdownItem.create("item11", "Item 11")).addItem(DropdownItem.create("item12", "Item 12")).addItem(DropdownItem.create("item13", "Item 13")).addItem(DropdownItem.create("item14", "Item 14")).addItem(DropdownItem.create("item15", "Item 15")).addItem(DropdownItem.create("item16", "Item 16")).addItem(DropdownItem.create("item17", "Item 17")).addItem(DropdownItem.create("item18", "Item 18")).addItem(DropdownItem.create("item19", "Item 19")).addItem(DropdownItem.create("item20", "Item 20")).addOnChangeAction((src) => {
+  platform.logInfo("Penel dropdown changed: "+(src).getSelected().getText());
+})));
+    selectsTab.addComponent(Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(450, 210, 100, 30)).setLabelText("Disabled").setDisabled(true).setSelected(DropdownItem.create("item1", "item1")).addItem(DropdownItem.create("item1", "Item 1")).addItem(DropdownItem.create("item2", "Item 2")).addItem(DropdownItem.create("item3", "Item 3 - string that is long enough to be clipped")));
+    let inputsTab = Tab.create();
+    tabs.addTab(inputsTab);
+    inputsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Text fields").setAlignment(TextAlignment.LEFT_TOP));
+    inputsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 40)).setText("Input text, integers, and floats").setAlignment(TextAlignment.LEFT_TOP));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 100, 30)).setLabelText("Text").setValue("Hello").setConstraint(TextFieldFreeConstraint.create(10)).addOnChangeAction((src) => {
+  platform.logInfo("Text field changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 110, 100, 30)).setLabelText("Integer").setValue("0").setConstraint(TextFieldIntegerConstraint.create(true, 8)).addOnChangeAction((src) => {
+  platform.logInfo("Integer field changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 150, 100, 30)).setLabelText("Not negative Integer").setValue("0").setConstraint(TextFieldIntegerConstraint.create(false, 8)).addOnChangeAction((src) => {
+  platform.logInfo("Not negative Integer field changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 190, 100, 30)).setLabelText("Float").setValue("0.0").setConstraint(TextFieldFloatConstraint.create(true, 8)).addOnChangeAction((src) => {
+  platform.logInfo("Float field changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 230, 100, 30)).setLabelText("Not negative Float").setValue("0.0").setConstraint(TextFieldFloatConstraint.create(false, 8)).addOnChangeAction((src) => {
+  platform.logInfo("Not negative Float field changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(120, 70, 100, 30)).setLabelText("Read Only").setValue("Can't change").setReadOnly(true));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(120, 110, 100, 30)).setLabelText("Live Change").setValue("").setLiveChange(true).addOnChangeAction((src) => {
+  platform.logInfo("Live Change field changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(120, 150, 100, 30)).setLabelText("Disabled").setValue("Disabled").setDisabled(true));
+    inputsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(230, 10)).setText("Sliders").setAlignment(TextAlignment.LEFT_TOP));
+    inputsTab.addComponent(Slider.create().setRegionFnc(UiRegionFncs.leftTop(230, 70, 200, 30)).setMin(0).setMax(100).setStep(1).setValue(20).addOnChangeAction((src) => {
+  platform.logInfo("Slider 1 changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(Slider.create().setRegionFnc(UiRegionFncs.leftTop(230, 110, 200, 30)).setMin(-1).setMax(1).setStep(0.25).setValue(0).addOnChangeAction((src) => {
+  platform.logInfo("Slider 2 changed: "+(src).getValue());
+}));
+    inputsTab.addComponent(Slider.create().setRegionFnc(UiRegionFncs.leftTop(230, 150, 200, 30)).setDisabled(true).setMin(0).setMax(100).setStep(1).setValue(33).addOnChangeAction((src) => {
+  platform.logInfo("Slider 3 changed: "+(src).getValue());
+}));
     this.ui.subscribe(drivers);
   }
 
@@ -34832,7 +34893,7 @@ class PwaTestApp extends TyracornScreen {
   }
 
 }
-classRegistry.PwaTestApp = PwaTestApp;
+classRegistry.UiTestApp = UiTestApp;
 
 
 // -------------------------------------
@@ -35215,7 +35276,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new PwaTestApp());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new UiTestApp());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
