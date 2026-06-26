@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-01";
-const assetsDirName = "/null";
+const basePath = "/tyracorn-web-examples/basic-app-02";
+const assetsDirName = "/assets-1921d2";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -10172,6 +10172,14 @@ class Geometry3 {
     return "Geometry3";
   }
 
+  static projectToPlane(planePt, planeNormal, pt) {
+    let dx = pt.x()-planePt.x();
+    let dy = pt.y()-planePt.y();
+    let dz = pt.z()-planePt.z();
+    let t = dx*planeNormal.x()+dy*planeNormal.y()+dz*planeNormal.z();
+    return pt.subScaled(planeNormal, t);
+  }
+
   static projectToLine(linePt, lineDir, pt) {
     let dx = pt.x()-linePt.x();
     let dy = pt.y()-linePt.y();
@@ -14602,6 +14610,15 @@ class ShadowMap {
   toString() {
   }
 
+  static create(shadowBuffer, pfcType, camera) {
+    let res = new ShadowMap();
+    res.shadowBuffer = shadowBuffer;
+    res.pcfType = pfcType;
+    res.camera = camera;
+    res.guardInvaritants();
+    return res;
+  }
+
   static createDir(shadowBuffer, pos, dir, r, range) {
     let res = new ShadowMap();
     res.shadowBuffer = shadowBuffer;
@@ -14919,7 +14936,7 @@ class Camera {
   }
 
   static ortho(w, h, near, far) {
-    let proj = Mat44.create(2.0/w, 0.0, 0.0, 0.0, 0.0, 2.0/h, 0.0, 0.0, 0.0, 0.0, -1.0/(far-near), -near/(near-far), 0.0, 0.0, 0.0, 1.0);
+    let proj = Mat44.create(2.0/w, 0.0, 0.0, 0.0, 0.0, 2.0/h, 0.0, 0.0, 0.0, 0.0, -1.0/(far-near), (near-far)/(far-near), 0.0, 0.0, 0.0, 1.0);
     let res = new Camera();
     res.proj = proj;
     res.view = Mat44.IDENTITY;
@@ -31842,6 +31859,10 @@ class CollisionGridBroadphaseManager {
     this.grid.removeActor(actorId);
   }
 
+  getWorldAabb() {
+    return this.grid.getSpace();
+  }
+
   getCandidatePairs() {
     return this.grid.getCandidatePairs();
   }
@@ -31957,6 +31978,10 @@ class BroadphaseCollisionManager {
     else {
       throw new Error("unsupported domain: "+domain);
     }
+  }
+
+  getWorldAabb() {
+    return this.broadphase.getWorldAabb();
   }
 
   getAllContacts() {
@@ -34012,11 +34037,13 @@ class RigidBodyWorld extends World {
     let cameras = this.getCameras(this.actorTree);
     let models = this.getRenderables(this.actorTree);
     let skyboxes = this.getSkyboxes(this.actorTree);
+    let worldAabb = this.collisionManager.getWorldAabb();
     for (let cidx = 0; cidx<cameras.size(); ++cidx) {
       this.gDriver.clearBuffers(BufferId.DEPTH);
       let camera = cameras.get(cidx).getCamera();
+      let cameraFrustum = CameraFrustum.calculate(camera);
       let skyboxCamera = cameras.get(cidx).getSkyboxCamera();
-      let lights = this.getLights(camera, models, this.actorTree);
+      let lights = this.getLights(cameraFrustum, worldAabb, this.actorTree);
       let shadowlessLights = this.getShadowlessLights(lights);
       for (let lidx = 0; lidx<lights.size(); ++lidx) {
         let light = lights.get(lidx);
@@ -34106,7 +34133,7 @@ class RigidBodyWorld extends World {
     return res;
   }
 
-  getLights(camera, models, actors) {
+  getLights(cameraFrustum, worldAabb, actors) {
     let sbidx = new ArrayList();
     sbidx.add(0);
     let res = new ArrayList();
@@ -34184,6 +34211,86 @@ class RigidBodyWorld extends World {
     }
   }
 });
+    return res;
+  }
+
+  calculateDirLightShadowMapCamera(viewFrustum, lightDir, worldAabb, radiusPadding, depthPadding) {
+    let frustumCenter = viewFrustum.getCenter();
+    let planeProj1 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getNearUpLeft());
+    let planeProj2 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getNearUpRight());
+    let planeProj3 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getNearDownLeft());
+    let planeProj4 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getNearDownRight());
+    let planeProj5 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getFarUpLeft());
+    let planeProj6 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getFarUpRight());
+    let planeProj7 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getFarDownLeft());
+    let planeProj8 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getFarDownRight());
+    let lightRadius = FMath.max(0, planeProj1.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj2.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj3.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj4.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj5.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj6.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj7.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj8.dist(frustumCenter));
+    let projFact1 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.min().x(), worldAabb.min().y(), worldAabb.min().z());
+    let projFact2 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.max().x(), worldAabb.min().y(), worldAabb.min().z());
+    let projFact3 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.max().x(), worldAabb.max().y(), worldAabb.min().z());
+    let projFact4 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.min().x(), worldAabb.max().y(), worldAabb.min().z());
+    let projFact5 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.min().x(), worldAabb.min().y(), worldAabb.max().z());
+    let projFact6 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.max().x(), worldAabb.min().y(), worldAabb.max().z());
+    let projFact7 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.max().x(), worldAabb.max().y(), worldAabb.max().z());
+    let projFact8 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.min().x(), worldAabb.max().y(), worldAabb.max().z());
+    let projMin = this.min(projFact1, projFact2, projFact3, projFact4, projFact5, projFact6, projFact7, projFact8);
+    let projMax = this.max(projFact1, projFact2, projFact3, projFact4, projFact5, projFact6, projFact7, projFact8);
+    return Camera.ortho(lightRadius*2+radiusPadding, lightRadius*2+radiusPadding, 0, projMax-projMin+2*depthPadding).lookAt(frustumCenter.addScaled(lightDir, projMin-depthPadding), frustumCenter, this.perp(lightDir));
+  }
+
+  perp(v) {
+    v = v.normalize();
+    let h1 = Vec3.cross(Vec3.create(1, 0, 0), v);
+    let h2 = Vec3.cross(Vec3.create(0, 1, 0), v);
+    let h3 = Vec3.cross(Vec3.create(0, 0, 1), v);
+    let m1 = h1.mag();
+    let m2 = h2.mag();
+    let m3 = h3.mag();
+    let this.max = Math.max(m1, Math.max(m2, m3));
+    if (this.max==m1) {
+      return h1.normalize();
+    }
+    if (this.max==m2) {
+      return h2.normalize();
+    }
+    return h3.normalize();
+  }
+
+  getLineProjectFactor(linePt, lineDir, ptX, ptY, ptZ) {
+    let dx = ptX-linePt.x();
+    let dy = ptY-linePt.y();
+    let dz = ptZ-linePt.z();
+    return dx*lineDir.x()+dy*lineDir.y()+dz*lineDir.z();
+  }
+
+  min(n1, n2, n3, n4, n5, n6, n7, n8) {
+    let res = n1;
+    res = FMath.min(res, n2);
+    res = FMath.min(res, n3);
+    res = FMath.min(res, n4);
+    res = FMath.min(res, n5);
+    res = FMath.min(res, n6);
+    res = FMath.min(res, n7);
+    res = FMath.min(res, n8);
+    return res;
+  }
+
+  max(n1, n2, n3, n4, n5, n6, n7, n8) {
+    let res = n1;
+    res = FMath.max(res, n2);
+    res = FMath.max(res, n3);
+    res = FMath.max(res, n4);
+    res = FMath.max(res, n5);
+    res = FMath.max(res, n6);
+    res = FMath.max(res, n7);
+    res = FMath.max(res, n8);
     return res;
   }
 
@@ -34323,6 +34430,7 @@ const DebugRenderRealm = Object.freeze({
   COLLIDER: createDebugRenderRealm("COLLIDER"),
   CONTACT_POINT: createDebugRenderRealm("CONTACT_POINT"),
   JOINT: createDebugRenderRealm("JOINT"),
+  LIGHT: createDebugRenderRealm("LIGHT"),
 
   valueOf(description) {
     if (typeof description !== 'string') {
@@ -34342,11 +34450,12 @@ const DebugRenderRealm = Object.freeze({
 });
 class RenderRequest {
   static NORMAL = RenderRequest.create(Collections.emptySet());
-  static DEBUG_LIGHT = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.COLLIDER));
   static DEBUG_COLLIDER = RenderRequest.create(Dut.set(DebugRenderRealm.COLLIDER));
   static DEBUG_JOINT = RenderRequest.create(Dut.set(DebugRenderRealm.JOINT));
   static DEBUG_CONTACT_POINT = RenderRequest.create(Dut.set(DebugRenderRealm.CONTACT_POINT));
-  static DEBUG_FULL = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.SPACE_PARTITIONING, DebugRenderRealm.COLLIDER, DebugRenderRealm.CONTACT_POINT, DebugRenderRealm.JOINT));
+  static DEBUG_LIGHT = RenderRequest.create(Dut.set(DebugRenderRealm.LIGHT));
+  static DEBUG_BASIC = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.COLLIDER, DebugRenderRealm.LIGHT));
+  static DEBUG_FULL = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.SPACE_PARTITIONING, DebugRenderRealm.COLLIDER, DebugRenderRealm.CONTACT_POINT, DebugRenderRealm.JOINT, DebugRenderRealm.LIGHT));
   debugRenderRealms;
   constructor() {
   }
@@ -34790,18 +34899,20 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp01 extends TyracornApp {
-  box1 = MeshId.of("box1");
-  box2 = MeshId.of("box2");
-  box3 = MeshId.of("box3");
-  boxT = MeshId.of("boxT");
+class BasicApp02 extends TyracornApp {
+  planes = Dut.immutableList(MeshId.of("plane-0"), MeshId.of("plane-1"), MeshId.of("plane-2"), MeshId.of("plane-3"), MeshId.of("plane-4"), MeshId.of("plane-5"), MeshId.of("plane-6"), MeshId.of("plane-7"), MeshId.of("plane-8"), MeshId.of("plane-9"), MeshId.of("plane-10"));
+  tex1 = TextureId.of("tex1");
+  tex2 = TextureId.of("tex2");
+  stone = TextureId.of("stone-floor-1");
+  tyracorn = TextureId.of("tyracorn");
+  rug = TextureId.of("rug-1");
   time = 0;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp01";
+    return "BasicApp02";
   }
 
   move(drivers, dt) {
@@ -34810,36 +34921,57 @@ class BasicApp01 extends TyracornApp {
     let aspect = gDriver.getScreenViewport().getAspect();
     let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
     let m = 2*FMath.sin(this.time/3);
-    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 7), Vec3.ZERO, Vec3.create(0, 1, 0));
+    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 5), Vec3.ZERO, Vec3.create(0, 1, 0));
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let renderer = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
-    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(-4, 0, -2).mul(Mat44.rotX(this.time/2)));
-    renderer.render(this.box2, Interpolation.ZERO, Mat44.trans(-4, 0, 0).mul(Mat44.rotY(this.time/1)));
-    renderer.render(this.box3, Interpolation.ZERO, Mat44.trans(-4, 0, 2).mul(Mat44.rotZ(this.time/0.4)));
-    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(-2, 0, 0));
-    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(-2, 0, 2), BlendType.ALPHA);
-    renderer.render(this.box2, Interpolation.ZERO, Mat44.trans(0, 0, 0));
-    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(0, 0, 2), BlendType.ADDITIVE);
-    renderer.render(this.box3, Interpolation.ZERO, Mat44.trans(2, 0, 0));
-    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(2, 0, 2), BlendType.MULTIPLICATIVE);
+    let renderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, Light.directional(LightColor.AMBIENT_WHITE, Vec3.DOWN)));
+    renderer.render(this.planes.get(10), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -0.5, 0).mul(Mat44.rotX(-Math.PI/2).mul(Mat44.scale(20, 20, 1))), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.rug, TextureStyle.SMOOTH_REPEAT)));
+    renderer.render(this.planes.get(1), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-4, 1, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.LINEAR, TextureFilterType.LINEAR))));
+    renderer.render(this.planes.get(1), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-4, 0, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(1), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-2.4, 0, 0).mul(Mat44.scale(2, 1, 1)), Material.create(Rgb.BLACK, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.ALPHA, this.tyracorn, TextureStyle.SMOOTH_REPEAT), TextureAttachment.create(TextureType.DIFFUSE, this.tyracorn, TextureStyle.SMOOTH_REPEAT)));
+    renderer.render(this.planes.get(2), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-0.6, 0, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(2), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-0.6, 1, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.LINEAR, TextureFilterType.LINEAR))));
+    renderer.render(this.planes.get(2), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-0.6, 2, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.SMOOTH_REPEAT)));
+    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0.8, 0, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.EDGE, TextureWrapType.EDGE, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0.8, 1, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.MIRRORED_REPEAT, TextureWrapType.MIRRORED_REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0.8, 2, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(2.0, 0, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.BORDER, TextureWrapType.BORDER, Rgba.RED, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(2.0, 1, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.BORDER, TextureWrapType.BORDER, Rgba.WHITE, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
     renderer.end();
   }
 
   init(drivers, properties) {
     let assets = drivers.getDriver("AssetManager");
-    assets.put(this.box1, BoxMeshFactory.rgbBox(Rgb.RED, Rgb.GREEN, Rgb.BLUE, Rgb.WHITE));
-    assets.put(this.box2, BoxMeshFactory.rgbBox(Rgb.GREEN, Rgb.GREEN, Rgb.create(1, 1, 0), Rgb.BLUE));
-    assets.put(this.box3, BoxMeshFactory.rgbBox(Rgb.create(1, 0, 1), Rgb.GREEN, Rgb.create(0, 1, 1), Rgb.BLUE));
-    assets.put(this.boxT, BoxMeshFactory.rgbaBox(Rgb.WHITE, Rgb.BLUE, Rgb.create(1, 0, 1), Rgb.RED, 0.5));
-    return Collections.emptyList();
+    assets.put(this.planes.get(1), this.plane(1, 1));
+    assets.put(this.planes.get(2), this.plane(2, 2));
+    assets.put(this.planes.get(3), this.plane(3, 3));
+    assets.put(this.planes.get(4), this.plane(4, 4));
+    assets.put(this.planes.get(5), this.plane(5, 5));
+    assets.put(this.planes.get(6), this.plane(6, 6));
+    assets.put(this.planes.get(7), this.plane(7, 7));
+    assets.put(this.planes.get(8), this.plane(8, 8));
+    assets.put(this.planes.get(9), this.plane(9, 9));
+    assets.put(this.planes.get(10), this.plane(10, 10));
+    let mtex1 = Texture.rgbFloatValues(4, 4, 1, 1, 1, 0.3, 0.3, 0.3, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 1, 1, 1, 1, 0, 0.3, 0.3, 0.3, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 1, 1, 0, 1).powRgb(2.2);
+    let mtex2 = Texture.rgbaFloatValues(4, 4, 1, 1, 1, 1, 0.3, 0.3, 0.3, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1).powRgb(2.2);
+    assets.put(this.tex1, mtex1);
+    assets.put(this.tex2, mtex2);
+    let res = new ArrayList();
+    res.add(assets.resolveAsync(Path.of("asset:stone-floor-1.png"), "Texture", TextureFncs.flipVertGammaToUnsignedByte(2.2)));
+    res.add(assets.resolveAsync(Path.of("asset:tyracorn.png"), "Texture", TextureFncs.flipVertGammaToUnsignedByte(2.2)));
+    res.add(assets.resolveAsync(Path.of("asset:rug-1.png"), "Texture", TextureFncs.flipVertGammaToUnsignedByte(2.2)));
+    return res;
   }
 
   close(drivers) {
   }
 
+  plane(repU, repV) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3, VertexAttr.TEX2), Dut.list(Vertex.floatValues(-0.5, -0.5, 0, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0, 0, 0, 1, repU, 0), Vertex.floatValues(0.5, 0.5, 0, 0, 0, 1, repU, repV), Vertex.floatValues(-0.5, 0.5, 0, 0, 0, 1, 0, repV))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3))).toMesh();
+    return res;
+  }
+
 }
-classRegistry.BasicApp01 = BasicApp01;
+classRegistry.BasicApp02 = BasicApp02;
 
 
 // -------------------------------------
@@ -35222,7 +35354,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = new BasicApp01();
+    tyracornApp = new BasicApp02();
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/audio-app-01";
-const assetsDirName = "/assets-a382d2";
+const basePath = "/tyracorn-web-examples/basic-app-03";
+const assetsDirName = "/null";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -10172,6 +10172,14 @@ class Geometry3 {
     return "Geometry3";
   }
 
+  static projectToPlane(planePt, planeNormal, pt) {
+    let dx = pt.x()-planePt.x();
+    let dy = pt.y()-planePt.y();
+    let dz = pt.z()-planePt.z();
+    let t = dx*planeNormal.x()+dy*planeNormal.y()+dz*planeNormal.z();
+    return pt.subScaled(planeNormal, t);
+  }
+
   static projectToLine(linePt, lineDir, pt) {
     let dx = pt.x()-linePt.x();
     let dy = pt.y()-linePt.y();
@@ -14602,6 +14610,15 @@ class ShadowMap {
   toString() {
   }
 
+  static create(shadowBuffer, pfcType, camera) {
+    let res = new ShadowMap();
+    res.shadowBuffer = shadowBuffer;
+    res.pcfType = pfcType;
+    res.camera = camera;
+    res.guardInvaritants();
+    return res;
+  }
+
   static createDir(shadowBuffer, pos, dir, r, range) {
     let res = new ShadowMap();
     res.shadowBuffer = shadowBuffer;
@@ -14919,7 +14936,7 @@ class Camera {
   }
 
   static ortho(w, h, near, far) {
-    let proj = Mat44.create(2.0/w, 0.0, 0.0, 0.0, 0.0, 2.0/h, 0.0, 0.0, 0.0, 0.0, -1.0/(far-near), -near/(near-far), 0.0, 0.0, 0.0, 1.0);
+    let proj = Mat44.create(2.0/w, 0.0, 0.0, 0.0, 0.0, 2.0/h, 0.0, 0.0, 0.0, 0.0, -1.0/(far-near), (near-far)/(far-near), 0.0, 0.0, 0.0, 1.0);
     let res = new Camera();
     res.proj = proj;
     res.view = Mat44.IDENTITY;
@@ -31842,6 +31859,10 @@ class CollisionGridBroadphaseManager {
     this.grid.removeActor(actorId);
   }
 
+  getWorldAabb() {
+    return this.grid.getSpace();
+  }
+
   getCandidatePairs() {
     return this.grid.getCandidatePairs();
   }
@@ -31957,6 +31978,10 @@ class BroadphaseCollisionManager {
     else {
       throw new Error("unsupported domain: "+domain);
     }
+  }
+
+  getWorldAabb() {
+    return this.broadphase.getWorldAabb();
   }
 
   getAllContacts() {
@@ -34012,11 +34037,13 @@ class RigidBodyWorld extends World {
     let cameras = this.getCameras(this.actorTree);
     let models = this.getRenderables(this.actorTree);
     let skyboxes = this.getSkyboxes(this.actorTree);
+    let worldAabb = this.collisionManager.getWorldAabb();
     for (let cidx = 0; cidx<cameras.size(); ++cidx) {
       this.gDriver.clearBuffers(BufferId.DEPTH);
       let camera = cameras.get(cidx).getCamera();
+      let cameraFrustum = CameraFrustum.calculate(camera);
       let skyboxCamera = cameras.get(cidx).getSkyboxCamera();
-      let lights = this.getLights(camera, models, this.actorTree);
+      let lights = this.getLights(cameraFrustum, worldAabb, this.actorTree);
       let shadowlessLights = this.getShadowlessLights(lights);
       for (let lidx = 0; lidx<lights.size(); ++lidx) {
         let light = lights.get(lidx);
@@ -34106,7 +34133,7 @@ class RigidBodyWorld extends World {
     return res;
   }
 
-  getLights(camera, models, actors) {
+  getLights(cameraFrustum, worldAabb, actors) {
     let sbidx = new ArrayList();
     sbidx.add(0);
     let res = new ArrayList();
@@ -34184,6 +34211,86 @@ class RigidBodyWorld extends World {
     }
   }
 });
+    return res;
+  }
+
+  calculateDirLightShadowMapCamera(viewFrustum, lightDir, worldAabb, radiusPadding, depthPadding) {
+    let frustumCenter = viewFrustum.getCenter();
+    let planeProj1 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getNearUpLeft());
+    let planeProj2 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getNearUpRight());
+    let planeProj3 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getNearDownLeft());
+    let planeProj4 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getNearDownRight());
+    let planeProj5 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getFarUpLeft());
+    let planeProj6 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getFarUpRight());
+    let planeProj7 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getFarDownLeft());
+    let planeProj8 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getFarDownRight());
+    let lightRadius = FMath.max(0, planeProj1.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj2.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj3.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj4.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj5.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj6.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj7.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj8.dist(frustumCenter));
+    let projFact1 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.min().x(), worldAabb.min().y(), worldAabb.min().z());
+    let projFact2 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.max().x(), worldAabb.min().y(), worldAabb.min().z());
+    let projFact3 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.max().x(), worldAabb.max().y(), worldAabb.min().z());
+    let projFact4 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.min().x(), worldAabb.max().y(), worldAabb.min().z());
+    let projFact5 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.min().x(), worldAabb.min().y(), worldAabb.max().z());
+    let projFact6 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.max().x(), worldAabb.min().y(), worldAabb.max().z());
+    let projFact7 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.max().x(), worldAabb.max().y(), worldAabb.max().z());
+    let projFact8 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.min().x(), worldAabb.max().y(), worldAabb.max().z());
+    let projMin = this.min(projFact1, projFact2, projFact3, projFact4, projFact5, projFact6, projFact7, projFact8);
+    let projMax = this.max(projFact1, projFact2, projFact3, projFact4, projFact5, projFact6, projFact7, projFact8);
+    return Camera.ortho(lightRadius*2+radiusPadding, lightRadius*2+radiusPadding, 0, projMax-projMin+2*depthPadding).lookAt(frustumCenter.addScaled(lightDir, projMin-depthPadding), frustumCenter, this.perp(lightDir));
+  }
+
+  perp(v) {
+    v = v.normalize();
+    let h1 = Vec3.cross(Vec3.create(1, 0, 0), v);
+    let h2 = Vec3.cross(Vec3.create(0, 1, 0), v);
+    let h3 = Vec3.cross(Vec3.create(0, 0, 1), v);
+    let m1 = h1.mag();
+    let m2 = h2.mag();
+    let m3 = h3.mag();
+    let this.max = Math.max(m1, Math.max(m2, m3));
+    if (this.max==m1) {
+      return h1.normalize();
+    }
+    if (this.max==m2) {
+      return h2.normalize();
+    }
+    return h3.normalize();
+  }
+
+  getLineProjectFactor(linePt, lineDir, ptX, ptY, ptZ) {
+    let dx = ptX-linePt.x();
+    let dy = ptY-linePt.y();
+    let dz = ptZ-linePt.z();
+    return dx*lineDir.x()+dy*lineDir.y()+dz*lineDir.z();
+  }
+
+  min(n1, n2, n3, n4, n5, n6, n7, n8) {
+    let res = n1;
+    res = FMath.min(res, n2);
+    res = FMath.min(res, n3);
+    res = FMath.min(res, n4);
+    res = FMath.min(res, n5);
+    res = FMath.min(res, n6);
+    res = FMath.min(res, n7);
+    res = FMath.min(res, n8);
+    return res;
+  }
+
+  max(n1, n2, n3, n4, n5, n6, n7, n8) {
+    let res = n1;
+    res = FMath.max(res, n2);
+    res = FMath.max(res, n3);
+    res = FMath.max(res, n4);
+    res = FMath.max(res, n5);
+    res = FMath.max(res, n6);
+    res = FMath.max(res, n7);
+    res = FMath.max(res, n8);
     return res;
   }
 
@@ -34323,6 +34430,7 @@ const DebugRenderRealm = Object.freeze({
   COLLIDER: createDebugRenderRealm("COLLIDER"),
   CONTACT_POINT: createDebugRenderRealm("CONTACT_POINT"),
   JOINT: createDebugRenderRealm("JOINT"),
+  LIGHT: createDebugRenderRealm("LIGHT"),
 
   valueOf(description) {
     if (typeof description !== 'string') {
@@ -34342,11 +34450,12 @@ const DebugRenderRealm = Object.freeze({
 });
 class RenderRequest {
   static NORMAL = RenderRequest.create(Collections.emptySet());
-  static DEBUG_LIGHT = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.COLLIDER));
   static DEBUG_COLLIDER = RenderRequest.create(Dut.set(DebugRenderRealm.COLLIDER));
   static DEBUG_JOINT = RenderRequest.create(Dut.set(DebugRenderRealm.JOINT));
   static DEBUG_CONTACT_POINT = RenderRequest.create(Dut.set(DebugRenderRealm.CONTACT_POINT));
-  static DEBUG_FULL = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.SPACE_PARTITIONING, DebugRenderRealm.COLLIDER, DebugRenderRealm.CONTACT_POINT, DebugRenderRealm.JOINT));
+  static DEBUG_LIGHT = RenderRequest.create(Dut.set(DebugRenderRealm.LIGHT));
+  static DEBUG_BASIC = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.COLLIDER, DebugRenderRealm.LIGHT));
+  static DEBUG_FULL = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.SPACE_PARTITIONING, DebugRenderRealm.COLLIDER, DebugRenderRealm.CONTACT_POINT, DebugRenderRealm.JOINT, DebugRenderRealm.LIGHT));
   debugRenderRealms;
   constructor() {
   }
@@ -34726,136 +34835,127 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class AudioApp01 extends TyracornScreen {
-  static MUSIC_PLAYBACK_ID = PlaybackId.of("music");
-  ui;
+class BoxMeshFactory {
+  constructor() {
+  }
+
+  getClass() {
+    return "BoxMeshFactory";
+  }
+
+  static rgbBox() {
+    if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&&arguments[3] instanceof Rgb) {
+      return BoxMeshFactory.rgbBox_4_Rgb_Rgb_Rgb_Rgb(arguments[0], arguments[1], arguments[2], arguments[3]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static rgbBox_3_number_number_number(r, g, b) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static rgbaBox(c1, c2, c3, c4, a) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static fabricBox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.fabric(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static modelBox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static modelSkybox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, -1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22))).toMesh();
+    return res;
+  }
+
+  static modelBoxDeformed1() {
+    let en = Vec2.create(1, -1).normalize();
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static modelBoxDeformed2() {
+    let en = Vec2.create(-1, -1).normalize();
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.floatValues(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+}
+classRegistry.BoxMeshFactory = BoxMeshFactory;
+class BasicApp03 extends TyracornApp {
+  box = MeshId.of("box");
+  whiteBox = MeshId.of("white-box");
+  time = 0;
   constructor() {
     super();
   }
 
   getClass() {
-    return "AudioApp01";
+    return "BasicApp03";
   }
 
-  move(drivers, screenManager, dt) {
+  move(drivers, dt) {
+    this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
+    let aspect = gDriver.getScreenViewport().getAspect();
+    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
+    let m = 2*FMath.sin(this.time/3);
+    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 7), Vec3.ZERO, Vec3.create(0, 1, 0));
+    let dirLight = Light.directional(LightColor.create(Rgb.gray(0.4), Rgb.gray(0.6), Rgb.gray(0.6)), Vec3.create(-0.3, -0.8, -0.4).normalize());
+    let pointLight = Light.pointQadratic(LightColor.create(Rgb.BLACK, Rgb.BLUE, Rgb.WHITE), Vec3.create(0, 0, 3.6), 4);
+    let spotLightColor = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
+    let spotLightCone = LightCone.create(FMath.PI/9, FMath.PI/6);
+    let spotLight1 = Light.spotQuadratic(spotLightColor, Vec3.create(0, 2, 0), Vec3.create(0.4+m, -1, 0.2).normalize(), 8, spotLightCone);
+    let spotLight2 = Light.spotQuadratic(spotLightColor, Vec3.create(0, 2, 0), Vec3.create(0.4, -1, 0.2+m/2).normalize(), 8, spotLightCone);
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    gDriver.clearBuffers(BufferId.DEPTH);
-    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
-    uiRenderer.render(this.ui);
-    uiRenderer.end();
+    let objRenderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, dirLight, pointLight, spotLight1, spotLight2));
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.WHITE_PLASTIC);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3), Material.GOLD);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3), Material.SILVER);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3), Material.COPPER);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0), Material.GOLD);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.SILVER);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0), Material.COPPER);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3), Material.GOLD);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3), Material.SILVER);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3), Material.WHITE_PLASTIC);
+    objRenderer.end();
+    let crndr = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
+    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(pointLight.getPos()).mul(Mat44.scale(0.05)));
+    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight1.getPos()).mul(Mat44.scale(0.05)));
+    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight2.getPos()).mul(Mat44.scale(0.05)));
+    crndr.end();
   }
 
-  load(drivers, screenManager, properties) {
-    let res = new ArrayList();
+  init(drivers, properties) {
     let assets = drivers.getDriver("AssetManager");
-    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/sounds.tap")));
-    return res;
+    assets.put(this.box, BoxMeshFactory.fabricBox());
+    assets.put(this.whiteBox, BoxMeshFactory.rgbBox(1, 1, 1));
+    return Collections.emptyList();
   }
 
-  init(drivers, screenManager, properties) {
-    let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(12, 14, 20, 24, 26, 28));
-    let audio = drivers.getDriver("AudioDriver");
-    let mixer = audio.getMixer();
-    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
-    let uiTop = -100;
-    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Audio").setAlignment(TextAlignment.CENTER_TOP));
-    let musicVol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+65)).setText("0.3").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(musicVol);
-    let musicVolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+50, 30, 30)).setText("-").addOnClickAction(this.getChangeMusicVolumeAction(mixer, musicVol, -0.1));
-    this.ui.addComponent(musicVolDownBtn);
-    let musicVolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+50, 30, 30)).setText("+").addOnClickAction(this.getChangeMusicVolumeAction(mixer, musicVol, 0.1));
-    this.ui.addComponent(musicVolUpBtn);
-    let musicBtn = ToggleButton.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+50, 120, 30)).setText("Music");
-    musicBtn.addOnToggleAction(this.getToggleMusicAction(mixer, musicBtn, musicVol));
-    this.ui.addComponent(musicBtn);
-    let sound1Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+105)).setText("1.0").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(sound1Vol);
-    let sound1VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+90, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound1Vol, -0.1));
-    this.ui.addComponent(sound1VolDownBtn);
-    let sound1VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+90, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound1Vol, 0.1));
-    this.ui.addComponent(sound1VolUpBtn);
-    let sound1Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+90, 120, 30)).setText("Spell").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("spell1"), sound1Vol));
-    this.ui.addComponent(sound1Btn);
-    let sound2Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+145)).setText("1.0").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(sound2Vol);
-    let sound2VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+130, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound2Vol, -0.1));
-    this.ui.addComponent(sound2VolDownBtn);
-    let sound2VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+130, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound2Vol, 0.1));
-    this.ui.addComponent(sound2VolUpBtn);
-    let sound2Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+130, 120, 30)).setText("Magic").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("magic1"), sound2Vol));
-    this.ui.addComponent(sound2Btn);
-    let sound3Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+185)).setText("1.0").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(sound3Vol);
-    let sound3VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+170, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound3Vol, -0.1));
-    this.ui.addComponent(sound3VolDownBtn);
-    let sound3VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+170, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound3Vol, 0.1));
-    this.ui.addComponent(sound3VolUpBtn);
-    let sound3Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+170, 120, 30)).setText("Swing").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("swing1"), sound3Vol));
-    this.ui.addComponent(sound3Btn);
-    if (drivers.getPlatform().isExitable()) {
-      this.ui.addComponent(PlayUis.createExitButton(UiEventActions.exitApp(screenManager)));
-    }
-    this.ui.subscribe(drivers);
-  }
-
-  leave(drivers) {
-    drivers.getDriver("AudioDriver").getMixer().stop();
-    this.ui.unsubscribe(drivers);
-  }
-
-  getPlaySoundAction(mixer, soundId, volLabel) {
-    let res = (evtSource) => {
-      mixer.prepare(PlaybackId.of(Randoms.nextAlphabetic(10)), soundId).setVolume(Float.valueOf(volLabel.getText())).play();
-    };
-    return res;
-  }
-
-  getChangeSoundVolumeAction(label, delta) {
-    let res = (evtSource) => {
-      let vol = Float.valueOf(label.getText());
-      vol = FMath.clamp(vol+delta, 0, 1);
-      label.setText(Formats.floatToFixedDecimals(vol, 1));
-    };
-    return res;
-  }
-
-  getChangeMusicVolumeAction(mixer, label, delta) {
-    let res = (evtSource) => {
-      let vol = Float.valueOf(label.getText());
-      vol = FMath.clamp(vol+delta, 0, 1);
-      label.setText(Formats.floatToFixedDecimals(vol, 1));
-      let control = mixer.getControlNonStrict(AudioApp01.MUSIC_PLAYBACK_ID);
-      if (control!=null) {
-        control.setVolume(vol);
-      }
-    };
-    return res;
-  }
-
-  getToggleMusicAction(mixer, button, volLabel) {
-    let res = (evtSource) => {
-      let control = mixer.getControlNonStrict(AudioApp01.MUSIC_PLAYBACK_ID);
-      if (control!=null) {
-        if (button.isToggledOn()) {
-          control.play();
-        }
-        else {
-          control.stop();
-        }
-      }
-      else if (button.isToggledOn()) {
-        mixer.prepare(AudioApp01.MUSIC_PLAYBACK_ID, SoundId.of("space-cadet")).setLoop(true).setVolume(Float.valueOf(volLabel.getText())).play();
-      }
-    };
-    return res;
+  close(drivers) {
   }
 
 }
-classRegistry.AudioApp01 = AudioApp01;
+classRegistry.BasicApp03 = BasicApp03;
 
 
 // -------------------------------------
@@ -35238,7 +35338,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new AudioApp01());
+    tyracornApp = new BasicApp03();
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

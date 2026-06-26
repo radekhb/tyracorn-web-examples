@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-02";
-const assetsDirName = "/assets-1921d2";
+const basePath = "/tyracorn-web-examples/basic-app-10";
+const assetsDirName = "/assets-866cb7";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -10172,6 +10172,14 @@ class Geometry3 {
     return "Geometry3";
   }
 
+  static projectToPlane(planePt, planeNormal, pt) {
+    let dx = pt.x()-planePt.x();
+    let dy = pt.y()-planePt.y();
+    let dz = pt.z()-planePt.z();
+    let t = dx*planeNormal.x()+dy*planeNormal.y()+dz*planeNormal.z();
+    return pt.subScaled(planeNormal, t);
+  }
+
   static projectToLine(linePt, lineDir, pt) {
     let dx = pt.x()-linePt.x();
     let dy = pt.y()-linePt.y();
@@ -14602,6 +14610,15 @@ class ShadowMap {
   toString() {
   }
 
+  static create(shadowBuffer, pfcType, camera) {
+    let res = new ShadowMap();
+    res.shadowBuffer = shadowBuffer;
+    res.pcfType = pfcType;
+    res.camera = camera;
+    res.guardInvaritants();
+    return res;
+  }
+
   static createDir(shadowBuffer, pos, dir, r, range) {
     let res = new ShadowMap();
     res.shadowBuffer = shadowBuffer;
@@ -14919,7 +14936,7 @@ class Camera {
   }
 
   static ortho(w, h, near, far) {
-    let proj = Mat44.create(2.0/w, 0.0, 0.0, 0.0, 0.0, 2.0/h, 0.0, 0.0, 0.0, 0.0, -1.0/(far-near), -near/(near-far), 0.0, 0.0, 0.0, 1.0);
+    let proj = Mat44.create(2.0/w, 0.0, 0.0, 0.0, 0.0, 2.0/h, 0.0, 0.0, 0.0, 0.0, -1.0/(far-near), (near-far)/(far-near), 0.0, 0.0, 0.0, 1.0);
     let res = new Camera();
     res.proj = proj;
     res.view = Mat44.IDENTITY;
@@ -31842,6 +31859,10 @@ class CollisionGridBroadphaseManager {
     this.grid.removeActor(actorId);
   }
 
+  getWorldAabb() {
+    return this.grid.getSpace();
+  }
+
   getCandidatePairs() {
     return this.grid.getCandidatePairs();
   }
@@ -31957,6 +31978,10 @@ class BroadphaseCollisionManager {
     else {
       throw new Error("unsupported domain: "+domain);
     }
+  }
+
+  getWorldAabb() {
+    return this.broadphase.getWorldAabb();
   }
 
   getAllContacts() {
@@ -34012,11 +34037,13 @@ class RigidBodyWorld extends World {
     let cameras = this.getCameras(this.actorTree);
     let models = this.getRenderables(this.actorTree);
     let skyboxes = this.getSkyboxes(this.actorTree);
+    let worldAabb = this.collisionManager.getWorldAabb();
     for (let cidx = 0; cidx<cameras.size(); ++cidx) {
       this.gDriver.clearBuffers(BufferId.DEPTH);
       let camera = cameras.get(cidx).getCamera();
+      let cameraFrustum = CameraFrustum.calculate(camera);
       let skyboxCamera = cameras.get(cidx).getSkyboxCamera();
-      let lights = this.getLights(camera, models, this.actorTree);
+      let lights = this.getLights(cameraFrustum, worldAabb, this.actorTree);
       let shadowlessLights = this.getShadowlessLights(lights);
       for (let lidx = 0; lidx<lights.size(); ++lidx) {
         let light = lights.get(lidx);
@@ -34106,7 +34133,7 @@ class RigidBodyWorld extends World {
     return res;
   }
 
-  getLights(camera, models, actors) {
+  getLights(cameraFrustum, worldAabb, actors) {
     let sbidx = new ArrayList();
     sbidx.add(0);
     let res = new ArrayList();
@@ -34184,6 +34211,86 @@ class RigidBodyWorld extends World {
     }
   }
 });
+    return res;
+  }
+
+  calculateDirLightShadowMapCamera(viewFrustum, lightDir, worldAabb, radiusPadding, depthPadding) {
+    let frustumCenter = viewFrustum.getCenter();
+    let planeProj1 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getNearUpLeft());
+    let planeProj2 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getNearUpRight());
+    let planeProj3 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getNearDownLeft());
+    let planeProj4 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getNearDownRight());
+    let planeProj5 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getFarUpLeft());
+    let planeProj6 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getFarUpRight());
+    let planeProj7 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getFarDownLeft());
+    let planeProj8 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getFarDownRight());
+    let lightRadius = FMath.max(0, planeProj1.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj2.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj3.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj4.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj5.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj6.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj7.dist(frustumCenter));
+    lightRadius = FMath.max(lightRadius, planeProj8.dist(frustumCenter));
+    let projFact1 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.min().x(), worldAabb.min().y(), worldAabb.min().z());
+    let projFact2 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.max().x(), worldAabb.min().y(), worldAabb.min().z());
+    let projFact3 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.max().x(), worldAabb.max().y(), worldAabb.min().z());
+    let projFact4 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.min().x(), worldAabb.max().y(), worldAabb.min().z());
+    let projFact5 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.min().x(), worldAabb.min().y(), worldAabb.max().z());
+    let projFact6 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.max().x(), worldAabb.min().y(), worldAabb.max().z());
+    let projFact7 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.max().x(), worldAabb.max().y(), worldAabb.max().z());
+    let projFact8 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.min().x(), worldAabb.max().y(), worldAabb.max().z());
+    let projMin = this.min(projFact1, projFact2, projFact3, projFact4, projFact5, projFact6, projFact7, projFact8);
+    let projMax = this.max(projFact1, projFact2, projFact3, projFact4, projFact5, projFact6, projFact7, projFact8);
+    return Camera.ortho(lightRadius*2+radiusPadding, lightRadius*2+radiusPadding, 0, projMax-projMin+2*depthPadding).lookAt(frustumCenter.addScaled(lightDir, projMin-depthPadding), frustumCenter, this.perp(lightDir));
+  }
+
+  perp(v) {
+    v = v.normalize();
+    let h1 = Vec3.cross(Vec3.create(1, 0, 0), v);
+    let h2 = Vec3.cross(Vec3.create(0, 1, 0), v);
+    let h3 = Vec3.cross(Vec3.create(0, 0, 1), v);
+    let m1 = h1.mag();
+    let m2 = h2.mag();
+    let m3 = h3.mag();
+    let this.max = Math.max(m1, Math.max(m2, m3));
+    if (this.max==m1) {
+      return h1.normalize();
+    }
+    if (this.max==m2) {
+      return h2.normalize();
+    }
+    return h3.normalize();
+  }
+
+  getLineProjectFactor(linePt, lineDir, ptX, ptY, ptZ) {
+    let dx = ptX-linePt.x();
+    let dy = ptY-linePt.y();
+    let dz = ptZ-linePt.z();
+    return dx*lineDir.x()+dy*lineDir.y()+dz*lineDir.z();
+  }
+
+  min(n1, n2, n3, n4, n5, n6, n7, n8) {
+    let res = n1;
+    res = FMath.min(res, n2);
+    res = FMath.min(res, n3);
+    res = FMath.min(res, n4);
+    res = FMath.min(res, n5);
+    res = FMath.min(res, n6);
+    res = FMath.min(res, n7);
+    res = FMath.min(res, n8);
+    return res;
+  }
+
+  max(n1, n2, n3, n4, n5, n6, n7, n8) {
+    let res = n1;
+    res = FMath.max(res, n2);
+    res = FMath.max(res, n3);
+    res = FMath.max(res, n4);
+    res = FMath.max(res, n5);
+    res = FMath.max(res, n6);
+    res = FMath.max(res, n7);
+    res = FMath.max(res, n8);
     return res;
   }
 
@@ -34323,6 +34430,7 @@ const DebugRenderRealm = Object.freeze({
   COLLIDER: createDebugRenderRealm("COLLIDER"),
   CONTACT_POINT: createDebugRenderRealm("CONTACT_POINT"),
   JOINT: createDebugRenderRealm("JOINT"),
+  LIGHT: createDebugRenderRealm("LIGHT"),
 
   valueOf(description) {
     if (typeof description !== 'string') {
@@ -34342,11 +34450,12 @@ const DebugRenderRealm = Object.freeze({
 });
 class RenderRequest {
   static NORMAL = RenderRequest.create(Collections.emptySet());
-  static DEBUG_LIGHT = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.COLLIDER));
   static DEBUG_COLLIDER = RenderRequest.create(Dut.set(DebugRenderRealm.COLLIDER));
   static DEBUG_JOINT = RenderRequest.create(Dut.set(DebugRenderRealm.JOINT));
   static DEBUG_CONTACT_POINT = RenderRequest.create(Dut.set(DebugRenderRealm.CONTACT_POINT));
-  static DEBUG_FULL = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.SPACE_PARTITIONING, DebugRenderRealm.COLLIDER, DebugRenderRealm.CONTACT_POINT, DebugRenderRealm.JOINT));
+  static DEBUG_LIGHT = RenderRequest.create(Dut.set(DebugRenderRealm.LIGHT));
+  static DEBUG_BASIC = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.COLLIDER, DebugRenderRealm.LIGHT));
+  static DEBUG_FULL = RenderRequest.create(Dut.set(DebugRenderRealm.BOUNDING_VOLUME, DebugRenderRealm.SPACE_PARTITIONING, DebugRenderRealm.COLLIDER, DebugRenderRealm.CONTACT_POINT, DebugRenderRealm.JOINT, DebugRenderRealm.LIGHT));
   debugRenderRealms;
   constructor() {
   }
@@ -34726,6 +34835,251 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
+class PlayUis {
+  static ARROW_UP = UiComponentTrait.of("ARROW_UP");
+  static ARROW_DOWN = UiComponentTrait.of("ARROW_DOWN");
+  static ARROW_LEFT = UiComponentTrait.of("ARROW_LEFT");
+  static ARROW_RIGHT = UiComponentTrait.of("ARROW_RIGHT");
+  static BRAKE = UiComponentTrait.of("BRAKE");
+  static PUNCH = UiComponentTrait.of("PUNCH");
+  static WALK_RUN = UiComponentTrait.of("WALK_RUN");
+  constructor() {
+  }
+
+  getClass() {
+    return "PlayUis";
+  }
+
+  static createUiSizeFnc() {
+    return UiSizeFncs.identity();
+  }
+
+  static createDefaultStyler() {
+    let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
+    let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
+    let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
+    let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
+    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-30")).setH2Font(FontId.of("kenny-thick-26")).setH3Font(FontId.of("kenny-thick-24")).setExtraLargeTextFont(FontId.of("kenny-mini-22")).setLargeTextFont(FontId.of("kenny-mini-20")).setMediumTextFont(FontId.of("kenny-mini-18")).setSmallTextFont(FontId.of("kenny-mini-16")).setButtonLabelFont(FontId.of("kenny-mini-18")).setFieldLabelFont(FontId.of("kenny-mini-16")).setFieldValueFont(FontId.of("kenny-mini-16")).setSelectItemTextFont(FontId.of("kenny-mini-18")).setSelectItemHeight(20).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
+  }
+
+  static create916Panel() {
+    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setRegionFnc((t) => {
+  if (t.aspect()>9/16) {
+    return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
+  }
+  else {
+    return Rect2.create(0, 0, t.width(), t.height());
+  }
+});
+  }
+
+  static createExitButton(action) {
+    return Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
+  }
+
+  static createPauseButton(action) {
+    return Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
+  }
+
+}
+classRegistry.PlayUis = PlayUis;
+class GamePad extends UiComponent {
+  leftJoystick;
+  rightJoystick;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "GamePad";
+  }
+
+  guardInvariants() {
+  }
+
+  getLeftDir() {
+    return this.leftJoystick.getDir();
+  }
+
+  getRightDir() {
+    return this.rightJoystick.getDir();
+  }
+
+  init(container) {
+    this.leftJoystick.init(container);
+    this.rightJoystick.init(container);
+  }
+
+  move(dt) {
+    this.leftJoystick.move(dt);
+    this.rightJoystick.move(dt);
+  }
+
+  draw(painter) {
+    this.leftJoystick.draw(painter);
+    this.rightJoystick.draw(painter);
+  }
+
+  onContainerResize(size) {
+    this.leftJoystick.onContainerResize(size);
+    this.rightJoystick.onContainerResize(size);
+  }
+
+  onTouchStart(id, pos, size) {
+    this.leftJoystick.onTouchStart(id, pos, size);
+    this.rightJoystick.onTouchStart(id, pos, size);
+    return false;
+  }
+
+  onTouchMove(id, pos, size) {
+    this.leftJoystick.onTouchMove(id, pos, size);
+    this.rightJoystick.onTouchMove(id, pos, size);
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    this.leftJoystick.onTouchEnd(id, pos, size, cancel);
+    this.rightJoystick.onTouchEnd(id, pos, size, cancel);
+    return false;
+  }
+
+  onKeyPressed(key) {
+    this.leftJoystick.onKeyPressed(key);
+    this.rightJoystick.onKeyPressed(key);
+    return false;
+  }
+
+  onKeyReleased(key) {
+    this.leftJoystick.onKeyReleased(key);
+    this.rightJoystick.onKeyReleased(key);
+    return false;
+  }
+
+  toString() {
+  }
+
+  static create(drivers) {
+    let res = new GamePad();
+    res.leftJoystick = Joystick.create().setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h30 = s.height()*0.3;
+    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h5, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h2, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("W"), KeyCodeMatchers.upperCharacter("S"), KeyCodeMatchers.upperCharacter("A"), KeyCodeMatchers.upperCharacter("D"));
+    res.rightJoystick = Joystick.create().setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h30 = s.height()*0.3;
+    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(s.width()-h5-size, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(s.width()-h2-size, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("I"), KeyCodeMatchers.upperCharacter("K"), KeyCodeMatchers.upperCharacter("J"), KeyCodeMatchers.upperCharacter("L"));
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.GamePad = GamePad;
+class FreeCameraController {
+  initCamera;
+  pos;
+  rotX;
+  rotY;
+  moveSpeed;
+  rotSpeed;
+  gamePad;
+  constructor() {
+  }
+
+  getClass() {
+    return "FreeCameraController";
+  }
+
+  guardInvariants() {
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getTarget() {
+    let rxMat = Mat33.rotX(this.rotX);
+    let ryMat = Mat33.rotY(this.rotY);
+    return ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
+  }
+
+  getCamera() {
+    let rxMat = Mat33.rotX(this.rotX);
+    let ryMat = Mat33.rotY(this.rotY);
+    let target = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
+    let up = ryMat.mul(rxMat.mul(Vec3.create(0, 1, 0)));
+    return this.initCamera.lookAt(this.pos, target, up);
+  }
+
+  move(dt) {
+    let moveDir = this.gamePad.getLeftDir();
+    let rotDir = this.gamePad.getRightDir();
+    let rxMat = Mat33.rotX(this.rotX);
+    let ryMat = Mat33.rotY(this.rotY);
+    let fwd = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).normalize().scale(moveDir.y()*this.moveSpeed*dt);
+    let right = ryMat.mul(rxMat.mul(Vec3.create(1, 0, 0))).normalize().scale(moveDir.x()*this.moveSpeed*dt);
+    this.pos = this.pos.add(fwd).add(right);
+    this.rotX = this.rotX+rotDir.y()*this.rotSpeed*dt;
+    if (this.rotX>FMath.PI/2) {
+      this.rotX = FMath.PI/2;
+    }
+    if (this.rotX<-FMath.PI/2) {
+      this.rotX = -FMath.PI/2;
+    }
+    this.rotY = this.rotY-rotDir.x()*this.rotSpeed*dt;
+    while (this.rotY>FMath.PI) {
+      this.rotY = this.rotY-2*FMath.PI;
+    }
+    while (this.rotY<-FMath.PI) {
+      this.rotY = this.rotY+2*FMath.PI;
+    }
+  }
+
+  setPersp(fovy, aspect, near, far) {
+    this.initCamera = this.initCamera.withPersp(fovy, aspect, near, far);
+  }
+
+  toString() {
+  }
+
+  static create(initCamera, gamePad, moveSpeed, rotSpeed) {
+    let res = new FreeCameraController();
+    res.initCamera = initCamera;
+    res.pos = initCamera.getPos();
+    let fwd = Vec3.create(-initCamera.getView().m20(), -initCamera.getView().m21(), -initCamera.getView().m22());
+    let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
+    res.rotX = FMath.asin(fwd.y());
+    res.rotY = fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y());
+    res.moveSpeed = moveSpeed;
+    res.rotSpeed = rotSpeed;
+    res.gamePad = gamePad;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FreeCameraController = FreeCameraController;
 class BoxMeshFactory {
   constructor() {
   }
@@ -34790,79 +35144,97 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp02 extends TyracornApp {
-  planes = Dut.immutableList(MeshId.of("plane-0"), MeshId.of("plane-1"), MeshId.of("plane-2"), MeshId.of("plane-3"), MeshId.of("plane-4"), MeshId.of("plane-5"), MeshId.of("plane-6"), MeshId.of("plane-7"), MeshId.of("plane-8"), MeshId.of("plane-9"), MeshId.of("plane-10"));
-  tex1 = TextureId.of("tex1");
-  tex2 = TextureId.of("tex2");
-  stone = TextureId.of("stone-floor-1");
-  tyracorn = TextureId.of("tyracorn");
-  rug = TextureId.of("rug-1");
+class BasicApp10 extends TyracornScreen {
+  groundModel = null;
+  box1Model = null;
+  shadow1 = ShadowBufferId.of("shadow1");
   time = 0;
+  inputs = InputCache.create();
+  ui;
+  camera;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp02";
+    return "BasicApp10";
   }
 
-  move(drivers, dt) {
+  move(drivers, screenManager, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
-    let aspect = gDriver.getScreenViewport().getAspect();
+    let aspect = this.inputs.getSize2(InputCacheDisplayListener.DEFAULT_KEY, Size2.create(1, 1)).aspect();
     let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
-    let m = 2*FMath.sin(this.time/3);
-    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 5), Vec3.ZERO, Vec3.create(0, 1, 0));
+    this.camera.setPersp(fovy, aspect, 1.0, 50.0);
+    this.camera.move(dt);
+    this.ui.move(dt);
+    let t = Math.abs(Math.sin(this.time));
+    let dirLightColor = LightColor.create(Rgb.gray(0.5), Rgb.gray(0.5), Rgb.WHITE);
+    let dirLightDir = Vec3.create(FMath.sin(this.time/5), -1, FMath.cos(this.time/5)).normalize();
+    let dirLightPos = dirLightDir.scale(-5);
+    let dirLightShadowMap = ShadowMap.createDir(this.shadow1, dirLightPos, dirLightDir, 13, 20);
+    let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
+    let smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
+    this.renderSceneShaow(smapRndr, t);
+    smapRndr.end();
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let renderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, Light.directional(LightColor.AMBIENT_WHITE, Vec3.DOWN)));
-    renderer.render(this.planes.get(10), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -0.5, 0).mul(Mat44.rotX(-Math.PI/2).mul(Mat44.scale(20, 20, 1))), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.rug, TextureStyle.SMOOTH_REPEAT)));
-    renderer.render(this.planes.get(1), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-4, 1, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.LINEAR, TextureFilterType.LINEAR))));
-    renderer.render(this.planes.get(1), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-4, 0, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.render(this.planes.get(1), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-2.4, 0, 0).mul(Mat44.scale(2, 1, 1)), Material.create(Rgb.BLACK, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.ALPHA, this.tyracorn, TextureStyle.SMOOTH_REPEAT), TextureAttachment.create(TextureType.DIFFUSE, this.tyracorn, TextureStyle.SMOOTH_REPEAT)));
-    renderer.render(this.planes.get(2), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-0.6, 0, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.render(this.planes.get(2), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-0.6, 1, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.LINEAR, TextureFilterType.LINEAR))));
-    renderer.render(this.planes.get(2), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-0.6, 2, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.SMOOTH_REPEAT)));
-    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0.8, 0, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.EDGE, TextureWrapType.EDGE, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0.8, 1, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.MIRRORED_REPEAT, TextureWrapType.MIRRORED_REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0.8, 2, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(2.0, 0, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.BORDER, TextureWrapType.BORDER, Rgba.RED, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(2.0, 1, 0), Material.create(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1, TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.BORDER, TextureWrapType.BORDER, Rgba.WHITE, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.end();
+    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(this.camera.getCamera(), dirLight));
+    this.renderScene(objRnderer, t);
+    objRnderer.end();
+    gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
   }
 
-  init(drivers, properties) {
+  load(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    assets.put(this.planes.get(1), this.plane(1, 1));
-    assets.put(this.planes.get(2), this.plane(2, 2));
-    assets.put(this.planes.get(3), this.plane(3, 3));
-    assets.put(this.planes.get(4), this.plane(4, 4));
-    assets.put(this.planes.get(5), this.plane(5, 5));
-    assets.put(this.planes.get(6), this.plane(6, 6));
-    assets.put(this.planes.get(7), this.plane(7, 7));
-    assets.put(this.planes.get(8), this.plane(8, 8));
-    assets.put(this.planes.get(9), this.plane(9, 9));
-    assets.put(this.planes.get(10), this.plane(10, 10));
-    let mtex1 = Texture.rgbFloatValues(4, 4, 1, 1, 1, 0.3, 0.3, 0.3, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 1, 1, 1, 1, 0, 0.3, 0.3, 0.3, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 1, 1, 0, 1).powRgb(2.2);
-    let mtex2 = Texture.rgbaFloatValues(4, 4, 1, 1, 1, 1, 0.3, 0.3, 0.3, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1).powRgb(2.2);
-    assets.put(this.tex1, mtex1);
-    assets.put(this.tex2, mtex2);
     let res = new ArrayList();
-    res.add(assets.resolveAsync(Path.of("asset:stone-floor-1.png"), "Texture", TextureFncs.flipVertGammaToUnsignedByte(2.2)));
-    res.add(assets.resolveAsync(Path.of("asset:tyracorn.png"), "Texture", TextureFncs.flipVertGammaToUnsignedByte(2.2)));
-    res.add(assets.resolveAsync(Path.of("asset:rug-1.png"), "Texture", TextureFncs.flipVertGammaToUnsignedByte(2.2)));
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/box-01.tap")));
     return res;
   }
 
-  close(drivers) {
+  init(drivers, screenManager, properties) {
+    let assets = drivers.getDriver("AssetManager");
+    let modelBox = MeshId.of("modelBox");
+    let modelBoxAnimated = MeshId.of("modelBox-animated");
+    assets.put(modelBox, BoxMeshFactory.modelBox());
+    assets.put(modelBoxAnimated, BoxMeshFactory.modelBox().plusMeshFrames(BoxMeshFactory.modelBoxDeformed1()).plusMeshFrames(BoxMeshFactory.modelBoxDeformed2()));
+    let boxDiffuse = TextureId.of("tex_box_01_d");
+    let boxSpecular = TextureId.of("tex_box_01_s");
+    assets.put(MaterialId.of("brass"), Material.BRASS);
+    assets.put(MaterialId.of("wood-box"), Material.BLACK.withShininess(50).plusTexture(TextureAttachment.diffuse(boxDiffuse)).plusTexture(TextureAttachment.specular(boxSpecular)));
+    assets.put(this.shadow1, ShadowBuffer.create(2048, 2048));
+    this.groundModel = Model.simple(modelBox, MaterialId.of("brass"));
+    this.box1Model = Model.simple(modelBoxAnimated, MaterialId.of("wood-box"));
+    this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
+    let gamePad = GamePad.create(drivers);
+    this.ui.addComponent(gamePad);
+    let cam = Camera.persp(FMath.toRadians(60.0), 1, 0.1, 1000.0).lookAt(Vec3.create(0.0, 1, 4), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0));
+    this.camera = FreeCameraController.create(cam, gamePad, 3, 1);
+    this.ui.subscribe(drivers);
+    let dlist = InputCacheDisplayListener.create(this.inputs);
+    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
+    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
   }
 
-  plane(repU, repV) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3, VertexAttr.TEX2), Dut.list(Vertex.floatValues(-0.5, -0.5, 0, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0, 0, 0, 1, repU, 0), Vertex.floatValues(0.5, 0.5, 0, 0, 0, 1, repU, repV), Vertex.floatValues(-0.5, 0.5, 0, 0, 0, 1, 0, repV))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3))).toMesh();
-    return res;
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+  }
+
+  renderScene(renderer, t) {
+    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    renderer.render(this.box1Model, Interpolation.create(0, 1, t), ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
+  }
+
+  renderSceneShaow(renderer, t) {
+    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    renderer.render(this.box1Model, Interpolation.create(0, 1, t), ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
   }
 
 }
-classRegistry.BasicApp02 = BasicApp02;
+classRegistry.BasicApp10 = BasicApp10;
 
 
 // -------------------------------------
@@ -35245,7 +35617,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = new BasicApp02();
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp10());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
