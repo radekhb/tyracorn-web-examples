@@ -14961,6 +14961,90 @@ class Camera {
 
 }
 classRegistry.Camera = Camera;
+class CameraFrustum {
+  nearUpLeft;
+  nearUpRight;
+  nearDownLeft;
+  nearDownRight;
+  farUpLeft;
+  farUpRight;
+  farDownLeft;
+  farDownRight;
+  getClass() {
+    return "CameraFrustum";
+  }
+
+  guardInvariants() {
+  }
+
+  getNearUpLeft() {
+    return this.nearUpLeft;
+  }
+
+  getNearUpRight() {
+    return this.nearUpRight;
+  }
+
+  getNearDownLeft() {
+    return this.nearDownLeft;
+  }
+
+  getNearDownRight() {
+    return this.nearDownRight;
+  }
+
+  getFarUpLeft() {
+    return this.farUpLeft;
+  }
+
+  getFarUpRight() {
+    return this.farUpRight;
+  }
+
+  getFarDownLeft() {
+    return this.farDownLeft;
+  }
+
+  getFarDownRight() {
+    return this.farDownRight;
+  }
+
+  getNearCenter() {
+    return Vec3.create((this.nearUpLeft.x()+this.nearUpRight.x()+this.nearDownLeft.x()+this.nearDownRight.x())/4, (this.nearUpLeft.y()+this.nearUpRight.y()+this.nearDownLeft.y()+this.nearDownRight.y())/4, (this.nearUpLeft.z()+this.nearUpRight.z()+this.nearDownLeft.z()+this.nearDownRight.z())/4);
+  }
+
+  getCenter() {
+    return Vec3.create((this.nearUpLeft.x()+this.nearUpRight.x()+this.nearDownLeft.x()+this.nearDownRight.x()+this.farUpLeft.x()+this.farUpRight.x()+this.farDownLeft.x()+this.farDownRight.x())/8, (this.nearUpLeft.y()+this.nearUpRight.y()+this.nearDownLeft.y()+this.nearDownRight.y()+this.farUpLeft.y()+this.farUpRight.y()+this.farDownLeft.y()+this.farDownRight.y())/8, (this.nearUpLeft.z()+this.nearUpRight.z()+this.nearDownLeft.z()+this.nearDownRight.z()+this.farUpLeft.z()+this.farUpRight.z()+this.farDownLeft.z()+this.farDownRight.z())/8);
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static calculate(camera) {
+    let mat = camera.getProj().mul(camera.getView()).inv();
+    let res = new CameraFrustum();
+    res.nearUpLeft = mat.mul(-1, 1, -1);
+    res.nearUpRight = mat.mul(1, 1, -1);
+    res.nearDownLeft = mat.mul(-1, -1, -1);
+    res.nearDownRight = mat.mul(1, -1, -1);
+    res.farUpLeft = mat.mul(-1, 1, 1);
+    res.farUpRight = mat.mul(1, 1, 1);
+    res.farDownLeft = mat.mul(-1, -1, 1);
+    res.farDownRight = mat.mul(1, -1, 1);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CameraFrustum = CameraFrustum;
 class ProxyDisplayDriver {
   size = Size2.create(1, 1);
   listeners = new HashSet();
