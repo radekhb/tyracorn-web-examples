@@ -34240,8 +34240,8 @@ class RigidBodyWorld extends World {
     let projFact6 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.max().x(), worldAabb.min().y(), worldAabb.max().z());
     let projFact7 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.max().x(), worldAabb.max().y(), worldAabb.max().z());
     let projFact8 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.min().x(), worldAabb.max().y(), worldAabb.max().z());
-    let projMin = this.min(projFact1, projFact2, projFact3, projFact4, projFact5, projFact6, projFact7, projFact8);
-    let projMax = this.max(projFact1, projFact2, projFact3, projFact4, projFact5, projFact6, projFact7, projFact8);
+    let projMin = this.minNumber(projFact1, projFact2, projFact3, projFact4, projFact5, projFact6, projFact7, projFact8);
+    let projMax = this.maxNumber(projFact1, projFact2, projFact3, projFact4, projFact5, projFact6, projFact7, projFact8);
     return Camera.ortho(lightRadius*2+radiusPadding, lightRadius*2+radiusPadding, 0, projMax-projMin+2*depthPadding).lookAt(frustumCenter.addScaled(lightDir, projMin-depthPadding), frustumCenter, this.perp(lightDir));
   }
 
@@ -34253,11 +34253,11 @@ class RigidBodyWorld extends World {
     let m1 = h1.mag();
     let m2 = h2.mag();
     let m3 = h3.mag();
-    let this.max = Math.max(m1, Math.max(m2, m3));
-    if (this.max==m1) {
+    let max = Math.max(m1, Math.max(m2, m3));
+    if (max==m1) {
       return h1.normalize();
     }
-    if (this.max==m2) {
+    if (max==m2) {
       return h2.normalize();
     }
     return h3.normalize();
@@ -34270,7 +34270,7 @@ class RigidBodyWorld extends World {
     return dx*lineDir.x()+dy*lineDir.y()+dz*lineDir.z();
   }
 
-  min(n1, n2, n3, n4, n5, n6, n7, n8) {
+  minNumber(n1, n2, n3, n4, n5, n6, n7, n8) {
     let res = n1;
     res = FMath.min(res, n2);
     res = FMath.min(res, n3);
@@ -34282,7 +34282,7 @@ class RigidBodyWorld extends World {
     return res;
   }
 
-  max(n1, n2, n3, n4, n5, n6, n7, n8) {
+  maxNumber(n1, n2, n3, n4, n5, n6, n7, n8) {
     let res = n1;
     res = FMath.max(res, n2);
     res = FMath.max(res, n3);
