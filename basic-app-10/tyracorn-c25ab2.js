@@ -7,7 +7,7 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-15";
+const basePath = "/tyracorn-web-examples/basic-app-10";
 const assetsDirName = "/assets-866cb7";
 const localStoragePrefix = "app.";
 let mouseDown = false;
@@ -14619,11 +14619,20 @@ class ShadowMap {
     return res;
   }
 
-  static createDir(shadowBuffer, pos, dir, r, range) {
+  static createDirCircle(shadowBuffer, pos, dir, r, range) {
     let res = new ShadowMap();
     res.shadowBuffer = shadowBuffer;
     res.pcfType = ShadowMapPcfType.GAUSS_55;
     res.camera = Camera.ortho(r*2, r*2, 0, range).lookAt(pos, pos.add(dir), ShadowMap.perp(dir));
+    res.guardInvaritants();
+    return res;
+  }
+
+  static createDir(shadowBuffer, pos, dir, up, w, h, near, far) {
+    let res = new ShadowMap();
+    res.shadowBuffer = shadowBuffer;
+    res.pcfType = ShadowMapPcfType.GAUSS_55;
+    res.camera = Camera.ortho(w, h, near, far).lookAt(pos, pos.add(dir), up);
     res.guardInvaritants();
     return res;
   }
@@ -26985,11 +26994,128 @@ class ModelComponent extends Component {
 
 }
 classRegistry.ModelComponent = ModelComponent;
+const createDirShadowMapStrategyType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const DirShadowMapStrategyType = Object.freeze({
+  MANUAL: createDirShadowMapStrategyType("MANUAL"),
+  FRUSTUM_FIT: createDirShadowMapStrategyType("FRUSTUM_FIT"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class DirShadowMapStrategy {
+  type;
+  width;
+  height;
+  near;
+  far;
+  getClass() {
+    return "DirShadowMapStrategy";
+  }
+
+  guardInvariants() {
+  }
+
+  getType() {
+    return this.type;
+  }
+
+  getWidth() {
+    return this.width;
+  }
+
+  getHeight() {
+    return this.height;
+  }
+
+  getNear() {
+    return this.near;
+  }
+
+  getFar() {
+    return this.far;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static createManual(width, height, near, far) {
+    let res = new DirShadowMapStrategy();
+    res.type = DirShadowMapStrategyType.MANUAL;
+    res.width = width;
+    res.height = height;
+    res.near = near;
+    res.far = far;
+    res.guardInvariants();
+    return res;
+  }
+
+  static createFrustumFit() {
+    let res = new DirShadowMapStrategy();
+    res.type = DirShadowMapStrategyType.FRUSTUM_FIT;
+    res.width = 1;
+    res.height = 1;
+    res.near = 0;
+    res.far = 2;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.DirShadowMapStrategy = DirShadowMapStrategy;
 class LightComponent extends Component {
   enabled;
   type;
   shadow;
   color;
+  dirShadowMapStrategy = DirShadowMapStrategy.createManual(160, 160, 0, 100);
   constructor(key) {
     super(key);
   }
@@ -27065,6 +27191,16 @@ class LightComponent extends Component {
     return this;
   }
 
+  getDirShadowMapStrategy() {
+    return this.dirShadowMapStrategy;
+  }
+
+  setDirShadowMapStrategy(dirShadowMapStrategy) {
+    Guard.notNull(dirShadowMapStrategy, "dirShadowMapStrategy cannot be null");
+    this.dirShadowMapStrategy = dirShadowMapStrategy;
+    return this;
+  }
+
   toString() {
   }
 
@@ -27074,6 +27210,7 @@ class LightComponent extends Component {
     res.type = LightType.DIRECTIONAL;
     res.shadow = false;
     res.color = LightColor.create(Rgb.gray(0.5), Rgb.gray(0.5), Rgb.WHITE);
+    res.dirShadowMapStrategy = DirShadowMapStrategy.createManual(100, 100, 0, 60);
     res.guardInvariants();
     return res;
   }
@@ -34238,7 +34375,19 @@ class RigidBodyWorld extends World {
         if (lcmp.isShadow()) {
           let sb = this.shadowBuffersIds.get(sbidx.get(0));
           sbidx.set(0, sbidx.get(0)+1);
-          let smap = ShadowMap.createDir(sb, pos, dir, 80, 60);
+          let str = lcmp.getDirShadowMapStrategy();
+          let smap = null;
+          if (str.getType().equals(DirShadowMapStrategyType.MANUAL)) {
+            let up = tc.toGlobal(Vec3.UP).sub(pos);
+            smap = ShadowMap.createDir(sb, pos, dir, up, str.getWidth(), str.getHeight(), str.getNear(), str.getFar());
+          }
+          else if (str.getType().equals(DirShadowMapStrategyType.FRUSTUM_FIT)) {
+            let lightCamera = this.calculateDirLightShadowMapCamera(cameraFrustum, dir, worldAabb, 1, 1, 1);
+            smap = ShadowMap.create(sb, ShadowMapPcfType.GAUSS_55, lightCamera);
+          }
+          else {
+            throw new Error("unsupported strategy for dir light shadow map: "+str.getType().toString());
+          }
           let light = Light.directional(lcmp.getColor(), dir, smap);
           res.add(light);
         }
@@ -34298,7 +34447,7 @@ class RigidBodyWorld extends World {
     return res;
   }
 
-  calculateDirLightShadowMapCamera(viewFrustum, lightDir, worldAabb, radiusPadding, depthPadding) {
+  calculateDirLightShadowMapCamera(viewFrustum, lightDir, worldAabb, radiusPadding, nearPadding, farPadding) {
     let frustumCenter = viewFrustum.getCenter();
     let planeProj1 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getNearUpLeft());
     let planeProj2 = Geometry3.projectToPlane(frustumCenter, lightDir, viewFrustum.getNearUpRight());
@@ -34326,7 +34475,7 @@ class RigidBodyWorld extends World {
     let projFact8 = this.getLineProjectFactor(frustumCenter, lightDir, worldAabb.min().x(), worldAabb.max().y(), worldAabb.max().z());
     let projMin = this.minNumber(projFact1, projFact2, projFact3, projFact4, projFact5, projFact6, projFact7, projFact8);
     let projMax = this.maxNumber(projFact1, projFact2, projFact3, projFact4, projFact5, projFact6, projFact7, projFact8);
-    return Camera.ortho(lightRadius*2+radiusPadding, lightRadius*2+radiusPadding, 0, projMax-projMin+2*depthPadding).lookAt(frustumCenter.addScaled(lightDir, projMin-depthPadding), frustumCenter, this.perp(lightDir));
+    return Camera.ortho(lightRadius*2+radiusPadding, lightRadius*2+radiusPadding, 0, projMax-projMin+nearPadding+farPadding).lookAt(frustumCenter.addScaled(lightDir, projMin-nearPadding), frustumCenter, this.perp(lightDir));
   }
 
   perp(v) {
@@ -35228,7 +35377,7 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp15 extends TyracornScreen {
+class BasicApp10 extends TyracornScreen {
   groundModel = null;
   box1Model = null;
   shadow1 = ShadowBufferId.of("shadow1");
@@ -35236,13 +35385,12 @@ class BasicApp15 extends TyracornScreen {
   inputs = InputCache.create();
   ui;
   camera;
-  armature;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp15";
+    return "BasicApp10";
   }
 
   move(drivers, screenManager, dt) {
@@ -35253,19 +35401,18 @@ class BasicApp15 extends TyracornScreen {
     this.camera.setPersp(fovy, aspect, 1.0, 50.0);
     this.camera.move(dt);
     this.ui.move(dt);
-    let angleFact = FMath.abs(FMath.sin(this.time/3));
-    let pose = this.armature.getPose(Dut.map(ArmatureNodeId.of("node-1"), Mat44.rotZ(angleFact*FMath.PI_QUARTER), ArmatureNodeId.of("node-2"), Mat44.transofm(Vec3.create(1, 0, 0), Quaternion.rotZ(angleFact*FMath.PI_QUARTER)), ArmatureNodeId.of("node-3"), Mat44.transofm(Vec3.create(1, 0, 0), Quaternion.rotZ(angleFact*FMath.PI_QUARTER))));
+    let t = Math.abs(Math.sin(this.time));
     let dirLightColor = LightColor.create(Rgb.gray(0.5), Rgb.gray(0.5), Rgb.WHITE);
-    let dirLightDir = Vec3.create(0.6, -1, -0.2).normalize();
+    let dirLightDir = Vec3.create(FMath.sin(this.time/5), -1, FMath.cos(this.time/5)).normalize();
     let dirLightPos = dirLightDir.scale(-5);
-    let dirLightShadowMap = ShadowMap.createDir(this.shadow1, dirLightPos, dirLightDir, 13, 20);
+    let dirLightShadowMap = ShadowMap.createDirCircle(this.shadow1, dirLightPos, dirLightDir, 13, 20);
     let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
     let smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
-    this.renderSceneShaow(smapRndr, pose);
+    this.renderSceneShaow(smapRndr, t);
     smapRndr.end();
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
     let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(this.camera.getCamera(), dirLight));
-    this.renderScene(objRnderer, pose);
+    this.renderScene(objRnderer, t);
     objRnderer.end();
     gDriver.clearBuffers(BufferId.DEPTH);
     let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
@@ -35283,21 +35430,17 @@ class BasicApp15 extends TyracornScreen {
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    let boxMeshId = MeshId.of("box-mesh");
-    let riggeMeshId = MeshId.of("rigged-mesh");
-    assets.put(boxMeshId, BoxMeshFactory.modelBox());
-    assets.put(riggeMeshId, this.createRiggedMesh());
+    let modelBox = MeshId.of("modelBox");
+    let modelBoxAnimated = MeshId.of("modelBox-animated");
+    assets.put(modelBox, BoxMeshFactory.modelBox());
+    assets.put(modelBoxAnimated, BoxMeshFactory.modelBox().plusMeshFrames(BoxMeshFactory.modelBoxDeformed1()).plusMeshFrames(BoxMeshFactory.modelBoxDeformed2()));
     let boxDiffuse = TextureId.of("tex_box_01_d");
     let boxSpecular = TextureId.of("tex_box_01_s");
     assets.put(MaterialId.of("brass"), Material.BRASS);
     assets.put(MaterialId.of("wood-box"), Material.BLACK.withShininess(50).plusTexture(TextureAttachment.diffuse(boxDiffuse)).plusTexture(TextureAttachment.specular(boxSpecular)));
     assets.put(this.shadow1, ShadowBuffer.create(2048, 2048));
-    this.groundModel = Model.simple(boxMeshId, MaterialId.of("brass"));
-    this.box1Model = Model.simple(riggeMeshId, MaterialId.of("wood-box"));
-    let node1 = ArmatureNodeId.of("node-1");
-    let node2 = ArmatureNodeId.of("node-2");
-    let node3 = ArmatureNodeId.of("node-3");
-    this.armature = Armature.empty().plusNode(ArmatureNode.create(node1, null, Mat44.IDENTITY, Mat44.IDENTITY)).plusNode(ArmatureNode.create(node2, node1, Mat44.trans(1, 0, 0), Mat44.trans(-1, 0, 0))).plusNode(ArmatureNode.create(node3, node2, Mat44.trans(1, 0, 0), Mat44.trans(-2, 0, 0)));
+    this.groundModel = Model.simple(modelBox, MaterialId.of("brass"));
+    this.box1Model = Model.simple(modelBoxAnimated, MaterialId.of("wood-box"));
     this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
     let gamePad = GamePad.create(drivers);
     this.ui.addComponent(gamePad);
@@ -35313,27 +35456,18 @@ class BasicApp15 extends TyracornScreen {
     this.ui.unsubscribe(drivers);
   }
 
-  renderScene(renderer, pose) {
+  renderScene(renderer, t) {
     renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1Model, Interpolation.ZERO, pose, Mat44.trans(0, 0, 0));
+    renderer.render(this.box1Model, Interpolation.create(0, 1, t), ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
   }
 
-  renderSceneShaow(renderer, pose) {
+  renderSceneShaow(renderer, t) {
     renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1Model, Interpolation.ZERO, pose, Mat44.trans(0, 0, 0));
-  }
-
-  createRiggedMesh() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.riggedModel(Dut.list(this.rmVert(-0.5, -0.5, 0, 0, 0, 1, 0, 0, 0, -1, -1, -1, 1, 0, 0, 0), this.rmVert(-0.5, 0.5, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, 1, 0, 0, 0), this.rmVert(0.5, -0.5, 0, 0, 0, 1, 1, 0, 0, 1, -1, -1, 0.75, 0.25, 0, 0), this.rmVert(0.5, 0.5, 0, 0, 0, 1, 1, 1, 0, 1, -1, -1, 0.75, 0.25, 0, 0), this.rmVert(1.5, -0.5, 0, 0, 0, 1, 2, 0, 1, 2, -1, -1, 0.5, 0.5, 0, 0), this.rmVert(1.5, 0.5, 0, 0, 0, 1, 2, 1, 1, 2, -1, -1, 0.5, 0.5, 0, 0), this.rmVert(2.5, -0.5, 0, 0, 0, 1, 3, 0, 2, -1, -1, -1, 1, 0, 0, 0), this.rmVert(2.5, 0.5, 0, 0, 0, 1, 3, 1, 2, -1, -1, -1, 1, 0, 0, 0))), Dut.list(Face.triangle(0, 2, 3), Face.triangle(0, 3, 1), Face.triangle(2, 4, 5), Face.triangle(2, 5, 3), Face.triangle(4, 6, 7), Face.triangle(4, 7, 5))).toMesh();
-    return res;
-  }
-
-  rmVert(x, y, z, nx, ny, nz, tu, tv, bidx1, bidx2, bidx3, bidx4, bw1, bw2, bw3, bw4) {
-    return Vertex.create(Dut.list(Float.valueOf(x), Float.valueOf(y), Float.valueOf(z), Float.valueOf(nx), Float.valueOf(ny), Float.valueOf(nz), Float.valueOf(tu), Float.valueOf(tv), Short.valueOf(bidx1), Short.valueOf(bidx2), Short.valueOf(bidx3), Short.valueOf(bidx4), Float.valueOf(bw1), Float.valueOf(bw2), Float.valueOf(bw3), Float.valueOf(bw4)));
+    renderer.render(this.box1Model, Interpolation.create(0, 1, t), ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
   }
 
 }
-classRegistry.BasicApp15 = BasicApp15;
+classRegistry.BasicApp10 = BasicApp10;
 
 
 // -------------------------------------
@@ -35716,7 +35850,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp15());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp10());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
