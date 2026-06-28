@@ -41085,7 +41085,7 @@ class Combat2World01 extends TyracornScreen {
     let player = this.spawnPlayer(assets);
     let enemy = this.spawnEnemy(assets);
     this.world.actors().get(WorldActors.CAMERA).addComponent(CameraShiftBehavior.create(ComponentKey.random()));
-    this.world.actors().get(ActorId.of("sun")).getComponent("LightComponent").setDirShadowMapStrategy(DirShadowMapStrategy.createFrustumFit());
+    this.world.actors().get(ActorId.of("sun")).getComponent("LightComponent").setDirShadowMapStrategy(DirShadowMapStrategy.createManual(220, 220, 0, 180));
     this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
     this.ui.addComponent(PlayUis.createPauseButton((evt) => {
   this.paused = true;
