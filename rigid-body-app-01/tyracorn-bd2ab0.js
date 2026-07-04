@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-01";
-const assetsDirName = "/null";
+const basePath = "/tyracorn-web-examples/rigid-body-app-01";
+const assetsDirName = "/assets-866cb7";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -4107,6 +4107,157 @@ class WebglMeshRef {
 }
 
 /**
+ * Mesh reference object. Utility class for renderer.
+ */
+class WebglSceneMesh {
+
+    /**
+     * Distance from camera. Float number.
+     * 
+     * @type Number
+     */
+    distance;
+
+    /**
+     * Mesh.
+     * 
+     * @type MeshId
+     */
+    mesh;
+
+    /**
+     * Interpolation.
+     * 
+     * @type Interpolation
+     */
+    interpolation;
+
+    /**
+     * Pose.
+     * 
+     * @type ArmaturePose
+     */
+    pose;
+
+    /**
+     * Transformation matrix.
+     * 
+     * @type Mat44
+     */
+    mat;
+
+    /**
+     * Material.
+     * 
+     * @type Material
+     */
+    material;
+
+    /**
+     * Frames (ArrayList of JoglMeshFrameRef).
+     */
+    frames;
+
+    /**
+     * Creates new instance.
+     */
+    constructor() {
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvariants() {
+        Guard.notNull(this.mesh, "mesh caannot be null");
+        Guard.notNull(this.interpolation, "interpolation caannot be null");
+        Guard.notNull(this.pose, "pose caannot be null");
+        Guard.notNull(this.mat, "mat caannot be null");
+        Guard.notNull(this.material, "material caannot be null");
+    }
+
+    /**
+     * Returns distance from camera.
+     *
+     * @return {Number} distance from camera as a float number
+     */
+    getDistance() {
+        return this.distance;
+    }
+
+    /**
+     * Returns mesh.
+     *
+     * @return {MeshId} mesh
+     */
+    getMesh() {
+        return this.mesh;
+    }
+
+    /**
+     * Returns interpolation.
+     *
+     * @return {Interpolation} interpolation
+     */
+    getInterpolation() {
+        return this.interpolation;
+    }
+
+    /**
+     * Returns pose.
+     *
+     * @return {ArmaturePose} pose
+     */
+    getPose() {
+        return this.pose;
+    }
+
+    /**
+     * Returns transformation matrix.
+     *
+     * @return {Mat44} transformation matrix
+     */
+    getMat() {
+        return this.mat;
+    }
+
+    /**
+     * Returns material.
+     *
+     * @return {Material} material
+     */
+    getMaterial() {
+        return this.material;
+    }
+
+    toString() {
+    }
+
+    /**
+     * Creates new instance.
+     *
+     * @param {Number} distance distance from camera as a float number
+     * @param {MeshId} mesh mesh identifier, vertices must have [POS3, NORM3] attributes
+     * @param {Interpolation} interpolation mesh interpolation
+     * @param {ArmaturePose} pose pose
+     * @param {Mat44} mat transformation matrix
+     * @param {Material} material material
+     * @return {JoglSceneMesh} created object
+     */
+    static create(distance, mesh, interpolation, pose, mat, material) {
+        const res = new WebglSceneMesh();
+        res.distance = distance;
+        res.mesh = mesh;
+        res.interpolation = interpolation;
+        res.pose = pose;
+        res.mat = mat;
+        res.material = material;
+        res.guardInvariants();
+        return res;
+    }
+
+}
+
+/**
  * GL texture reference.
  */
 class WebglTextureRef {
@@ -4605,6 +4756,7 @@ class WebglColorRenderer {
      * @param {Environmenty} environment environment
      */
     start(environment) {
+        gl.depthMask(true);
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LESS);
         gl.enable(gl.CULL_FACE);
@@ -4799,6 +4951,45 @@ class WebglSceneRenderer {
      */
     static MAX_SPOT_LIGHTS = 10;
 
+    /**
+     * Camera position.
+     * 
+     * @type {Vec3}
+     */
+    cameraPos;
+
+    /**
+     * Camera direction.
+     * 
+     * @type {Vec3}
+     */
+    cameraDir;
+
+    /**
+     * Transparent meshes of JoglSceneMesh.
+     * 
+     * @type ArrayList
+     */
+    transparentMeshes = new ArrayList();
+
+    /**
+     * Comparator for transparent objct distance.
+     */
+    transparentDistanceComparator = (a, b) => {
+        if (a.distance < b.distance) {
+            return 1;
+        }
+        if (a.distance > b.distance) {
+            return -1;
+        }
+        return 0;
+    }
+
+    /**
+     * Constructor.
+     * 
+     * @returns {WebglSceneRenderer} created instance
+     */
     constructor() {
         this.assetBank = null;
         this.refProvider = null;
@@ -4878,16 +5069,23 @@ class WebglSceneRenderer {
      * @param {Environmenty} environment environment
      */
     start(environment) {
+        gl.depthMask(true);
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LESS);
         gl.enable(gl.CULL_FACE);
         gl.cullFace(gl.BACK);
         const vp = this.refProvider.getScreenViewport();
         gl.viewport(vp.x, vp.y, vp.width, vp.height);
+
+        this.camera = environment.getCamera();
+        const cameraView = this.camera.getView();
+        this.cameraPos = this.camera.getPos();
+        this.cameraDir = Vec3.create(-cameraView.m20(), -cameraView.m21(), -cameraView.m22());
+
         this.shader.use();
-        this.shader.setUniformMat44("viewMat", environment.getCamera().getView());
-        this.shader.setUniformMat44("projMat", environment.getCamera().getProj());
-        this.shader.setUniformVec3("viewPos", environment.getCamera().getPos());
+        this.shader.setUniformMat44("viewMat", this.camera.getView());
+        this.shader.setUniformMat44("projMat", this.camera.getProj());
+        this.shader.setUniformVec3("viewPos", this.camera.getPos());
         this.shader.setUniformFloat("gamma", environment.getGamma());
 
         // lightning
@@ -5009,15 +5207,58 @@ class WebglSceneRenderer {
      * @param {Interpolation} interpolation frame interpolation
      * @param {ArmaturePose} pose pose
      * @param {Mat44} mat matrix
-     * @param {Material} material material
+     * @param {Material|MaterialId} material material
      */
     renderMesh(mesh, interpolation, pose, mat, material) {
         if (material instanceof MaterialId) {
             material = this.assetBank.get("Material", material);
         }
+        if (material.getAlphaMode().equals(MaterialAlphaMode.BLEND)) {
+            // render at the end as this needs to be ordered
+            const dx = mat.m03() - this.cameraPos.x();
+            const dy = mat.m13() - this.cameraPos.y();
+            const dz = mat.m23() - this.cameraPos.z();
+            const distance = dx * this.cameraDir.x() + dy * this.cameraDir.y() + dz * this.cameraDir.z();
+            this.transparentMeshes.add(WebglSceneMesh.create(distance, mesh, interpolation, pose, mat, material));
+            return;
+        }
+        this.renderMeshInternal(mesh, interpolation, pose, mat, material);
+    }
+
+    /**
+     * Ends the renderer.
+     */
+    end() {
+        if (this.transparentMeshes.isEmpty()) {
+            // nothing to do here
+            return;
+        }
+        gl.depthMask(false);
+        this.transparentMeshes._data.sort(this.transparentDistanceComparator);
+        for (const sm of this.transparentMeshes) {
+            this.renderMeshInternal(sm.getMesh(), sm.getInterpolation(), sm.getPose(), sm.getMat(), sm.getMaterial());
+        }
+        this.transparentMeshes.clear();
+    }
+
+    /**
+     * Renders mesh.
+     * 
+     * @param {MeshId} mesh mesh to render
+     * @param {Interpolation} interpolation frame interpolation
+     * @param {ArmaturePose} pose pose
+     * @param {Mat44} mat matrix
+     * @param {Material} material material
+     */
+    renderMeshInternal(mesh, interpolation, pose, mat, material) {
         const m = this.refProvider.getMeshRef(mesh);
 
-        gl.disable(gl.BLEND);
+        if (material.getAlphaMode().equals(MaterialAlphaMode.BLEND)) {
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        } else {
+            gl.disable(gl.BLEND);
+        }
 
         this.shader.setUniformMat44("modelMat", mat);
         this.shader.setUniformMat33("normalMat", this.getNormalMat(mat));
@@ -5165,7 +5406,7 @@ class WebglSceneRenderer {
                 this.shader.setUniformMat44("boneMats[" + i + "]", pose.getNode(i).getBoneTransform());
             }
             const vByteSize = frRef1.getVertexByteSize();
-            
+
             gl.bindVertexArray(m.getVao());
             gl.bindBuffer(gl.ARRAY_BUFFER, frRef1.getVbo());
             gl.vertexAttribPointer(0, 3, gl.FLOAT, false, vByteSize, 0);
@@ -5188,13 +5429,6 @@ class WebglSceneRenderer {
         } else {
             throw new Error("unsupported vertex attributes: " + m.getVertexAttrs().toString());
         }
-    }
-
-    /**
-     * Ends the renderer.
-     */
-    end() {
-        // Nothing to do here
     }
 
     /**
@@ -5236,7 +5470,7 @@ class WebglSceneRenderer {
      * @param {AssetBank} assetBank asset bank
      * @param {GlRefProvider} refProvider provider for gl references
      * @param {WebglShader} shader shader
-     * @param {WebglTextureRef} default texture
+     * @param {WebglTextureRef} defaultTexture default texture
      * @returns {WebglSceneRenderer} created object
      */
     static create(assetBank, refProvider, shader, defaultTexture) {
@@ -5256,6 +5490,24 @@ class WebglSceneRenderer {
  */
 
 class WebglShadowMapRenderer {
+    /**
+     * Offset for alpha textures.
+     * This has to be synchronized with relevant shader program.
+     */
+    static ALPHA_TEXTURE_OFFSET = 0;
+    /**
+     * Maximum number of alpha textures.
+     * This has to be synchronized with relevant shader program.
+     */
+    static MAX_ALPHA_TEXTURES = 1;
+
+    /**
+     * Asset bank.
+     * 
+     * @type AssetBank
+     */
+    assetBank;
+
     constructor() {
         this.refProvider = null;
         this.shader = null;
@@ -5265,6 +5517,9 @@ class WebglShadowMapRenderer {
      * Guards this object to be consistent.
      */
     guardInvariants() {
+        if (!this.assetBank) {
+            throw new Error("assetBank cannot be null");
+        }
         if (!this.refProvider) {
             throw new Error("refProvider cannot be null");
         }
@@ -5279,6 +5534,7 @@ class WebglShadowMapRenderer {
      * @param {Environmenty} environment environment
      */
     start(environment) {
+        gl.depthMask(true);
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LESS);
         gl.enable(gl.CULL_FACE);
@@ -5312,13 +5568,17 @@ class WebglShadowMapRenderer {
     render() {
         if (arguments.length === 4 && arguments[0] instanceof MeshId &&
                 arguments[1] instanceof Interpolation && arguments[2] instanceof ArmaturePose &&
-                arguments[3] instanceof Mat44) {
-            this.renderMesh(arguments[0], arguments[1], arguments[2], arguments[3]);
+                arguments[3] instanceof Mat44 && arguments[4] instanceof MaterialId) {
+            this.renderMesh(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
+        } else if (arguments.length === 4 && arguments[0] instanceof MeshId &&
+                arguments[1] instanceof Interpolation && arguments[2] instanceof ArmaturePose &&
+                arguments[3] instanceof Mat44 && arguments[4] instanceof Material) {
+            this.renderMesh(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
         } else if (arguments.length === 4 && arguments[0] instanceof Model &&
                 arguments[1] instanceof Interpolation && arguments[2] instanceof ArmaturePose &&
                 arguments[3] instanceof Mat44) {
             for (const part of arguments[0].getParts()) {
-                this.renderMesh(part.getMesh(), arguments[1], arguments[2], arguments[3]);
+                this.renderMesh(part.getMesh(), arguments[1], arguments[2], arguments[3], part.getMaterial());
             }
         } else {
             throw "unsupported arguments for rendering, implement me";
@@ -5332,11 +5592,96 @@ class WebglShadowMapRenderer {
      * @param {Interpolation} interpolation frame interpolation
      * @param {ArmaturePose} pose pose
      * @param {Mat44} mat matrix
+     * @param {Material|MaterialId} material material
      */
-    renderMesh(mesh, interpolation, pose, mat) {
+    renderMesh(mesh, interpolation, pose, mat, material) {
+        if (material instanceof MaterialId) {
+            material = this.assetBank.get("Material", material);
+        }
         const m = this.refProvider.getMeshRef(mesh);
         gl.disable(gl.BLEND);
         this.shader.setUniformMat44("modelMat", mat);
+
+        let numAlphaTextures = 0;
+        for (const tex of material.getTextures()) {
+            if (tex.getType().equals(TextureType.ALPHA)) {
+                const tid = this.refProvider.getTextureRef(tex.getTexture()).getTextureId();
+                gl.activeTexture(gl.TEXTURE0 + WebglShadowMapRenderer.ALPHA_TEXTURE_OFFSET + numAlphaTextures);
+                gl.bindTexture(gl.TEXTURE_2D, tid);
+                ++numAlphaTextures;
+            } else {
+                // shadow map shader only cares about the alpha textures, others are ignored
+                continue;
+            }
+            switch (tex.getStyle().getHorizWrapType()) {
+                case TextureWrapType.REPEAT:
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+                    break;
+                case TextureWrapType.MIRRORED_REPEAT:
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.MIRRORED_REPEAT);
+                    break;
+                case TextureWrapType.EDGE:
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                    break;
+                case TextureWrapType.BORDER:
+                    // TextureWrapType.BORDER is not supported in webgl, sorry can't use it here, so replacing with clamp to edge for the moment
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                    //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_BORDER);
+                    //gl.texParameterfv(gl.TEXTURE_2D, gl.TEXTURE_BORDER_COLOR, tex.getStyle().getBorderColor().toBuf(rgbaBuf), 0);
+                    break;
+                default:
+                    throw "unsupported horizontal wrap type: " + tex.getStyle().getHorizWrapType();
+            }
+            switch (tex.getStyle().getVertWrapType()) {
+                case TextureWrapType.REPEAT:
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+                    break;
+                case TextureWrapType.MIRRORED_REPEAT:
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.MIRRORED_REPEAT);
+                    break;
+                case TextureWrapType.EDGE:
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                    break;
+                case TextureWrapType.BORDER:
+                    // TextureWrapType.BORDER is not supported in webgl, sorry can't use it here, so replacing with clamp to edge for the moment
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                    //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_BORDER);
+                    //gl.texParameterfv(gl.TEXTURE_2D, gl.TEXTURE_BORDER_COLOR, tex.getStyle().getBorderColor().toBuf(rgbaBuf), 0);
+                    break;
+                default:
+                    throw "unsupported vertical wrap type: " + tex.getStyle().getVertWrapType();
+            }
+            switch (tex.getStyle().getMinFilterType()) {
+                case TextureFilterType.NEAREST:
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                    break;
+                case TextureFilterType.LINEAR:
+                    // ref: WebglGraphicsDriver.js - currently this does not work (look to mipmaps), so replacing with NEAREST for the moment
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                    //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                    break;
+                case TextureFilterType.LINEAR_MIPMAP_LINEAR:
+                    // ref: WebglGraphicsDriver.js - currently this does not work (look to mipmaps), so replacing with NEAREST for the moment
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                    //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+                    break;
+                default:
+                    throw "unsupported min filter type: " + tex.getStyle().getMinFilterType();
+            }
+            switch (tex.getStyle().getMagFilterType()) {
+                case TextureFilterType.NEAREST:
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+                    break;
+                case TextureFilterType.LINEAR:
+                    // ref: WebglGraphicsDriver.js - currently this does not work (look to mipmaps), so replacing with NEAREST for the moment
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+                    //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                    break;
+                default:
+                    throw "unsupported mag filter type: " + tex.getStyle().getMinFilterType();
+            }
+        }
+        this.shader.setUniformInt("numAlphaTextures", numAlphaTextures);
 
         if (m.getNumFrames() === 1 && m.getVertexAttrs().equals(Meshes.FABRIC_VERTEX_ATTRS)) {
             this.shader.setUniformFloat("t", 0);
@@ -5362,6 +5707,8 @@ class WebglShadowMapRenderer {
             gl.bindBuffer(gl.ARRAY_BUFFER, frRef2.getVbo());
             gl.vertexAttribPointer(1, 3, gl.FLOAT, false, vsize * 4, 0);
             gl.enableVertexAttribArray(1);
+            gl.vertexAttribPointer(2, 2, gl.FLOAT, false, vsize * 4, 6 * 4);
+            gl.enableVertexAttribArray(2);
             gl.drawElements(gl.TRIANGLES, m.getNumIndices(), gl.UNSIGNED_INT, 0);
             gl.bindVertexArray(null);
         } else if (m.getVertexAttrs().equals(Meshes.RIGGED_MODEL_VERTEX_ATTRS)) {
@@ -5373,18 +5720,20 @@ class WebglShadowMapRenderer {
                 this.shader.setUniformMat44("boneMats[" + i + "]", pose.getNode(i).getBoneTransform());
             }
             const vByteSize = frRef1.getVertexByteSize();
-            
+
             gl.bindVertexArray(m.getVao());
             gl.bindBuffer(gl.ARRAY_BUFFER, frRef1.getVbo());
             gl.vertexAttribPointer(0, 3, gl.FLOAT, false, vByteSize, 0);
             gl.enableVertexAttribArray(0);
-            gl.vertexAttribPointer(2, 4, gl.SHORT, false, vByteSize, 8 * 4);
-            gl.enableVertexAttribArray(2);
-            gl.vertexAttribPointer(3, 4, gl.FLOAT, false, vByteSize, 8 * 4 + 4 * 2);
+            gl.vertexAttribPointer(3, 4, gl.SHORT, false, vByteSize, 8 * 4);
             gl.enableVertexAttribArray(3);
+            gl.vertexAttribPointer(4, 4, gl.FLOAT, false, vByteSize, 8 * 4 + 4 * 2);
+            gl.enableVertexAttribArray(4);
             gl.bindBuffer(gl.ARRAY_BUFFER, frRef2.getVbo());
             gl.vertexAttribPointer(1, 3, gl.FLOAT, false, vByteSize, 0);
             gl.enableVertexAttribArray(1);
+            gl.vertexAttribPointer(2, 2, gl.FLOAT, false, vByteSize, 6 * 4);
+            gl.enableVertexAttribArray(2);
             gl.drawElements(gl.TRIANGLES, m.getNumIndices(), gl.UNSIGNED_INT, 0);
             gl.bindVertexArray(null);
         } else {
@@ -5401,9 +5750,15 @@ class WebglShadowMapRenderer {
 
     /**
      * Creates new instance.
+     * 
+     * @param {AssetBank} assetBank asset bank
+     * @param {GlRefProvider} refProvider provider for gl references
+     * @param {WebglShader} shader shader
+     * @returns {WebglShadowMapRenderer} created object
      */
-    static create(refProvider, shader) {
+    static create(assetBank, refProvider, shader) {
         const res = new WebglShadowMapRenderer();
+        res.assetBank = assetBank;
         res.refProvider = refProvider;
         res.shader = shader;
         res.guardInvariants();
@@ -5830,6 +6185,7 @@ class WebglUiRenderer {
      * @param {Environmenty} environment environment
      */
     start(environment) {
+        gl.depthMask(true);
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
         gl.disable(gl.CULL_FACE);
@@ -6510,8 +6866,11 @@ class WebglGraphicsDriver {
 
             layout (location=0) in vec3 position1;
             layout (location=1) in vec3 position2;
-            layout (location=2) in vec4 boneIds;
-            layout (location=3) in vec4 boneWeights;
+            layout (location=2) in vec2 texCoord;
+            layout (location=3) in vec4 boneIds;
+            layout (location=4) in vec4 boneWeights;
+
+            out vec2 varTexCoord;
 
             uniform float t;
             uniform mat4 modelMat;
@@ -6549,13 +6908,33 @@ class WebglGraphicsDriver {
                     position = newPos;
                 }
                 gl_Position = lightMat * modelMat * vec4(position, 1.0);
+                varTexCoord = texCoord;
             }
         `;
         const shadowMapShaderFragmentSource = `#version 300 es
 
             precision mediump float;
 
+            in vec2 varTexCoord;
+
+            uniform int numAlphaTextures;
+
+            uniform sampler2D alphaTexture1;
+
+            float getAlpha() {
+                float res = 1.0;
+                if (numAlphaTextures > 0) {
+                    vec4 tc = texture(alphaTexture1, varTexCoord);
+                    res = tc.a;
+                }
+                return res;
+            }
+
             void main(void) {
+                float alpha = getAlpha();
+                if (alpha < 0.01) {
+                    discard;
+                }
             }
         `;
         const shadowMapShaderProgram = WebglUtils.loadShaderProgram(shadowMapShaderVertexSource, shadowMapShaderFragmentSource);
@@ -6621,7 +7000,7 @@ class WebglGraphicsDriver {
         this.shaders.push(colorShader, sceneShader, shadowMapShader, spriteShader);
         this.renderers.put("ColorRenderer", WebglColorRenderer.create(this, colorShader));
         this.renderers.put("SceneRenderer", WebglSceneRenderer.create(this.assetBank, this, sceneShader, this.defaultTexture));
-        this.renderers.put("ShadowMapRenderer", WebglShadowMapRenderer.create(this, shadowMapShader));
+        this.renderers.put("ShadowMapRenderer", WebglShadowMapRenderer.create(this.assetBank, this, shadowMapShader));
         this.renderers.put("UiRenderer", WebglUiRenderer.create(this.assetBank, this, this.spriteRectMesh, spriteShader, this.primitivesMesh, colorShader));
     }
 
@@ -8433,6 +8812,14 @@ class Vec3 {
 
   static cross(a, b) {
     return Vec3.create(a.mY*b.mZ-a.mZ*b.mY, a.mZ*b.mX-a.mX*b.mZ, a.mX*b.mY-a.mY*b.mX);
+  }
+
+  static crossAndNormalize(a, b) {
+    let x = a.mY*b.mZ-a.mZ*b.mY;
+    let y = a.mZ*b.mX-a.mX*b.mZ;
+    let z = a.mX*b.mY-a.mY*b.mX;
+    let m = FMath.sqrt(x*x+y*y+z*z);
+    return Vec3.create(x/m, y/m, z/m);
   }
 
   static interpolate(a, b, t) {
@@ -12225,6 +12612,36 @@ class TextureAttachment {
     return res;
   }
 
+  static alpha() {
+    if (arguments.length===1&&arguments[0] instanceof TextureId) {
+      return TextureAttachment.alpha_1_TextureId(arguments[0]);
+    }
+    else if (arguments.length===1&& typeof arguments[0]==="string") {
+      return TextureAttachment.alpha_1_string(arguments[0]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  static alpha_1_TextureId(texture) {
+    let res = new TextureAttachment();
+    res.type = TextureType.ALPHA;
+    res.texture = texture;
+    res.style = TextureStyle.SMOOTH_REPEAT;
+    res.guardInvariants();
+    return res;
+  }
+
+  static alpha_1_string(texture) {
+    let res = new TextureAttachment();
+    res.type = TextureType.ALPHA;
+    res.texture = TextureId.of(texture);
+    res.style = TextureStyle.SMOOTH_REPEAT;
+    res.guardInvariants();
+    return res;
+  }
+
 }
 classRegistry.TextureAttachment = TextureAttachment;
 class TextureFncs {
@@ -12612,6 +13029,55 @@ class MaterialId extends RefId {
 
 }
 classRegistry.MaterialId = MaterialId;
+const createMaterialAlphaMode = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const MaterialAlphaMode = Object.freeze({
+  OPAQUE: createMaterialAlphaMode("OPAQUE"),
+  MASK: createMaterialAlphaMode("MASK"),
+  BLEND: createMaterialAlphaMode("BLEND"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
 class MaterialBase {
   ambient;
   diffuse;
@@ -12686,15 +13152,16 @@ class MaterialBase {
 }
 classRegistry.MaterialBase = MaterialBase;
 class Material {
-  static BLACK = Material.create(Rgb.BLACK, Rgb.BLACK, Rgb.BLACK, 1);
-  static BRASS = Material.create(Rgb.create(0.329412, 0.223529, 0.027451), Rgb.create(0.780392, 0.568627, 0.113725), Rgb.create(0.992157, 0.941176, 0.807843), 27.8974);
-  static BRONZE = Material.create(Rgb.create(0.2125, 0.1275, 0.054), Rgb.create(0.714, 0.4284, 0.18144), Rgb.create(0.393548, 0.271906, 0.166721), 25.6);
-  static CHROME = Material.create(Rgb.create(0.25, 0.25, 0.25), Rgb.create(0.4, 0.4, 0.4), Rgb.create(0.774597, 0.774597, 0.774597), 76.8);
-  static COPPER = Material.create(Rgb.create(0.19125, 0.0735, 0.0225), Rgb.create(0.7038, 0.27048, 0.0828), Rgb.create(0.256777, 0.137622, 0.086014), 12.8);
-  static GOLD = Material.create(Rgb.create(0.24725, 0.1995, 0.0745), Rgb.create(0.75164, 0.60648, 0.22648), Rgb.create(0.628281, 0.555802, 0.366065), 51.2);
-  static SILVER = Material.create(Rgb.create(0.19225, 0.19225, 0.19225), Rgb.create(0.50754, 0.50754, 0.50754), Rgb.create(0.508273, 0.508273, 0.508273), 51.2);
-  static WHITE_PLASTIC = Material.create(Rgb.BLACK, Rgb.gray(0.55), Rgb.gray(0.7), 32.0);
+  static BLACK = Material.fromColors(Rgb.BLACK, Rgb.BLACK, Rgb.BLACK, 1);
+  static BRASS = Material.fromColors(Rgb.create(0.329412, 0.223529, 0.027451), Rgb.create(0.780392, 0.568627, 0.113725), Rgb.create(0.992157, 0.941176, 0.807843), 27.8974);
+  static BRONZE = Material.fromColors(Rgb.create(0.2125, 0.1275, 0.054), Rgb.create(0.714, 0.4284, 0.18144), Rgb.create(0.393548, 0.271906, 0.166721), 25.6);
+  static CHROME = Material.fromColors(Rgb.create(0.25, 0.25, 0.25), Rgb.create(0.4, 0.4, 0.4), Rgb.create(0.774597, 0.774597, 0.774597), 76.8);
+  static COPPER = Material.fromColors(Rgb.create(0.19125, 0.0735, 0.0225), Rgb.create(0.7038, 0.27048, 0.0828), Rgb.create(0.256777, 0.137622, 0.086014), 12.8);
+  static GOLD = Material.fromColors(Rgb.create(0.24725, 0.1995, 0.0745), Rgb.create(0.75164, 0.60648, 0.22648), Rgb.create(0.628281, 0.555802, 0.366065), 51.2);
+  static SILVER = Material.fromColors(Rgb.create(0.19225, 0.19225, 0.19225), Rgb.create(0.50754, 0.50754, 0.50754), Rgb.create(0.508273, 0.508273, 0.508273), 51.2);
+  static WHITE_PLASTIC = Material.fromColors(Rgb.BLACK, Rgb.gray(0.55), Rgb.gray(0.7), 32.0);
   base;
+  alphaMode;
   textures;
   constructor() {
   }
@@ -12708,6 +13175,10 @@ class Material {
 
   getBase() {
     return this.base;
+  }
+
+  getAlphaMode() {
+    return this.alphaMode;
   }
 
   getAmbient() {
@@ -12730,25 +13201,35 @@ class Material {
     return this.textures;
   }
 
+  withAlphaMode(alphaMode) {
+    let res = new Material();
+    res.base = this.base;
+    res.alphaMode = alphaMode;
+    res.textures = this.textures;
+    res.guardInvariants();
+    return res;
+  }
+
   withAmbient(ambient) {
-    return Material.create(this.base.withAmbient(ambient), this.textures);
+    return Material.create(this.base.withAmbient(ambient), this.alphaMode, this.textures);
   }
 
   withDiffuse(diffues) {
-    return Material.create(this.base.withDiffuse(diffues), this.textures);
+    return Material.create(this.base.withDiffuse(diffues), this.alphaMode, this.textures);
   }
 
   withSpecular(specular) {
-    return Material.create(this.base.withSpecular(specular), this.textures);
+    return Material.create(this.base.withSpecular(specular), this.alphaMode, this.textures);
   }
 
   withShininess(shininess) {
-    return Material.create(this.base.withShininess(shininess), this.textures);
+    return Material.create(this.base.withShininess(shininess), this.alphaMode, this.textures);
   }
 
   plusTexture(texture) {
     let res = new Material();
     res.base = this.base;
+    res.alphaMode = this.alphaMode;
     res.textures = Dut.immutableListPlusItem(this.textures, texture);
     res.guardInvariants();
     return res;
@@ -12765,70 +13246,24 @@ class Material {
   toString() {
   }
 
-  static create() {
-    if (arguments.length===2&&arguments[0] instanceof MaterialBase&&arguments[1] instanceof ArrayList) {
-      return Material.create_2_MaterialBase_List(arguments[0], arguments[1]);
-    }
-    else if (arguments.length===1&&arguments[0] instanceof MaterialBase) {
-      return Material.create_1_MaterialBase(arguments[0]);
-    }
-    else if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&& typeof arguments[3]==="number") {
-      return Material.create_4_Rgb_Rgb_Rgb_number(arguments[0], arguments[1], arguments[2], arguments[3]);
-    }
-    else if (arguments.length===5&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&& typeof arguments[3]==="number"&&arguments[4] instanceof TextureAttachment) {
-      return Material.create_5_Rgb_Rgb_Rgb_number_TextureAttachment(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
-    }
-    else if (arguments.length===6&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&& typeof arguments[3]==="number"&&arguments[4] instanceof TextureAttachment&&arguments[5] instanceof TextureAttachment) {
-      return Material.create_6_Rgb_Rgb_Rgb_number_TextureAttachment_TextureAttachment(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5]);
-    }
-    else if (arguments.length===7&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&& typeof arguments[3]==="number"&&arguments[4] instanceof TextureAttachment&&arguments[5] instanceof TextureAttachment&&arguments[6] instanceof TextureAttachment) {
-      return Material.create_7_Rgb_Rgb_Rgb_number_TextureAttachment_TextureAttachment_TextureAttachment(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5], arguments[6]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  static create_2_MaterialBase_List(base, textures) {
+  static create(base, alphaMode, textures) {
     let res = new Material();
     res.base = base;
+    res.alphaMode = alphaMode;
     res.textures = Dut.copyImmutableList(textures);
     res.guardInvariants();
     return res;
   }
 
-  static create_1_MaterialBase(base) {
-    return Material.create(base, Collections.emptyList());
+  static fromBase(base) {
+    return Material.create(base, MaterialAlphaMode.OPAQUE, Collections.emptyList());
   }
 
-  static create_4_Rgb_Rgb_Rgb_number(ambient, diffuse, specular, shininess) {
+  static fromColors(ambient, diffuse, specular, shininess) {
     let res = new Material();
     res.base = MaterialBase.create(ambient, diffuse, specular, shininess);
+    res.alphaMode = MaterialAlphaMode.OPAQUE;
     res.textures = Collections.emptyList();
-    res.guardInvariants();
-    return res;
-  }
-
-  static create_5_Rgb_Rgb_Rgb_number_TextureAttachment(ambient, diffuse, specular, shininess, texture1) {
-    let res = new Material();
-    res.base = MaterialBase.create(ambient, diffuse, specular, shininess);
-    res.textures = Dut.immutableList(texture1);
-    res.guardInvariants();
-    return res;
-  }
-
-  static create_6_Rgb_Rgb_Rgb_number_TextureAttachment_TextureAttachment(ambient, diffuse, specular, shininess, texture1, texture2) {
-    let res = new Material();
-    res.base = MaterialBase.create(ambient, diffuse, specular, shininess);
-    res.textures = Dut.immutableList(texture1, texture2);
-    res.guardInvariants();
-    return res;
-  }
-
-  static create_7_Rgb_Rgb_Rgb_number_TextureAttachment_TextureAttachment_TextureAttachment(ambient, diffuse, specular, shininess, texture1, texture2, texture3) {
-    let res = new Material();
-    res.base = MaterialBase.create(ambient, diffuse, specular, shininess);
-    res.textures = Dut.immutableList(texture1, texture2, texture3);
     res.guardInvariants();
     return res;
   }
@@ -15005,9 +15440,9 @@ class Camera {
   }
 
   lookAt(pos, target, upDir) {
-    let fwd = target.sub(pos).normalize();
-    let side = Vec3.cross(fwd, upDir).normalize();
-    let upfix = Vec3.cross(side, fwd).normalize();
+    let fwd = target.subAndNormalize(pos);
+    let side = Vec3.crossAndNormalize(fwd, upDir);
+    let upfix = Vec3.crossAndNormalize(side, fwd);
     let v = Mat44.create(side.x(), side.y(), side.z(), -side.dot(pos), upfix.x(), upfix.y(), upfix.z(), -upfix.dot(pos), -fwd.x(), -fwd.y(), -fwd.z(), fwd.dot(pos), 0, 0, 0, 1);
     let res = new Camera();
     res.proj = this.proj;
@@ -23647,7 +24082,7 @@ class TapMaterials {
           let style = TextureStyle.create(TextureWrapType.valueOf(reader.readString()), TextureWrapType.valueOf(reader.readString()), Rgba.create(reader.readFloat(), reader.readFloat(), reader.readFloat(), reader.readFloat()), TextureFilterType.valueOf(reader.readString()), TextureFilterType.valueOf(reader.readString()));
           tas.add(TextureAttachment.create(type, id, style));
         }
-        let mat = Material.create(mb, tas);
+        let mat = Material.create(mb, MaterialAlphaMode.OPAQUE, tas);
         return AssetGroup.of(MaterialId.of(entry.getId()), mat);
       }
       finally {
@@ -35167,6 +35602,167 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
+class PlayUis {
+  static ARROW_UP = UiComponentTrait.of("ARROW_UP");
+  static ARROW_DOWN = UiComponentTrait.of("ARROW_DOWN");
+  static ARROW_LEFT = UiComponentTrait.of("ARROW_LEFT");
+  static ARROW_RIGHT = UiComponentTrait.of("ARROW_RIGHT");
+  static BRAKE = UiComponentTrait.of("BRAKE");
+  static PUNCH = UiComponentTrait.of("PUNCH");
+  static WALK_RUN = UiComponentTrait.of("WALK_RUN");
+  constructor() {
+  }
+
+  getClass() {
+    return "PlayUis";
+  }
+
+  static createUiSizeFnc() {
+    return UiSizeFncs.identity();
+  }
+
+  static createDefaultStyler() {
+    let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
+    let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
+    let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
+    let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
+    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-30")).setH2Font(FontId.of("kenny-thick-26")).setH3Font(FontId.of("kenny-thick-24")).setExtraLargeTextFont(FontId.of("kenny-mini-22")).setLargeTextFont(FontId.of("kenny-mini-20")).setMediumTextFont(FontId.of("kenny-mini-18")).setSmallTextFont(FontId.of("kenny-mini-16")).setButtonLabelFont(FontId.of("kenny-mini-18")).setFieldLabelFont(FontId.of("kenny-mini-16")).setFieldValueFont(FontId.of("kenny-mini-16")).setSelectItemTextFont(FontId.of("kenny-mini-18")).setSelectItemHeight(20).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
+  }
+
+  static create916Panel() {
+    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setRegionFnc((t) => {
+  if (t.aspect()>9/16) {
+    return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
+  }
+  else {
+    return Rect2.create(0, 0, t.width(), t.height());
+  }
+});
+  }
+
+  static createExitButton(action) {
+    return Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
+  }
+
+  static createPauseButton(action) {
+    return Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
+  }
+
+}
+classRegistry.PlayUis = PlayUis;
+class GamePad extends UiComponent {
+  leftJoystick;
+  rightJoystick;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "GamePad";
+  }
+
+  guardInvariants() {
+  }
+
+  getLeftDir() {
+    return this.leftJoystick.getDir();
+  }
+
+  getRightDir() {
+    return this.rightJoystick.getDir();
+  }
+
+  init(container) {
+    this.leftJoystick.init(container);
+    this.rightJoystick.init(container);
+  }
+
+  move(dt) {
+    this.leftJoystick.move(dt);
+    this.rightJoystick.move(dt);
+  }
+
+  draw(painter) {
+    this.leftJoystick.draw(painter);
+    this.rightJoystick.draw(painter);
+  }
+
+  onContainerResize(size) {
+    this.leftJoystick.onContainerResize(size);
+    this.rightJoystick.onContainerResize(size);
+  }
+
+  onTouchStart(id, pos, size) {
+    this.leftJoystick.onTouchStart(id, pos, size);
+    this.rightJoystick.onTouchStart(id, pos, size);
+    return false;
+  }
+
+  onTouchMove(id, pos, size) {
+    this.leftJoystick.onTouchMove(id, pos, size);
+    this.rightJoystick.onTouchMove(id, pos, size);
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    this.leftJoystick.onTouchEnd(id, pos, size, cancel);
+    this.rightJoystick.onTouchEnd(id, pos, size, cancel);
+    return false;
+  }
+
+  onKeyPressed(key) {
+    this.leftJoystick.onKeyPressed(key);
+    this.rightJoystick.onKeyPressed(key);
+    return false;
+  }
+
+  onKeyReleased(key) {
+    this.leftJoystick.onKeyReleased(key);
+    this.rightJoystick.onKeyReleased(key);
+    return false;
+  }
+
+  toString() {
+  }
+
+  static create(drivers) {
+    let res = new GamePad();
+    res.leftJoystick = Joystick.create().setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h30 = s.height()*0.3;
+    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h5, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h2, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("W"), KeyCodeMatchers.upperCharacter("S"), KeyCodeMatchers.upperCharacter("A"), KeyCodeMatchers.upperCharacter("D"));
+    res.rightJoystick = Joystick.create().setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h30 = s.height()*0.3;
+    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(s.width()-h5-size, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(s.width()-h2-size, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("I"), KeyCodeMatchers.upperCharacter("K"), KeyCodeMatchers.upperCharacter("J"), KeyCodeMatchers.upperCharacter("L"));
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.GamePad = GamePad;
 class BoxMeshFactory {
   constructor() {
   }
@@ -35231,56 +35827,237 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp01 extends TyracornApp {
-  box1 = MeshId.of("box1");
-  box2 = MeshId.of("box2");
-  box3 = MeshId.of("box3");
-  boxT = MeshId.of("boxT");
+class FreeCameraBehavior extends Behavior {
+  moveDirInput = "moveDir";
+  rotDirInput = "rotDir";
+  moveSpeed = 3;
+  rotSpeed = 1;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FreeCameraBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt, inputs) {
+    let moveDir = inputs.getVec2(this.moveDirInput, Vec2.ZERO);
+    let rotDir = inputs.getVec2(this.rotDirInput, Vec2.ZERO);
+    let tc = this.actor().getComponent("TransformComponent");
+    let rot = tc.getRot();
+    if (!moveDir.equals(Vec2.ZERO)) {
+      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize().scale(moveDir.y()*this.moveSpeed*dt);
+      let right = rot.rotate(Vec3.create(1, 0, 0)).normalize().scale(moveDir.x()*this.moveSpeed*dt);
+      tc.move(fwd.add(right));
+    }
+    if (!rotDir.equals(Vec2.ZERO)) {
+      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize();
+      let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
+      let rotX = FMath.asin(fwd.y())+rotDir.y()*this.rotSpeed*dt;
+      let rotY = (fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y()))-rotDir.x()*this.rotSpeed*dt;
+      let rx = Quaternion.rot(1, 0, 0, rotX);
+      let ry = Quaternion.rot(0, 1, 0, rotY);
+      tc.setRot(ry.mul(rx));
+    }
+  }
+
+  static create() {
+    if (arguments.length===1&&arguments[0] instanceof ComponentKey) {
+      return FreeCameraBehavior.create_1_ComponentKey(arguments[0]);
+    }
+    else if (arguments.length===5&&arguments[0] instanceof ComponentKey&& typeof arguments[1]==="string"&& typeof arguments[2]==="string"&& typeof arguments[3]==="number"&& typeof arguments[4]==="number") {
+      return FreeCameraBehavior.create_5_ComponentKey_string_string_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  static create_1_ComponentKey(key) {
+    let res = new FreeCameraBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_5_ComponentKey_string_string_number_number(key, moveDirInput, rotDirInput, moveSpeed, rotSpeed) {
+    let res = new FreeCameraBehavior(key);
+    res.moveDirInput = moveDirInput;
+    res.rotDirInput = rotDirInput;
+    res.moveSpeed = moveSpeed;
+    res.rotSpeed = rotSpeed;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FreeCameraBehavior = FreeCameraBehavior;
+class RotationBehavior extends Behavior {
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "RotationBehavior";
+  }
+
+  move(dt, inputs) {
+    let tx = this.actor().getComponent("TransformComponent");
+    let x = inputs.getFloat("x", 0);
+    let y = inputs.getFloat("y", 0);
+    let z = inputs.getFloat("z", 0);
+    tx.rotate(dt, Vec3.create(x, y, z));
+  }
+
+  static create(key) {
+    return new RotationBehavior(key);
+  }
+
+}
+classRegistry.RotationBehavior = RotationBehavior;
+class RigidBodyApp01 extends TyracornScreen {
   time = 0;
+  world;
+  inputs = InputCache.create();
+  ui;
+  gamePad;
+  paused = false;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp01";
+    return "RigidBodyApp01";
   }
 
-  move(drivers, dt) {
+  move(drivers, screenManager, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
-    let aspect = gDriver.getScreenViewport().getAspect();
-    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
-    let m = 2*FMath.sin(this.time/3);
-    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 7), Vec3.ZERO, Vec3.create(0, 1, 0));
+    if (this.paused&&this.ui.getNumLayers()==1) {
+      this.ui.pushLayer();
+      this.ui.addComponent(Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setRegionFnc(UiRegionFncs.full()));
+      let menuPanel = Panel.create().setRegionFnc(UiRegionFncs.center(250, 250));
+      this.ui.addComponent(menuPanel);
+      menuPanel.addComponent(Label.create().addTrait(UiComponentTrait.H1).setAlignment(TextAlignment.CENTER_TOP).setPosFnc(UiPosFncs.centerTop(40)).setText("Pause"));
+      menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(100, 150, 30)).setText("Resume").addOnClickAction((evtSource) => {
+  this.paused = false;
+  this.ui.popLayer();
+}));
+      if (drivers.getPlatform().isExitable()) {
+        menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(150, 150, 30)).setText("Exit").addOnClickAction(UiEventActions.exitApp(screenManager)));
+      }
+    }
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let renderer = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
-    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(-4, 0, -2).mul(Mat44.rotX(this.time/2)));
-    renderer.render(this.box2, Interpolation.ZERO, Mat44.trans(-4, 0, 0).mul(Mat44.rotY(this.time/1)));
-    renderer.render(this.box3, Interpolation.ZERO, Mat44.trans(-4, 0, 2).mul(Mat44.rotZ(this.time/0.4)));
-    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(-2, 0, 0));
-    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(-2, 0, 2), BlendType.ALPHA);
-    renderer.render(this.box2, Interpolation.ZERO, Mat44.trans(0, 0, 0));
-    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(0, 0, 2), BlendType.ADDITIVE);
-    renderer.render(this.box3, Interpolation.ZERO, Mat44.trans(2, 0, 0));
-    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(2, 0, 2), BlendType.MULTIPLICATIVE);
-    renderer.end();
+    if (!this.paused) {
+      this.inputs.put("moveDir", this.gamePad.getLeftDir());
+      this.inputs.put("rotDir", this.gamePad.getRightDir());
+      this.world.move(dt, this.inputs);
+      this.world.render(RenderRequest.NORMAL);
+    }
+    gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
   }
 
-  init(drivers, properties) {
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
-    assets.put(this.box1, BoxMeshFactory.rgbBox(Rgb.RED, Rgb.GREEN, Rgb.BLUE, Rgb.WHITE));
-    assets.put(this.box2, BoxMeshFactory.rgbBox(Rgb.GREEN, Rgb.GREEN, Rgb.create(1, 1, 0), Rgb.BLUE));
-    assets.put(this.box3, BoxMeshFactory.rgbBox(Rgb.create(1, 0, 1), Rgb.GREEN, Rgb.create(0, 1, 1), Rgb.BLUE));
-    assets.put(this.boxT, BoxMeshFactory.rgbaBox(Rgb.WHITE, Rgb.BLUE, Rgb.create(1, 0, 1), Rgb.RED, 0.5));
-    return Collections.emptyList();
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/box-01.tap")));
+    return res;
   }
 
-  close(drivers) {
+  init(drivers, screenManager, properties) {
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30));
+    let boxDiffuse = TextureId.of("tex_box_01_d");
+    let boxSpecular = TextureId.of("tex_box_01_s");
+    assets.put(MaterialId.of("brass"), Material.BRASS);
+    assets.put(MaterialId.of("box"), Material.SILVER.plusTexture(TextureAttachment.diffuse(boxDiffuse)).plusTexture(TextureAttachment.specular(boxSpecular)));
+    assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
+    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("brass"));
+    let groundModelId = ModelId.of("ground");
+    assets.put(groundModelId, groundModel);
+    let boxModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("box"));
+    let boxModelId = ModelId.of("box");
+    assets.put(boxModelId, boxModel);
+    this.world = RigidBodyWorld.create(drivers);
+    let box1 = Actor.create("box-1").setName("box-1").addComponent(TransformComponent.create(ComponentKey.TRANSFORM)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(boxModelId)).addComponent(RotationBehavior.create(ComponentKey.of("ROTATION")));
+    this.world.actors().add(ActorId.ROOT, box1);
+    let box11 = Actor.create("box-1-1").setName("box-1-1").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0.5, 0.5, 0.5))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
+    this.world.actors().add(box1.getId(), box11);
+    let box111 = Actor.create("box-1-1-1").setName("box-1-1-1").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0.25, 0.25, 0.25))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.scale(0.25, 0.25, 0.25)));
+    this.world.actors().add(box11.getId(), box111);
+    let box12 = Actor.create("box-1-2").setName("box-1-2").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-0.5, 0.5, 0.5))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
+    this.world.actors().add(box1.getId(), box12);
+    let box13 = Actor.create("box-1-3").setName("box-1-3").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0.5, 0.5, -0.5))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
+    this.world.actors().add(box1.getId(), box13);
+    let box14 = Actor.create("box-1-4").setName("box-1-4").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-0.5, 0.5, -0.5))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
+    this.world.actors().add(box1.getId(), box14);
+    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(-7, 1, -4), Vec3.create(0.7, 0, 0.4), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
+    this.world.actors().add(ActorId.ROOT, light);
+    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(1, 2, 7), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create(ComponentKey.of("FREE_CAMERA"), "moveDir", "rotDir", 3, 1)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY));
+    this.world.actors().add(ActorId.ROOT, camera);
+    this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
+    this.gamePad = GamePad.create(drivers);
+    this.ui.addComponent(this.gamePad);
+    let xLabel = Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(80, 30)).setText("X-axis").setAlignment(TextAlignment.RIGHT_CENTER);
+    this.ui.addComponent(xLabel);
+    let xVal = Label.create().addTrait(UiComponentTrait.L).setPosFnc(UiPosFncs.leftTop(140, 30)).setText("0.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(xVal);
+    let xMinusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(90, 15, 30, 30)).setText("-").addOnClickAction(this.inputChangeAction(this.inputs, "x", -0.1, xVal));
+    this.ui.addComponent(xMinusBtn);
+    let xPlusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(160, 15, 30, 30)).setText("+").addOnClickAction(this.inputChangeAction(this.inputs, "x", 0.1, xVal));
+    this.ui.addComponent(xPlusBtn);
+    let yLabel = Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(80, 70)).setText("Y-axis").setAlignment(TextAlignment.RIGHT_CENTER);
+    this.ui.addComponent(yLabel);
+    let yVal = Label.create().setPosFnc(UiPosFncs.leftTop(140, 70)).setText("0.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(yVal);
+    let yMinusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(90, 55, 30, 30)).setText("-").addOnClickAction(this.inputChangeAction(this.inputs, "y", -0.1, yVal));
+    this.ui.addComponent(yMinusBtn);
+    let yPlusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(160, 55, 30, 30)).setText("+").addOnClickAction(this.inputChangeAction(this.inputs, "y", 0.1, yVal));
+    this.ui.addComponent(yPlusBtn);
+    let zLabel = Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(80, 110)).setText("Z-axis").setAlignment(TextAlignment.RIGHT_CENTER);
+    this.ui.addComponent(zLabel);
+    let zVal = Label.create().setPosFnc(UiPosFncs.leftTop(140, 110)).setText("0.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(zVal);
+    let zMinusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(90, 95, 30, 30)).setText("-").addOnClickAction(this.inputChangeAction(this.inputs, "z", -0.1, zVal));
+    this.ui.addComponent(zMinusBtn);
+    let zPlusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(160, 95, 30, 30)).setText("+").addOnClickAction(this.inputChangeAction(this.inputs, "z", 0.1, zVal));
+    this.ui.addComponent(zPlusBtn);
+    this.ui.addComponent(PlayUis.createPauseButton((evt) => {
+  this.paused = true;
+}));
+    this.ui.subscribe(drivers);
+    let dlist = InputCacheDisplayListener.create(this.inputs);
+    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
+    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
+  }
+
+  pause(drivers) {
+    this.paused = true;
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+    this.world.destroy(drivers);
+  }
+
+  inputChangeAction(inputs, key, d, label) {
+    return (evtSource) => {
+      let x = inputs.getFloat(key, 0);
+      x = x+d;
+      inputs.put(key, x);
+      label.setText(Formats.floatToFixedDecimals(x, 1));
+    };
   }
 
 }
-classRegistry.BasicApp01 = BasicApp01;
+classRegistry.RigidBodyApp01 = RigidBodyApp01;
 
 
 // -------------------------------------
@@ -35663,7 +36440,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = new BasicApp01();
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new RigidBodyApp01());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
