@@ -7,7 +7,7 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-01";
+const basePath = "/tyracorn-web-examples/basic-app-05";
 const assetsDirName = "/null";
 const localStoragePrefix = "app.";
 let mouseDown = false;
@@ -7002,6 +7002,18 @@ class WebglGraphicsDriver {
         this.renderers.put("SceneRenderer", WebglSceneRenderer.create(this.assetBank, this, sceneShader, this.defaultTexture));
         this.renderers.put("ShadowMapRenderer", WebglShadowMapRenderer.create(this.assetBank, this, shadowMapShader));
         this.renderers.put("UiRenderer", WebglUiRenderer.create(this.assetBank, this, this.spriteRectMesh, spriteShader, this.primitivesMesh, colorShader));
+    }
+
+    /**
+     * Returns graphics driver profile.
+     *
+     * @return {GraphicsDriverProfile} graphics driver profile
+     */
+    getProfile() {
+        const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+        return GraphicsDriverProfile.createMinimal().
+                withMaxTextureSize(maxTextureSize).
+                withMaxShadowMapSize(IMath.min(8192, maxTextureSize));
     }
 
     /**
@@ -22400,6 +22412,64 @@ class MeshAnimationPlayer {
 
 }
 classRegistry.MeshAnimationPlayer = MeshAnimationPlayer;
+class GraphicsDriverProfile {
+  maxTextureSize;
+  maxShadowMapSize;
+  constructor() {
+  }
+
+  getClass() {
+    return "GraphicsDriverProfile";
+  }
+
+  guardInvariants() {
+  }
+
+  getMaxTextureSize() {
+    return this.maxTextureSize;
+  }
+
+  withMaxTextureSize(maxTextureSize) {
+    let res = new GraphicsDriverProfile();
+    res.maxTextureSize = maxTextureSize;
+    res.maxShadowMapSize = this.maxShadowMapSize;
+    res.guardInvariants();
+    return res;
+  }
+
+  getMaxShadowMapSize() {
+    return this.maxShadowMapSize;
+  }
+
+  withMaxShadowMapSize(maxShadowMapSize) {
+    let res = new GraphicsDriverProfile();
+    res.maxTextureSize = this.maxTextureSize;
+    res.maxShadowMapSize = maxShadowMapSize;
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static createMinimal() {
+    let res = new GraphicsDriverProfile();
+    res.maxTextureSize = 2048;
+    res.maxShadowMapSize = 2048;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.GraphicsDriverProfile = GraphicsDriverProfile;
 const createBlendType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -35074,9 +35144,10 @@ class RigidBodyWorld extends World {
     let shadow1 = ShadowBufferId.of("physicsWorld.shadow1");
     let shadow2 = ShadowBufferId.of("physicsWorld.shadow2");
     let shadow3 = ShadowBufferId.of("physicsWorld.shadow3");
-    res.assetManager.put(shadow1, ShadowBuffer.create(2048, 2048));
-    res.assetManager.put(shadow2, ShadowBuffer.create(2048, 2048));
-    res.assetManager.put(shadow3, ShadowBuffer.create(2048, 2048));
+    let shadowMapSize = res.gDriver.getProfile().getMaxShadowMapSize();
+    res.assetManager.put(shadow1, ShadowBuffer.create(shadowMapSize, shadowMapSize));
+    res.assetManager.put(shadow2, ShadowBuffer.create(shadowMapSize, shadowMapSize));
+    res.assetManager.put(shadow3, ShadowBuffer.create(shadowMapSize, shadowMapSize));
     res.shadowBuffersIds = Dut.immutableList(shadow1, shadow2, shadow3);
     res.modelAabbs = ModelAabbs.calculateAllModelAabbs(res.assetManager);
     res.guardInvariants();
@@ -35666,48 +35737,127 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp01 extends TyracornApp {
-  box1 = MeshId.of("box1");
-  box2 = MeshId.of("box2");
-  box3 = MeshId.of("box3");
-  boxT = MeshId.of("boxT");
+class BasicApp05 extends TyracornApp {
+  box = MeshId.of("box");
+  whiteBox = MeshId.of("white-box");
+  shadow1 = ShadowBufferId.of("shadow1");
+  shadow2 = ShadowBufferId.of("shadow2");
+  shadow3 = ShadowBufferId.of("shadow3");
   time = 0;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp01";
+    return "BasicApp05";
   }
 
   move(drivers, dt) {
+    let dirLightEnabled = true;
+    let spotLight1Enabled = true;
+    let spotLight2Enabled = true;
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
     let aspect = gDriver.getScreenViewport().getAspect();
     let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
     let m = 2*FMath.sin(this.time/3);
-    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 7), Vec3.ZERO, Vec3.create(0, 1, 0));
+    let cam = Camera.persp(fovy, aspect, 0.1, 1000.0).lookAt(Vec3.create(m, 2, 7), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0));
+    let dirLightColor = LightColor.create(Rgb.gray(0.4), Rgb.gray(0.6), Rgb.gray(0.6));
+    let dirLightDir = Vec3.create(0.2*FMath.cos(this.time/4), -1, 0.4).normalize();
+    let dirLightPos = Vec3.create(0, 5, 0);
+    let dirLightShadowMap = ShadowMap.createDirCircle(this.shadow1, dirLightPos, dirLightDir, 20, 10);
+    let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
+    let spotLight1Pos = Vec3.create(0, 2, 0);
+    let spotLight1Dir = Vec3.create(0.4+m, -1, -0.2).normalize();
+    let spotLight1Color = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
+    let spotLight1Cone = LightCone.create(FMath.PI/9, FMath.PI/6);
+    let spotLight1ShadowMap = ShadowMap.createSpot(this.shadow2, spotLight1Pos, spotLight1Dir, spotLight1Cone.getOutTheta(), 1, 8);
+    let spotLight1 = Light.spotQuadratic(spotLight1Color, spotLight1Pos, spotLight1Dir, 8, spotLight1Cone, spotLight1ShadowMap);
+    let spotLight2Pos = Vec3.create(0, 2, 0);
+    let spotLight2Dir = Vec3.create(0.4, -1, -0.2+m/2).normalize();
+    let spotLight2Color = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
+    let spotLight2Cone = LightCone.create(FMath.PI/9, FMath.PI/6);
+    let spotLight2ShadowMap = ShadowMap.createSpot(this.shadow3, spotLight2Pos, spotLight2Dir, spotLight2Cone.getOutTheta(), 1, 8);
+    let spotLight2 = Light.spotQuadratic(spotLight2Color, spotLight2Pos, spotLight2Dir, 8, spotLight2Cone, spotLight2ShadowMap);
+    let smapRndr = null;
+    if (dirLightEnabled) {
+      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3), Material.BLACK);
+      smapRndr.end();
+    }
+    if (spotLight1Enabled) {
+      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight1));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3), Material.BLACK);
+      smapRndr.end();
+    }
+    if (spotLight2Enabled) {
+      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight2));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3), Material.BLACK);
+      smapRndr.end();
+    }
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let renderer = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
-    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(-4, 0, -2).mul(Mat44.rotX(this.time/2)));
-    renderer.render(this.box2, Interpolation.ZERO, Mat44.trans(-4, 0, 0).mul(Mat44.rotY(this.time/1)));
-    renderer.render(this.box3, Interpolation.ZERO, Mat44.trans(-4, 0, 2).mul(Mat44.rotZ(this.time/0.4)));
-    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(-2, 0, 0));
-    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(-2, 0, 2), BlendType.ALPHA);
-    renderer.render(this.box2, Interpolation.ZERO, Mat44.trans(0, 0, 0));
-    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(0, 0, 2), BlendType.ADDITIVE);
-    renderer.render(this.box3, Interpolation.ZERO, Mat44.trans(2, 0, 0));
-    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(2, 0, 2), BlendType.MULTIPLICATIVE);
-    renderer.end();
+    let lights = new ArrayList();
+    if (dirLightEnabled) {
+      lights.add(dirLight);
+    }
+    if (spotLight1Enabled) {
+      lights.add(spotLight1);
+    }
+    if (spotLight2Enabled) {
+      lights.add(spotLight2);
+    }
+    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, lights));
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.WHITE_PLASTIC.withAmbient(Rgb.gray(0.3)));
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3), Material.GOLD);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3), Material.SILVER);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3), Material.COPPER);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0), Material.GOLD);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.SILVER);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0), Material.COPPER);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3), Material.GOLD);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3), Material.SILVER);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3), Material.WHITE_PLASTIC);
+    objRnderer.end();
+    let crndr = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
+    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight1.getPos()).mul(Mat44.scale(0.05)));
+    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight2.getPos()).mul(Mat44.scale(0.05)));
+    crndr.end();
   }
 
   init(drivers, properties) {
     let assets = drivers.getDriver("AssetManager");
-    assets.put(this.box1, BoxMeshFactory.rgbBox(Rgb.RED, Rgb.GREEN, Rgb.BLUE, Rgb.WHITE));
-    assets.put(this.box2, BoxMeshFactory.rgbBox(Rgb.GREEN, Rgb.GREEN, Rgb.create(1, 1, 0), Rgb.BLUE));
-    assets.put(this.box3, BoxMeshFactory.rgbBox(Rgb.create(1, 0, 1), Rgb.GREEN, Rgb.create(0, 1, 1), Rgb.BLUE));
-    assets.put(this.boxT, BoxMeshFactory.rgbaBox(Rgb.WHITE, Rgb.BLUE, Rgb.create(1, 0, 1), Rgb.RED, 0.5));
+    assets.put(this.box, BoxMeshFactory.fabricBox());
+    assets.put(this.whiteBox, BoxMeshFactory.rgbBox(1, 1, 1));
+    assets.put(this.shadow1, ShadowBuffer.create(4096, 4096));
+    assets.put(this.shadow2, ShadowBuffer.create(4096, 4096));
+    assets.put(this.shadow3, ShadowBuffer.create(4096, 4096));
     return Collections.emptyList();
   }
 
@@ -35715,7 +35865,7 @@ class BasicApp01 extends TyracornApp {
   }
 
 }
-classRegistry.BasicApp01 = BasicApp01;
+classRegistry.BasicApp05 = BasicApp05;
 
 
 // -------------------------------------
@@ -36098,7 +36248,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = new BasicApp01();
+    tyracornApp = new BasicApp05();
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

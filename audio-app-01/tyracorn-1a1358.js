@@ -7005,6 +7005,18 @@ class WebglGraphicsDriver {
     }
 
     /**
+     * Returns graphics driver profile.
+     *
+     * @return {GraphicsDriverProfile} graphics driver profile
+     */
+    getProfile() {
+        const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+        return GraphicsDriverProfile.createMinimal().
+                withMaxTextureSize(maxTextureSize).
+                withMaxShadowMapSize(IMath.min(8192, maxTextureSize));
+    }
+
+    /**
      * Returns current screen viewport.
      */
     getScreenViewport() {
@@ -22400,6 +22412,64 @@ class MeshAnimationPlayer {
 
 }
 classRegistry.MeshAnimationPlayer = MeshAnimationPlayer;
+class GraphicsDriverProfile {
+  maxTextureSize;
+  maxShadowMapSize;
+  constructor() {
+  }
+
+  getClass() {
+    return "GraphicsDriverProfile";
+  }
+
+  guardInvariants() {
+  }
+
+  getMaxTextureSize() {
+    return this.maxTextureSize;
+  }
+
+  withMaxTextureSize(maxTextureSize) {
+    let res = new GraphicsDriverProfile();
+    res.maxTextureSize = maxTextureSize;
+    res.maxShadowMapSize = this.maxShadowMapSize;
+    res.guardInvariants();
+    return res;
+  }
+
+  getMaxShadowMapSize() {
+    return this.maxShadowMapSize;
+  }
+
+  withMaxShadowMapSize(maxShadowMapSize) {
+    let res = new GraphicsDriverProfile();
+    res.maxTextureSize = this.maxTextureSize;
+    res.maxShadowMapSize = maxShadowMapSize;
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static createMinimal() {
+    let res = new GraphicsDriverProfile();
+    res.maxTextureSize = 2048;
+    res.maxShadowMapSize = 2048;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.GraphicsDriverProfile = GraphicsDriverProfile;
 const createBlendType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -35074,9 +35144,10 @@ class RigidBodyWorld extends World {
     let shadow1 = ShadowBufferId.of("physicsWorld.shadow1");
     let shadow2 = ShadowBufferId.of("physicsWorld.shadow2");
     let shadow3 = ShadowBufferId.of("physicsWorld.shadow3");
-    res.assetManager.put(shadow1, ShadowBuffer.create(2048, 2048));
-    res.assetManager.put(shadow2, ShadowBuffer.create(2048, 2048));
-    res.assetManager.put(shadow3, ShadowBuffer.create(2048, 2048));
+    let shadowMapSize = res.gDriver.getProfile().getMaxShadowMapSize();
+    res.assetManager.put(shadow1, ShadowBuffer.create(shadowMapSize, shadowMapSize));
+    res.assetManager.put(shadow2, ShadowBuffer.create(shadowMapSize, shadowMapSize));
+    res.assetManager.put(shadow3, ShadowBuffer.create(shadowMapSize, shadowMapSize));
     res.shadowBuffersIds = Dut.immutableList(shadow1, shadow2, shadow3);
     res.modelAabbs = ModelAabbs.calculateAllModelAabbs(res.assetManager);
     res.guardInvariants();
