@@ -8,7 +8,7 @@ let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
 const basePath = "/tyracorn-web-examples/showpark";
-const assetsDirName = "/assets-c378b7";
+const assetsDirName = "/assets-fe8c94";
 const localStoragePrefix = "showpark.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -40735,6 +40735,83 @@ class CharacterState {
 
 }
 classRegistry.CharacterState = CharacterState;
+class Combat2AudienceBehavior extends Behavior {
+  animationPlayer;
+  model;
+  gameMaster;
+  gameState;
+  audio;
+  animation = null;
+  animationLifetime = 0;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "Combat2AudienceBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.model = this.actor().getComponent("ModelComponent");
+    let animCol = this.world().assets().get("MeshAnimationCollection", MeshAnimationCollectionId.of(this.model.getModelId().id()));
+    this.chooseNextAction();
+    this.animationPlayer = MeshAnimationPlayer.create(animCol, this.animation);
+  }
+
+  move(dt, inputs) {
+    this.animationLifetime = this.animationLifetime-dt;
+    if (this.animationLifetime<=0||this.animationPlayer.isEnd()) {
+      this.chooseNextAction();
+      this.animationPlayer.play(this.animation, MeshAnimationPlayConfig.RESTART);
+    }
+    let step = this.animationPlayer.move(dt);
+    this.model.setInterpolation(step.getInterpolation());
+    this.model.setPose(step.getPose());
+  }
+
+  lateMove(dt, inputs) {
+  }
+
+  onMessage(type, message) {
+    if (type.equals(WorldActors.GAME_STATE_MESSAGE_TYPE)) {
+      this.gameState = message;
+    }
+  }
+
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  chooseNextAction() {
+    let rnd = Randoms.nextFloat(0, 0.9);
+    if (rnd>0.75) {
+      this.animation = MeshAnimationKey.of("idle-talking");
+    }
+    else if (rnd>0.5) {
+      this.animation = MeshAnimationKey.of("idle-look-around");
+    }
+    else if (rnd>0.25) {
+      this.animation = MeshAnimationKey.of("dance");
+    }
+    else {
+      this.animation = MeshAnimationKey.of("idle");
+    }
+    this.animationLifetime = Randoms.nextFloat(3, 5);
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new Combat2AudienceBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.Combat2AudienceBehavior = Combat2AudienceBehavior;
 class Combat2BaseFighterBehavior extends Behavior {
   character;
   animationPlayer;
