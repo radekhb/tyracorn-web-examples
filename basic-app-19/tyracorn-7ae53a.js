@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-01";
-const assetsDirName = "/null";
+const basePath = "/tyracorn-web-examples/basic-app-19";
+const assetsDirName = "/assets-a6126a";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -23591,7 +23591,9 @@ class Assets {
           }
           else if (type.equals("TEXTURE_THRES_ALPHA")) {
             let thres = Float.valueOf(taskJson.getString("thres"));
-            res = res.transform("Texture", t->{returnt.thresAlpha(thres);});
+            res = res.transform("Texture", (t) => {
+  return t.thresAlpha(thres);
+});
           }
           else if (type.equals("TEXTURE_FORMAT")) {
             let format = TextureFormat.valueOf(taskJson.getString("format"));
@@ -35791,6 +35793,234 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
+class PlayUis {
+  static ARROW_UP = UiComponentTrait.of("ARROW_UP");
+  static ARROW_DOWN = UiComponentTrait.of("ARROW_DOWN");
+  static ARROW_LEFT = UiComponentTrait.of("ARROW_LEFT");
+  static ARROW_RIGHT = UiComponentTrait.of("ARROW_RIGHT");
+  static BRAKE = UiComponentTrait.of("BRAKE");
+  static PUNCH = UiComponentTrait.of("PUNCH");
+  static WALK_RUN = UiComponentTrait.of("WALK_RUN");
+  constructor() {
+  }
+
+  getClass() {
+    return "PlayUis";
+  }
+
+  static createUiSizeFnc() {
+    return UiSizeFncs.identity();
+  }
+
+  static createDefaultStyler() {
+    let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
+    let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
+    let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
+    let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
+    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-30")).setH2Font(FontId.of("kenny-thick-26")).setH3Font(FontId.of("kenny-thick-24")).setExtraLargeTextFont(FontId.of("kenny-mini-22")).setLargeTextFont(FontId.of("kenny-mini-20")).setMediumTextFont(FontId.of("kenny-mini-18")).setSmallTextFont(FontId.of("kenny-mini-16")).setButtonLabelFont(FontId.of("kenny-mini-18")).setFieldLabelFont(FontId.of("kenny-mini-16")).setFieldValueFont(FontId.of("kenny-mini-16")).setSelectItemTextFont(FontId.of("kenny-mini-18")).setSelectItemHeight(20).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
+  }
+
+  static create916Panel() {
+    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setRegionFnc((t) => {
+  if (t.aspect()>9/16) {
+    return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
+  }
+  else {
+    return Rect2.create(0, 0, t.width(), t.height());
+  }
+});
+  }
+
+  static createExitButton(action) {
+    return Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
+  }
+
+  static createPauseButton(action) {
+    return Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
+  }
+
+}
+classRegistry.PlayUis = PlayUis;
+class GamePad extends UiComponent {
+  leftJoystick;
+  rightJoystick;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "GamePad";
+  }
+
+  guardInvariants() {
+  }
+
+  getLeftDir() {
+    return this.leftJoystick.getDir();
+  }
+
+  getRightDir() {
+    return this.rightJoystick.getDir();
+  }
+
+  init(container) {
+    this.leftJoystick.init(container);
+    this.rightJoystick.init(container);
+  }
+
+  move(dt) {
+    this.leftJoystick.move(dt);
+    this.rightJoystick.move(dt);
+  }
+
+  draw(painter) {
+    this.leftJoystick.draw(painter);
+    this.rightJoystick.draw(painter);
+  }
+
+  onContainerResize(size) {
+    this.leftJoystick.onContainerResize(size);
+    this.rightJoystick.onContainerResize(size);
+  }
+
+  onTouchStart(id, pos, size) {
+    this.leftJoystick.onTouchStart(id, pos, size);
+    this.rightJoystick.onTouchStart(id, pos, size);
+    return false;
+  }
+
+  onTouchMove(id, pos, size) {
+    this.leftJoystick.onTouchMove(id, pos, size);
+    this.rightJoystick.onTouchMove(id, pos, size);
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    this.leftJoystick.onTouchEnd(id, pos, size, cancel);
+    this.rightJoystick.onTouchEnd(id, pos, size, cancel);
+    return false;
+  }
+
+  onKeyPressed(key) {
+    this.leftJoystick.onKeyPressed(key);
+    this.rightJoystick.onKeyPressed(key);
+    return false;
+  }
+
+  onKeyReleased(key) {
+    this.leftJoystick.onKeyReleased(key);
+    this.rightJoystick.onKeyReleased(key);
+    return false;
+  }
+
+  toString() {
+  }
+
+  static create(drivers) {
+    let res = new GamePad();
+    res.leftJoystick = Joystick.create().setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h30 = s.height()*0.3;
+    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h5, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h2, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("W"), KeyCodeMatchers.upperCharacter("S"), KeyCodeMatchers.upperCharacter("A"), KeyCodeMatchers.upperCharacter("D"));
+    res.rightJoystick = Joystick.create().setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h30 = s.height()*0.3;
+    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(s.width()-h5-size, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(s.width()-h2-size, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("I"), KeyCodeMatchers.upperCharacter("K"), KeyCodeMatchers.upperCharacter("J"), KeyCodeMatchers.upperCharacter("L"));
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.GamePad = GamePad;
+class FreeCameraBehavior extends Behavior {
+  moveDirInput = "moveDir";
+  rotDirInput = "rotDir";
+  moveSpeed = 3;
+  rotSpeed = 1;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FreeCameraBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt, inputs) {
+    let moveDir = inputs.getVec2(this.moveDirInput, Vec2.ZERO);
+    let rotDir = inputs.getVec2(this.rotDirInput, Vec2.ZERO);
+    let tc = this.actor().getComponent("TransformComponent");
+    let rot = tc.getRot();
+    if (!moveDir.equals(Vec2.ZERO)) {
+      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize().scale(moveDir.y()*this.moveSpeed*dt);
+      let right = rot.rotate(Vec3.create(1, 0, 0)).normalize().scale(moveDir.x()*this.moveSpeed*dt);
+      tc.move(fwd.add(right));
+    }
+    if (!rotDir.equals(Vec2.ZERO)) {
+      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize();
+      let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
+      let rotX = FMath.asin(fwd.y())+rotDir.y()*this.rotSpeed*dt;
+      let rotY = (fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y()))-rotDir.x()*this.rotSpeed*dt;
+      let rx = Quaternion.rot(1, 0, 0, rotX);
+      let ry = Quaternion.rot(0, 1, 0, rotY);
+      tc.setRot(ry.mul(rx));
+    }
+  }
+
+  static create() {
+    if (arguments.length===1&&arguments[0] instanceof ComponentKey) {
+      return FreeCameraBehavior.create_1_ComponentKey(arguments[0]);
+    }
+    else if (arguments.length===5&&arguments[0] instanceof ComponentKey&& typeof arguments[1]==="string"&& typeof arguments[2]==="string"&& typeof arguments[3]==="number"&& typeof arguments[4]==="number") {
+      return FreeCameraBehavior.create_5_ComponentKey_string_string_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  static create_1_ComponentKey(key) {
+    let res = new FreeCameraBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_5_ComponentKey_string_string_number_number(key, moveDirInput, rotDirInput, moveSpeed, rotSpeed) {
+    let res = new FreeCameraBehavior(key);
+    res.moveDirInput = moveDirInput;
+    res.rotDirInput = rotDirInput;
+    res.moveSpeed = moveSpeed;
+    res.rotSpeed = rotSpeed;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FreeCameraBehavior = FreeCameraBehavior;
 class BoxMeshFactory {
   constructor() {
   }
@@ -35855,56 +36085,361 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp01 extends TyracornApp {
-  box1 = MeshId.of("box1");
-  box2 = MeshId.of("box2");
-  box3 = MeshId.of("box3");
-  boxT = MeshId.of("boxT");
+const createBillboardOrientation = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const BillboardOrientation = Object.freeze({
+  CAMERA_FACING: createBillboardOrientation("CAMERA_FACING"),
+  CAMERA_FACING_VERTICAL: createBillboardOrientation("CAMERA_FACING_VERTICAL"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class BillboardComponent extends Behavior {
+  orientation = BillboardOrientation.CAMERA_FACING;
+  transform;
+  cameraTransform;
+  camera;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "BillboardComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.world().actors().forEach(ActorId.ROOT, (a) => {
+  let cc = a.getComponentNonStrict("CameraComponent");
+  if (cc!=null) {
+    Guard.beNull(this.camera, "only single camera is supported at the moment");
+    this.camera = cc;
+    this.cameraTransform = a.getComponent("TransformComponent");
+  }
+});
+  }
+
+  lateMove(dt, inputs) {
+    if (this.orientation.equals(BillboardOrientation.CAMERA_FACING)) {
+      let cameraPos = this.cameraTransform.getPos();
+      let rot = this.getLookAtRotation(cameraPos, Vec3.UP);
+      this.transform.setRot(rot);
+    }
+    else if (this.orientation.equals(BillboardOrientation.CAMERA_FACING_VERTICAL)) {
+      let cameraPos = this.cameraTransform.getPos().withY(this.transform.getPos().y());
+      let rot = this.getLookAtRotation(cameraPos, Vec3.UP);
+      this.transform.setRot(rot);
+    }
+    else {
+      throw new Error("unsupported billboard orientation: "+this.orientation);
+    }
+  }
+
+  setOrientation(orientation) {
+    Guard.notNull(orientation, "orientation cannot be null");
+    this.orientation = orientation;
+    return this;
+  }
+
+  getLookAtRotation(target, upDir) {
+    let fwd = target.subAndNormalize(this.transform.getPos());
+    let rotX = -FMath.asin(fwd.y());
+    let rotY = FMath.atan2(fwd.x(), fwd.z());
+    return Quaternion.rotY(rotY).mul(Quaternion.rotX(rotX));
+  }
+
+  static create(key) {
+    let res = new BillboardComponent(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.BillboardComponent = BillboardComponent;
+class FireParticleComponent extends Behavior {
+  transform;
+  cameraTransform;
+  camera;
   time = 0;
+  lifetime = 1;
+  velocity = Vec3.ZERO;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FireParticleComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.world().actors().forEach(ActorId.ROOT, (a) => {
+  let cc = a.getComponentNonStrict("CameraComponent");
+  if (cc!=null) {
+    Guard.beNull(this.camera, "only single camera is supported at the moment");
+    this.camera = cc;
+    this.cameraTransform = a.getComponent("TransformComponent");
+  }
+});
+  }
+
+  move(dt, inputs) {
+    this.lifetime = this.lifetime-dt;
+    this.time = this.time+dt;
+    if (this.lifetime<=0) {
+      this.world().actors().remove(this.actor().getId());
+    }
+    this.transform.move(this.velocity.scale(dt));
+    if (this.time>0.8) {
+      this.actor().getComponent("ModelComponent").setModelId(ModelId.of("fire2"));
+    }
+  }
+
+  lateMove(dt, inputs) {
+    let cameraPos = this.cameraTransform.getPos();
+    this.transform.setRot(this.getLookAtRotation(cameraPos, Vec3.UP));
+  }
+
+  setLifetime(lifetime) {
+    this.lifetime = lifetime;
+    return this;
+  }
+
+  setVelocity(velocity) {
+    Guard.notNull(velocity, "velocity cannot be null");
+    this.velocity = velocity;
+    return this;
+  }
+
+  getLookAtRotation(target, upDir) {
+    let fwd = target.subAndNormalize(this.transform.getPos());
+    let rotX = -FMath.asin(fwd.y());
+    let rotY = FMath.atan2(fwd.x(), fwd.z());
+    return Quaternion.rotY(rotY).mul(Quaternion.rotX(rotX));
+  }
+
+  static create(key) {
+    let res = new FireParticleComponent(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FireParticleComponent = FireParticleComponent;
+class FireEmitterComponent extends Behavior {
+  transform;
+  rpGenerator;
+  pps = 100;
+  tReminder = 0;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FireEmitterComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.rpGenerator = this.actor().getComponent("RpGeneratorComponent");
+  }
+
+  move(dt, inputs) {
+    let emitTime = dt+this.tReminder;
+    let numEmit = FMath.trunc(emitTime*this.pps);
+    this.tReminder = emitTime-(numEmit/this.pps);
+    for (let i = 0; i<numEmit; ++i) {
+      this.world().actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("tyracorn-billboard").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(this.rpGenerator.nextPoint())).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(ModelId.of("fire1")).setTransform(Mat44.scale(0.05))).addComponent(FireParticleComponent.create(ComponentKey.random()).setLifetime(Randoms.nextFloat(0.5, 1)).setVelocity(Vec3.create(Randoms.nextFloat(-0.15, 0.15), Randoms.nextFloat(0.3, 1), Randoms.nextFloat(-0.15, 0.15)))));
+    }
+  }
+
+  static create(key) {
+    let res = new FireEmitterComponent(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FireEmitterComponent = FireEmitterComponent;
+class BasicApp19 extends TyracornScreen {
+  time = 0;
+  world;
+  inputs = InputCache.create();
+  ui;
+  gamePad;
+  paused = false;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp01";
+    return "BasicApp19";
   }
 
-  move(drivers, dt) {
+  move(drivers, screenManager, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
-    let aspect = gDriver.getScreenViewport().getAspect();
-    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
-    let m = 2*FMath.sin(this.time/3);
-    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 7), Vec3.ZERO, Vec3.create(0, 1, 0));
+    if (this.paused&&this.ui.getNumLayers()==1) {
+      this.ui.pushLayer();
+      this.ui.addComponent(Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setRegionFnc(UiRegionFncs.full()));
+      let menuPanel = Panel.create().setRegionFnc(UiRegionFncs.center(250, 250));
+      this.ui.addComponent(menuPanel);
+      menuPanel.addComponent(Label.create().addTrait(UiComponentTrait.H1).setAlignment(TextAlignment.CENTER_TOP).setPosFnc(UiPosFncs.centerTop(40)).setText("Pause"));
+      menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(100, 150, 30)).setText("Resume").addOnClickAction((evtSource) => {
+  this.paused = false;
+  this.ui.popLayer();
+}));
+      if (drivers.getPlatform().isExitable()) {
+        menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(150, 150, 30)).setText("Exit").addOnClickAction(UiEventActions.exitApp(screenManager)));
+      }
+    }
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let renderer = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
-    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(-4, 0, -2).mul(Mat44.rotX(this.time/2)));
-    renderer.render(this.box2, Interpolation.ZERO, Mat44.trans(-4, 0, 0).mul(Mat44.rotY(this.time/1)));
-    renderer.render(this.box3, Interpolation.ZERO, Mat44.trans(-4, 0, 2).mul(Mat44.rotZ(this.time/0.4)));
-    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(-2, 0, 0));
-    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(-2, 0, 2), BlendType.ALPHA);
-    renderer.render(this.box2, Interpolation.ZERO, Mat44.trans(0, 0, 0));
-    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(0, 0, 2), BlendType.ADDITIVE);
-    renderer.render(this.box3, Interpolation.ZERO, Mat44.trans(2, 0, 0));
-    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(2, 0, 2), BlendType.MULTIPLICATIVE);
-    renderer.end();
+    if (!this.paused) {
+      this.inputs.put("moveDir", this.gamePad.getLeftDir());
+      this.inputs.put("rotDir", this.gamePad.getRightDir());
+      this.world.move(dt, this.inputs);
+    }
+    this.world.render(RenderRequest.NORMAL);
+    gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
   }
 
-  init(drivers, properties) {
+  load(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    assets.put(this.box1, BoxMeshFactory.rgbBox(Rgb.RED, Rgb.GREEN, Rgb.BLUE, Rgb.WHITE));
-    assets.put(this.box2, BoxMeshFactory.rgbBox(Rgb.GREEN, Rgb.GREEN, Rgb.create(1, 1, 0), Rgb.BLUE));
-    assets.put(this.box3, BoxMeshFactory.rgbBox(Rgb.create(1, 0, 1), Rgb.GREEN, Rgb.create(0, 1, 1), Rgb.BLUE));
-    assets.put(this.boxT, BoxMeshFactory.rgbaBox(Rgb.WHITE, Rgb.BLUE, Rgb.create(1, 0, 1), Rgb.RED, 0.5));
-    return Collections.emptyList();
+    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/primitives.tap")), assets.resolveAsync(Path.of("asset:packages/particles.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")));
   }
 
-  close(drivers) {
+  init(drivers, screenManager, properties) {
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 30));
+    let tyracornTextureId = TextureId.of("tyracorn");
+    let transparentTex1Id = TextureId.of("transparent-texture-1");
+    let transparentTex1 = Texture.rgbaFloatValues(4, 4, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5);
+    let transparentTex2Id = TextureId.of("transparent-texture-2");
+    let transparentTex2 = Texture.rgbaFloatValues(4, 4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4);
+    assets.put(transparentTex1Id, transparentTex1);
+    assets.put(transparentTex2Id, transparentTex2);
+    assets.put(MaterialId.of("brass"), Material.BRASS);
+    assets.put(MaterialId.of("copper"), Material.COPPER);
+    assets.put(MaterialId.of("gold"), Material.GOLD);
+    assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
+    assets.put(MeshId.of("billboard"), this.createBillboardMesh());
+    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
+    let groundModelId = ModelId.of("ground");
+    assets.put(groundModelId, groundModel);
+    assets.put(MaterialId.of("tyracorn-mask"), Material.BLACK.withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.diffuse(TextureId.of("stone-1-diff"))).plusTexture(TextureAttachment.diffuse(tyracornTextureId)));
+    let tyracornBillboard = Model.simple(MeshId.of("billboard"), MaterialId.of("tyracorn-mask"));
+    let tyracornBillboarModelId = ModelId.of("tyracorn-billboard");
+    assets.put(tyracornBillboarModelId, tyracornBillboard);
+    assets.put(MaterialId.of("fire1"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-1"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-1"))));
+    let fire1Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire1"));
+    let fire1ModelId = ModelId.of("fire1");
+    assets.put(fire1ModelId, fire1Model);
+    assets.put(MaterialId.of("fire2"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-2"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-2"))));
+    let fire2Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire2"));
+    let fire2ModelId = ModelId.of("fire2");
+    assets.put(fire2ModelId, fire2Model);
+    assets.put(MaterialId.of("fire3"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-3"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-3"))));
+    let fire3Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire3"));
+    let fire3ModelId = ModelId.of("fire3");
+    assets.put(fire3ModelId, fire3Model);
+    assets.put(MaterialId.of("fire4"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-4"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-4"))));
+    let fire4Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire4"));
+    let fire4ModelId = ModelId.of("fire4");
+    assets.put(fire4ModelId, fire4Model);
+    this.world = RigidBodyWorld.create(drivers);
+    let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create(ComponentKey.WORLD).setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-30, -30, -30, 30, 30, 30)));
+    this.world.actors().add(ActorId.ROOT, worldActor);
+    let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create(ComponentKey.TRANSFORM)).addComponent(SkyboxComponent.create(ComponentKey.SKYBOX).setModelId(ModelId.of("skybox-1")).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create(ComponentKey.AUTO_ROTATE).setAngularVelocity(Vec3.create(0, 0.1, 0)));
+    this.world.actors().add(ActorId.ROOT, skybox);
+    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(20, 1, 20))));
+    this.world.actors().add(ActorId.ROOT, ground);
+    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(4, 10, 10), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE).setDirShadowMapStrategy(DirShadowMapStrategy.createManual(80, 80, 0, 20)));
+    this.world.actors().add(ActorId.ROOT, light);
+    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 4, 5), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create(ComponentKey.random(), "moveDir", "rotDir", 5, 1)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY));
+    this.world.actors().add(ActorId.ROOT, camera);
+    this.world.actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("tyracorn-billboard").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-3, 0.5, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(tyracornBillboarModelId).setTransform(Mat44.trans(0, 0, 0))).addComponent(BillboardComponent.create(ComponentKey.random()).setOrientation(BillboardOrientation.CAMERA_FACING)));
+    this.world.actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("tyracorn-billboard").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0.5, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(tyracornBillboarModelId).setTransform(Mat44.trans(0, 0, 0))).addComponent(BillboardComponent.create(ComponentKey.random()).setOrientation(BillboardOrientation.CAMERA_FACING_VERTICAL)));
+    this.world.actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("fire").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(3, 0, 0))).addComponent(RpGeneratorComponent.create(ComponentKey.random()).setShape(RpGeneratorShape.BOX).setSize(0.25, 0.01, 0.05)).addComponent(FireEmitterComponent.create(ComponentKey.random())));
+    this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
+    this.gamePad = GamePad.create(drivers);
+    this.ui.addComponent(this.gamePad);
+    this.ui.addComponent(Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction((evt) => {
+  this.paused = true;
+}));
+    this.ui.subscribe(drivers);
+    let dlist = InputCacheDisplayListener.create(this.inputs);
+    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
+    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
+  }
+
+  pause(drivers) {
+    this.paused = true;
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+    this.world.destroy(drivers);
+  }
+
+  createBillboardMesh() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, 0, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, 0, 0, 0, -1, 1, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7))).toMesh();
+    return res;
   }
 
 }
-classRegistry.BasicApp01 = BasicApp01;
+classRegistry.BasicApp19 = BasicApp19;
 
 
 // -------------------------------------
@@ -36287,7 +36822,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = new BasicApp01();
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp19());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

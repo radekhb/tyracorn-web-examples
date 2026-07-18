@@ -23591,7 +23591,9 @@ class Assets {
           }
           else if (type.equals("TEXTURE_THRES_ALPHA")) {
             let thres = Float.valueOf(taskJson.getString("thres"));
-            res = res.transform("Texture", t->{returnt.thresAlpha(thres);});
+            res = res.transform("Texture", (t) => {
+  return t.thresAlpha(thres);
+});
           }
           else if (type.equals("TEXTURE_FORMAT")) {
             let format = TextureFormat.valueOf(taskJson.getString("format"));
