@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-19";
-const assetsDirName = "/assets-a6126a";
+const basePath = "/tyracorn-web-examples/rigid-body-app-03";
+const assetsDirName = "/assets-3d362e";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -25512,6 +25512,30 @@ class KeyCodeMatchers {
     };
   }
 
+  static arrowUp() {
+    return (keyCode) => {
+      return keyCode.isArrowUp();
+    };
+  }
+
+  static arrowDown() {
+    return (keyCode) => {
+      return keyCode.isArrowDown();
+    };
+  }
+
+  static arrowLeft() {
+    return (keyCode) => {
+      return keyCode.isArrowLeft();
+    };
+  }
+
+  static arrowRigh() {
+    return (keyCode) => {
+      return keyCode.isArrowRight();
+    };
+  }
+
   static arrowUpOrW() {
     return (keyCode) => {
       return keyCode.isArrowUp()||keyCode.getUpperCharacter().equals("W");
@@ -35997,6 +36021,70 @@ class GamePad extends UiComponent {
 
 }
 classRegistry.GamePad = GamePad;
+class BoxMeshFactory {
+  constructor() {
+  }
+
+  getClass() {
+    return "BoxMeshFactory";
+  }
+
+  static rgbBox() {
+    if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&&arguments[3] instanceof Rgb) {
+      return BoxMeshFactory.rgbBox_4_Rgb_Rgb_Rgb_Rgb(arguments[0], arguments[1], arguments[2], arguments[3]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static rgbBox_3_number_number_number(r, g, b) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static rgbaBox(c1, c2, c3, c4, a) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static fabricBox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.fabric(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static modelBox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static modelSkybox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, -1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22))).toMesh();
+    return res;
+  }
+
+  static modelBoxDeformed1() {
+    let en = Vec2.create(1, -1).normalize();
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static modelBoxDeformed2() {
+    let en = Vec2.create(-1, -1).normalize();
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.floatValues(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+}
+classRegistry.BoxMeshFactory = BoxMeshFactory;
 class FreeCameraBehavior extends Behavior {
   moveDirInput = "moveDir";
   rotDirInput = "rotDir";
@@ -36064,295 +36152,7 @@ class FreeCameraBehavior extends Behavior {
 
 }
 classRegistry.FreeCameraBehavior = FreeCameraBehavior;
-class BoxMeshFactory {
-  constructor() {
-  }
-
-  getClass() {
-    return "BoxMeshFactory";
-  }
-
-  static rgbBox() {
-    if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&&arguments[3] instanceof Rgb) {
-      return BoxMeshFactory.rgbBox_4_Rgb_Rgb_Rgb_Rgb(arguments[0], arguments[1], arguments[2], arguments[3]);
-    }
-    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
-      return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static rgbBox_3_number_number_number(r, g, b) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static rgbaBox(c1, c2, c3, c4, a) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static fabricBox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.fabric(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelBox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelSkybox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, -1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22))).toMesh();
-    return res;
-  }
-
-  static modelBoxDeformed1() {
-    let en = Vec2.create(1, -1).normalize();
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelBoxDeformed2() {
-    let en = Vec2.create(-1, -1).normalize();
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.floatValues(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-}
-classRegistry.BoxMeshFactory = BoxMeshFactory;
-const createBillboardOrientation = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const BillboardOrientation = Object.freeze({
-  CAMERA_FACING: createBillboardOrientation("CAMERA_FACING"),
-  CAMERA_FACING_VERTICAL: createBillboardOrientation("CAMERA_FACING_VERTICAL"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class BillboardComponent extends Behavior {
-  orientation = BillboardOrientation.CAMERA_FACING;
-  transform;
-  cameraTransform;
-  camera;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "BillboardComponent";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.transform = this.actor().getComponent("TransformComponent");
-    this.world().actors().forEach(ActorId.ROOT, (a) => {
-  let cc = a.getComponentNonStrict("CameraComponent");
-  if (cc!=null) {
-    Guard.beNull(this.camera, "only single camera is supported at the moment");
-    this.camera = cc;
-    this.cameraTransform = a.getComponent("TransformComponent");
-  }
-});
-  }
-
-  lateMove(dt, inputs) {
-    if (this.orientation.equals(BillboardOrientation.CAMERA_FACING)) {
-      let cameraPos = this.cameraTransform.getPos();
-      let rot = this.getLookAtRotation(cameraPos, Vec3.UP);
-      this.transform.setRot(rot);
-    }
-    else if (this.orientation.equals(BillboardOrientation.CAMERA_FACING_VERTICAL)) {
-      let cameraPos = this.cameraTransform.getPos().withY(this.transform.getPos().y());
-      let rot = this.getLookAtRotation(cameraPos, Vec3.UP);
-      this.transform.setRot(rot);
-    }
-    else {
-      throw new Error("unsupported billboard orientation: "+this.orientation);
-    }
-  }
-
-  setOrientation(orientation) {
-    Guard.notNull(orientation, "orientation cannot be null");
-    this.orientation = orientation;
-    return this;
-  }
-
-  getLookAtRotation(target, upDir) {
-    let fwd = target.subAndNormalize(this.transform.getPos());
-    let rotX = -FMath.asin(fwd.y());
-    let rotY = FMath.atan2(fwd.x(), fwd.z());
-    return Quaternion.rotY(rotY).mul(Quaternion.rotX(rotX));
-  }
-
-  static create(key) {
-    let res = new BillboardComponent(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.BillboardComponent = BillboardComponent;
-class FireParticleComponent extends Behavior {
-  transform;
-  cameraTransform;
-  camera;
-  time = 0;
-  lifetime = 1;
-  velocity = Vec3.ZERO;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "FireParticleComponent";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.transform = this.actor().getComponent("TransformComponent");
-    this.world().actors().forEach(ActorId.ROOT, (a) => {
-  let cc = a.getComponentNonStrict("CameraComponent");
-  if (cc!=null) {
-    Guard.beNull(this.camera, "only single camera is supported at the moment");
-    this.camera = cc;
-    this.cameraTransform = a.getComponent("TransformComponent");
-  }
-});
-  }
-
-  move(dt, inputs) {
-    this.lifetime = this.lifetime-dt;
-    this.time = this.time+dt;
-    if (this.lifetime<=0) {
-      this.world().actors().remove(this.actor().getId());
-    }
-    this.transform.move(this.velocity.scale(dt));
-    if (this.time>0.8) {
-      this.actor().getComponent("ModelComponent").setModelId(ModelId.of("fire2"));
-    }
-  }
-
-  lateMove(dt, inputs) {
-    let cameraPos = this.cameraTransform.getPos();
-    this.transform.setRot(this.getLookAtRotation(cameraPos, Vec3.UP));
-  }
-
-  setLifetime(lifetime) {
-    this.lifetime = lifetime;
-    return this;
-  }
-
-  setVelocity(velocity) {
-    Guard.notNull(velocity, "velocity cannot be null");
-    this.velocity = velocity;
-    return this;
-  }
-
-  getLookAtRotation(target, upDir) {
-    let fwd = target.subAndNormalize(this.transform.getPos());
-    let rotX = -FMath.asin(fwd.y());
-    let rotY = FMath.atan2(fwd.x(), fwd.z());
-    return Quaternion.rotY(rotY).mul(Quaternion.rotX(rotX));
-  }
-
-  static create(key) {
-    let res = new FireParticleComponent(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FireParticleComponent = FireParticleComponent;
-class FireEmitterComponent extends Behavior {
-  transform;
-  rpGenerator;
-  pps = 100;
-  tReminder = 0;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "FireEmitterComponent";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.transform = this.actor().getComponent("TransformComponent");
-    this.rpGenerator = this.actor().getComponent("RpGeneratorComponent");
-  }
-
-  move(dt, inputs) {
-    let emitTime = dt+this.tReminder;
-    let numEmit = FMath.trunc(emitTime*this.pps);
-    this.tReminder = emitTime-(numEmit/this.pps);
-    for (let i = 0; i<numEmit; ++i) {
-      this.world().actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("tyracorn-billboard").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(this.rpGenerator.nextPoint())).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(ModelId.of("fire1")).setTransform(Mat44.scale(0.05))).addComponent(FireParticleComponent.create(ComponentKey.random()).setLifetime(Randoms.nextFloat(0.5, 1)).setVelocity(Vec3.create(Randoms.nextFloat(-0.15, 0.15), Randoms.nextFloat(0.3, 1), Randoms.nextFloat(-0.15, 0.15)))));
-    }
-  }
-
-  static create(key) {
-    let res = new FireEmitterComponent(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FireEmitterComponent = FireEmitterComponent;
-class BasicApp19 extends TyracornScreen {
+class RigidBodyApp03 extends TyracornScreen {
   time = 0;
   world;
   inputs = InputCache.create();
@@ -36364,7 +36164,7 @@ class BasicApp19 extends TyracornScreen {
   }
 
   getClass() {
-    return "BasicApp19";
+    return "RigidBodyApp03";
   }
 
   move(drivers, screenManager, dt) {
@@ -36400,65 +36200,77 @@ class BasicApp19 extends TyracornScreen {
 
   load(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/primitives.tap")), assets.resolveAsync(Path.of("asset:packages/particles.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")));
+    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/primitives.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")));
   }
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
     Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 30));
-    let tyracornTextureId = TextureId.of("tyracorn");
-    let transparentTex1Id = TextureId.of("transparent-texture-1");
-    let transparentTex1 = Texture.rgbaFloatValues(4, 4, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5);
-    let transparentTex2Id = TextureId.of("transparent-texture-2");
-    let transparentTex2 = Texture.rgbaFloatValues(4, 4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4);
-    assets.put(transparentTex1Id, transparentTex1);
-    assets.put(transparentTex2Id, transparentTex2);
     assets.put(MaterialId.of("brass"), Material.BRASS);
     assets.put(MaterialId.of("copper"), Material.COPPER);
-    assets.put(MaterialId.of("gold"), Material.GOLD);
     assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
-    assets.put(MeshId.of("billboard"), this.createBillboardMesh());
-    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
+    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("brass"));
     let groundModelId = ModelId.of("ground");
     assets.put(groundModelId, groundModel);
-    assets.put(MaterialId.of("tyracorn-mask"), Material.BLACK.withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.diffuse(TextureId.of("stone-1-diff"))).plusTexture(TextureAttachment.diffuse(tyracornTextureId)));
-    let tyracornBillboard = Model.simple(MeshId.of("billboard"), MaterialId.of("tyracorn-mask"));
-    let tyracornBillboarModelId = ModelId.of("tyracorn-billboard");
-    assets.put(tyracornBillboarModelId, tyracornBillboard);
-    assets.put(MaterialId.of("fire1"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-1"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-1"))));
-    let fire1Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire1"));
-    let fire1ModelId = ModelId.of("fire1");
-    assets.put(fire1ModelId, fire1Model);
-    assets.put(MaterialId.of("fire2"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-2"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-2"))));
-    let fire2Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire2"));
-    let fire2ModelId = ModelId.of("fire2");
-    assets.put(fire2ModelId, fire2Model);
-    assets.put(MaterialId.of("fire3"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-3"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-3"))));
-    let fire3Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire3"));
-    let fire3ModelId = ModelId.of("fire3");
-    assets.put(fire3ModelId, fire3Model);
-    assets.put(MaterialId.of("fire4"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-4"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-4"))));
-    let fire4Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire4"));
-    let fire4ModelId = ModelId.of("fire4");
-    assets.put(fire4ModelId, fire4Model);
+    let sphereModelId = ModelId.of("sphere");
+    let boxModelId = ModelId.of("box");
+    let cylinderRoundModelId = ModelId.of("cylinder-round");
+    let halfSphereModelId = ModelId.of("half-sphere");
+    let boxModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
+    assets.put(boxModelId, boxModel);
+    const wallColMatId = PhysicalMaterialId.of("wall");
+    assets.put(wallColMatId, PhysicalMaterial.simple(0.6, 1.8, 1.8));
+    const objectColMatId = PhysicalMaterialId.of("object");
+    assets.put(objectColMatId, PhysicalMaterial.create(0.6, PhysicalMaterialCombineType.AVG, 18, 18, PhysicalMaterialCombineType.MAX));
     this.world = RigidBodyWorld.create(drivers);
     let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create(ComponentKey.WORLD).setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-30, -30, -30, 30, 30, 30)));
     this.world.actors().add(ActorId.ROOT, worldActor);
     let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create(ComponentKey.TRANSFORM)).addComponent(SkyboxComponent.create(ComponentKey.SKYBOX).setModelId(ModelId.of("skybox-1")).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create(ComponentKey.AUTO_ROTATE).setAngularVelocity(Vec3.create(0, 0.1, 0)));
     this.world.actors().add(ActorId.ROOT, skybox);
-    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(20, 1, 20))));
+    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(20, 1, 20)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 2, 22)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
     this.world.actors().add(ActorId.ROOT, ground);
-    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(4, 10, 10), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE).setDirShadowMapStrategy(DirShadowMapStrategy.createManual(80, 80, 0, 20)));
+    let back = Actor.create("back").setName("back").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, -10))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(22, 1, 7)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 7, 1)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, back);
+    let front = Actor.create("front").setName("front").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 10))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(22, 1, 7)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 7, 1)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, front);
+    let left = Actor.create("left").setName("left").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-10, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 22, 7)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 22)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, left);
+    let right = Actor.create("right").setName("right").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(10, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 22, 7)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 22)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, right);
+    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(5, 12.5, 12.5), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
     this.world.actors().add(ActorId.ROOT, light);
-    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 4, 5), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create(ComponentKey.random(), "moveDir", "rotDir", 5, 1)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY));
+    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create(ComponentKey.of("FREE_CAMERA"), "moveDir", "rotDir", 5, 1)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY));
     this.world.actors().add(ActorId.ROOT, camera);
-    this.world.actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("tyracorn-billboard").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-3, 0.5, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(tyracornBillboarModelId).setTransform(Mat44.trans(0, 0, 0))).addComponent(BillboardComponent.create(ComponentKey.random()).setOrientation(BillboardOrientation.CAMERA_FACING)));
-    this.world.actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("tyracorn-billboard").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0.5, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(tyracornBillboarModelId).setTransform(Mat44.trans(0, 0, 0))).addComponent(BillboardComponent.create(ComponentKey.random()).setOrientation(BillboardOrientation.CAMERA_FACING_VERTICAL)));
-    this.world.actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("fire").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(3, 0, 0))).addComponent(RpGeneratorComponent.create(ComponentKey.random()).setShape(RpGeneratorShape.BOX).setSize(0.25, 0.01, 0.05)).addComponent(FireEmitterComponent.create(ComponentKey.random())));
     this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
     this.gamePad = GamePad.create(drivers);
     this.ui.addComponent(this.gamePad);
-    this.ui.addComponent(Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction((evt) => {
+    let addSphereAct = (evtSource) => {
+      let r = Randoms.nextFloat(0.5, 1.5);
+      let m = Randoms.nextFloat(1, 2);
+      let sphere = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create(ComponentKey.REMOVE_ON_OUTSPACE)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(m).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(objectColMatId));
+      this.world.actors().add(ActorId.ROOT, sphere);
+    };
+    let sphereBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(10, 10, 120, 30)).setText("Sphere").addOnClickAction(addSphereAct);
+    this.ui.addComponent(sphereBtn);
+    let addBoxAct = (evtSource) => {
+      let box = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create(ComponentKey.REMOVE_ON_OUTSPACE)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(1).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId));
+      this.world.actors().add(ActorId.ROOT, box);
+    };
+    let boxBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(10, 50, 120, 30)).setText("Box").addOnClickAction(addBoxAct);
+    this.ui.addComponent(boxBtn);
+    let addBoxStraightAct = (evtSource) => {
+      let box = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 12, 0))).addComponent(RemoveOnOutspaceComponent.create(ComponentKey.REMOVE_ON_OUTSPACE)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(1)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId));
+      this.world.actors().add(ActorId.ROOT, box);
+    };
+    let boxStraightBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(10, 90, 120, 30)).setText("Box Straight").addOnClickAction(addBoxStraightAct);
+    this.ui.addComponent(boxStraightBtn);
+    let addCapsuleAct = (evtSource) => {
+      let capsule = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create(ComponentKey.REMOVE_ON_OUTSPACE)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(cylinderRoundModelId).setTransform(Mat44.rotX(FMath.PI/2).mul(Mat44.scale(1, 1, 1)))).addComponent(ModelComponent.create(ComponentKey.MODEL_2).setModelId(halfSphereModelId).setTransform(Mat44.trans(0, 1, 0).mul(Mat44.rotX(FMath.PI/2)))).addComponent(ModelComponent.create(ComponentKey.MODEL_3).setModelId(halfSphereModelId).setTransform(Mat44.trans(0, -1, 0).mul(Mat44.rotX(-FMath.PI/2)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(1).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.CAPSULE).setRadius(1).setHeight(4).setMaterialId(objectColMatId));
+      this.world.actors().add(ActorId.ROOT, capsule);
+    };
+    let capsuleBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(10, 130, 120, 30)).setText("Capsule").addOnClickAction(addCapsuleAct);
+    this.ui.addComponent(capsuleBtn);
+    this.ui.addComponent(PlayUis.createPauseButton((evt) => {
   this.paused = true;
 }));
     this.ui.subscribe(drivers);
@@ -36476,13 +36288,15 @@ class BasicApp19 extends TyracornScreen {
     this.world.destroy(drivers);
   }
 
-  createBillboardMesh() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, 0, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, 0, 0, 0, -1, 1, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7))).toMesh();
-    return res;
+  getRandomVelocity() {
+    let vx = Randoms.nextFloat(0, 2)-1;
+    let vy = Randoms.nextFloat(0, 2)-1;
+    let vz = Randoms.nextFloat(0, 2)-1;
+    return Vec3.create(vx, vy, vz);
   }
 
 }
-classRegistry.BasicApp19 = BasicApp19;
+classRegistry.RigidBodyApp03 = RigidBodyApp03;
 
 
 // -------------------------------------
@@ -36865,7 +36679,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp19());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new RigidBodyApp03());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
