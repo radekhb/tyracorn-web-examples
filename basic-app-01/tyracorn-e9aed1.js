@@ -8754,6 +8754,23 @@ class Vec3 {
     return this.mX*vec.mX+this.mY*vec.mY+this.mZ*vec.mZ;
   }
 
+  cross(b) {
+    return Vec3.create(this.mY*b.mZ-this.mZ*b.mY, this.mZ*b.mX-this.mX*b.mZ, this.mX*b.mY-this.mY*b.mX);
+  }
+
+  crossAndNormalize(b) {
+    let xx = this.mY*b.mZ-this.mZ*b.mY;
+    let yy = this.mZ*b.mX-this.mX*b.mZ;
+    let zz = this.mX*b.mY-this.mY*b.mX;
+    let m = FMath.sqrt(xx*xx+yy*yy+zz*zz);
+    return Vec3.create(xx/m, yy/m, zz/m);
+  }
+
+  interpolate(b, t) {
+    let ti = 1-t;
+    return Vec3.create(ti*this.mX+t*b.mX, ti*this.mY+t*b.mY, ti*this.mZ+t*b.mZ);
+  }
+
   dist(vec) {
     let dx = this.mX-vec.mX;
     let dy = this.mY-vec.mY;
@@ -8820,23 +8837,6 @@ class Vec3 {
     res.mY = a;
     res.mZ = a;
     return res;
-  }
-
-  static cross(a, b) {
-    return Vec3.create(a.mY*b.mZ-a.mZ*b.mY, a.mZ*b.mX-a.mX*b.mZ, a.mX*b.mY-a.mY*b.mX);
-  }
-
-  static crossAndNormalize(a, b) {
-    let x = a.mY*b.mZ-a.mZ*b.mY;
-    let y = a.mZ*b.mX-a.mX*b.mZ;
-    let z = a.mX*b.mY-a.mY*b.mX;
-    let m = FMath.sqrt(x*x+y*y+z*z);
-    return Vec3.create(x/m, y/m, z/m);
-  }
-
-  static interpolate(a, b, t) {
-    let ti = 1-t;
-    return Vec3.create(ti*a.mX+t*b.mX, ti*a.mY+t*b.mY, ti*a.mZ+t*b.mZ);
   }
 
 }
@@ -10617,6 +10617,21 @@ class Quaternion {
     return res;
   }
 
+  interpolate(b, t) {
+    let ti = 1-t;
+    return Quaternion.create(ti*this.mA+t*b.mA, ti*this.mB+t*b.mB, ti*this.mC+t*b.mC, ti*this.mD+t*b.mD);
+  }
+
+  interpolateAndNormalize(b, t) {
+    let ti = 1-t;
+    let aa = ti*this.mA+t*b.mA;
+    let bb = ti*this.mB+t*b.mB;
+    let cc = ti*this.mC+t*b.mC;
+    let dd = ti*this.mD+t*b.mD;
+    let m = FMath.sqrt(aa*aa+bb*bb+cc*cc+dd*dd);
+    return Quaternion.create(aa/m, bb/m, cc/m, dd/m);
+  }
+
   rotate(pt) {
     let pq = Quaternion.create(0, pt.x(), pt.y(), pt.z());
     let r = this.mul(pq.mul(this.conj()));
@@ -10686,11 +10701,6 @@ class Quaternion {
 
   static rotZ(theta) {
     return Quaternion.rot(0, 0, 1, theta);
-  }
-
-  static interpolate(a, b, t) {
-    let ti = 1-t;
-    return Quaternion.create(ti*a.mA+t*b.mA, ti*a.mB+t*b.mB, ti*a.mC+t*b.mC, ti*a.mD+t*b.mD);
   }
 
 }
@@ -15257,9 +15267,9 @@ class ShadowMap {
 
   static perp(v) {
     v = v.normalize();
-    let h1 = Vec3.cross(Vec3.create(1, 0, 0), v);
-    let h2 = Vec3.cross(Vec3.create(0, 1, 0), v);
-    let h3 = Vec3.cross(Vec3.create(0, 0, 1), v);
+    let h1 = Vec3.RIGHT.cross(v);
+    let h2 = Vec3.UP.cross(v);
+    let h3 = Vec3.FORWARD.cross(v);
     let m1 = h1.mag();
     let m2 = h2.mag();
     let m3 = h3.mag();
@@ -15516,8 +15526,8 @@ class Camera {
 
   lookAt(pos, target, upDir) {
     let fwd = target.subAndNormalize(pos);
-    let side = Vec3.crossAndNormalize(fwd, upDir);
-    let upfix = Vec3.crossAndNormalize(side, fwd);
+    let side = fwd.crossAndNormalize(upDir);
+    let upfix = side.crossAndNormalize(fwd);
     let v = Mat44.create(side.x(), side.y(), side.z(), -side.dot(pos), upfix.x(), upfix.y(), upfix.z(), -upfix.dot(pos), -fwd.x(), -fwd.y(), -fwd.z(), fwd.dot(pos), 0, 0, 0, 1);
     let res = new Camera();
     res.proj = this.proj;
@@ -21656,7 +21666,7 @@ class ArmaturePoseTrackChannel {
       }
     }
     let t = (time-start.getTime(this.ticksPerSecond))/(end.getTime(this.ticksPerSecond)-start.getTime(this.ticksPerSecond));
-    return Vec3.interpolate(start.getValue(), end.getValue(), t);
+    return start.getValue().interpolate(end.getValue(), t);
   }
 
   getRotation(time) {
@@ -21679,7 +21689,7 @@ class ArmaturePoseTrackChannel {
       }
     }
     let t = (time-start.getTime(this.ticksPerSecond))/(end.getTime(this.ticksPerSecond)-start.getTime(this.ticksPerSecond));
-    return Quaternion.interpolate(start.getValue(), end.getValue(), t).normalize();
+    return start.getValue().interpolateAndNormalize(end.getValue(), t);
   }
 
   getScaling(time) {
@@ -21702,7 +21712,7 @@ class ArmaturePoseTrackChannel {
       }
     }
     let t = (time-start.getTime(this.ticksPerSecond))/(end.getTime(this.ticksPerSecond)-start.getTime(this.ticksPerSecond));
-    return Vec3.interpolate(start.getValue(), end.getValue(), t);
+    return start.getValue().interpolate(end.getValue(), t);
   }
 
   hashCode() {
@@ -28405,17 +28415,17 @@ class CameraControllerComponent extends Behavior {
       if (this.mode.equals(CameraControlMode.ISOMETRIC)) {
         let targetPos = this.world().actors().get(this.targetId).getComponent("TransformComponent").toGlobal(Vec3.ZERO);
         let newWantedPos = targetPos.add(this.posOffset);
-        newPos = Vec3.interpolate(this.cameraPos, newWantedPos, this.posK);
+        newPos = this.cameraPos.interpolate(newWantedPos, this.posK);
         let newWantedLookAt = targetPos.add(this.lookAtOffset);
         let projectedLookAt = Geometry3.projectToLine(this.cameraPos, this.cameraLookAt.subAndNormalize(this.cameraPos), newWantedLookAt);
-        newLookAt = Vec3.interpolate(projectedLookAt, newWantedLookAt, this.lookAtK);
+        newLookAt = projectedLookAt.interpolate(newWantedLookAt, this.lookAtK);
       }
       else if (this.mode.equals(CameraControlMode.THIRD_PERSON)) {
         let newWantedPos = this.world().actors().get(this.targetId).getComponent("TransformComponent").toGlobal(this.posOffset);
-        newPos = Vec3.interpolate(this.cameraPos, newWantedPos, this.posK);
+        newPos = this.cameraPos.interpolate(newWantedPos, this.posK);
         let newWantedLookAt = this.world().actors().get(this.targetId).getComponent("TransformComponent").toGlobal(this.lookAtOffset);
         let projectedLookAt = Geometry3.projectToLine(this.cameraPos, this.cameraLookAt.subAndNormalize(this.cameraPos), newWantedLookAt);
-        newLookAt = Vec3.interpolate(projectedLookAt, newWantedLookAt, this.lookAtK);
+        newLookAt = projectedLookAt.interpolate(newWantedLookAt, this.lookAtK);
       }
       else {
         throw new Error("unsupported camera mode: "+this.mode);
@@ -29290,7 +29300,7 @@ class RigidBodyComponent extends Component {
       return this.velocity;
     }
     let r = point.sub(this.transform.getPos());
-    let c = Vec3.cross(this.angularVelocity, r);
+    let c = this.angularVelocity.cross(r);
     return this.velocity.add(c);
   }
 
@@ -29303,7 +29313,7 @@ class RigidBodyComponent extends Component {
       return ;
     }
     let r = pos.sub(this.transform.getPos());
-    this.torqueAccum = this.torqueAccum.add(Vec3.cross(r, f));
+    this.torqueAccum = this.torqueAccum.add(r.cross(f));
   }
 
   applyTorque(t) {
@@ -29322,9 +29332,9 @@ class RigidBodyComponent extends Component {
       return mef;
     }
     let applyR = impulsePos.sub(this.transform.getPos());
-    let angveldif = this.getInverseInertia().mul(Vec3.cross(applyR, impulse));
+    let angveldif = this.getInverseInertia().mul(applyR.cross(impulse));
     let targetR = targetPos.sub(this.transform.getPos());
-    let ref = Vec3.cross(angveldif, targetR);
+    let ref = angveldif.cross(targetR);
     return mef.add(ref);
   }
 
@@ -29337,7 +29347,7 @@ class RigidBodyComponent extends Component {
       return ;
     }
     let r = pos.sub(this.transform.getPos());
-    this.angularVelocity = this.angularVelocity.add(this.getInverseInertia().mul(Vec3.cross(r, im)));
+    this.angularVelocity = this.angularVelocity.add(this.getInverseInertia().mul(r.cross(im)));
   }
 
   getTorqueImpulseEffect(tim) {
@@ -31884,7 +31894,7 @@ class CollisionGeometry {
   static edgeEdgeContactPoint(aCenter, a1, a2, b1, b2, bShift, maxSep, maxPen, parThres) {
     let adir = a2.subAndNormalize(a1);
     let bdir = b2.subAndNormalize(b1);
-    let n = Vec3.cross(adir, bdir);
+    let n = adir.cross(bdir);
     if (n.sqrMag()<parThres) {
       return null;
     }
@@ -33221,7 +33231,7 @@ class ContactPoint {
     else {
       res.tangent1 = Vec3.create(0, normal.z(), -normal.y()).normalize();
     }
-    res.tangent2 = Vec3.cross(normal, res.tangent1);
+    res.tangent2 = normal.cross(res.tangent1);
     res.depth = depth;
     res.guardInvariants();
     return res;
@@ -33370,7 +33380,7 @@ class CapsuleCapsuleCollisions {
   }
 
   static isCollision(capsuleA, capsuleB, error, parallelError) {
-    let n = Vec3.cross(capsuleA.getDir(), capsuleB.getDir());
+    let n = capsuleA.getDir().cross(capsuleB.getDir());
     if (n.sqrMag()<parallelError) {
       let p1 = CollisionGeometry.lineSegmentClosest(capsuleA.getPivot1(), capsuleA.getPivot2(), capsuleB.getPivot1());
       let dst1 = p1.dist(capsuleB.getPivot1());
@@ -33391,8 +33401,8 @@ class CapsuleCapsuleCollisions {
     }
     else {
       n = n.normalize();
-      let n1 = Vec3.cross(capsuleA.getDir(), n);
-      let n2 = Vec3.cross(capsuleB.getDir(), n);
+      let n1 = capsuleA.getDir().cross(n);
+      let n2 = capsuleB.getDir().cross(n);
       let t1 = capsuleB.getPivot1().sub(capsuleA.getPivot1()).dot(n2)/capsuleA.getDir().dot(n2);
       let t2 = capsuleA.getPivot1().sub(capsuleB.getPivot1()).dot(n1)/capsuleB.getDir().dot(n1);
       let p1 = capsuleA.getPivot1().add(capsuleA.getDir().scale(t1));
@@ -33421,7 +33431,7 @@ class CapsuleCapsuleCollisions {
   }
 
   static getContactPoints(capsuleA, capsuleB, error, parallelError) {
-    let n = Vec3.cross(capsuleA.getDir(), capsuleB.getDir());
+    let n = capsuleA.getDir().cross(capsuleB.getDir());
     if (n.sqrMag()<parallelError) {
       let p1 = CollisionGeometry.lineSegmentClosest(capsuleA.getPivot1(), capsuleA.getPivot2(), capsuleB.getPivot1());
       let dst1 = p1.dist(capsuleB.getPivot1());
@@ -33471,8 +33481,8 @@ class CapsuleCapsuleCollisions {
     }
     else {
       n = n.normalize();
-      let n1 = Vec3.cross(capsuleA.getDir(), n);
-      let n2 = Vec3.cross(capsuleB.getDir(), n);
+      let n1 = capsuleA.getDir().cross(n);
+      let n2 = capsuleB.getDir().cross(n);
       let t1 = capsuleB.getPivot1().sub(capsuleA.getPivot1()).dot(n2)/capsuleA.getDir().dot(n2);
       let t2 = capsuleA.getPivot1().sub(capsuleB.getPivot1()).dot(n1)/capsuleB.getDir().dot(n1);
       let p1 = capsuleA.getPivot1().add(capsuleA.getDir().scale(t1));
@@ -33687,7 +33697,7 @@ class BoxBoxSat {
       this.normal = null;
       return ;
     }
-    testedDir = Vec3.cross(v1.getUx(), v2.getUx());
+    testedDir = v1.getUx().cross(v2.getUx());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33695,7 +33705,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUx(), v2.getUy());
+    testedDir = v1.getUx().cross(v2.getUy());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33703,7 +33713,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUx(), v2.getUz());
+    testedDir = v1.getUx().cross(v2.getUz());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33711,7 +33721,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUy(), v2.getUx());
+    testedDir = v1.getUy().cross(v2.getUx());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33719,7 +33729,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUy(), v2.getUy());
+    testedDir = v1.getUy().cross(v2.getUy());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33727,7 +33737,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUy(), v2.getUz());
+    testedDir = v1.getUy().cross(v2.getUz());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33735,7 +33745,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUz(), v2.getUx());
+    testedDir = v1.getUz().cross(v2.getUx());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33743,7 +33753,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUz(), v2.getUy());
+    testedDir = v1.getUz().cross(v2.getUy());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33751,7 +33761,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUz(), v2.getUz());
+    testedDir = v1.getUz().cross(v2.getUz());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33899,18 +33909,18 @@ class BoxBoxCollisions {
   static cross(a1, a2, b1, b2, error) {
     let da = a2.sub(a1).normalize();
     let db = b2.sub(b1).normalize();
-    let n = Vec3.cross(da, db);
+    let n = da.cross(db);
     if (n.sqrMag()<0.01) {
       return null;
     }
-    let na = Vec3.cross(da, n);
-    let nb = Vec3.cross(db, n);
+    let na = da.cross(n);
+    let nb = db.cross(n);
     let ca = a1.add(da.scale(b1.sub(a1).dot(nb)/da.dot(nb)));
     let cb = b1.add(db.scale(a1.sub(b1).dot(na)/db.dot(na)));
     if (ca.sqrDist(cb)>error*error) {
       return null;
     }
-    return Vec3.interpolate(ca, cb, 0.5);
+    return ca.interpolate(cb, 0.5);
   }
 
 }
@@ -35271,9 +35281,9 @@ class RigidBodyWorld extends World {
 
   perp(v) {
     v = v.normalize();
-    let h1 = Vec3.cross(Vec3.create(1, 0, 0), v);
-    let h2 = Vec3.cross(Vec3.create(0, 1, 0), v);
-    let h3 = Vec3.cross(Vec3.create(0, 0, 1), v);
+    let h1 = Vec3.RIGHT.cross(v);
+    let h2 = Vec3.UP.cross(v);
+    let h3 = Vec3.FORWARD.cross(v);
     let m1 = h1.mag();
     let m2 = h2.mag();
     let m3 = h3.mag();

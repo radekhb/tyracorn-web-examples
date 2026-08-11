@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-16";
-const assetsDirName = "/assets-259ca6";
+const basePath = "/tyracorn-web-examples/basic-app-19";
+const assetsDirName = "/assets-a6126a";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -8754,6 +8754,23 @@ class Vec3 {
     return this.mX*vec.mX+this.mY*vec.mY+this.mZ*vec.mZ;
   }
 
+  cross(b) {
+    return Vec3.create(this.mY*b.mZ-this.mZ*b.mY, this.mZ*b.mX-this.mX*b.mZ, this.mX*b.mY-this.mY*b.mX);
+  }
+
+  crossAndNormalize(b) {
+    let xx = this.mY*b.mZ-this.mZ*b.mY;
+    let yy = this.mZ*b.mX-this.mX*b.mZ;
+    let zz = this.mX*b.mY-this.mY*b.mX;
+    let m = FMath.sqrt(xx*xx+yy*yy+zz*zz);
+    return Vec3.create(xx/m, yy/m, zz/m);
+  }
+
+  interpolate(b, t) {
+    let ti = 1-t;
+    return Vec3.create(ti*this.mX+t*b.mX, ti*this.mY+t*b.mY, ti*this.mZ+t*b.mZ);
+  }
+
   dist(vec) {
     let dx = this.mX-vec.mX;
     let dy = this.mY-vec.mY;
@@ -8820,23 +8837,6 @@ class Vec3 {
     res.mY = a;
     res.mZ = a;
     return res;
-  }
-
-  static cross(a, b) {
-    return Vec3.create(a.mY*b.mZ-a.mZ*b.mY, a.mZ*b.mX-a.mX*b.mZ, a.mX*b.mY-a.mY*b.mX);
-  }
-
-  static crossAndNormalize(a, b) {
-    let x = a.mY*b.mZ-a.mZ*b.mY;
-    let y = a.mZ*b.mX-a.mX*b.mZ;
-    let z = a.mX*b.mY-a.mY*b.mX;
-    let m = FMath.sqrt(x*x+y*y+z*z);
-    return Vec3.create(x/m, y/m, z/m);
-  }
-
-  static interpolate(a, b, t) {
-    let ti = 1-t;
-    return Vec3.create(ti*a.mX+t*b.mX, ti*a.mY+t*b.mY, ti*a.mZ+t*b.mZ);
   }
 
 }
@@ -10617,6 +10617,21 @@ class Quaternion {
     return res;
   }
 
+  interpolate(b, t) {
+    let ti = 1-t;
+    return Quaternion.create(ti*this.mA+t*b.mA, ti*this.mB+t*b.mB, ti*this.mC+t*b.mC, ti*this.mD+t*b.mD);
+  }
+
+  interpolateAndNormalize(b, t) {
+    let ti = 1-t;
+    let aa = ti*this.mA+t*b.mA;
+    let bb = ti*this.mB+t*b.mB;
+    let cc = ti*this.mC+t*b.mC;
+    let dd = ti*this.mD+t*b.mD;
+    let m = FMath.sqrt(aa*aa+bb*bb+cc*cc+dd*dd);
+    return Quaternion.create(aa/m, bb/m, cc/m, dd/m);
+  }
+
   rotate(pt) {
     let pq = Quaternion.create(0, pt.x(), pt.y(), pt.z());
     let r = this.mul(pq.mul(this.conj()));
@@ -10686,11 +10701,6 @@ class Quaternion {
 
   static rotZ(theta) {
     return Quaternion.rot(0, 0, 1, theta);
-  }
-
-  static interpolate(a, b, t) {
-    let ti = 1-t;
-    return Quaternion.create(ti*a.mA+t*b.mA, ti*a.mB+t*b.mB, ti*a.mC+t*b.mC, ti*a.mD+t*b.mD);
   }
 
 }
@@ -15257,9 +15267,9 @@ class ShadowMap {
 
   static perp(v) {
     v = v.normalize();
-    let h1 = Vec3.cross(Vec3.create(1, 0, 0), v);
-    let h2 = Vec3.cross(Vec3.create(0, 1, 0), v);
-    let h3 = Vec3.cross(Vec3.create(0, 0, 1), v);
+    let h1 = Vec3.RIGHT.cross(v);
+    let h2 = Vec3.UP.cross(v);
+    let h3 = Vec3.FORWARD.cross(v);
     let m1 = h1.mag();
     let m2 = h2.mag();
     let m3 = h3.mag();
@@ -15516,8 +15526,8 @@ class Camera {
 
   lookAt(pos, target, upDir) {
     let fwd = target.subAndNormalize(pos);
-    let side = Vec3.crossAndNormalize(fwd, upDir);
-    let upfix = Vec3.crossAndNormalize(side, fwd);
+    let side = fwd.crossAndNormalize(upDir);
+    let upfix = side.crossAndNormalize(fwd);
     let v = Mat44.create(side.x(), side.y(), side.z(), -side.dot(pos), upfix.x(), upfix.y(), upfix.z(), -upfix.dot(pos), -fwd.x(), -fwd.y(), -fwd.z(), fwd.dot(pos), 0, 0, 0, 1);
     let res = new Camera();
     res.proj = this.proj;
@@ -21656,7 +21666,7 @@ class ArmaturePoseTrackChannel {
       }
     }
     let t = (time-start.getTime(this.ticksPerSecond))/(end.getTime(this.ticksPerSecond)-start.getTime(this.ticksPerSecond));
-    return Vec3.interpolate(start.getValue(), end.getValue(), t);
+    return start.getValue().interpolate(end.getValue(), t);
   }
 
   getRotation(time) {
@@ -21679,7 +21689,7 @@ class ArmaturePoseTrackChannel {
       }
     }
     let t = (time-start.getTime(this.ticksPerSecond))/(end.getTime(this.ticksPerSecond)-start.getTime(this.ticksPerSecond));
-    return Quaternion.interpolate(start.getValue(), end.getValue(), t).normalize();
+    return start.getValue().interpolateAndNormalize(end.getValue(), t);
   }
 
   getScaling(time) {
@@ -21702,7 +21712,7 @@ class ArmaturePoseTrackChannel {
       }
     }
     let t = (time-start.getTime(this.ticksPerSecond))/(end.getTime(this.ticksPerSecond)-start.getTime(this.ticksPerSecond));
-    return Vec3.interpolate(start.getValue(), end.getValue(), t);
+    return start.getValue().interpolate(end.getValue(), t);
   }
 
   hashCode() {
@@ -28405,17 +28415,17 @@ class CameraControllerComponent extends Behavior {
       if (this.mode.equals(CameraControlMode.ISOMETRIC)) {
         let targetPos = this.world().actors().get(this.targetId).getComponent("TransformComponent").toGlobal(Vec3.ZERO);
         let newWantedPos = targetPos.add(this.posOffset);
-        newPos = Vec3.interpolate(this.cameraPos, newWantedPos, this.posK);
+        newPos = this.cameraPos.interpolate(newWantedPos, this.posK);
         let newWantedLookAt = targetPos.add(this.lookAtOffset);
         let projectedLookAt = Geometry3.projectToLine(this.cameraPos, this.cameraLookAt.subAndNormalize(this.cameraPos), newWantedLookAt);
-        newLookAt = Vec3.interpolate(projectedLookAt, newWantedLookAt, this.lookAtK);
+        newLookAt = projectedLookAt.interpolate(newWantedLookAt, this.lookAtK);
       }
       else if (this.mode.equals(CameraControlMode.THIRD_PERSON)) {
         let newWantedPos = this.world().actors().get(this.targetId).getComponent("TransformComponent").toGlobal(this.posOffset);
-        newPos = Vec3.interpolate(this.cameraPos, newWantedPos, this.posK);
+        newPos = this.cameraPos.interpolate(newWantedPos, this.posK);
         let newWantedLookAt = this.world().actors().get(this.targetId).getComponent("TransformComponent").toGlobal(this.lookAtOffset);
         let projectedLookAt = Geometry3.projectToLine(this.cameraPos, this.cameraLookAt.subAndNormalize(this.cameraPos), newWantedLookAt);
-        newLookAt = Vec3.interpolate(projectedLookAt, newWantedLookAt, this.lookAtK);
+        newLookAt = projectedLookAt.interpolate(newWantedLookAt, this.lookAtK);
       }
       else {
         throw new Error("unsupported camera mode: "+this.mode);
@@ -29290,7 +29300,7 @@ class RigidBodyComponent extends Component {
       return this.velocity;
     }
     let r = point.sub(this.transform.getPos());
-    let c = Vec3.cross(this.angularVelocity, r);
+    let c = this.angularVelocity.cross(r);
     return this.velocity.add(c);
   }
 
@@ -29303,7 +29313,7 @@ class RigidBodyComponent extends Component {
       return ;
     }
     let r = pos.sub(this.transform.getPos());
-    this.torqueAccum = this.torqueAccum.add(Vec3.cross(r, f));
+    this.torqueAccum = this.torqueAccum.add(r.cross(f));
   }
 
   applyTorque(t) {
@@ -29322,9 +29332,9 @@ class RigidBodyComponent extends Component {
       return mef;
     }
     let applyR = impulsePos.sub(this.transform.getPos());
-    let angveldif = this.getInverseInertia().mul(Vec3.cross(applyR, impulse));
+    let angveldif = this.getInverseInertia().mul(applyR.cross(impulse));
     let targetR = targetPos.sub(this.transform.getPos());
-    let ref = Vec3.cross(angveldif, targetR);
+    let ref = angveldif.cross(targetR);
     return mef.add(ref);
   }
 
@@ -29337,7 +29347,7 @@ class RigidBodyComponent extends Component {
       return ;
     }
     let r = pos.sub(this.transform.getPos());
-    this.angularVelocity = this.angularVelocity.add(this.getInverseInertia().mul(Vec3.cross(r, im)));
+    this.angularVelocity = this.angularVelocity.add(this.getInverseInertia().mul(r.cross(im)));
   }
 
   getTorqueImpulseEffect(tim) {
@@ -31884,7 +31894,7 @@ class CollisionGeometry {
   static edgeEdgeContactPoint(aCenter, a1, a2, b1, b2, bShift, maxSep, maxPen, parThres) {
     let adir = a2.subAndNormalize(a1);
     let bdir = b2.subAndNormalize(b1);
-    let n = Vec3.cross(adir, bdir);
+    let n = adir.cross(bdir);
     if (n.sqrMag()<parThres) {
       return null;
     }
@@ -33221,7 +33231,7 @@ class ContactPoint {
     else {
       res.tangent1 = Vec3.create(0, normal.z(), -normal.y()).normalize();
     }
-    res.tangent2 = Vec3.cross(normal, res.tangent1);
+    res.tangent2 = normal.cross(res.tangent1);
     res.depth = depth;
     res.guardInvariants();
     return res;
@@ -33370,7 +33380,7 @@ class CapsuleCapsuleCollisions {
   }
 
   static isCollision(capsuleA, capsuleB, error, parallelError) {
-    let n = Vec3.cross(capsuleA.getDir(), capsuleB.getDir());
+    let n = capsuleA.getDir().cross(capsuleB.getDir());
     if (n.sqrMag()<parallelError) {
       let p1 = CollisionGeometry.lineSegmentClosest(capsuleA.getPivot1(), capsuleA.getPivot2(), capsuleB.getPivot1());
       let dst1 = p1.dist(capsuleB.getPivot1());
@@ -33391,8 +33401,8 @@ class CapsuleCapsuleCollisions {
     }
     else {
       n = n.normalize();
-      let n1 = Vec3.cross(capsuleA.getDir(), n);
-      let n2 = Vec3.cross(capsuleB.getDir(), n);
+      let n1 = capsuleA.getDir().cross(n);
+      let n2 = capsuleB.getDir().cross(n);
       let t1 = capsuleB.getPivot1().sub(capsuleA.getPivot1()).dot(n2)/capsuleA.getDir().dot(n2);
       let t2 = capsuleA.getPivot1().sub(capsuleB.getPivot1()).dot(n1)/capsuleB.getDir().dot(n1);
       let p1 = capsuleA.getPivot1().add(capsuleA.getDir().scale(t1));
@@ -33421,7 +33431,7 @@ class CapsuleCapsuleCollisions {
   }
 
   static getContactPoints(capsuleA, capsuleB, error, parallelError) {
-    let n = Vec3.cross(capsuleA.getDir(), capsuleB.getDir());
+    let n = capsuleA.getDir().cross(capsuleB.getDir());
     if (n.sqrMag()<parallelError) {
       let p1 = CollisionGeometry.lineSegmentClosest(capsuleA.getPivot1(), capsuleA.getPivot2(), capsuleB.getPivot1());
       let dst1 = p1.dist(capsuleB.getPivot1());
@@ -33471,8 +33481,8 @@ class CapsuleCapsuleCollisions {
     }
     else {
       n = n.normalize();
-      let n1 = Vec3.cross(capsuleA.getDir(), n);
-      let n2 = Vec3.cross(capsuleB.getDir(), n);
+      let n1 = capsuleA.getDir().cross(n);
+      let n2 = capsuleB.getDir().cross(n);
       let t1 = capsuleB.getPivot1().sub(capsuleA.getPivot1()).dot(n2)/capsuleA.getDir().dot(n2);
       let t2 = capsuleA.getPivot1().sub(capsuleB.getPivot1()).dot(n1)/capsuleB.getDir().dot(n1);
       let p1 = capsuleA.getPivot1().add(capsuleA.getDir().scale(t1));
@@ -33687,7 +33697,7 @@ class BoxBoxSat {
       this.normal = null;
       return ;
     }
-    testedDir = Vec3.cross(v1.getUx(), v2.getUx());
+    testedDir = v1.getUx().cross(v2.getUx());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33695,7 +33705,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUx(), v2.getUy());
+    testedDir = v1.getUx().cross(v2.getUy());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33703,7 +33713,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUx(), v2.getUz());
+    testedDir = v1.getUx().cross(v2.getUz());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33711,7 +33721,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUy(), v2.getUx());
+    testedDir = v1.getUy().cross(v2.getUx());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33719,7 +33729,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUy(), v2.getUy());
+    testedDir = v1.getUy().cross(v2.getUy());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33727,7 +33737,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUy(), v2.getUz());
+    testedDir = v1.getUy().cross(v2.getUz());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33735,7 +33745,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUz(), v2.getUx());
+    testedDir = v1.getUz().cross(v2.getUx());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33743,7 +33753,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUz(), v2.getUy());
+    testedDir = v1.getUz().cross(v2.getUy());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33751,7 +33761,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUz(), v2.getUz());
+    testedDir = v1.getUz().cross(v2.getUz());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33899,18 +33909,18 @@ class BoxBoxCollisions {
   static cross(a1, a2, b1, b2, error) {
     let da = a2.sub(a1).normalize();
     let db = b2.sub(b1).normalize();
-    let n = Vec3.cross(da, db);
+    let n = da.cross(db);
     if (n.sqrMag()<0.01) {
       return null;
     }
-    let na = Vec3.cross(da, n);
-    let nb = Vec3.cross(db, n);
+    let na = da.cross(n);
+    let nb = db.cross(n);
     let ca = a1.add(da.scale(b1.sub(a1).dot(nb)/da.dot(nb)));
     let cb = b1.add(db.scale(a1.sub(b1).dot(na)/db.dot(na)));
     if (ca.sqrDist(cb)>error*error) {
       return null;
     }
-    return Vec3.interpolate(ca, cb, 0.5);
+    return ca.interpolate(cb, 0.5);
   }
 
 }
@@ -35271,9 +35281,9 @@ class RigidBodyWorld extends World {
 
   perp(v) {
     v = v.normalize();
-    let h1 = Vec3.cross(Vec3.create(1, 0, 0), v);
-    let h2 = Vec3.cross(Vec3.create(0, 1, 0), v);
-    let h3 = Vec3.cross(Vec3.create(0, 0, 1), v);
+    let h1 = Vec3.RIGHT.cross(v);
+    let h2 = Vec3.UP.cross(v);
+    let h3 = Vec3.FORWARD.cross(v);
     let m1 = h1.mag();
     let m2 = h2.mag();
     let m3 = h3.mag();
@@ -36152,49 +36162,231 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class PlayAnimationBehavior extends Behavior {
-  player;
-  model;
-  cooldown = 3;
+const createBillboardOrientation = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const BillboardOrientation = Object.freeze({
+  CAMERA_FACING: createBillboardOrientation("CAMERA_FACING"),
+  CAMERA_FACING_VERTICAL: createBillboardOrientation("CAMERA_FACING_VERTICAL"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class BillboardComponent extends Behavior {
+  orientation = BillboardOrientation.CAMERA_FACING;
+  transform;
+  cameraTransform;
+  camera;
   constructor(key) {
     super(key);
   }
 
   getClass() {
-    return "PlayAnimationBehavior";
+    return "BillboardComponent";
   }
 
   guardInvariants() {
   }
 
   init() {
-    this.model = this.actor().getComponent("ModelComponent");
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.world().actors().forEach(ActorId.ROOT, (a) => {
+  let cc = a.getComponentNonStrict("CameraComponent");
+  if (cc!=null) {
+    Guard.beNull(this.camera, "only single camera is supported at the moment");
+    this.camera = cc;
+    this.cameraTransform = a.getComponent("TransformComponent");
+  }
+});
   }
 
-  move(dt, inputs) {
-    let step = this.player.move(dt);
-    this.model.setInterpolation(step.getInterpolation()).setPose(step.getPose());
-    if (step.isEnd()) {
-      this.cooldown = this.cooldown-dt;
-      if (this.cooldown<0) {
-        this.player.play(step.getKey(), MeshAnimationPlayConfig.RESTART);
-      }
+  lateMove(dt, inputs) {
+    if (this.orientation.equals(BillboardOrientation.CAMERA_FACING)) {
+      let cameraPos = this.cameraTransform.getPos();
+      let rot = this.getLookAtRotation(cameraPos, Vec3.UP);
+      this.transform.setRot(rot);
+    }
+    else if (this.orientation.equals(BillboardOrientation.CAMERA_FACING_VERTICAL)) {
+      let cameraPos = this.cameraTransform.getPos().withY(this.transform.getPos().y());
+      let rot = this.getLookAtRotation(cameraPos, Vec3.UP);
+      this.transform.setRot(rot);
     }
     else {
-      this.cooldown = 3;
+      throw new Error("unsupported billboard orientation: "+this.orientation);
     }
   }
 
-  static create(key, player) {
-    let res = new PlayAnimationBehavior(key);
-    res.player = player;
+  setOrientation(orientation) {
+    Guard.notNull(orientation, "orientation cannot be null");
+    this.orientation = orientation;
+    return this;
+  }
+
+  getLookAtRotation(target, upDir) {
+    let fwd = target.subAndNormalize(this.transform.getPos());
+    let rotX = -FMath.asin(fwd.y());
+    let rotY = FMath.atan2(fwd.x(), fwd.z());
+    return Quaternion.rotY(rotY).mul(Quaternion.rotX(rotX));
+  }
+
+  static create(key) {
+    let res = new BillboardComponent(key);
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.PlayAnimationBehavior = PlayAnimationBehavior;
-class BasicApp16 extends TyracornScreen {
+classRegistry.BillboardComponent = BillboardComponent;
+class FireParticleComponent extends Behavior {
+  transform;
+  cameraTransform;
+  camera;
+  time = 0;
+  lifetime = 1;
+  velocity = Vec3.ZERO;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FireParticleComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.world().actors().forEach(ActorId.ROOT, (a) => {
+  let cc = a.getComponentNonStrict("CameraComponent");
+  if (cc!=null) {
+    Guard.beNull(this.camera, "only single camera is supported at the moment");
+    this.camera = cc;
+    this.cameraTransform = a.getComponent("TransformComponent");
+  }
+});
+  }
+
+  move(dt, inputs) {
+    this.lifetime = this.lifetime-dt;
+    this.time = this.time+dt;
+    if (this.lifetime<=0) {
+      this.world().actors().remove(this.actor().getId());
+    }
+    this.transform.move(this.velocity.scale(dt));
+    if (this.time>0.8) {
+      this.actor().getComponent("ModelComponent").setModelId(ModelId.of("fire2"));
+    }
+  }
+
+  lateMove(dt, inputs) {
+    let cameraPos = this.cameraTransform.getPos();
+    this.transform.setRot(this.getLookAtRotation(cameraPos, Vec3.UP));
+  }
+
+  setLifetime(lifetime) {
+    this.lifetime = lifetime;
+    return this;
+  }
+
+  setVelocity(velocity) {
+    Guard.notNull(velocity, "velocity cannot be null");
+    this.velocity = velocity;
+    return this;
+  }
+
+  getLookAtRotation(target, upDir) {
+    let fwd = target.subAndNormalize(this.transform.getPos());
+    let rotX = -FMath.asin(fwd.y());
+    let rotY = FMath.atan2(fwd.x(), fwd.z());
+    return Quaternion.rotY(rotY).mul(Quaternion.rotX(rotX));
+  }
+
+  static create(key) {
+    let res = new FireParticleComponent(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FireParticleComponent = FireParticleComponent;
+class FireEmitterComponent extends Behavior {
+  transform;
+  rpGenerator;
+  pps = 100;
+  tReminder = 0;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FireEmitterComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.rpGenerator = this.actor().getComponent("RpGeneratorComponent");
+  }
+
+  move(dt, inputs) {
+    let emitTime = dt+this.tReminder;
+    let numEmit = FMath.trunc(emitTime*this.pps);
+    this.tReminder = emitTime-(numEmit/this.pps);
+    for (let i = 0; i<numEmit; ++i) {
+      this.world().actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("tyracorn-billboard").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(this.rpGenerator.nextPoint())).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(ModelId.of("fire1")).setTransform(Mat44.scale(0.05))).addComponent(FireParticleComponent.create(ComponentKey.random()).setLifetime(Randoms.nextFloat(0.5, 1)).setVelocity(Vec3.create(Randoms.nextFloat(-0.15, 0.15), Randoms.nextFloat(0.3, 1), Randoms.nextFloat(-0.15, 0.15)))));
+    }
+  }
+
+  static create(key) {
+    let res = new FireEmitterComponent(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FireEmitterComponent = FireEmitterComponent;
+class BasicApp19 extends TyracornScreen {
   time = 0;
   world;
   inputs = InputCache.create();
@@ -36206,7 +36398,7 @@ class BasicApp16 extends TyracornScreen {
   }
 
   getClass() {
-    return "BasicApp16";
+    return "BasicApp19";
   }
 
   move(drivers, screenManager, dt) {
@@ -36242,49 +36434,64 @@ class BasicApp16 extends TyracornScreen {
 
   load(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/primitives.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")), assets.resolveAsync(Path.of("asset:packages/characters/base-human.tap")));
+    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/primitives.tap")), assets.resolveAsync(Path.of("asset:packages/particles.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")));
   }
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
     Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 30));
+    let tyracornTextureId = TextureId.of("tyracorn");
+    let transparentTex1Id = TextureId.of("transparent-texture-1");
+    let transparentTex1 = Texture.rgbaFloatValues(4, 4, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5);
+    let transparentTex2Id = TextureId.of("transparent-texture-2");
+    let transparentTex2 = Texture.rgbaFloatValues(4, 4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4);
+    assets.put(transparentTex1Id, transparentTex1);
+    assets.put(transparentTex2Id, transparentTex2);
     assets.put(MaterialId.of("brass"), Material.BRASS);
     assets.put(MaterialId.of("copper"), Material.COPPER);
+    assets.put(MaterialId.of("gold"), Material.GOLD);
     assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
+    assets.put(MeshId.of("billboard"), this.createBillboardMesh());
     let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
     let groundModelId = ModelId.of("ground");
     assets.put(groundModelId, groundModel);
-    const wallColMatId = PhysicalMaterialId.of("wall");
-    assets.put(wallColMatId, PhysicalMaterial.simple(0.6, 1.8, 1.8));
+    assets.put(MaterialId.of("tyracorn-mask"), Material.BLACK.withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.diffuse(TextureId.of("stone-1-diff"))).plusTexture(TextureAttachment.diffuse(tyracornTextureId)));
+    let tyracornBillboard = Model.simple(MeshId.of("billboard"), MaterialId.of("tyracorn-mask"));
+    let tyracornBillboarModelId = ModelId.of("tyracorn-billboard");
+    assets.put(tyracornBillboarModelId, tyracornBillboard);
+    assets.put(MaterialId.of("fire1"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-1"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-1"))));
+    let fire1Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire1"));
+    let fire1ModelId = ModelId.of("fire1");
+    assets.put(fire1ModelId, fire1Model);
+    assets.put(MaterialId.of("fire2"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-2"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-2"))));
+    let fire2Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire2"));
+    let fire2ModelId = ModelId.of("fire2");
+    assets.put(fire2ModelId, fire2Model);
+    assets.put(MaterialId.of("fire3"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-3"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-3"))));
+    let fire3Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire3"));
+    let fire3ModelId = ModelId.of("fire3");
+    assets.put(fire3ModelId, fire3Model);
+    assets.put(MaterialId.of("fire4"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-4"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-4"))));
+    let fire4Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire4"));
+    let fire4ModelId = ModelId.of("fire4");
+    assets.put(fire4ModelId, fire4Model);
     this.world = RigidBodyWorld.create(drivers);
     let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create(ComponentKey.WORLD).setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-30, -30, -30, 30, 30, 30)));
     this.world.actors().add(ActorId.ROOT, worldActor);
     let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create(ComponentKey.TRANSFORM)).addComponent(SkyboxComponent.create(ComponentKey.SKYBOX).setModelId(ModelId.of("skybox-1")).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create(ComponentKey.AUTO_ROTATE).setAngularVelocity(Vec3.create(0, 0.1, 0)));
     this.world.actors().add(ActorId.ROOT, skybox);
-    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(20, 1, 20)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 2, 22)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
+    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(20, 1, 20))));
     this.world.actors().add(ActorId.ROOT, ground);
-    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(2, 5, 5), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE).setDirShadowMapStrategy(DirShadowMapStrategy.createManual(80, 80, 0, 60)));
+    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(4, 10, 10), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE).setDirShadowMapStrategy(DirShadowMapStrategy.createManual(80, 80, 0, 20)));
     this.world.actors().add(ActorId.ROOT, light);
     let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 4, 5), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create(ComponentKey.random(), "moveDir", "rotDir", 5, 1)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY));
     this.world.actors().add(ActorId.ROOT, camera);
-    let animations = assets.get("MeshAnimationCollection", MeshAnimationCollectionId.of("base-human"));
-    let player = MeshAnimationPlayer.create(animations, animations.getAnimations().get(0).getKey());
-    let model = assets.get("Model", ModelId.of("base-human"));
-    let character = Actor.create("character").setName("character").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(ModelId.of("base-human")).setPose(model.getArmature().getBasePose())).addComponent(ColliderComponent.create(ComponentKey.random()).setShape(ColliderShape.SPHERE).setPoseNodeRef(ColliderPoseNodeRef.create(ComponentKey.MODEL_1, ArmatureNodeId.of("DEF-head"))).setPos(0, 0.1, 0).setRadius(0.15)).addComponent(ColliderComponent.create(ComponentKey.random()).setShape(ColliderShape.BOX).setPoseNodeRef(ColliderPoseNodeRef.create(ComponentKey.MODEL_1, ArmatureNodeId.of("DEF-spine.002"))).setPos(0, 0.1, 0).setSize(0.3, 0.7, 0.2)).addComponent(ColliderComponent.create(ComponentKey.random()).setShape(ColliderShape.CAPSULE).setPoseNodeRef(ColliderPoseNodeRef.create(ComponentKey.MODEL_1, ArmatureNodeId.of("DEF-shin.R"))).setPos(0, 0.25, 0).setRadius(0.075).setHeight(0.6)).addComponent(PlayAnimationBehavior.create(ComponentKey.random(), player));
-    this.world.actors().add(ActorId.ROOT, character);
+    this.world.actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("tyracorn-billboard").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-3, 0.5, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(tyracornBillboarModelId).setTransform(Mat44.trans(0, 0, 0))).addComponent(BillboardComponent.create(ComponentKey.random()).setOrientation(BillboardOrientation.CAMERA_FACING)));
+    this.world.actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("tyracorn-billboard").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0.5, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(tyracornBillboarModelId).setTransform(Mat44.trans(0, 0, 0))).addComponent(BillboardComponent.create(ComponentKey.random()).setOrientation(BillboardOrientation.CAMERA_FACING_VERTICAL)));
+    this.world.actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("fire").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(3, 0, 0))).addComponent(RpGeneratorComponent.create(ComponentKey.random()).setShape(RpGeneratorShape.BOX).setSize(0.25, 0.01, 0.05)).addComponent(FireEmitterComponent.create(ComponentKey.random())));
     this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
     this.gamePad = GamePad.create(drivers);
     this.ui.addComponent(this.gamePad);
-    let items = new ArrayList();
-    for (let anim of animations.getAnimations()) {
-      items.add(DropdownItem.create(anim.getKey().key(), anim.getKey().key()));
-    }
-    let animationDropdown = Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(10, 10, 160, 40)).setLabelText("Animation").addItems(items).setSelected(items.get(0)).addOnChangeAction((dd) => {
-  let dropdown = dd;
-  let value = dropdown.getSelected().getValue();
-  player.play(MeshAnimationKey.of(value), MeshAnimationPlayConfig.RESTART);
-});
-    this.ui.addComponent(animationDropdown);
     this.ui.addComponent(Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction((evt) => {
   this.paused = true;
 }));
@@ -36303,15 +36510,13 @@ class BasicApp16 extends TyracornScreen {
     this.world.destroy(drivers);
   }
 
-  getRandomVelocity() {
-    let vx = Randoms.nextFloat(0, 2)-1;
-    let vy = Randoms.nextFloat(0, 2)-1;
-    let vz = Randoms.nextFloat(0, 2)-1;
-    return Vec3.create(vx, vy, vz);
+  createBillboardMesh() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, 0, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, 0, 0, 0, -1, 1, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7))).toMesh();
+    return res;
   }
 
 }
-classRegistry.BasicApp16 = BasicApp16;
+classRegistry.BasicApp19 = BasicApp19;
 
 
 // -------------------------------------
@@ -36694,7 +36899,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp16());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp19());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

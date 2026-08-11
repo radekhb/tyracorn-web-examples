@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-13";
-const assetsDirName = "/assets-737589";
+const basePath = "/tyracorn-web-examples/basic-app-03";
+const assetsDirName = "/null";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -8754,6 +8754,23 @@ class Vec3 {
     return this.mX*vec.mX+this.mY*vec.mY+this.mZ*vec.mZ;
   }
 
+  cross(b) {
+    return Vec3.create(this.mY*b.mZ-this.mZ*b.mY, this.mZ*b.mX-this.mX*b.mZ, this.mX*b.mY-this.mY*b.mX);
+  }
+
+  crossAndNormalize(b) {
+    let xx = this.mY*b.mZ-this.mZ*b.mY;
+    let yy = this.mZ*b.mX-this.mX*b.mZ;
+    let zz = this.mX*b.mY-this.mY*b.mX;
+    let m = FMath.sqrt(xx*xx+yy*yy+zz*zz);
+    return Vec3.create(xx/m, yy/m, zz/m);
+  }
+
+  interpolate(b, t) {
+    let ti = 1-t;
+    return Vec3.create(ti*this.mX+t*b.mX, ti*this.mY+t*b.mY, ti*this.mZ+t*b.mZ);
+  }
+
   dist(vec) {
     let dx = this.mX-vec.mX;
     let dy = this.mY-vec.mY;
@@ -8820,23 +8837,6 @@ class Vec3 {
     res.mY = a;
     res.mZ = a;
     return res;
-  }
-
-  static cross(a, b) {
-    return Vec3.create(a.mY*b.mZ-a.mZ*b.mY, a.mZ*b.mX-a.mX*b.mZ, a.mX*b.mY-a.mY*b.mX);
-  }
-
-  static crossAndNormalize(a, b) {
-    let x = a.mY*b.mZ-a.mZ*b.mY;
-    let y = a.mZ*b.mX-a.mX*b.mZ;
-    let z = a.mX*b.mY-a.mY*b.mX;
-    let m = FMath.sqrt(x*x+y*y+z*z);
-    return Vec3.create(x/m, y/m, z/m);
-  }
-
-  static interpolate(a, b, t) {
-    let ti = 1-t;
-    return Vec3.create(ti*a.mX+t*b.mX, ti*a.mY+t*b.mY, ti*a.mZ+t*b.mZ);
   }
 
 }
@@ -10617,6 +10617,21 @@ class Quaternion {
     return res;
   }
 
+  interpolate(b, t) {
+    let ti = 1-t;
+    return Quaternion.create(ti*this.mA+t*b.mA, ti*this.mB+t*b.mB, ti*this.mC+t*b.mC, ti*this.mD+t*b.mD);
+  }
+
+  interpolateAndNormalize(b, t) {
+    let ti = 1-t;
+    let aa = ti*this.mA+t*b.mA;
+    let bb = ti*this.mB+t*b.mB;
+    let cc = ti*this.mC+t*b.mC;
+    let dd = ti*this.mD+t*b.mD;
+    let m = FMath.sqrt(aa*aa+bb*bb+cc*cc+dd*dd);
+    return Quaternion.create(aa/m, bb/m, cc/m, dd/m);
+  }
+
   rotate(pt) {
     let pq = Quaternion.create(0, pt.x(), pt.y(), pt.z());
     let r = this.mul(pq.mul(this.conj()));
@@ -10686,11 +10701,6 @@ class Quaternion {
 
   static rotZ(theta) {
     return Quaternion.rot(0, 0, 1, theta);
-  }
-
-  static interpolate(a, b, t) {
-    let ti = 1-t;
-    return Quaternion.create(ti*a.mA+t*b.mA, ti*a.mB+t*b.mB, ti*a.mC+t*b.mC, ti*a.mD+t*b.mD);
   }
 
 }
@@ -15257,9 +15267,9 @@ class ShadowMap {
 
   static perp(v) {
     v = v.normalize();
-    let h1 = Vec3.cross(Vec3.create(1, 0, 0), v);
-    let h2 = Vec3.cross(Vec3.create(0, 1, 0), v);
-    let h3 = Vec3.cross(Vec3.create(0, 0, 1), v);
+    let h1 = Vec3.RIGHT.cross(v);
+    let h2 = Vec3.UP.cross(v);
+    let h3 = Vec3.FORWARD.cross(v);
     let m1 = h1.mag();
     let m2 = h2.mag();
     let m3 = h3.mag();
@@ -15516,8 +15526,8 @@ class Camera {
 
   lookAt(pos, target, upDir) {
     let fwd = target.subAndNormalize(pos);
-    let side = Vec3.crossAndNormalize(fwd, upDir);
-    let upfix = Vec3.crossAndNormalize(side, fwd);
+    let side = fwd.crossAndNormalize(upDir);
+    let upfix = side.crossAndNormalize(fwd);
     let v = Mat44.create(side.x(), side.y(), side.z(), -side.dot(pos), upfix.x(), upfix.y(), upfix.z(), -upfix.dot(pos), -fwd.x(), -fwd.y(), -fwd.z(), fwd.dot(pos), 0, 0, 0, 1);
     let res = new Camera();
     res.proj = this.proj;
@@ -21656,7 +21666,7 @@ class ArmaturePoseTrackChannel {
       }
     }
     let t = (time-start.getTime(this.ticksPerSecond))/(end.getTime(this.ticksPerSecond)-start.getTime(this.ticksPerSecond));
-    return Vec3.interpolate(start.getValue(), end.getValue(), t);
+    return start.getValue().interpolate(end.getValue(), t);
   }
 
   getRotation(time) {
@@ -21679,7 +21689,7 @@ class ArmaturePoseTrackChannel {
       }
     }
     let t = (time-start.getTime(this.ticksPerSecond))/(end.getTime(this.ticksPerSecond)-start.getTime(this.ticksPerSecond));
-    return Quaternion.interpolate(start.getValue(), end.getValue(), t).normalize();
+    return start.getValue().interpolateAndNormalize(end.getValue(), t);
   }
 
   getScaling(time) {
@@ -21702,7 +21712,7 @@ class ArmaturePoseTrackChannel {
       }
     }
     let t = (time-start.getTime(this.ticksPerSecond))/(end.getTime(this.ticksPerSecond)-start.getTime(this.ticksPerSecond));
-    return Vec3.interpolate(start.getValue(), end.getValue(), t);
+    return start.getValue().interpolate(end.getValue(), t);
   }
 
   hashCode() {
@@ -28405,17 +28415,17 @@ class CameraControllerComponent extends Behavior {
       if (this.mode.equals(CameraControlMode.ISOMETRIC)) {
         let targetPos = this.world().actors().get(this.targetId).getComponent("TransformComponent").toGlobal(Vec3.ZERO);
         let newWantedPos = targetPos.add(this.posOffset);
-        newPos = Vec3.interpolate(this.cameraPos, newWantedPos, this.posK);
+        newPos = this.cameraPos.interpolate(newWantedPos, this.posK);
         let newWantedLookAt = targetPos.add(this.lookAtOffset);
         let projectedLookAt = Geometry3.projectToLine(this.cameraPos, this.cameraLookAt.subAndNormalize(this.cameraPos), newWantedLookAt);
-        newLookAt = Vec3.interpolate(projectedLookAt, newWantedLookAt, this.lookAtK);
+        newLookAt = projectedLookAt.interpolate(newWantedLookAt, this.lookAtK);
       }
       else if (this.mode.equals(CameraControlMode.THIRD_PERSON)) {
         let newWantedPos = this.world().actors().get(this.targetId).getComponent("TransformComponent").toGlobal(this.posOffset);
-        newPos = Vec3.interpolate(this.cameraPos, newWantedPos, this.posK);
+        newPos = this.cameraPos.interpolate(newWantedPos, this.posK);
         let newWantedLookAt = this.world().actors().get(this.targetId).getComponent("TransformComponent").toGlobal(this.lookAtOffset);
         let projectedLookAt = Geometry3.projectToLine(this.cameraPos, this.cameraLookAt.subAndNormalize(this.cameraPos), newWantedLookAt);
-        newLookAt = Vec3.interpolate(projectedLookAt, newWantedLookAt, this.lookAtK);
+        newLookAt = projectedLookAt.interpolate(newWantedLookAt, this.lookAtK);
       }
       else {
         throw new Error("unsupported camera mode: "+this.mode);
@@ -29290,7 +29300,7 @@ class RigidBodyComponent extends Component {
       return this.velocity;
     }
     let r = point.sub(this.transform.getPos());
-    let c = Vec3.cross(this.angularVelocity, r);
+    let c = this.angularVelocity.cross(r);
     return this.velocity.add(c);
   }
 
@@ -29303,7 +29313,7 @@ class RigidBodyComponent extends Component {
       return ;
     }
     let r = pos.sub(this.transform.getPos());
-    this.torqueAccum = this.torqueAccum.add(Vec3.cross(r, f));
+    this.torqueAccum = this.torqueAccum.add(r.cross(f));
   }
 
   applyTorque(t) {
@@ -29322,9 +29332,9 @@ class RigidBodyComponent extends Component {
       return mef;
     }
     let applyR = impulsePos.sub(this.transform.getPos());
-    let angveldif = this.getInverseInertia().mul(Vec3.cross(applyR, impulse));
+    let angveldif = this.getInverseInertia().mul(applyR.cross(impulse));
     let targetR = targetPos.sub(this.transform.getPos());
-    let ref = Vec3.cross(angveldif, targetR);
+    let ref = angveldif.cross(targetR);
     return mef.add(ref);
   }
 
@@ -29337,7 +29347,7 @@ class RigidBodyComponent extends Component {
       return ;
     }
     let r = pos.sub(this.transform.getPos());
-    this.angularVelocity = this.angularVelocity.add(this.getInverseInertia().mul(Vec3.cross(r, im)));
+    this.angularVelocity = this.angularVelocity.add(this.getInverseInertia().mul(r.cross(im)));
   }
 
   getTorqueImpulseEffect(tim) {
@@ -31884,7 +31894,7 @@ class CollisionGeometry {
   static edgeEdgeContactPoint(aCenter, a1, a2, b1, b2, bShift, maxSep, maxPen, parThres) {
     let adir = a2.subAndNormalize(a1);
     let bdir = b2.subAndNormalize(b1);
-    let n = Vec3.cross(adir, bdir);
+    let n = adir.cross(bdir);
     if (n.sqrMag()<parThres) {
       return null;
     }
@@ -33221,7 +33231,7 @@ class ContactPoint {
     else {
       res.tangent1 = Vec3.create(0, normal.z(), -normal.y()).normalize();
     }
-    res.tangent2 = Vec3.cross(normal, res.tangent1);
+    res.tangent2 = normal.cross(res.tangent1);
     res.depth = depth;
     res.guardInvariants();
     return res;
@@ -33370,7 +33380,7 @@ class CapsuleCapsuleCollisions {
   }
 
   static isCollision(capsuleA, capsuleB, error, parallelError) {
-    let n = Vec3.cross(capsuleA.getDir(), capsuleB.getDir());
+    let n = capsuleA.getDir().cross(capsuleB.getDir());
     if (n.sqrMag()<parallelError) {
       let p1 = CollisionGeometry.lineSegmentClosest(capsuleA.getPivot1(), capsuleA.getPivot2(), capsuleB.getPivot1());
       let dst1 = p1.dist(capsuleB.getPivot1());
@@ -33391,8 +33401,8 @@ class CapsuleCapsuleCollisions {
     }
     else {
       n = n.normalize();
-      let n1 = Vec3.cross(capsuleA.getDir(), n);
-      let n2 = Vec3.cross(capsuleB.getDir(), n);
+      let n1 = capsuleA.getDir().cross(n);
+      let n2 = capsuleB.getDir().cross(n);
       let t1 = capsuleB.getPivot1().sub(capsuleA.getPivot1()).dot(n2)/capsuleA.getDir().dot(n2);
       let t2 = capsuleA.getPivot1().sub(capsuleB.getPivot1()).dot(n1)/capsuleB.getDir().dot(n1);
       let p1 = capsuleA.getPivot1().add(capsuleA.getDir().scale(t1));
@@ -33421,7 +33431,7 @@ class CapsuleCapsuleCollisions {
   }
 
   static getContactPoints(capsuleA, capsuleB, error, parallelError) {
-    let n = Vec3.cross(capsuleA.getDir(), capsuleB.getDir());
+    let n = capsuleA.getDir().cross(capsuleB.getDir());
     if (n.sqrMag()<parallelError) {
       let p1 = CollisionGeometry.lineSegmentClosest(capsuleA.getPivot1(), capsuleA.getPivot2(), capsuleB.getPivot1());
       let dst1 = p1.dist(capsuleB.getPivot1());
@@ -33471,8 +33481,8 @@ class CapsuleCapsuleCollisions {
     }
     else {
       n = n.normalize();
-      let n1 = Vec3.cross(capsuleA.getDir(), n);
-      let n2 = Vec3.cross(capsuleB.getDir(), n);
+      let n1 = capsuleA.getDir().cross(n);
+      let n2 = capsuleB.getDir().cross(n);
       let t1 = capsuleB.getPivot1().sub(capsuleA.getPivot1()).dot(n2)/capsuleA.getDir().dot(n2);
       let t2 = capsuleA.getPivot1().sub(capsuleB.getPivot1()).dot(n1)/capsuleB.getDir().dot(n1);
       let p1 = capsuleA.getPivot1().add(capsuleA.getDir().scale(t1));
@@ -33687,7 +33697,7 @@ class BoxBoxSat {
       this.normal = null;
       return ;
     }
-    testedDir = Vec3.cross(v1.getUx(), v2.getUx());
+    testedDir = v1.getUx().cross(v2.getUx());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33695,7 +33705,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUx(), v2.getUy());
+    testedDir = v1.getUx().cross(v2.getUy());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33703,7 +33713,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUx(), v2.getUz());
+    testedDir = v1.getUx().cross(v2.getUz());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33711,7 +33721,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUy(), v2.getUx());
+    testedDir = v1.getUy().cross(v2.getUx());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33719,7 +33729,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUy(), v2.getUy());
+    testedDir = v1.getUy().cross(v2.getUy());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33727,7 +33737,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUy(), v2.getUz());
+    testedDir = v1.getUy().cross(v2.getUz());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33735,7 +33745,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUz(), v2.getUx());
+    testedDir = v1.getUz().cross(v2.getUx());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33743,7 +33753,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUz(), v2.getUy());
+    testedDir = v1.getUz().cross(v2.getUy());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33751,7 +33761,7 @@ class BoxBoxSat {
         return ;
       }
     }
-    testedDir = Vec3.cross(v1.getUz(), v2.getUz());
+    testedDir = v1.getUz().cross(v2.getUz());
     if (testedDir.mag()>crossError) {
       testedDir = testedDir.normalize();
       if (this.testSatAxis(v1, v2, testedDir, error)) {
@@ -33899,18 +33909,18 @@ class BoxBoxCollisions {
   static cross(a1, a2, b1, b2, error) {
     let da = a2.sub(a1).normalize();
     let db = b2.sub(b1).normalize();
-    let n = Vec3.cross(da, db);
+    let n = da.cross(db);
     if (n.sqrMag()<0.01) {
       return null;
     }
-    let na = Vec3.cross(da, n);
-    let nb = Vec3.cross(db, n);
+    let na = da.cross(n);
+    let nb = db.cross(n);
     let ca = a1.add(da.scale(b1.sub(a1).dot(nb)/da.dot(nb)));
     let cb = b1.add(db.scale(a1.sub(b1).dot(na)/db.dot(na)));
     if (ca.sqrDist(cb)>error*error) {
       return null;
     }
-    return Vec3.interpolate(ca, cb, 0.5);
+    return ca.interpolate(cb, 0.5);
   }
 
 }
@@ -35271,9 +35281,9 @@ class RigidBodyWorld extends World {
 
   perp(v) {
     v = v.normalize();
-    let h1 = Vec3.cross(Vec3.create(1, 0, 0), v);
-    let h2 = Vec3.cross(Vec3.create(0, 1, 0), v);
-    let h3 = Vec3.cross(Vec3.create(0, 0, 1), v);
+    let h1 = Vec3.RIGHT.cross(v);
+    let h2 = Vec3.UP.cross(v);
+    let h3 = Vec3.FORWARD.cross(v);
     let m1 = h1.mag();
     let m2 = h2.mag();
     let m3 = h3.mag();
@@ -35860,209 +35870,127 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class CustomLabel extends UiComponent {
-  container;
-  text;
-  posFnc;
-  font;
-  alignment;
-  containerSize;
-  pos;
+class BoxMeshFactory {
   constructor() {
-    super();
   }
 
   getClass() {
-    return "CustomLabel";
+    return "BoxMeshFactory";
   }
 
-  guardInvariants() {
+  static rgbBox() {
+    if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&&arguments[3] instanceof Rgb) {
+      return BoxMeshFactory.rgbBox_4_Rgb_Rgb_Rgb_Rgb(arguments[0], arguments[1], arguments[2], arguments[3]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
   }
 
-  init(container) {
-    this.container = container;
+  static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  move(dt) {
+  static rgbBox_3_number_number_number(r, g, b) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  draw(painter) {
-    let color = null;
-    painter.drawText(this.text, this.pos, this.alignment, this.font, color);
+  static rgbaBox(c1, c2, c3, c4, a) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  onContainerResize(size) {
-    this.containerSize = size;
-    this.pos = Functions.apply(this.posFnc, size);
+  static fabricBox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.fabric(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  getText() {
-    return this.text;
+  static modelBox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  setText(text) {
-    Guard.notNull(text, "text cannot be null");
-    this.text = text;
-    return this;
+  static modelSkybox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, -1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22))).toMesh();
+    return res;
   }
 
-  getPosFnc() {
-    return this.posFnc;
+  static modelBoxDeformed1() {
+    let en = Vec2.create(1, -1).normalize();
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  setPosFnc(posFnc) {
-    Guard.notNull(posFnc, "posFnc cannot be null");
-    this.posFnc = posFnc;
-    this.onContainerResize(this.containerSize);
-    return this;
-  }
-
-  getFont() {
-    return this.font;
-  }
-
-  setFont(font) {
-    Guard.notNull(font, "font cannot be null");
-    this.font = font;
-    return this;
-  }
-
-  getAlignment() {
-    return this.alignment;
-  }
-
-  setAlignment(alignment) {
-    Guard.notNull(alignment, "alignment cannot be null");
-    this.alignment = alignment;
-    return this;
-  }
-
-  toString() {
-  }
-
-  static create() {
-    let res = new CustomLabel();
-    res.text = "";
-    res.alignment = TextAlignment.CENTER;
-    res.posFnc = UiPosFncs.center();
-    res.font = FontId.DEFAULT;
-    res.containerSize = Size2.create(1, 1);
-    res.pos = Functions.apply(res.posFnc, res.containerSize);
-    res.guardInvariants();
+  static modelBoxDeformed2() {
+    let en = Vec2.create(-1, -1).normalize();
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.floatValues(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
     return res;
   }
 
 }
-classRegistry.CustomLabel = CustomLabel;
-class BasicApp13 extends TyracornScreen {
+classRegistry.BoxMeshFactory = BoxMeshFactory;
+class BasicApp03 extends TyracornApp {
+  box = MeshId.of("box");
+  whiteBox = MeshId.of("white-box");
   time = 0;
-  ui;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp13";
+    return "BasicApp03";
   }
 
-  move(drivers, screenManager, dt) {
+  move(drivers, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
+    let aspect = gDriver.getScreenViewport().getAspect();
+    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
+    let m = 2*FMath.sin(this.time/3);
+    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 7), Vec3.ZERO, Vec3.create(0, 1, 0));
+    let dirLight = Light.directional(LightColor.create(Rgb.gray(0.4), Rgb.gray(0.6), Rgb.gray(0.6)), Vec3.create(-0.3, -0.8, -0.4).normalize());
+    let pointLight = Light.pointQadratic(LightColor.create(Rgb.BLACK, Rgb.BLUE, Rgb.WHITE), Vec3.create(0, 0, 3.6), 4);
+    let spotLightColor = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
+    let spotLightCone = LightCone.create(FMath.PI/9, FMath.PI/6);
+    let spotLight1 = Light.spotQuadratic(spotLightColor, Vec3.create(0, 2, 0), Vec3.create(0.4+m, -1, 0.2).normalize(), 8, spotLightCone);
+    let spotLight2 = Light.spotQuadratic(spotLightColor, Vec3.create(0, 2, 0), Vec3.create(0.4, -1, 0.2+m/2).normalize(), 8, spotLightCone);
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
-    uiRenderer.render(this.ui);
-    uiRenderer.end();
+    let objRenderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, dirLight, pointLight, spotLight1, spotLight2));
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.WHITE_PLASTIC);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3), Material.GOLD);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3), Material.SILVER);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3), Material.COPPER);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0), Material.GOLD);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.SILVER);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0), Material.COPPER);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3), Material.GOLD);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3), Material.SILVER);
+    objRenderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3), Material.WHITE_PLASTIC);
+    objRenderer.end();
+    let crndr = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
+    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(pointLight.getPos()).mul(Mat44.scale(0.05)));
+    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight1.getPos()).mul(Mat44.scale(0.05)));
+    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight2.getPos()).mul(Mat44.scale(0.05)));
+    crndr.end();
   }
 
-  load(drivers, screenManager, properties) {
-    let res = new ArrayList();
+  init(drivers, properties) {
     let assets = drivers.getDriver("AssetManager");
-    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/fonts-extra")));
-    return res;
+    assets.put(this.box, BoxMeshFactory.fabricBox());
+    assets.put(this.whiteBox, BoxMeshFactory.rgbBox(1, 1, 1));
+    return Collections.emptyList();
   }
 
-  init(drivers, screenManager, properties) {
-    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
-    let assets = drivers.getDriver("AssetManager");
-    let sizes = Dut.immutableList(12, 14, 16, 20, 24, 32, 48, 64, 72, 80);
-    Fonts.prepareScaledFonts(assets, Dut.copySet(sizes));
-    const fontIdBasess = Dut.immutableList("rubik-regular-", "rubik-bold-", "nobile-regular-", "kenny-blocks-", "kenny-future-", "kenny-future-square-", "kenny-bold-", "kenny-space-", "kenny-mini-", "kenny-thick-");
-    const label = CustomLabel.create().setText("Tyracorn").setFont(FontId.of("rubik-regular-32")).setPosFnc(UiPosFncs.center()).setAlignment(TextAlignment.CENTER);
-    const fontLabel = Label.create().setText("rubik-regular-32").setPosFnc(UiPosFncs.center(0, 160)).setAlignment(TextAlignment.CENTER_TOP);
-    let fontAct = (evtSource) => {
-      let oldFontId = label.getFont().id();
-      let oldSize = this.getFontSize(oldFontId);
-      let oldFontIdBase = this.getFontBase(oldFontId)+"-";
-      let newIdx = fontIdBasess.indexOf(oldFontIdBase)+1;
-      if (newIdx>=fontIdBasess.size()) {
-        newIdx = 0;
-      }
-      label.setFont(FontId.of(fontIdBasess.get(newIdx)+oldSize));
-      fontLabel.setText(fontIdBasess.get(newIdx)+oldSize);
-    };
-    const alignemnts = Dut.immutableList(TextAlignment.LEFT_TOP, TextAlignment.CENTER_TOP, TextAlignment.RIGHT_TOP, TextAlignment.LEFT_CENTER, TextAlignment.CENTER, TextAlignment.RIGHT_CENTER, TextAlignment.LEFT_BASE, TextAlignment.CENTER_BASE, TextAlignment.RIGHT_BASE, TextAlignment.LEFT_BOTTOM, TextAlignment.CENTER_BOTTOM, TextAlignment.RIGHT_BOTTOM);
-    let alignAct = (evtSource) => {
-      let idx = alignemnts.indexOf(label.getAlignment())+1;
-      if (idx>=alignemnts.size()) {
-        idx = 0;
-      }
-      label.setAlignment(alignemnts.get(idx));
-    };
-    const texts = Dut.immutableList("Tyracorn", "Hello World!!!", "I love you");
-    let textAct = (evtSource) => {
-      let idx = texts.indexOf(label.getText())+1;
-      if (idx>=texts.size()) {
-        idx = 0;
-      }
-      label.setText(texts.get(idx));
-    };
-    let sizeAct = (evtSource) => {
-      let oldFontId = label.getFont().id();
-      let oldSize = this.getFontSize(oldFontId);
-      let oldFontIdBase = this.getFontBase(oldFontId)+"-";
-      let newIdx = sizes.indexOf(oldSize)+1;
-      if (newIdx>=sizes.size()) {
-        newIdx = 0;
-      }
-      label.setFont(FontId.of(oldFontIdBase+sizes.get(newIdx)));
-      fontLabel.setText(oldFontIdBase+sizes.get(newIdx));
-    };
-    this.ui.addComponent(Panel.create().setRegionFnc(UiRegionFncs.center(5, 5)));
-    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(-130, 80, 120, 30)).setText("Font").addOnClickAction(fontAct));
-    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(10, 80, 120, 30)).setText("Alignment").addOnClickAction(alignAct));
-    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(-130, 120, 120, 30)).setText("Text").addOnClickAction(textAct));
-    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(10, 120, 120, 30)).setText("Size").addOnClickAction(sizeAct));
-    this.ui.addComponent(label);
-    this.ui.addComponent(fontLabel);
-    if (drivers.getPlatform().isExitable()) {
-      this.ui.addComponent(PlayUis.createExitButton(UiEventActions.exitApp(screenManager)));
-    }
-    this.ui.subscribe(drivers);
-  }
-
-  leave(drivers) {
-    this.ui.unsubscribe(drivers);
-  }
-
-  getFontBase(fontName) {
-    let parts = fontName.split("-");
-    let res = parts[0];
-    for (let i = 1; i<parts.length-1; ++i) {
-      res = res+"-"+parts[i];
-    }
-    return res;
-  }
-
-  getFontSize(fontName) {
-    let parts = fontName.split("-");
-    let resStr = parts[parts.length-1];
-    return Integer.parseInt(resStr);
+  close(drivers) {
   }
 
 }
-classRegistry.BasicApp13 = BasicApp13;
+classRegistry.BasicApp03 = BasicApp03;
 
 
 // -------------------------------------
@@ -36445,7 +36373,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp13());
+    tyracornApp = new BasicApp03();
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
