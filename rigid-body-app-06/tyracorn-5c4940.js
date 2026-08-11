@@ -5566,11 +5566,11 @@ class WebglShadowMapRenderer {
      * Performs rendering. Arguments determines how the object is rendered.
      */
     render() {
-        if (arguments.length === 4 && arguments[0] instanceof MeshId &&
+        if (arguments.length === 5 && arguments[0] instanceof MeshId &&
                 arguments[1] instanceof Interpolation && arguments[2] instanceof ArmaturePose &&
                 arguments[3] instanceof Mat44 && arguments[4] instanceof MaterialId) {
             this.renderMesh(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
-        } else if (arguments.length === 4 && arguments[0] instanceof MeshId &&
+        } else if (arguments.length === 5 && arguments[0] instanceof MeshId &&
                 arguments[1] instanceof Interpolation && arguments[2] instanceof ArmaturePose &&
                 arguments[3] instanceof Mat44 && arguments[4] instanceof Material) {
             this.renderMesh(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);

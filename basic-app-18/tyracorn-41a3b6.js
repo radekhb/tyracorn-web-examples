@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-16";
-const assetsDirName = "/assets-259ca6";
+const basePath = "/tyracorn-web-examples/basic-app-18";
+const assetsDirName = "/assets-3d362e";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -5566,11 +5566,11 @@ class WebglShadowMapRenderer {
      * Performs rendering. Arguments determines how the object is rendered.
      */
     render() {
-        if (arguments.length === 4 && arguments[0] instanceof MeshId &&
+        if (arguments.length === 5 && arguments[0] instanceof MeshId &&
                 arguments[1] instanceof Interpolation && arguments[2] instanceof ArmaturePose &&
                 arguments[3] instanceof Mat44 && arguments[4] instanceof MaterialId) {
             this.renderMesh(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
-        } else if (arguments.length === 4 && arguments[0] instanceof MeshId &&
+        } else if (arguments.length === 5 && arguments[0] instanceof MeshId &&
                 arguments[1] instanceof Interpolation && arguments[2] instanceof ArmaturePose &&
                 arguments[3] instanceof Mat44 && arguments[4] instanceof Material) {
             this.renderMesh(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
@@ -36162,49 +36162,7 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class PlayAnimationBehavior extends Behavior {
-  player;
-  model;
-  cooldown = 3;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "PlayAnimationBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.model = this.actor().getComponent("ModelComponent");
-  }
-
-  move(dt, inputs) {
-    let step = this.player.move(dt);
-    this.model.setInterpolation(step.getInterpolation()).setPose(step.getPose());
-    if (step.isEnd()) {
-      this.cooldown = this.cooldown-dt;
-      if (this.cooldown<0) {
-        this.player.play(step.getKey(), MeshAnimationPlayConfig.RESTART);
-      }
-    }
-    else {
-      this.cooldown = 3;
-    }
-  }
-
-  static create(key, player) {
-    let res = new PlayAnimationBehavior(key);
-    res.player = player;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.PlayAnimationBehavior = PlayAnimationBehavior;
-class BasicApp16 extends TyracornScreen {
+class BasicApp18 extends TyracornScreen {
   time = 0;
   world;
   inputs = InputCache.create();
@@ -36216,7 +36174,7 @@ class BasicApp16 extends TyracornScreen {
   }
 
   getClass() {
-    return "BasicApp16";
+    return "BasicApp18";
   }
 
   move(drivers, screenManager, dt) {
@@ -36252,49 +36210,55 @@ class BasicApp16 extends TyracornScreen {
 
   load(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/primitives.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")), assets.resolveAsync(Path.of("asset:packages/characters/base-human.tap")));
+    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/primitives.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")));
   }
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
     Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 30));
+    let tyracornTextureId = TextureId.of("tyracorn");
+    let transparentTex1Id = TextureId.of("transparent-texture-1");
+    let transparentTex1 = Texture.rgbaFloatValues(4, 4, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5);
+    let transparentTex2Id = TextureId.of("transparent-texture-2");
+    let transparentTex2 = Texture.rgbaFloatValues(4, 4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4);
+    assets.put(transparentTex1Id, transparentTex1);
+    assets.put(transparentTex2Id, transparentTex2);
     assets.put(MaterialId.of("brass"), Material.BRASS);
     assets.put(MaterialId.of("copper"), Material.COPPER);
+    assets.put(MaterialId.of("gold"), Material.GOLD);
     assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
     let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
     let groundModelId = ModelId.of("ground");
     assets.put(groundModelId, groundModel);
-    const wallColMatId = PhysicalMaterialId.of("wall");
-    assets.put(wallColMatId, PhysicalMaterial.simple(0.6, 1.8, 1.8));
+    assets.put(MaterialId.of("tyracorn-mask"), Material.SILVER.withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(tyracornTextureId)).plusTexture(TextureAttachment.diffuse(tyracornTextureId)));
+    let tyracornMaskBox = Model.simple(MeshId.of("modelBox"), MaterialId.of("tyracorn-mask"));
+    let tyracornMaskBoxModelId = ModelId.of("tyracorn-mask-box");
+    assets.put(tyracornMaskBoxModelId, tyracornMaskBox);
+    assets.put(MaterialId.of("siver-blend"), Material.SILVER.withAlphaMode(MaterialAlphaMode.BLEND).plusTexture(TextureAttachment.alpha(transparentTex1Id)));
+    let silverBlendBox = Model.simple(MeshId.of("modelBox"), MaterialId.of("siver-blend"));
+    let silverBlendBoxModelId = ModelId.of("silver-blend-box");
+    assets.put(silverBlendBoxModelId, silverBlendBox);
+    assets.put(MaterialId.of("gold-blend"), Material.GOLD.withAlphaMode(MaterialAlphaMode.BLEND).plusTexture(TextureAttachment.alpha(transparentTex2Id)));
+    let goldBlendBox = Model.simple(MeshId.of("modelBox"), MaterialId.of("gold-blend"));
+    let goldBlendBoxModelId = ModelId.of("gold-blend-box");
+    assets.put(goldBlendBoxModelId, goldBlendBox);
     this.world = RigidBodyWorld.create(drivers);
     let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create(ComponentKey.WORLD).setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-30, -30, -30, 30, 30, 30)));
     this.world.actors().add(ActorId.ROOT, worldActor);
     let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create(ComponentKey.TRANSFORM)).addComponent(SkyboxComponent.create(ComponentKey.SKYBOX).setModelId(ModelId.of("skybox-1")).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create(ComponentKey.AUTO_ROTATE).setAngularVelocity(Vec3.create(0, 0.1, 0)));
     this.world.actors().add(ActorId.ROOT, skybox);
-    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(20, 1, 20)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 2, 22)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
+    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(20, 1, 20))));
     this.world.actors().add(ActorId.ROOT, ground);
-    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(2, 5, 5), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE).setDirShadowMapStrategy(DirShadowMapStrategy.createManual(80, 80, 0, 60)));
+    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(4, 10, 10), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE).setDirShadowMapStrategy(DirShadowMapStrategy.createManual(80, 80, 0, 20)));
     this.world.actors().add(ActorId.ROOT, light);
     let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 4, 5), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create(ComponentKey.random(), "moveDir", "rotDir", 5, 1)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY));
     this.world.actors().add(ActorId.ROOT, camera);
-    let animations = assets.get("MeshAnimationCollection", MeshAnimationCollectionId.of("base-human"));
-    let player = MeshAnimationPlayer.create(animations, animations.getAnimations().get(0).getKey());
-    let model = assets.get("Model", ModelId.of("base-human"));
-    let character = Actor.create("character").setName("character").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(ModelId.of("base-human")).setPose(model.getArmature().getBasePose())).addComponent(ColliderComponent.create(ComponentKey.random()).setShape(ColliderShape.SPHERE).setPoseNodeRef(ColliderPoseNodeRef.create(ComponentKey.MODEL_1, ArmatureNodeId.of("DEF-head"))).setPos(0, 0.1, 0).setRadius(0.15)).addComponent(ColliderComponent.create(ComponentKey.random()).setShape(ColliderShape.BOX).setPoseNodeRef(ColliderPoseNodeRef.create(ComponentKey.MODEL_1, ArmatureNodeId.of("DEF-spine.002"))).setPos(0, 0.1, 0).setSize(0.3, 0.7, 0.2)).addComponent(ColliderComponent.create(ComponentKey.random()).setShape(ColliderShape.CAPSULE).setPoseNodeRef(ColliderPoseNodeRef.create(ComponentKey.MODEL_1, ArmatureNodeId.of("DEF-shin.R"))).setPos(0, 0.25, 0).setRadius(0.075).setHeight(0.6)).addComponent(PlayAnimationBehavior.create(ComponentKey.random(), player));
-    this.world.actors().add(ActorId.ROOT, character);
+    this.world.actors().add(ActorId.ROOT, Actor.create("tyracorn-mask-box").setName("tyracorn-mask-box").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(tyracornMaskBoxModelId).setTransform(Mat44.trans(0, 0.5, 0))));
+    this.world.actors().add(ActorId.ROOT, Actor.create("silver-blend-box").setName("silver-blend-box").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(silverBlendBoxModelId).setTransform(Mat44.trans(1.5, 0.5, 0))));
+    this.world.actors().add(ActorId.ROOT, Actor.create("gold-blend-box").setName("gold-blend-box").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(goldBlendBoxModelId).setTransform(Mat44.trans(1.5, 0.5, -1.5))));
     this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
     this.gamePad = GamePad.create(drivers);
     this.ui.addComponent(this.gamePad);
-    let items = new ArrayList();
-    for (let anim of animations.getAnimations()) {
-      items.add(DropdownItem.create(anim.getKey().key(), anim.getKey().key()));
-    }
-    let animationDropdown = Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(10, 10, 160, 40)).setLabelText("Animation").addItems(items).setSelected(items.get(0)).addOnChangeAction((dd) => {
-  let dropdown = dd;
-  let value = dropdown.getSelected().getValue();
-  player.play(MeshAnimationKey.of(value), MeshAnimationPlayConfig.RESTART);
-});
-    this.ui.addComponent(animationDropdown);
     this.ui.addComponent(Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction((evt) => {
   this.paused = true;
 }));
@@ -36313,15 +36277,8 @@ class BasicApp16 extends TyracornScreen {
     this.world.destroy(drivers);
   }
 
-  getRandomVelocity() {
-    let vx = Randoms.nextFloat(0, 2)-1;
-    let vy = Randoms.nextFloat(0, 2)-1;
-    let vz = Randoms.nextFloat(0, 2)-1;
-    return Vec3.create(vx, vy, vz);
-  }
-
 }
-classRegistry.BasicApp16 = BasicApp16;
+classRegistry.BasicApp18 = BasicApp18;
 
 
 // -------------------------------------
@@ -36704,7 +36661,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp16());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp18());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
