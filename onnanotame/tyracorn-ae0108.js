@@ -38188,11 +38188,8 @@ class FighterAttackStandardInput {
     else if (this.moveDirType.equals(FighterInputMoveDirType.BACKWARD)) {
       dir = targetTurn==FMath.PI_HALF?Vec2.LEFT:Vec2.RIGHT;
     }
-    else if (this.moveDirType.equals(FighterInputMoveDirType.DOWN)) {
+    else if (this.moveDirType.equals(FighterInputMoveDirType.DOWN_ANY)) {
       dir = Vec2.DOWN;
-    }
-    else if (this.moveDirType.equals(FighterInputMoveDirType.UP)) {
-      dir = Vec2.UP;
     }
     return FighterInput.create(dir, this.punch, this.kick, false);
   }
@@ -38784,7 +38781,7 @@ class FighterConfig {
   jumpUpImpulse = 100;
   landVelocity = 15;
   sounds = Dut.map("sfx-hit", Dut.list(SoundId.of("man-hit-1"), SoundId.of("man-hit-2"), SoundId.of("man-hit-3"), SoundId.of("man-hit-4"), SoundId.of("man-hit-5")), "sfx-death", Dut.list(SoundId.of("man-death-1"), SoundId.of("man-death-2"), SoundId.of("man-death-3")), "sfx-attack", Dut.list(SoundId.of("man-attack-1"), SoundId.of("man-attack-2"), SoundId.of("man-attack-3"), SoundId.of("man-attack-4"), SoundId.of("man-attack-5"), SoundId.of("man-attack-6"), SoundId.of("man-attack-7")), "sfx-land", Dut.list(SoundId.of("man-land-1")));
-  attacks = Dut.immutableList(FighterAttackConfig.createDefault(FighterAttackId.of("jab"), MeshAnimationKey.of("fight-jab")).withAnimationStartTime(0.11).withStamina(20).withDamange(Interval2.create(5, 10)).withInpulse(Interval2.create(10, 20)).withSingleHit(true).withHitTime(Interval2.create(0.15, 0.22)).withHitBoxes(Dut.list(ComponentKey.of("hand-left-hitbox"))).withDistance(Interval2.create(0.7, 0.87)).withInput(FighterAttackStandardInput.createDefault(FighterInputMoveDirType.ANY, true, false)), FighterAttackConfig.createDefault(FighterAttackId.of("cross"), MeshAnimationKey.of("fight-cross")).withAnimationStartTime(0.13).withStamina(20).withDamange(Interval2.create(10, 20)).withInpulse(Interval2.create(20, 30)).withSingleHit(true).withHitTime(Interval2.create(0.2, 0.32)).withHitBoxes(Dut.list(ComponentKey.of("hand-right-hitbox"))).withDistance(Interval2.create(0.6, 0.83)).withInput(FighterAttackStandardInput.createDefault(FighterInputMoveDirType.FORWARD, true, false)), FighterAttackConfig.createDefault(FighterAttackId.of("kick"), MeshAnimationKey.of("fight-kick")).withStamina(40).withDamange(Interval2.create(20, 30)).withInpulse(Interval2.create(40, 60)).withSingleHit(true).withHitTime(Interval2.create(0.27, 0.31)).withHitBoxes(Dut.list(ComponentKey.of("shin-right-hitbox"), ComponentKey.of("foot-right-hitbox"))).withDistance(Interval2.create(0.6, 1)).withInput(FighterAttackStandardInput.createDefault(FighterInputMoveDirType.ANY, false, true)), FighterAttackConfig.createDefault(FighterAttackId.of("backflip"), MeshAnimationKey.of("backflip")).withAnimationStartTime(0.24).withStamina(95).withDamange(Interval2.create(500, 1000)).withInpulse(Interval2.create(20, 50)).withSingleHit(false).withHitTime(Interval2.create(0.35, 0.6)).withHitBoxes(Dut.list(ComponentKey.of("shin-left-hitbox"), ComponentKey.of("shin-right-hitbox"), ComponentKey.of("foot-left-hitbox"), ComponentKey.of("foot-right-hitbox"))).withDistance(Interval2.create(0.6, 1.1)).withInput(FighterAttackStandardInput.createDefault(FighterInputMoveDirType.DOWN, false, true)));
+  attacks = Dut.immutableList(FighterAttackConfig.createDefault(FighterAttackId.of("jab"), MeshAnimationKey.of("fight-jab")).withAnimationStartTime(0.11).withStamina(20).withDamange(Interval2.create(5, 10)).withInpulse(Interval2.create(10, 20)).withSingleHit(true).withHitTime(Interval2.create(0.15, 0.22)).withHitBoxes(Dut.list(ComponentKey.of("hand-left-hitbox"))).withDistance(Interval2.create(0.7, 0.87)).withInput(FighterAttackStandardInput.createDefault(FighterInputMoveDirType.ANY, true, false)), FighterAttackConfig.createDefault(FighterAttackId.of("cross"), MeshAnimationKey.of("fight-cross")).withAnimationStartTime(0.13).withStamina(20).withDamange(Interval2.create(10, 20)).withInpulse(Interval2.create(20, 30)).withSingleHit(true).withHitTime(Interval2.create(0.2, 0.32)).withHitBoxes(Dut.list(ComponentKey.of("hand-right-hitbox"))).withDistance(Interval2.create(0.6, 0.83)).withInput(FighterAttackStandardInput.createDefault(FighterInputMoveDirType.FORWARD, true, false)), FighterAttackConfig.createDefault(FighterAttackId.of("kick"), MeshAnimationKey.of("fight-kick")).withStamina(40).withDamange(Interval2.create(20, 30)).withInpulse(Interval2.create(40, 60)).withSingleHit(true).withHitTime(Interval2.create(0.27, 0.31)).withHitBoxes(Dut.list(ComponentKey.of("shin-right-hitbox"), ComponentKey.of("foot-right-hitbox"))).withDistance(Interval2.create(0.6, 1)).withInput(FighterAttackStandardInput.createDefault(FighterInputMoveDirType.ANY, false, true)), FighterAttackConfig.createDefault(FighterAttackId.of("backflip"), MeshAnimationKey.of("backflip")).withAnimationStartTime(0.24).withStamina(95).withDamange(Interval2.create(500, 1000)).withInpulse(Interval2.create(20, 50)).withSingleHit(false).withHitTime(Interval2.create(0.35, 0.6)).withHitBoxes(Dut.list(ComponentKey.of("shin-left-hitbox"), ComponentKey.of("shin-right-hitbox"), ComponentKey.of("foot-left-hitbox"), ComponentKey.of("foot-right-hitbox"))).withDistance(Interval2.create(0.6, 1.1)).withInput(FighterAttackStandardInput.createDefault(FighterInputMoveDirType.DOWN_ANY, false, true)));
   blockDamageRatio = 0.1;
   shakeDamage = 2;
   jumpOverDistance = Interval2.create(1, 2);
@@ -38974,10 +38971,7 @@ class FighterInput {
     }
     else if (absX<0.5) {
       if (this.moveDir.y()<-0.5) {
-        return FighterInputMoveDirType.DOWN;
-      }
-      else {
-        return FighterInputMoveDirType.UP;
+        return FighterInputMoveDirType.DOWN_ANY;
       }
     }
     return FighterInputMoveDirType.OTHER;
@@ -39038,8 +39032,7 @@ const FighterInputMoveDirType = Object.freeze({
   ZERO: createFighterInputMoveDirType("ZERO"),
   FORWARD: createFighterInputMoveDirType("FORWARD"),
   BACKWARD: createFighterInputMoveDirType("BACKWARD"),
-  DOWN: createFighterInputMoveDirType("DOWN"),
-  UP: createFighterInputMoveDirType("UP"),
+  DOWN_ANY: createFighterInputMoveDirType("DOWN_ANY"),
   OTHER: createFighterInputMoveDirType("OTHER"),
   ANY: createFighterInputMoveDirType("ANY"),
 
