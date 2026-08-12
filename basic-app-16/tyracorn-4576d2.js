@@ -8533,6 +8533,10 @@ class JsonArray {
 classRegistry.JsonArray = JsonArray;
 class Vec2 {
   static ZERO = Vec2.create(0, 0);
+  static RIGHT = Vec2.create(1, 0);
+  static LEFT = Vec2.create(-1, 0);
+  static UP = Vec2.create(0, 1);
+  static DOWN = Vec2.create(0, -1);
   mX;
   mY;
   constructor() {
@@ -32051,6 +32055,13 @@ class CollisionSphere {
     return this.radius;
   }
 
+  interpolate(b, t) {
+    let ti = 1-t;
+    let p = this.pos.interpolate(b.pos, t);
+    let r = ti*this.radius+t*b.radius;
+    return CollisionSphere.create(p, r);
+  }
+
   hashCode() {
     return Reflections.hashCode(this);
   }
@@ -32112,6 +32123,14 @@ class CollisionCapsule {
 
   getPivotDst() {
     return this.pivotDst;
+  }
+
+  interpolate(b, t) {
+    let ti = 1-t;
+    let p1 = this.pivot1.interpolate(b.pivot1, t);
+    let p2 = this.pivot2.interpolate(b.pivot2, t);
+    let r = ti*this.radius+t*b.radius;
+    return CollisionCapsule.create(p1, p2, r);
   }
 
   hashCode() {
