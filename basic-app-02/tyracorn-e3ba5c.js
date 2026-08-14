@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-04";
-const assetsDirName = "/null";
+const basePath = "/tyracorn-web-examples/basic-app-02";
+const assetsDirName = "/assets-1921d2";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -30823,7 +30823,7 @@ class GroundedComponent extends Behavior {
       else {
         throw new Error("unsupported volume for ground testing: "+volume);
       }
-      let contacts = this.world().collisions().withColliderContacts(this.collider);
+      let contacts = this.world().collisions().getColliderContacts(this.collider);
       let bestCollisionHeight = bottomY+2*this.maxCpHeight;
       let bestContact = null;
       let bestContactPoint = null;
@@ -32047,6 +32047,11 @@ class CollisionSphere {
   guardInvariants() {
   }
 
+  getAaabb() {
+    let d = this.radius+0.1;
+    return Aabb3.create(this.pos.x()-d, this.pos.y()-d, this.pos.z()-d, this.pos.x()+d, this.pos.y()+d, this.pos.z()+d);
+  }
+
   getPos() {
     return this.pos;
   }
@@ -32056,10 +32061,14 @@ class CollisionSphere {
   }
 
   interpolate(b, t) {
-    let ti = 1-t;
-    let p = this.pos.interpolate(b.pos, t);
-    let r = ti*this.radius+t*b.radius;
-    return CollisionSphere.create(p, r);
+    if (b instanceof CollisionSphere) {
+      let cb = b;
+      let ti = 1-t;
+      let p = this.pos.interpolate(cb.pos, t);
+      let r = ti*this.radius+t*cb.radius;
+      return CollisionSphere.create(p, r);
+    }
+    throw new Error("unsupported interpolation, implement me: "+b);
   }
 
   hashCode() {
@@ -32126,11 +32135,20 @@ class CollisionCapsule {
   }
 
   interpolate(b, t) {
-    let ti = 1-t;
-    let p1 = this.pivot1.interpolate(b.pivot1, t);
-    let p2 = this.pivot2.interpolate(b.pivot2, t);
-    let r = ti*this.radius+t*b.radius;
-    return CollisionCapsule.create(p1, p2, r);
+    if (b instanceof CollisionCapsule) {
+      let cb = b;
+      let ti = 1-t;
+      let p1 = this.pivot1.interpolate(cb.pivot1, t);
+      let p2 = this.pivot2.interpolate(cb.pivot2, t);
+      let r = ti*this.radius+t*cb.radius;
+      return CollisionCapsule.create(p1, p2, r);
+    }
+    throw new Error("unsupported interpolation, implement me: "+b);
+  }
+
+  getAaabb() {
+    let d = this.radius+0.1;
+    return Aabb3.create(FMath.min(this.pivot1.x(), this.pivot2.x())-d, FMath.min(this.pivot1.y(), this.pivot2.y())-d, FMath.min(this.pivot1.z(), this.pivot2.z())-d, FMath.max(this.pivot1.x(), this.pivot2.x())+d, FMath.max(this.pivot1.y(), this.pivot2.y())+d, FMath.max(this.pivot1.z(), this.pivot2.z())+d);
   }
 
   hashCode() {
@@ -32222,6 +32240,15 @@ class CollisionBox {
 
   getEz() {
     return this.ez;
+  }
+
+  interpolate(b, t) {
+    throw new Error("unsupported interpolation, implement me: "+b);
+  }
+
+  getAaabb() {
+    let d = FMath.max(FMath.max(this.ex, this.ey), this.ez)+0.1;
+    return Aabb3.create(this.pos.x()-d, this.pos.y()-d, this.pos.z()-d, this.pos.x()+d, this.pos.y()+d, this.pos.z()+d);
   }
 
   getPoint1() {
@@ -32598,30 +32625,10 @@ class CollisionCandidatePair {
   toString() {
   }
 
-  static create() {
-    if (arguments.length===2&&arguments[0] instanceof ActorId&&arguments[1] instanceof ActorId) {
-      return CollisionCandidatePair.create_2_ActorId_ActorId(arguments[0], arguments[1]);
-    }
-    else if (arguments.length===2&& typeof arguments[0]==="string"&& typeof arguments[1]==="string") {
-      return CollisionCandidatePair.create_2_string_string(arguments[0], arguments[1]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  static create_2_ActorId_ActorId(actorA, actorB) {
+  static create(actorA, actorB) {
     let res = new CollisionCandidatePair();
     res.actorA = actorA;
     res.actorB = actorB;
-    res.guardInvariants();
-    return res;
-  }
-
-  static create_2_string_string(actorA, actorB) {
-    let res = new CollisionCandidatePair();
-    res.actorA = ActorId.of(actorA);
-    res.actorB = ActorId.of(actorB);
     res.guardInvariants();
     return res;
   }
@@ -33037,8 +33044,14 @@ class BroadphaseCollisionManager {
       let colsB = this.actorColliders.get(candidate.getActorB());
       for (let i = 0; i<colsA.size(); ++i) {
         let ca = colsA.get(i);
+        if (!ca.isActive()) {
+          continue;
+        }
         for (let j = 0; j<colsB.size(); ++j) {
           let cb = colsB.get(j);
+          if (!cb.isActive()) {
+            continue;
+          }
           if (this.layerMatrix.canCollide(ca.getLayer(), cb.getLayer())) {
             let contactPoints = this.detector.getContactPoints(ca.getVolume(), cb.getVolume());
             if (!contactPoints.isEmpty()) {
@@ -33051,7 +33064,7 @@ class BroadphaseCollisionManager {
     return res;
   }
 
-  withCollider(collider) {
+  getColliderIntersections(collider) {
     let candidates = this.broadphase.getCandidates(collider.getGlobalAabb());
     let excls = this.exclusions.keySet();
     let res = new ArrayList();
@@ -33062,6 +33075,9 @@ class BroadphaseCollisionManager {
       let cols = this.actorColliders.get(actorId);
       for (let i = 0; i<cols.size(); ++i) {
         let ca = cols.get(i);
+        if (!ca.isActive()) {
+          continue;
+        }
         if (ca==collider||ca.getActor().equals(collider.getActor())) {
           continue;
         }
@@ -33076,7 +33092,32 @@ class BroadphaseCollisionManager {
     return res;
   }
 
-  withColliderContacts(collider) {
+  getVolumeIntersections(volume, profile) {
+    let candidates = this.broadphase.getCandidates(volume.getAaabb());
+    let actorMatcher = profile.getActorMatcher();
+    let res = new ArrayList();
+    for (let actorId of candidates) {
+      if (!actorMatcher.isIncluded(this.actors.get(actorId))) {
+        continue;
+      }
+      let cols = this.actorColliders.get(actorId);
+      for (let i = 0; i<cols.size(); ++i) {
+        let ca = cols.get(i);
+        if (!ca.isActive()) {
+          continue;
+        }
+        if (this.layerMatrix.canCollide(ca.getLayer(), profile.getLayer())) {
+          let col = this.detector.isCollision(volume, ca.getVolume());
+          if (col) {
+            res.add(ca);
+          }
+        }
+      }
+    }
+    return res;
+  }
+
+  getColliderContacts(collider) {
     let candidates = this.broadphase.getCandidates(collider.getGlobalAabb());
     let excls = this.exclusions.keySet();
     let res = new ArrayList();
@@ -33087,6 +33128,9 @@ class BroadphaseCollisionManager {
       let cols = this.actorColliders.get(actorId);
       for (let i = 0; i<cols.size(); ++i) {
         let ca = cols.get(i);
+        if (!ca.isActive()) {
+          continue;
+        }
         if (ca==collider||ca.getActor().equals(collider.getActor())) {
           continue;
         }
@@ -35953,17 +35997,20 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp04 extends TyracornApp {
-  box = MeshId.of("box");
-  whiteBox = MeshId.of("white-box");
-  shadow1 = ShadowBufferId.of("shadow1");
+class BasicApp02 extends TyracornApp {
+  planes = Dut.immutableList(MeshId.of("plane-0"), MeshId.of("plane-1"), MeshId.of("plane-2"), MeshId.of("plane-3"), MeshId.of("plane-4"), MeshId.of("plane-5"), MeshId.of("plane-6"), MeshId.of("plane-7"), MeshId.of("plane-8"), MeshId.of("plane-9"), MeshId.of("plane-10"));
+  tex1 = TextureId.of("tex1");
+  tex2 = TextureId.of("tex2");
+  stone = TextureId.of("stone-floor-1");
+  tyracorn = TextureId.of("tyracorn");
+  rug = TextureId.of("rug-1");
   time = 0;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp04";
+    return "BasicApp02";
   }
 
   move(drivers, dt) {
@@ -35971,41 +36018,58 @@ class BasicApp04 extends TyracornApp {
     let gDriver = drivers.getDriver("GraphicsDriver");
     let aspect = gDriver.getScreenViewport().getAspect();
     let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
-    let cam = Camera.persp(fovy, aspect, 0.1, 1000.0).lookAt(Vec3.create(1.0, 3.5, 4.5), Vec3.create(2.0, 0.0, 0.0), Vec3.create(0, 1, 0));
-    let dirLight = Light.directional(LightColor.create(Rgb.gray(0.75), Rgb.BLACK, Rgb.BLACK), Vec3.create(1, -1, 0));
-    let shadowLightPos = Vec3.create(-3+3*Math.sin(this.time), 2, -1);
-    let shadowLightDir = Vec3.create(1.5, -1, 0.6).normalize();
-    let spotLightColor = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
-    let spotLightCone = LightCone.create(FMath.PI/9, FMath.PI/6);
-    let spotLightShadowMap = ShadowMap.createSpot(this.shadow1, shadowLightPos, shadowLightDir, spotLightCone.getOutTheta(), 1, 32);
-    let spotLight = Light.spotQuadratic(spotLightColor, shadowLightPos, shadowLightDir, 16, spotLightCone, spotLightShadowMap);
-    let smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight));
-    smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.BLACK);
-    smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.BLACK);
-    smapRndr.end();
+    let m = 2*FMath.sin(this.time/3);
+    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 5), Vec3.ZERO, Vec3.create(0, 1, 0));
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, dirLight, spotLight));
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.CHROME);
-    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.SILVER);
-    objRnderer.end();
-    let crndr = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
-    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight.getPos()).mul(Mat44.scale(0.05)));
-    crndr.end();
+    let renderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, Light.directional(LightColor.AMBIENT_WHITE, Vec3.DOWN)));
+    renderer.render(this.planes.get(10), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -0.5, 0).mul(Mat44.rotX(-Math.PI/2).mul(Mat44.scale(20, 20, 1))), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.rug, TextureStyle.SMOOTH_REPEAT)));
+    renderer.render(this.planes.get(1), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-4, 1, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.LINEAR, TextureFilterType.LINEAR))));
+    renderer.render(this.planes.get(1), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-4, 0, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(1), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-2.4, 0, 0).mul(Mat44.scale(2, 1, 1)), Material.fromColors(Rgb.BLACK, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.ALPHA, this.tyracorn, TextureStyle.SMOOTH_REPEAT)).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tyracorn, TextureStyle.SMOOTH_REPEAT)));
+    renderer.render(this.planes.get(2), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-0.6, 0, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(2), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-0.6, 1, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.LINEAR, TextureFilterType.LINEAR))));
+    renderer.render(this.planes.get(2), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-0.6, 2, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.SMOOTH_REPEAT)));
+    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0.8, 0, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.EDGE, TextureWrapType.EDGE, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0.8, 1, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.MIRRORED_REPEAT, TextureWrapType.MIRRORED_REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0.8, 2, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(2.0, 0, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.BORDER, TextureWrapType.BORDER, Rgba.RED, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(2.0, 1, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.BORDER, TextureWrapType.BORDER, Rgba.WHITE, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.end();
   }
 
   init(drivers, properties) {
     let assets = drivers.getDriver("AssetManager");
-    assets.put(this.box, BoxMeshFactory.fabricBox());
-    assets.put(this.whiteBox, BoxMeshFactory.rgbBox(1, 1, 1));
-    assets.put(this.shadow1, ShadowBuffer.create(1024, 1024));
-    return Collections.emptyList();
+    assets.put(this.planes.get(1), this.plane(1, 1));
+    assets.put(this.planes.get(2), this.plane(2, 2));
+    assets.put(this.planes.get(3), this.plane(3, 3));
+    assets.put(this.planes.get(4), this.plane(4, 4));
+    assets.put(this.planes.get(5), this.plane(5, 5));
+    assets.put(this.planes.get(6), this.plane(6, 6));
+    assets.put(this.planes.get(7), this.plane(7, 7));
+    assets.put(this.planes.get(8), this.plane(8, 8));
+    assets.put(this.planes.get(9), this.plane(9, 9));
+    assets.put(this.planes.get(10), this.plane(10, 10));
+    let mtex1 = Texture.rgbFloatValues(4, 4, 1, 1, 1, 0.3, 0.3, 0.3, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 1, 1, 1, 1, 0, 0.3, 0.3, 0.3, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 1, 1, 0, 1).powRgb(2.2);
+    let mtex2 = Texture.rgbaFloatValues(4, 4, 1, 1, 1, 1, 0.3, 0.3, 0.3, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1).powRgb(2.2);
+    assets.put(this.tex1, mtex1);
+    assets.put(this.tex2, mtex2);
+    let res = new ArrayList();
+    res.add(assets.resolveAsync(Path.of("asset:stone-floor-1.png"), "Texture", TextureFncs.flipVertGammaToUnsignedByte(2.2)));
+    res.add(assets.resolveAsync(Path.of("asset:tyracorn.png"), "Texture", TextureFncs.flipVertGammaToUnsignedByte(2.2)));
+    res.add(assets.resolveAsync(Path.of("asset:rug-1.png"), "Texture", TextureFncs.flipVertGammaToUnsignedByte(2.2)));
+    return res;
   }
 
   close(drivers) {
   }
 
+  plane(repU, repV) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3, VertexAttr.TEX2), Dut.list(Vertex.floatValues(-0.5, -0.5, 0, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0, 0, 0, 1, repU, 0), Vertex.floatValues(0.5, 0.5, 0, 0, 0, 1, repU, repV), Vertex.floatValues(-0.5, 0.5, 0, 0, 0, 1, 0, repV))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3))).toMesh();
+    return res;
+  }
+
 }
-classRegistry.BasicApp04 = BasicApp04;
+classRegistry.BasicApp02 = BasicApp02;
 
 
 // -------------------------------------
@@ -36388,7 +36452,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = new BasicApp04();
+    tyracornApp = new BasicApp02();
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

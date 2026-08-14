@@ -30823,7 +30823,7 @@ class GroundedComponent extends Behavior {
       else {
         throw new Error("unsupported volume for ground testing: "+volume);
       }
-      let contacts = this.world().collisions().withColliderContacts(this.collider);
+      let contacts = this.world().collisions().getColliderContacts(this.collider);
       let bestCollisionHeight = bottomY+2*this.maxCpHeight;
       let bestContact = null;
       let bestContactPoint = null;
@@ -32047,6 +32047,11 @@ class CollisionSphere {
   guardInvariants() {
   }
 
+  getAaabb() {
+    let d = this.radius+0.1;
+    return Aabb3.create(this.pos.x()-d, this.pos.y()-d, this.pos.z()-d, this.pos.x()+d, this.pos.y()+d, this.pos.z()+d);
+  }
+
   getPos() {
     return this.pos;
   }
@@ -32056,10 +32061,14 @@ class CollisionSphere {
   }
 
   interpolate(b, t) {
-    let ti = 1-t;
-    let p = this.pos.interpolate(b.pos, t);
-    let r = ti*this.radius+t*b.radius;
-    return CollisionSphere.create(p, r);
+    if (b instanceof CollisionSphere) {
+      let cb = b;
+      let ti = 1-t;
+      let p = this.pos.interpolate(cb.pos, t);
+      let r = ti*this.radius+t*cb.radius;
+      return CollisionSphere.create(p, r);
+    }
+    throw new Error("unsupported interpolation, implement me: "+b);
   }
 
   hashCode() {
@@ -32126,11 +32135,20 @@ class CollisionCapsule {
   }
 
   interpolate(b, t) {
-    let ti = 1-t;
-    let p1 = this.pivot1.interpolate(b.pivot1, t);
-    let p2 = this.pivot2.interpolate(b.pivot2, t);
-    let r = ti*this.radius+t*b.radius;
-    return CollisionCapsule.create(p1, p2, r);
+    if (b instanceof CollisionCapsule) {
+      let cb = b;
+      let ti = 1-t;
+      let p1 = this.pivot1.interpolate(cb.pivot1, t);
+      let p2 = this.pivot2.interpolate(cb.pivot2, t);
+      let r = ti*this.radius+t*cb.radius;
+      return CollisionCapsule.create(p1, p2, r);
+    }
+    throw new Error("unsupported interpolation, implement me: "+b);
+  }
+
+  getAaabb() {
+    let d = this.radius+0.1;
+    return Aabb3.create(FMath.min(this.pivot1.x(), this.pivot2.x())-d, FMath.min(this.pivot1.y(), this.pivot2.y())-d, FMath.min(this.pivot1.z(), this.pivot2.z())-d, FMath.max(this.pivot1.x(), this.pivot2.x())+d, FMath.max(this.pivot1.y(), this.pivot2.y())+d, FMath.max(this.pivot1.z(), this.pivot2.z())+d);
   }
 
   hashCode() {
@@ -32222,6 +32240,15 @@ class CollisionBox {
 
   getEz() {
     return this.ez;
+  }
+
+  interpolate(b, t) {
+    throw new Error("unsupported interpolation, implement me: "+b);
+  }
+
+  getAaabb() {
+    let d = FMath.max(FMath.max(this.ex, this.ey), this.ez)+0.1;
+    return Aabb3.create(this.pos.x()-d, this.pos.y()-d, this.pos.z()-d, this.pos.x()+d, this.pos.y()+d, this.pos.z()+d);
   }
 
   getPoint1() {
@@ -32598,30 +32625,10 @@ class CollisionCandidatePair {
   toString() {
   }
 
-  static create() {
-    if (arguments.length===2&&arguments[0] instanceof ActorId&&arguments[1] instanceof ActorId) {
-      return CollisionCandidatePair.create_2_ActorId_ActorId(arguments[0], arguments[1]);
-    }
-    else if (arguments.length===2&& typeof arguments[0]==="string"&& typeof arguments[1]==="string") {
-      return CollisionCandidatePair.create_2_string_string(arguments[0], arguments[1]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  static create_2_ActorId_ActorId(actorA, actorB) {
+  static create(actorA, actorB) {
     let res = new CollisionCandidatePair();
     res.actorA = actorA;
     res.actorB = actorB;
-    res.guardInvariants();
-    return res;
-  }
-
-  static create_2_string_string(actorA, actorB) {
-    let res = new CollisionCandidatePair();
-    res.actorA = ActorId.of(actorA);
-    res.actorB = ActorId.of(actorB);
     res.guardInvariants();
     return res;
   }
@@ -33037,8 +33044,14 @@ class BroadphaseCollisionManager {
       let colsB = this.actorColliders.get(candidate.getActorB());
       for (let i = 0; i<colsA.size(); ++i) {
         let ca = colsA.get(i);
+        if (!ca.isActive()) {
+          continue;
+        }
         for (let j = 0; j<colsB.size(); ++j) {
           let cb = colsB.get(j);
+          if (!cb.isActive()) {
+            continue;
+          }
           if (this.layerMatrix.canCollide(ca.getLayer(), cb.getLayer())) {
             let contactPoints = this.detector.getContactPoints(ca.getVolume(), cb.getVolume());
             if (!contactPoints.isEmpty()) {
@@ -33051,7 +33064,7 @@ class BroadphaseCollisionManager {
     return res;
   }
 
-  withCollider(collider) {
+  getColliderIntersections(collider) {
     let candidates = this.broadphase.getCandidates(collider.getGlobalAabb());
     let excls = this.exclusions.keySet();
     let res = new ArrayList();
@@ -33062,6 +33075,9 @@ class BroadphaseCollisionManager {
       let cols = this.actorColliders.get(actorId);
       for (let i = 0; i<cols.size(); ++i) {
         let ca = cols.get(i);
+        if (!ca.isActive()) {
+          continue;
+        }
         if (ca==collider||ca.getActor().equals(collider.getActor())) {
           continue;
         }
@@ -33076,7 +33092,32 @@ class BroadphaseCollisionManager {
     return res;
   }
 
-  withColliderContacts(collider) {
+  getVolumeIntersections(volume, profile) {
+    let candidates = this.broadphase.getCandidates(volume.getAaabb());
+    let actorMatcher = profile.getActorMatcher();
+    let res = new ArrayList();
+    for (let actorId of candidates) {
+      if (!actorMatcher.isIncluded(this.actors.get(actorId))) {
+        continue;
+      }
+      let cols = this.actorColliders.get(actorId);
+      for (let i = 0; i<cols.size(); ++i) {
+        let ca = cols.get(i);
+        if (!ca.isActive()) {
+          continue;
+        }
+        if (this.layerMatrix.canCollide(ca.getLayer(), profile.getLayer())) {
+          let col = this.detector.isCollision(volume, ca.getVolume());
+          if (col) {
+            res.add(ca);
+          }
+        }
+      }
+    }
+    return res;
+  }
+
+  getColliderContacts(collider) {
     let candidates = this.broadphase.getCandidates(collider.getGlobalAabb());
     let excls = this.exclusions.keySet();
     let res = new ArrayList();
@@ -33087,6 +33128,9 @@ class BroadphaseCollisionManager {
       let cols = this.actorColliders.get(actorId);
       for (let i = 0; i<cols.size(); ++i) {
         let ca = cols.get(i);
+        if (!ca.isActive()) {
+          continue;
+        }
         if (ca==collider||ca.getActor().equals(collider.getActor())) {
           continue;
         }
