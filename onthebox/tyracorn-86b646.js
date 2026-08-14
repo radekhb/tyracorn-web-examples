@@ -32401,6 +32401,86 @@ class CollisionBox {
 
 }
 classRegistry.CollisionBox = CollisionBox;
+class CollisionVolumeDetectionProfile {
+  layer;
+  actorMatcher;
+  constructor() {
+  }
+
+  getClass() {
+    return "CollisionVolumeDetectionProfile";
+  }
+
+  guardInvariants() {
+  }
+
+  getLayer() {
+    return this.layer;
+  }
+
+  withLayer(layer) {
+    let res = new CollisionVolumeDetectionProfile();
+    res.layer = layer;
+    res.actorMatcher = this.actorMatcher;
+    res.guardInvariants();
+    return res;
+  }
+
+  getActorMatcher() {
+    return this.actorMatcher;
+  }
+
+  withActorMatcher(actorMatcher) {
+    let res = new CollisionVolumeDetectionProfile();
+    res.layer = this.layer;
+    res.actorMatcher = actorMatcher;
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new CollisionVolumeDetectionProfile();
+    res.layer = CollisionLayer.OBJECT;
+    res.actorMatcher = CollisionVolumeDetectionActorMatchers.all();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CollisionVolumeDetectionProfile = CollisionVolumeDetectionProfile;
+class CollisionVolumeDetectionActorMatchers {
+  constructor() {
+  }
+
+  getClass() {
+    return "CollisionVolumeDetectionActorMatchers";
+  }
+
+  static all() {
+    return (actor) => {
+      return true;
+    };
+  }
+
+  static excludeSingle(id) {
+    return (actor) => {
+      return !actor.getId().equals(id);
+    };
+  }
+
+}
+classRegistry.CollisionVolumeDetectionActorMatchers = CollisionVolumeDetectionActorMatchers;
 class CollisionLayer {
   static WORLD = CollisionLayer.of("WORLD");
   static OBJECT = CollisionLayer.of("OBJECT");
