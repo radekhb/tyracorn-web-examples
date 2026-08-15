@@ -26655,6 +26655,18 @@ class ActorMatchers {
     return "ActorMatchers";
   }
 
+  static all() {
+    return (actor) => {
+      return true;
+    };
+  }
+
+  static excludeSingle(id) {
+    return (actor) => {
+      return !actor.getId().equals(id);
+    };
+  }
+
   static hasTag(tag) {
     return (act) => {
       return act.hasTag(tag);
@@ -32438,6 +32450,10 @@ class CollisionVolumeDetectionProfile {
     return res;
   }
 
+  actorMatches(actor) {
+    return Functions.actorMatches(this.actorMatcher, actor);
+  }
+
   hashCode() {
     return Reflections.hashCode(this);
   }
@@ -32452,35 +32468,13 @@ class CollisionVolumeDetectionProfile {
   static create() {
     let res = new CollisionVolumeDetectionProfile();
     res.layer = CollisionLayer.OBJECT;
-    res.actorMatcher = CollisionVolumeDetectionActorMatchers.all();
+    res.actorMatcher = ActorMatchers.all();
     res.guardInvariants();
     return res;
   }
 
 }
 classRegistry.CollisionVolumeDetectionProfile = CollisionVolumeDetectionProfile;
-class CollisionVolumeDetectionActorMatchers {
-  constructor() {
-  }
-
-  getClass() {
-    return "CollisionVolumeDetectionActorMatchers";
-  }
-
-  static all() {
-    return (actor) => {
-      return true;
-    };
-  }
-
-  static excludeSingle(id) {
-    return (actor) => {
-      return !actor.getId().equals(id);
-    };
-  }
-
-}
-classRegistry.CollisionVolumeDetectionActorMatchers = CollisionVolumeDetectionActorMatchers;
 class CollisionLayer {
   static WORLD = CollisionLayer.of("WORLD");
   static OBJECT = CollisionLayer.of("OBJECT");
@@ -33174,10 +33168,9 @@ class BroadphaseCollisionManager {
 
   getVolumeIntersections(volume, profile) {
     let candidates = this.broadphase.getCandidates(volume.getAaabb());
-    let actorMatcher = profile.getActorMatcher();
     let res = new ArrayList();
     for (let actorId of candidates) {
-      if (!actorMatcher.isIncluded(this.actors.get(actorId))) {
+      if (!profile.actorMatches(this.actors.get(actorId))) {
         continue;
       }
       let cols = this.actorColliders.get(actorId);
