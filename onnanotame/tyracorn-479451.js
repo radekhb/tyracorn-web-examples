@@ -36789,7 +36789,7 @@ class CombatGameMasterBehavior extends Behavior {
     }
     else {
       if (this.enemyIdx<this.scenario.getNumEnemies()) {
-        this.spawnNextEnemy();
+        this.enemyActor = this.spawnNextEnemy();
         return this;
       }
       else {
@@ -36814,18 +36814,21 @@ class CombatGameMasterBehavior extends Behavior {
 
   spawnPlayer() {
     let prefab = this.world().assets().get("ActorPrefab", ActorPrefabId.of("fighter-base"));
-    let req = CreateActorRequest.create(prefab, ActorId.of("player"), Vec3.create(0, 3, 0), Quaternion.ZERO_ROT);
+    let req = CreateActorRequest.create(prefab, ActorId.of("player"), Vec3.create(-5, 3, 0), Quaternion.ZERO_ROT);
     return this.world().constructActor(req).addTag(WorldActors.PLAYER_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.ENEMY_TAG)).addComponent(FighterCharacterBehavior.create(ComponentKey.random())).addComponent(FighterBaseInputBehavior.create(ComponentKey.random()).setInputType(FighterInputType.CONTROLLER)).addComponent(FighterBaseBehavior.create(ComponentKey.random()));
   }
 
   spawnNextEnemy() {
+    let pos = Vec3.create(5, 3, 0);
     if (this.enemyIdx>0) {
-      throw new Error("TODO - make more enemies");
+      this.enemyActor.removeTag(WorldActors.ENEMY_TAG);
+      let playerPos = this.playerActor.getComponent("TransformComponent").getPos();
+      pos = pos.withX(playerPos.x()-10*FMath.signum(playerPos.x()));
     }
     let enemy = this.scenario.getEnemies().get(this.enemyIdx);
     this.enemyIdx = this.enemyIdx+1;
     let prefab = this.world().assets().get("ActorPrefab", ActorPrefabId.of("fighter-base"));
-    let req = CreateActorRequest.create(prefab, null, Vec3.create(10, 3, 0), Quaternion.ZERO_ROT);
+    let req = CreateActorRequest.create(prefab, null, pos, Quaternion.ZERO_ROT);
     let enemyConfig = FighterConfig.create().applyToughnessFactor(enemy.getToughnessFactor());
     return this.world().constructActor(req).addTag(WorldActors.ENEMY_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.PLAYER_TAG)).addComponent(FighterCharacterBehavior.create(ComponentKey.random()).setConfig(enemyConfig).setHealthAndStaminaToMax()).addComponent(FighterBaseInputBehavior.create(ComponentKey.random()).setInputType(this.scenario.isTraining()?FighterInputType.NONE:FighterInputType.AI).setAiDifficuly(enemy.getAiDifficulty())).addComponent(FighterBaseBehavior.create(ComponentKey.random()));
   }
@@ -37188,13 +37191,16 @@ class CombatScreen extends TyracornScreen {
   let w = FMath.min(200, size.width()*0.7);
   let h = 50;
   return Rect2.create(size.width()/2-w/2, size.height()*0.6, w, h);
-}).addOnClickAction(act);
+}).addOnClickAction(act).setKeyCodeMatcher((keyCode) => {
+  return keyCode.isConrol()||keyCode.getUpperCharacter().equals("J")||keyCode.getUpperCharacter().equals("I")||keyCode.getUpperCharacter().equals("O");
+});
       this.ui.addComponent(this.continueBtn);
     }
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
     if (!this.paused) {
       this.controller.pushToInputs(this.inputs);
       this.world.move(dt, this.inputs);
+      this.enemyStateIndicator.setCharacter(this.gameMaster.getEnemyActor().getComponent("FighterCharacterBehavior"));
     }
     this.world.render(RenderRequest.NORMAL);
     gDriver.clearBuffers(BufferId.DEPTH);
@@ -40048,7 +40054,9 @@ class QuestCharacterController extends UiComponent {
     let width = FMath.clamp(joystickSize*2, 1, s.width()-joystickSize-3*h5);
     return Rect2.create(joystickSize+h5+h5, s.height()-joystickSize*0.75-h5, width, joystickSize/2);
   }
-}).setText("Fight").setKeyCodeMatcher(KeyCodeMatchers.control());
+}).setText("Fight").setKeyCodeMatcher((keyCode) => {
+  return keyCode.isConrol()||keyCode.getUpperCharacter().equals("J")||keyCode.getUpperCharacter().equals("I")||keyCode.getUpperCharacter().equals("O");
+});
     res.guardInvariants();
     return res;
   }
