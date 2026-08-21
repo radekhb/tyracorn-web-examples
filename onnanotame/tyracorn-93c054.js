@@ -36093,7 +36093,7 @@ class MenuScreen extends TyracornScreen {
     mainMenuTab.addComponent(MenuUis.createOverlayPanel(3, 7, true));
     mainMenuTab.addComponent(MenuUis.createTitleLabel("Main Menu", 3));
     mainMenuTab.addComponent(MenuUis.createMediumBtn("Play", 5, false, UiEventActions.showScreen(screenManager, new QuestScreen(this.appManager, QuestEvent.NONE))));
-    mainMenuTab.addComponent(MenuUis.createMediumBtn("Training", 6, false, UiEventActions.showScreen(screenManager, new CombatScreen(this.appManager, CombatScenario.TRAINING))));
+    mainMenuTab.addComponent(MenuUis.createMediumBtn("Training", 6, false, UiEventActions.showScreen(screenManager, new CombatScreen(this.appManager, CombatScenario.create().withTraining(true)))));
     mainMenuTab.addComponent(MenuUis.createMediumBtn("Settings", 8, false, (btn) => {
   tabs.setActiveTabIdx(1);
 }).setDisabled(true));
@@ -37054,7 +37054,6 @@ class CombatGameStateUiComponent extends UiComponent {
 }
 classRegistry.CombatGameStateUiComponent = CombatGameStateUiComponent;
 class CombatScenario {
-  static TRAINING = CombatScenario.create().withTraining(true);
   arenaType;
   enemies;
   training;
