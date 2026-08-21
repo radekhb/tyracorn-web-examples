@@ -1577,6 +1577,16 @@ class Randoms {
         return res;
     }
 
+    /**
+     * Picks one item from the list of the items based on the uniform distribution.
+     *
+     * @param {ArrayList} items items
+     * @return {Object} picked up item
+     */
+    static pickOne(items) {
+        return items.get(Randoms.nextInt(0, items.size()));
+    }
+
 }
 /**
  * Utility class for working with reflections.
