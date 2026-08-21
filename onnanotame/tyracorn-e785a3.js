@@ -36092,7 +36092,7 @@ class MenuScreen extends TyracornScreen {
     panel916.addComponent(tabs);
     mainMenuTab.addComponent(MenuUis.createOverlayPanel(3, 7, true));
     mainMenuTab.addComponent(MenuUis.createTitleLabel("Main Menu", 3));
-    mainMenuTab.addComponent(MenuUis.createMediumBtn("Play", 5, false, UiEventActions.showScreen(screenManager, new QuestScreen(this.appManager, QuestEvent.NONE))));
+    mainMenuTab.addComponent(MenuUis.createMediumBtn("Play", 5, false, UiEventActions.showScreen(screenManager, new QuestScreen(this.appManager, QuestEvent.createNone()))));
     mainMenuTab.addComponent(MenuUis.createMediumBtn("Training", 6, false, UiEventActions.showScreen(screenManager, new CombatScreen(this.appManager, CombatScenario.create().withTraining(true)))));
     mainMenuTab.addComponent(MenuUis.createMediumBtn("Settings", 8, false, (btn) => {
   tabs.setActiveTabIdx(1);
@@ -37179,10 +37179,10 @@ class CombatScreen extends TyracornScreen {
       this.ui.addComponent(Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setRegionFnc(UiRegionFncs.full()));
       let act = null;
       if (this.gameMaster.isFinishPlayerWinState()) {
-        act = UiEventActions.showScreen(screenManager, new QuestScreen(this.appManager, QuestEvent.COMPLETE_NODE));
+        act = UiEventActions.showScreen(screenManager, new QuestScreen(this.appManager, QuestEvent.createCompleteNode()));
       }
       else {
-        act = UiEventActions.showScreen(screenManager, new QuestScreen(this.appManager, QuestEvent.FAIL_NODE));
+        act = UiEventActions.showScreen(screenManager, new QuestScreen(this.appManager, QuestEvent.createFailNode()));
       }
       this.continueBtn = Button.create().addTrait(UiComponentTrait.M).setText("Continue").setRegionFnc((size) => {
   let w = FMath.min(200, size.width()*0.7);
@@ -40172,9 +40172,6 @@ class QuestEnemyId {
 }
 classRegistry.QuestEnemyId = QuestEnemyId;
 class QuestEvent {
-  static NONE = QuestEvent.create().withType(QuestEventType.NONE);
-  static COMPLETE_NODE = QuestEvent.create().withType(QuestEventType.NODE_COMPLETED);
-  static FAIL_NODE = QuestEvent.create().withType(QuestEventType.NODE_FAILED);
   type;
   constructor() {
   }
@@ -40197,6 +40194,14 @@ class QuestEvent {
     return res;
   }
 
+  isNodeCompleteType() {
+    return this.type.equals(QuestEventType.NODE_COMPLETED);
+  }
+
+  isNodeFailType() {
+    return this.type.equals(QuestEventType.NODE_FAILED);
+  }
+
   hashCode() {
     return Reflections.hashCode(this);
   }
@@ -40211,6 +40216,27 @@ class QuestEvent {
   static create() {
     let res = new QuestEvent();
     res.type = QuestEventType.NONE;
+    res.guardInvariants();
+    return res;
+  }
+
+  static createNone() {
+    let res = new QuestEvent();
+    res.type = QuestEventType.NONE;
+    res.guardInvariants();
+    return res;
+  }
+
+  static createCompleteNode() {
+    let res = new QuestEvent();
+    res.type = QuestEventType.NODE_COMPLETED;
+    res.guardInvariants();
+    return res;
+  }
+
+  static createFailNode() {
+    let res = new QuestEvent();
+    res.type = QuestEventType.NODE_FAILED;
     res.guardInvariants();
     return res;
   }
@@ -40638,14 +40664,14 @@ class QuestScreen extends TyracornScreen {
     }
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
     if (!this.paused) {
-      if (this.questEvent.equals(QuestEvent.COMPLETE_NODE)&&this.time>0.5) {
+      if (this.questEvent.isNodeCompleteType()&&this.time>0.5) {
         let questId = this.appManager.getStoryManager().getCurrentQuest().getId();
         let nodeId = this.appManager.getStoryManager().getCurrentQuestProgress().getCurrentNodeId();
         this.appManager.getStoryManager().completeNode(questId, nodeId);
-        this.questEvent = QuestEvent.NONE;
+        this.questEvent = QuestEvent.createNone();
       }
-      else if (this.questEvent.equals(QuestEvent.FAIL_NODE)&&this.time>0.5) {
-        this.questEvent = QuestEvent.NONE;
+      else if (this.questEvent.isNodeFailType()&&this.time>0.5) {
+        this.questEvent = QuestEvent.createNone();
       }
       this.world.move(dt, this.inputs);
     }
