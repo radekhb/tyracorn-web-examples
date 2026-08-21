@@ -40442,6 +40442,55 @@ class QuestNodeId {
 
 }
 classRegistry.QuestNodeId = QuestNodeId;
+const createQuestNodeProgressStatus = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const QuestNodeProgressStatus = Object.freeze({
+  CLOSED: createQuestNodeProgressStatus("CLOSED"),
+  OPENED: createQuestNodeProgressStatus("OPENED"),
+  COMPLETED: createQuestNodeProgressStatus("COMPLETED"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
 class QuestPlayerBehavior extends Behavior {
   static WALK_SPEED = 5;
   static TURN_SPEED = 4*FMath.PI;
@@ -40582,6 +40631,110 @@ const QuestPlayerState = Object.freeze({
     return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
   }
 });
+class QuestProgress {
+  questId;
+  currentNodeId;
+  nodes;
+  constructor() {
+  }
+
+  getClass() {
+    return "QuestProgress";
+  }
+
+  guardInvariants() {
+  }
+
+  getQuestId() {
+    return this.questId;
+  }
+
+  getCurrentNodeId() {
+    return this.currentNodeId;
+  }
+
+  withCurrentNodeId(currentNodeId) {
+    let res = new QuestProgress();
+    res.questId = this.questId;
+    res.currentNodeId = currentNodeId;
+    res.nodes = this.nodes;
+    res.guardInvariants();
+    return res;
+  }
+
+  getNodes() {
+    return this.nodes;
+  }
+
+  getNode(id) {
+    return this.nodes.get(id);
+  }
+
+  withNodeStatus(nodeId, status) {
+    let res = new QuestProgress();
+    res.questId = this.questId;
+    res.currentNodeId = this.currentNodeId;
+    res.nodes = Dut.immutableMapPlusEntry(this.nodes, nodeId, status);
+    res.guardInvariants();
+    return res;
+  }
+
+  isNextNodeAvailable(quest) {
+    let idx = quest.getNodeIdx(this.currentNodeId);
+    if (idx==quest.getNumNodes()-1) {
+      return false;
+    }
+    let nextNode = quest.getNode(idx+1);
+    let ps = this.nodes.get(nextNode.getId());
+    return ps.equals(QuestNodeProgressStatus.OPENED)|ps.equals(QuestNodeProgressStatus.COMPLETED);
+  }
+
+  isPreviousNodeAvailable(quest) {
+    let idx = quest.getNodeIdx(this.currentNodeId);
+    if (idx==0) {
+      return false;
+    }
+    let nextNode = quest.getNode(idx-1);
+    let ps = this.nodes.get(nextNode.getId());
+    return ps.equals(QuestNodeProgressStatus.OPENED)|ps.equals(QuestNodeProgressStatus.COMPLETED);
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(questId, currentNodeId) {
+    let res = new QuestProgress();
+    res.questId = questId;
+    res.currentNodeId = currentNodeId;
+    res.nodes = Collections.emptyMap();
+    res.guardInvariants();
+    return res;
+  }
+
+  static createInitial(quest) {
+    let res = new QuestProgress();
+    res.questId = quest.getId();
+    res.currentNodeId = quest.getNodes().get(0).getId();
+    res.nodes = new HashMap();
+    for (let node of quest.getNodes()) {
+      res.nodes.put(node.getId(), QuestNodeProgressStatus.CLOSED);
+    }
+    res.nodes.put(quest.getNodes().get(0).getId(), QuestNodeProgressStatus.OPENED);
+    res.nodes = Collections.unmodifiableMap(res.nodes);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestProgress = QuestProgress;
 class QuestScreen extends TyracornScreen {
   static NODE_DISTANCE = 4;
   static NODE_Z = -1;
@@ -40873,159 +41026,6 @@ class Quests {
 
 }
 classRegistry.Quests = Quests;
-const createQuestNodeProgressStatus = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const QuestNodeProgressStatus = Object.freeze({
-  CLOSED: createQuestNodeProgressStatus("CLOSED"),
-  OPENED: createQuestNodeProgressStatus("OPENED"),
-  COMPLETED: createQuestNodeProgressStatus("COMPLETED"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class QuestProgress {
-  questId;
-  currentNodeId;
-  nodes;
-  constructor() {
-  }
-
-  getClass() {
-    return "QuestProgress";
-  }
-
-  guardInvariants() {
-  }
-
-  getQuestId() {
-    return this.questId;
-  }
-
-  getCurrentNodeId() {
-    return this.currentNodeId;
-  }
-
-  withCurrentNodeId(currentNodeId) {
-    let res = new QuestProgress();
-    res.questId = this.questId;
-    res.currentNodeId = currentNodeId;
-    res.nodes = this.nodes;
-    res.guardInvariants();
-    return res;
-  }
-
-  getNodes() {
-    return this.nodes;
-  }
-
-  getNode(id) {
-    return this.nodes.get(id);
-  }
-
-  withNodeStatus(nodeId, status) {
-    let res = new QuestProgress();
-    res.questId = this.questId;
-    res.currentNodeId = this.currentNodeId;
-    res.nodes = Dut.immutableMapPlusEntry(this.nodes, nodeId, status);
-    res.guardInvariants();
-    return res;
-  }
-
-  isNextNodeAvailable(quest) {
-    let idx = quest.getNodeIdx(this.currentNodeId);
-    if (idx==quest.getNumNodes()-1) {
-      return false;
-    }
-    let nextNode = quest.getNode(idx+1);
-    let ps = this.nodes.get(nextNode.getId());
-    return ps.equals(QuestNodeProgressStatus.OPENED)|ps.equals(QuestNodeProgressStatus.COMPLETED);
-  }
-
-  isPreviousNodeAvailable(quest) {
-    let idx = quest.getNodeIdx(this.currentNodeId);
-    if (idx==0) {
-      return false;
-    }
-    let nextNode = quest.getNode(idx-1);
-    let ps = this.nodes.get(nextNode.getId());
-    return ps.equals(QuestNodeProgressStatus.OPENED)|ps.equals(QuestNodeProgressStatus.COMPLETED);
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(questId, currentNodeId) {
-    let res = new QuestProgress();
-    res.questId = questId;
-    res.currentNodeId = currentNodeId;
-    res.nodes = Collections.emptyMap();
-    res.guardInvariants();
-    return res;
-  }
-
-  static createInitial(quest) {
-    let res = new QuestProgress();
-    res.questId = quest.getId();
-    res.currentNodeId = quest.getNodes().get(0).getId();
-    res.nodes = new HashMap();
-    for (let node of quest.getNodes()) {
-      res.nodes.put(node.getId(), QuestNodeProgressStatus.CLOSED);
-    }
-    res.nodes.put(quest.getNodes().get(0).getId(), QuestNodeProgressStatus.OPENED);
-    res.nodes = Collections.unmodifiableMap(res.nodes);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.QuestProgress = QuestProgress;
 class StoryManager {
   static STORY_PROGRESS_KEY = LocalDataKey.of("storyProgress.json");
   storage;
