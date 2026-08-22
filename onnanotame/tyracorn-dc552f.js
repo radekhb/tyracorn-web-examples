@@ -8,7 +8,7 @@ let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
 const basePath = "/tyracorn-web-examples/onnanotame";
-const assetsDirName = "/assets-3332a0";
+const assetsDirName = "/assets-540b86";
 const localStoragePrefix = "onnanotame.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -37358,6 +37358,7 @@ class WorldActors {
   static ENEMY_TAG = ActorTag.of("enemy");
   static PARTICLE_BLOOD_ACTOR_PREFAB_ID = ActorPrefabId.of("particle-blood");
   static PARTICLE_WHITE_DUST_PREFAB_ID = ActorPrefabId.of("particle-white-dust");
+  static QUEST_NODE_PREFAB_ID = ActorPrefabId.of("quest-node-base");
   static BASE_FIGHTER_ANIMATION_COLLECTION_ID = MeshAnimationCollectionId.of("base-fighter");
   static IDLE_ANIMATION_KEY = MeshAnimationKey.of("idle");
   static WALK_ANIMATION_KEY = MeshAnimationKey.of("walk");
@@ -40400,6 +40401,59 @@ class QuestNode {
 
 }
 classRegistry.QuestNode = QuestNode;
+class QuestNodeBehavior extends Behavior {
+  model;
+  statusType = QuestNodeStatusType.CLOSED;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "QuestNodeBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.model = this.actor().getComponent("ModelComponent");
+  }
+
+  move(dt, inputs) {
+  }
+
+  lateMove(dt, inputs) {
+  }
+
+  setStatusType(statusType) {
+    Guard.notNull(statusType, "status type cannot be null");
+    this.statusType = statusType;
+    if (statusType.equals(QuestNodeStatusType.CLOSED)) {
+      this.model.setModelId(ModelId.of("cube-ruby"));
+    }
+    else if (statusType.equals(QuestNodeStatusType.OPENED)) {
+      this.model.setModelId(ModelId.of("cube-tin"));
+    }
+    else if (statusType.equals(QuestNodeStatusType.COMPLETED)) {
+      this.model.setModelId(ModelId.of("cube-emerald"));
+    }
+    else {
+      throw new Error("unsupported status type: "+statusType);
+    }
+    return this;
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new QuestNodeBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestNodeBehavior = QuestNodeBehavior;
 class QuestNodeId {
   id;
   constructor() {
@@ -40450,7 +40504,61 @@ class QuestNodeId {
 
 }
 classRegistry.QuestNodeId = QuestNodeId;
-const createQuestNodeProgressStatus = (description) => {
+class QuestNodeStatus {
+  id;
+  type;
+  constructor() {
+  }
+
+  getClass() {
+    return "QuestNodeStatus";
+  }
+
+  guardInvariants() {
+  }
+
+  getId() {
+    return this.id;
+  }
+
+  getType() {
+    return this.type;
+  }
+
+  withType(type) {
+    let res = new QuestNodeStatus();
+    res.id = this.id;
+    res.type = type;
+    res.guardInvariants();
+    return res;
+  }
+
+  isAvailable() {
+    return this.type.equals(QuestNodeStatusType.OPENED)|this.type.equals(QuestNodeStatusType.COMPLETED);
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(id) {
+    let res = new QuestNodeStatus();
+    res.id = id;
+    res.type = QuestNodeStatusType.CLOSED;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestNodeStatus = QuestNodeStatus;
+const createQuestNodeStatusType = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
@@ -40478,10 +40586,10 @@ const createQuestNodeProgressStatus = (description) => {
     }
   };
 };
-const QuestNodeProgressStatus = Object.freeze({
-  CLOSED: createQuestNodeProgressStatus("CLOSED"),
-  OPENED: createQuestNodeProgressStatus("OPENED"),
-  COMPLETED: createQuestNodeProgressStatus("COMPLETED"),
+const QuestNodeStatusType = Object.freeze({
+  CLOSED: createQuestNodeStatusType("CLOSED"),
+  OPENED: createQuestNodeStatusType("OPENED"),
+  COMPLETED: createQuestNodeStatusType("COMPLETED"),
 
   valueOf(description) {
     if (typeof description !== 'string') {
@@ -40639,114 +40747,9 @@ const QuestPlayerState = Object.freeze({
     return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
   }
 });
-class QuestProgress {
-  questId;
-  currentNodeId;
-  nodes;
-  constructor() {
-  }
-
-  getClass() {
-    return "QuestProgress";
-  }
-
-  guardInvariants() {
-  }
-
-  getQuestId() {
-    return this.questId;
-  }
-
-  getCurrentNodeId() {
-    return this.currentNodeId;
-  }
-
-  withCurrentNodeId(currentNodeId) {
-    let res = new QuestProgress();
-    res.questId = this.questId;
-    res.currentNodeId = currentNodeId;
-    res.nodes = this.nodes;
-    res.guardInvariants();
-    return res;
-  }
-
-  getNodes() {
-    return this.nodes;
-  }
-
-  getNode(id) {
-    return this.nodes.get(id);
-  }
-
-  withNodeStatus(nodeId, status) {
-    let res = new QuestProgress();
-    res.questId = this.questId;
-    res.currentNodeId = this.currentNodeId;
-    res.nodes = Dut.immutableMapPlusEntry(this.nodes, nodeId, status);
-    res.guardInvariants();
-    return res;
-  }
-
-  isNextNodeAvailable(quest) {
-    let idx = quest.getNodeIdx(this.currentNodeId);
-    if (idx==quest.getNumNodes()-1) {
-      return false;
-    }
-    let nextNode = quest.getNode(idx+1);
-    let ps = this.nodes.get(nextNode.getId());
-    return ps.equals(QuestNodeProgressStatus.OPENED)|ps.equals(QuestNodeProgressStatus.COMPLETED);
-  }
-
-  isPreviousNodeAvailable(quest) {
-    let idx = quest.getNodeIdx(this.currentNodeId);
-    if (idx==0) {
-      return false;
-    }
-    let nextNode = quest.getNode(idx-1);
-    let ps = this.nodes.get(nextNode.getId());
-    return ps.equals(QuestNodeProgressStatus.OPENED)|ps.equals(QuestNodeProgressStatus.COMPLETED);
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(questId, currentNodeId) {
-    let res = new QuestProgress();
-    res.questId = questId;
-    res.currentNodeId = currentNodeId;
-    res.nodes = Collections.emptyMap();
-    res.guardInvariants();
-    return res;
-  }
-
-  static createInitial(quest) {
-    let res = new QuestProgress();
-    res.questId = quest.getId();
-    res.currentNodeId = quest.getNodes().get(0).getId();
-    res.nodes = new HashMap();
-    for (let node of quest.getNodes()) {
-      res.nodes.put(node.getId(), QuestNodeProgressStatus.CLOSED);
-    }
-    res.nodes.put(quest.getNodes().get(0).getId(), QuestNodeProgressStatus.OPENED);
-    res.nodes = Collections.unmodifiableMap(res.nodes);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.QuestProgress = QuestProgress;
 class QuestScreen extends TyracornScreen {
   static NODE_DISTANCE = 4;
   static NODE_Z = -1;
-  static NODE_PROGRESS_TO_PREFAB_ID = Dut.map(QuestNodeProgressStatus.CLOSED, ActorPrefabId.of("quest-node-closed"), QuestNodeProgressStatus.OPENED, ActorPrefabId.of("quest-node-opened"), QuestNodeProgressStatus.COMPLETED, ActorPrefabId.of("quest-node-completed"));
   appManager;
   questEvent;
   time = 0;
@@ -40759,6 +40762,7 @@ class QuestScreen extends TyracornScreen {
   nodeConfirmed = false;
   controller;
   questPlayerBehavior;
+  questNodeActors;
   constructor(appManager, questEvent) {
     super();
     this.appManager = appManager;
@@ -40795,30 +40799,25 @@ class QuestScreen extends TyracornScreen {
     }
     else {
       if (!this.nodeConfirmed) {
-        let quest = this.appManager.getStoryManager().getCurrentQuest();
-        let qprog = this.appManager.getStoryManager().getCurrentQuestProgress();
+        let questStatus = this.appManager.getStoryManager().getCurrentQuestStatus();
         if (this.controller.getMoveDir().x()>0.9) {
           this.moveConsumed = true;
-          if (qprog.isNextNodeAvailable(quest)) {
-            let selectedNodeId = this.appManager.getStoryManager().moveToNextNode();
-            let nodeIdx = quest.getNodeIdx(selectedNodeId);
+          if (questStatus.isNextNodeAvailable()) {
+            let nodeIdx = this.appManager.getStoryManager().moveToNextNode();
             this.questPlayerBehavior.setTargetPos(Vec3.create(nodeIdx*QuestScreen.NODE_DISTANCE, 0, 0));
           }
         }
         else if (this.controller.getMoveDir().x()<-0.9) {
           this.moveConsumed = true;
-          if (qprog.isPreviousNodeAvailable(quest)) {
-            let selectedNodeId = this.appManager.getStoryManager().moveToPrevNode();
-            let nodeIdx = quest.getNodeIdx(selectedNodeId);
+          if (questStatus.isPreviousNodeAvailable()) {
+            let nodeIdx = this.appManager.getStoryManager().moveToPreviousNode();
             this.questPlayerBehavior.setTargetPos(Vec3.create(nodeIdx*QuestScreen.NODE_DISTANCE, 0, 0));
           }
         }
       }
     }
     if (this.questPlayerBehavior.isFightReady()) {
-      let quest = this.appManager.getStoryManager().getCurrentQuest();
-      let qprog = this.appManager.getStoryManager().getCurrentQuestProgress();
-      let node = quest.getNodeById(qprog.getCurrentNodeId());
+      let node = this.appManager.getStoryManager().getCurrentQuestNode();
       let scenario = CombatScenario.create().withArenaType(CombatArenaType.RANDOM).withEnemies(node.getEnemies());
       let screen = new CombatScreen(this.appManager, scenario);
       screenManager.showScreen(screen);
@@ -40826,9 +40825,12 @@ class QuestScreen extends TyracornScreen {
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
     if (!this.paused) {
       if (this.questEvent.isNodeCompleteType()&&this.time>0.5) {
-        let questId = this.appManager.getStoryManager().getCurrentQuest().getId();
-        let nodeId = this.appManager.getStoryManager().getCurrentQuestProgress().getCurrentNodeId();
-        this.appManager.getStoryManager().completeNode(questId, nodeId);
+        let currentQuestStatus = this.appManager.getStoryManager().completeCurrentNode();
+        for (let i = 0; i<this.questNodeActors.size(); ++i) {
+          let actor = this.questNodeActors.get(i);
+          let nodeStatus = currentQuestStatus.getNode(i);
+          actor.getComponent("QuestNodeBehavior").setStatusType(nodeStatus.getType());
+        }
         this.questEvent = QuestEvent.createNone();
       }
       else if (this.questEvent.isNodeFailType()&&this.time>0.5) {
@@ -40858,17 +40860,19 @@ class QuestScreen extends TyracornScreen {
     this.audio = AudioBehavior.create(ComponentKey.random());
     let storyManager = this.appManager.getStoryManager();
     let currentQuest = storyManager.getCurrentQuest();
-    let questProgress = storyManager.getCurrentQuestProgress();
-    let selectedNodeIdx = currentQuest.getNodeIdx(questProgress.getCurrentNodeId());
-    let initialPlayerPos = Vec3.create(selectedNodeIdx*QuestScreen.NODE_DISTANCE, 0, 0);
+    let currentQuestStatus = storyManager.getCurrentQuestStatus();
+    let initialPlayerPos = Vec3.create(currentQuestStatus.getCurrentNodeIdx()*QuestScreen.NODE_DISTANCE, 0, 0);
     let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(10, 25, 20), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
     this.world.actors().add(light);
     let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY).setFovyLandscape(FMath.toRadians(60)).setFovyPortrait(FMath.toRadians(60))).addComponent(CameraControllerComponent.create(ComponentKey.random()).setMode(CameraControlMode.ISOMETRIC).setTargetId(ActorId.of("player")).setPosOffset(Vec3.create(0, 4, 8)).setLookAtOffset(Vec3.create(0, 1, 0)).setPosK(0.05).setLookAtK(0.15)).addComponent(this.audio);
     this.world.actors().add(camera);
     this.questPlayerBehavior = this.spawnPlayer(assets, initialPlayerPos).getComponent("QuestPlayerBehavior");
+    this.questNodeActors = new ArrayList();
     for (let i = 0; i<currentQuest.getNodes().size(); ++i) {
-      let node = currentQuest.getNode(i);
-      this.spawnNode(assets, questProgress.getNode(node.getId()), ActorId.of("node-"+node.getId().getId()), Vec3.create(i*QuestScreen.NODE_DISTANCE, 0, QuestScreen.NODE_Z));
+      let nodeStatus = currentQuestStatus.getNode(i);
+      let actor = this.spawnNode(assets, Vec3.create(i*QuestScreen.NODE_DISTANCE, 0, QuestScreen.NODE_Z));
+      actor.getComponent("QuestNodeBehavior").setStatusType(nodeStatus.getType());
+      this.questNodeActors.add(actor);
     }
     this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
     this.controller = QuestCharacterController.create(drivers).addFightButtonOnClickAction((src) => {
@@ -40902,14 +40906,142 @@ class QuestScreen extends TyracornScreen {
     return this.world.constructActor(req).addComponent(QuestPlayerBehavior.create(ComponentKey.random()));
   }
 
-  spawnNode(assets, status, id, pos) {
-    let prefab = assets.get("ActorPrefab", QuestScreen.NODE_PROGRESS_TO_PREFAB_ID.get(status));
-    let req = CreateActorRequest.create(prefab, id, pos, Quaternion.ZERO_ROT);
-    return this.world.constructActor(req);
+  spawnNode(assets, pos) {
+    let prefab = assets.get("ActorPrefab", WorldActors.QUEST_NODE_PREFAB_ID);
+    let req = CreateActorRequest.create(prefab, null, pos, Quaternion.ZERO_ROT);
+    return this.world.constructActor(req).addComponent(QuestNodeBehavior.create(ComponentKey.random()));
   }
 
 }
 classRegistry.QuestScreen = QuestScreen;
+class QuestStatus {
+  id;
+  nodes;
+  currentNodeIdx;
+  constructor() {
+  }
+
+  getClass() {
+    return "QuestStatus";
+  }
+
+  guardInvariants() {
+  }
+
+  getId() {
+    return this.id;
+  }
+
+  getNodes() {
+    return this.nodes;
+  }
+
+  getNode(idx) {
+    return this.nodes.get(idx);
+  }
+
+  getNumNodes() {
+    return this.nodes.size();
+  }
+
+  plusNode(node) {
+    let res = new QuestStatus();
+    res.id = this.id;
+    res.nodes = Dut.immutableListPlusItem(this.nodes, node);
+    res.currentNodeIdx = this.currentNodeIdx;
+    res.guardInvariants();
+    return res;
+  }
+
+  getCurrentNodeIdx() {
+    return this.currentNodeIdx;
+  }
+
+  withCurrentNodeIdx(currentNodeIdx) {
+    let res = new QuestStatus();
+    res.id = this.id;
+    res.nodes = this.nodes;
+    res.currentNodeIdx = currentNodeIdx;
+    res.guardInvariants();
+    return res;
+  }
+
+  isPreviousNodeAvailable() {
+    if (this.currentNodeIdx<=0) {
+      return false;
+    }
+    return this.nodes.get(this.currentNodeIdx-1).isAvailable();
+  }
+
+  isNextNodeAvailable() {
+    if (this.currentNodeIdx>=this.nodes.size()-1) {
+      return false;
+    }
+    return this.nodes.get(this.currentNodeIdx+1).isAvailable();
+  }
+
+  withCompletedCurrentNode() {
+    let res = new QuestStatus();
+    res.id = this.id;
+    let newNodes = new ArrayList();
+    for (let i = 0; i<this.nodes.size(); ++i) {
+      let node = this.nodes.get(i);
+      if (i==this.currentNodeIdx) {
+        newNodes.add(node.withType(QuestNodeStatusType.COMPLETED));
+      }
+      else if (i==this.currentNodeIdx+1) {
+        if (node.getType().equals(QuestNodeStatusType.CLOSED)) {
+          newNodes.add(node.withType(QuestNodeStatusType.OPENED));
+        }
+        else {
+          newNodes.add(node);
+        }
+      }
+      else {
+        newNodes.add(node);
+      }
+    }
+    res.nodes = Collections.unmodifiableList(newNodes);
+    res.currentNodeIdx = this.currentNodeIdx;
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(id) {
+    let res = new QuestStatus();
+    res.id = id;
+    res.nodes = Collections.emptyList();
+    res.currentNodeIdx = 0;
+    res.guardInvariants();
+    return res;
+  }
+
+  static createInitial(quest) {
+    let res = new QuestStatus();
+    res.id = quest.getId();
+    let nodes = new ArrayList();
+    for (let node of quest.getNodes()) {
+      nodes.add(QuestNodeStatus.create(node.getId()).withType(nodes.isEmpty()?QuestNodeStatusType.OPENED:QuestNodeStatusType.CLOSED));
+    }
+    res.nodes = Collections.unmodifiableList(nodes);
+    res.currentNodeIdx = 0;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestStatus = QuestStatus;
 class Quests {
   static GIRL_NAMES = Dut.list("Mariko", "Aya", "Kana", "Yuka", "Yumi", "Ayumi", "Satomi", "Naomi", "Ria", "Kaori");
   constructor() {
@@ -41032,12 +41164,112 @@ class Quests {
     }
   }
 
+  static questStatusToJson(questStatus) {
+    let res = JsonObject.empty().withInt("version", 1).withString("id", questStatus.getId().getId()).withInt("currentNodeIdx", questStatus.getCurrentNodeIdx());
+    let nodesJson = JsonArray.empty();
+    for (let node of questStatus.getNodes()) {
+      nodesJson = nodesJson.plusObject(Quests.questNodeStatusToJson(node));
+    }
+    res = res.withArray("nodes", nodesJson);
+    return res;
+  }
+
+  static questStatusToJsonString(questStatus) {
+    let json = Quests.questStatusToJson(questStatus);
+    return JsonObjects.toJson(json);
+  }
+
+  static jsonToQuestStatus(json) {
+    let version = json.getInt("version");
+    if (version==1) {
+      let res = QuestStatus.create(QuestId.of(json.getString("id"))).withCurrentNodeIdx(json.getInt("currentNodeIdx"));
+      let nodesJson = json.getJsonArray("nodes");
+      for (let i = 0; i<nodesJson.size(); ++i) {
+        let nodeJson = nodesJson.getJsonObject(i);
+        res = res.plusNode(Quests.jsonToQuestNodeStatus(nodeJson));
+      }
+      return res;
+    }
+    else {
+      throw new Error("versoin not implemented: "+version);
+    }
+  }
+
+  static jsonStringToQuestStatus(jsonStr) {
+    let json = JsonObjects.parse(jsonStr);
+    return Quests.jsonToQuestStatus(json);
+  }
+
+  static questNodeStatusToJson(questNodeStatus) {
+    let res = JsonObject.empty().withInt("version", 1).withString("id", questNodeStatus.getId().getId()).withString("type", questNodeStatus.getType().name());
+    return res;
+  }
+
+  static jsonToQuestNodeStatus(json) {
+    let version = json.getInt("version");
+    if (version==1) {
+      let res = QuestNodeStatus.create(QuestNodeId.of(json.getString("id"))).withType(QuestNodeStatusType.valueOf(json.getString("type")));
+      return res;
+    }
+    else {
+      throw new Error("versoin not implemented: "+version);
+    }
+  }
+
 }
 classRegistry.Quests = Quests;
+class Stories {
+  constructor() {
+  }
+
+  getClass() {
+    return "Stories";
+  }
+
+  static storyStatusToJson(storyStatus) {
+    let res = JsonObject.empty().withInt("version", 1).withInt("currentQuestIdx", storyStatus.getCurrentQuestIdx());
+    let questIdsJson = JsonArray.empty();
+    for (let qid of storyStatus.getQuestIds()) {
+      questIdsJson = questIdsJson.plusString(qid.getId());
+    }
+    res = res.withArray("questIds", questIdsJson);
+    return res;
+  }
+
+  static storyStatusToJsonString(storyStatus) {
+    let json = Stories.storyStatusToJson(storyStatus);
+    return JsonObjects.toJson(json);
+  }
+
+  static jsonToStoryStatus(json) {
+    let version = json.getInt("version");
+    if (version==1) {
+      let res = StoryStatus.create();
+      let questsIdsJson = json.getJsonArray("questIds");
+      for (let i = 0; i<questsIdsJson.size(); ++i) {
+        res = res.plusQuestId(QuestId.of(questsIdsJson.getString(i)));
+      }
+      res = res.withCurrentQuestIdx(json.getInt("currentQuestIdx"));
+      return res;
+    }
+    else {
+      throw new Error("versoin not implemented: "+version);
+    }
+  }
+
+  static jsonStringToStoryStatus(jsonStr) {
+    let json = JsonObjects.parse(jsonStr);
+    return Stories.jsonToStoryStatus(json);
+  }
+
+}
+classRegistry.Stories = Stories;
 class StoryManager {
-  static STORY_PROGRESS_KEY = LocalDataKey.of("storyProgress.json");
+  static STORY_STAUS_KEY = LocalDataKey.of("story.status.json");
   storage;
-  storyProgress;
+  storyStatus;
+  currentQuest;
+  currentQuestStatus;
   constructor() {
   }
 
@@ -41049,69 +41281,60 @@ class StoryManager {
   }
 
   initialize() {
-    if (this.storage.exists(StoryManager.STORY_PROGRESS_KEY)) {
-      let storyProgressJson = JsonObjects.parse(this.storage.loadString(StoryManager.STORY_PROGRESS_KEY));
-      this.storyProgress = StoryProgresses.jsonToStoryProgress(storyProgressJson);
+    if (this.storage.exists(StoryManager.STORY_STAUS_KEY)) {
+      this.storyStatus = Stories.jsonStringToStoryStatus(this.storage.loadString(StoryManager.STORY_STAUS_KEY));
+      let currentQuestId = this.storyStatus.getCurrentQuestId();
+      this.currentQuest = Quests.jsonStringToQuest(this.storage.loadString(this.getQuestLocalDataKey(currentQuestId)));
+      this.currentQuestStatus = Quests.jsonStringToQuestStatus(this.storage.loadString(this.getQuestStatusLocalDataKey(currentQuestId)));
     }
     else {
-      let quest = Quests.generateRandom(1);
-      let questProgress = QuestProgress.createInitial(quest);
-      this.storyProgress = StoryProgress.create(quest.getId()).plusQuest(questProgress);
-      this.storage.saveString(this.getQuestLocalDataKey(quest.getId()), Quests.questToJsonString(quest));
-      this.storage.saveString(StoryManager.STORY_PROGRESS_KEY, StoryProgresses.storyProgressToJsonString(this.storyProgress));
+      this.currentQuest = Quests.generateRandom(1);
+      this.currentQuestStatus = QuestStatus.createInitial(this.currentQuest);
+      this.storyStatus = StoryStatus.create().plusQuestId(this.currentQuest.getId()).withCurrentQuestIdx(0);
+      this.storage.saveString(this.getQuestLocalDataKey(this.currentQuest.getId()), Quests.questToJsonString(this.currentQuest));
+      this.storage.saveString(this.getQuestStatusLocalDataKey(this.currentQuest.getId()), Quests.questStatusToJsonString(this.currentQuestStatus));
+      this.storage.saveString(StoryManager.STORY_STAUS_KEY, Stories.storyStatusToJsonString(this.storyStatus));
     }
-  }
-
-  getStoryProgress() {
-    return this.storyProgress;
   }
 
   getCurrentQuest() {
-    return this.getQuest(this.storyProgress.getCurrentQuestId());
+    return this.currentQuest;
   }
 
-  getCurrentQuestProgress() {
-    return this.storyProgress.getQuest(this.storyProgress.getCurrentQuestId());
+  getCurrentQuestNode() {
+    return this.currentQuest.getNode(this.currentQuestStatus.getCurrentNodeIdx());
   }
 
-  getQuest(questId) {
-    return this.loadQuest(questId);
+  getCurrentQuestStatus() {
+    return this.currentQuestStatus;
   }
 
-  completeNode(questId, nodeId) {
-    if (this.storyProgress.getQuestNodeStatus(questId, nodeId).equals(QuestNodeProgressStatus.COMPLETED)) {
-      return ;
-    }
-    let quest = this.loadQuest(questId);
-    let nodeIdx = quest.getNodeIdx(nodeId);
-    this.storyProgress = this.storyProgress.withNodeStatus(questId, nodeId, QuestNodeProgressStatus.COMPLETED);
-    if (quest.getNumNodes()>nodeIdx+1) {
-      if (this.storyProgress.getQuestNodeStatus(questId, quest.getNode(nodeIdx+1).getId()).equals(QuestNodeProgressStatus.CLOSED)) {
-        this.storyProgress = this.storyProgress.withNodeStatus(questId, quest.getNode(nodeIdx+1).getId(), QuestNodeProgressStatus.OPENED);
-      }
-    }
-    this.storage.saveString(StoryManager.STORY_PROGRESS_KEY, StoryProgresses.storyProgressToJsonString(this.storyProgress));
+  completeCurrentNode() {
+    this.currentQuestStatus = this.currentQuestStatus.withCompletedCurrentNode();
+    this.storage.saveString(this.getQuestStatusLocalDataKey(this.currentQuestStatus.getId()), Quests.questStatusToJsonString(this.currentQuestStatus));
+    return this.currentQuestStatus;
+  }
+
+  moveToPreviousNode() {
+    Guard.beTrue(this.currentQuestStatus.isPreviousNodeAvailable(), "node must be available to move");
+    this.currentQuestStatus = this.currentQuestStatus.withCurrentNodeIdx(this.currentQuestStatus.getCurrentNodeIdx()-1);
+    this.storage.saveString(this.getQuestStatusLocalDataKey(this.currentQuestStatus.getId()), Quests.questStatusToJsonString(this.currentQuestStatus));
+    return this.currentQuestStatus.getCurrentNodeIdx();
   }
 
   moveToNextNode() {
-    this.storyProgress = this.storyProgress.withMoveToNextNode(this.getQuest(this.storyProgress.getCurrentQuestId()));
-    this.storage.saveString(StoryManager.STORY_PROGRESS_KEY, StoryProgresses.storyProgressToJsonString(this.storyProgress));
-    return this.storyProgress.getCurrentQuest().getCurrentNodeId();
-  }
-
-  moveToPrevNode() {
-    this.storyProgress = this.storyProgress.withMoveToPrevNode(this.getQuest(this.storyProgress.getCurrentQuestId()));
-    this.storage.saveString(StoryManager.STORY_PROGRESS_KEY, StoryProgresses.storyProgressToJsonString(this.storyProgress));
-    return this.storyProgress.getCurrentQuest().getCurrentNodeId();
-  }
-
-  loadQuest(id) {
-    let str = this.storage.loadString(this.getQuestLocalDataKey(id));
-    return Quests.jsonStringToQuest(str);
+    Guard.beTrue(this.currentQuestStatus.isNextNodeAvailable(), "node must be available to move");
+    this.currentQuestStatus = this.currentQuestStatus.withCurrentNodeIdx(this.currentQuestStatus.getCurrentNodeIdx()+1);
+    this.storage.saveString(this.getQuestStatusLocalDataKey(this.currentQuestStatus.getId()), Quests.questStatusToJsonString(this.currentQuestStatus));
+    return this.currentQuestStatus.getCurrentNodeIdx();
   }
 
   getQuestLocalDataKey(questId) {
-    return LocalDataKey.of("quest."+questId.getId()+".json");
+    return LocalDataKey.of("quests."+questId.getId()+".definition.json");
+  }
+
+  getQuestStatusLocalDataKey(questId) {
+    return LocalDataKey.of("quests."+questId.getId()+".status.json");
   }
 
   toString() {
@@ -41127,103 +41350,43 @@ class StoryManager {
 
 }
 classRegistry.StoryManager = StoryManager;
-class StoryProgress {
-  currentQuestId;
-  quests;
+class StoryStatus {
+  questIds;
+  currentQuestIdx;
   constructor() {
   }
 
   getClass() {
-    return "StoryProgress";
+    return "StoryStatus";
   }
 
   guardInvariants() {
   }
 
+  getQuestIds() {
+    return this.questIds;
+  }
+
+  plusQuestId(questId) {
+    let res = new StoryStatus();
+    res.questIds = Dut.immutableListPlusItem(this.questIds, questId);
+    res.currentQuestIdx = this.currentQuestIdx;
+    res.guardInvariants();
+    return res;
+  }
+
+  getCurrentQuestIdx() {
+    return this.currentQuestIdx;
+  }
+
   getCurrentQuestId() {
-    return this.currentQuestId;
+    return this.questIds.get(this.currentQuestIdx);
   }
 
-  getCurrentQuest() {
-    return this.getQuest(this.currentQuestId);
-  }
-
-  getQuests() {
-    return this.quests;
-  }
-
-  getQuest(id) {
-    for (let q of this.quests) {
-      if (q.getQuestId().equals(id)) {
-        return q;
-      }
-    }
-    throw new Error("unable to find a quest for a given id: "+id);
-  }
-
-  getQuestNodeStatus(questId, nodeId) {
-    return this.getQuest(questId).getNode(nodeId);
-  }
-
-  plusQuest(quest) {
-    let res = new StoryProgress();
-    res.currentQuestId = this.currentQuestId;
-    res.quests = Dut.immutableListPlusItem(this.quests, quest);
-    res.guardInvariants();
-    return res;
-  }
-
-  withNodeStatus(questId, questNodeId, status) {
-    let res = new StoryProgress();
-    res.currentQuestId = this.currentQuestId;
-    let newQuests = new ArrayList();
-    for (let q of this.quests) {
-      if (q.getQuestId().equals(questId)) {
-        newQuests.add(q.withNodeStatus(questNodeId, status));
-      }
-      else {
-        newQuests.add(q);
-      }
-    }
-    res.quests = Collections.unmodifiableList(newQuests);
-    res.guardInvariants();
-    return res;
-  }
-
-  withMoveToNextNode(quest) {
-    let res = new StoryProgress();
-    res.currentQuestId = this.currentQuestId;
-    let newQuests = new ArrayList();
-    for (let q of this.quests) {
-      if (q.getQuestId().equals(quest.getId())) {
-        let currNodeIdx = quest.getNodeIdx(q.getCurrentNodeId());
-        let qnid = quest.getNode(currNodeIdx+1).getId();
-        newQuests.add(q.withCurrentNodeId(qnid));
-      }
-      else {
-        newQuests.add(q);
-      }
-    }
-    res.quests = Collections.unmodifiableList(newQuests);
-    res.guardInvariants();
-    return res;
-  }
-
-  withMoveToPrevNode(quest) {
-    let res = new StoryProgress();
-    res.currentQuestId = this.currentQuestId;
-    let newQuests = new ArrayList();
-    for (let q of this.quests) {
-      if (q.getQuestId().equals(quest.getId())) {
-        let currNodeIdx = quest.getNodeIdx(q.getCurrentNodeId());
-        let qnid = quest.getNode(currNodeIdx-1).getId();
-        newQuests.add(q.withCurrentNodeId(qnid));
-      }
-      else {
-        newQuests.add(q);
-      }
-    }
-    res.quests = Collections.unmodifiableList(newQuests);
+  withCurrentQuestIdx(currentQuestIdx) {
+    let res = new StoryStatus();
+    res.questIds = this.questIds;
+    res.currentQuestIdx = currentQuestIdx;
     res.guardInvariants();
     return res;
   }
@@ -41239,82 +41402,16 @@ class StoryProgress {
   toString() {
   }
 
-  static create(currentQuestId) {
-    let res = new StoryProgress();
-    res.currentQuestId = currentQuestId;
-    res.quests = Collections.emptyList();
+  static create() {
+    let res = new StoryStatus();
+    res.questIds = Collections.emptyList();
+    res.currentQuestIdx = 0;
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.StoryProgress = StoryProgress;
-class StoryProgresses {
-  constructor() {
-  }
-
-  getClass() {
-    return "StoryProgresses";
-  }
-
-  static storyProgressToJson(storyProgress) {
-    let res = JsonObject.empty().withInt("version", 1).withString("currentQuestId", storyProgress.getCurrentQuestId().getId());
-    let questsJson = JsonArray.empty();
-    for (let qp of storyProgress.getQuests()) {
-      questsJson = questsJson.plusObject(StoryProgresses.questProgressToJson(qp));
-    }
-    res = res.withArray("quests", questsJson);
-    return res;
-  }
-
-  static storyProgressToJsonString(storyProgress) {
-    let json = StoryProgresses.storyProgressToJson(storyProgress);
-    return JsonObjects.toJson(json);
-  }
-
-  static jsonToStoryProgress(json) {
-    let version = json.getInt("version");
-    if (version==1) {
-      let res = StoryProgress.create(QuestId.of(json.getString("currentQuestId")));
-      let questsJson = json.getJsonArray("quests");
-      for (let i = 0; i<questsJson.size(); ++i) {
-        let questJson = questsJson.getJsonObject(i);
-        res = res.plusQuest(StoryProgresses.jsonToQuestProgress(questJson));
-      }
-      return res;
-    }
-    else {
-      throw new Error("versoin not implemented: "+version);
-    }
-  }
-
-  static questProgressToJson(questProgress) {
-    let res = JsonObject.empty().withInt("version", 1).withString("questId", questProgress.getQuestId().getId()).withString("currentNodeId", questProgress.getCurrentNodeId().getId());
-    let nodesJson = JsonObject.empty();
-    for (let nodeId of questProgress.getNodes().keySet()) {
-      nodesJson = nodesJson.withString(nodeId.getId(), questProgress.getNodes().get(nodeId).name());
-    }
-    res = res.withObject("nodes", nodesJson);
-    return res;
-  }
-
-  static jsonToQuestProgress(json) {
-    let version = json.getInt("version");
-    if (version==1) {
-      let res = QuestProgress.create(QuestId.of(json.getString("questId")), QuestNodeId.of(json.getString("currentNodeId")));
-      let nodesJson = json.getJsonObject("nodes");
-      for (let nid of nodesJson.keySet()) {
-        res = res.withNodeStatus(QuestNodeId.of(nid), QuestNodeProgressStatus.valueOf(nodesJson.getString(nid)));
-      }
-      return res;
-    }
-    else {
-      throw new Error("versoin not implemented: "+version);
-    }
-  }
-
-}
-classRegistry.StoryProgresses = StoryProgresses;
+classRegistry.StoryStatus = StoryStatus;
 
 
 // -------------------------------------
