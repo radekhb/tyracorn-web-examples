@@ -38638,7 +38638,7 @@ class FighterBaseBehavior extends Behavior {
       state.changeHealth(-damage);
       this.rigidBody.applyImpulse(hitMsg.getPos(), hitMsg.getDir().scale(hitMsg.getImpulse()));
       let knockdown = hitMsg.getKnockdownFactor()>=1||Randoms.nextFloat(0, 1)<hitMsg.getKnockdownFactor();
-      if (knockdown) {
+      if (knockdown&&state.actionNotEquals(FighterAction.BLOCK)) {
         this.animationPlayer.play(MeshAnimationKey.of("lift-air-fall"), MeshAnimationPlayConfig.PLAY.withSpeed(0));
         state.setAction(FighterAction.KNOCKDOWN_AIR);
       }
