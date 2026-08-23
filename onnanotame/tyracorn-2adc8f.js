@@ -7,9 +7,9 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-02";
-const assetsDirName = "/assets-1921d2";
-const localStoragePrefix = "app.";
+const basePath = "/tyracorn-web-examples/onnanotame";
+const assetsDirName = "/assets-540b86";
+const localStoragePrefix = "onnanotame.";
 let mouseDown = false;
 let mouseLastDragX = 0;
 let mouseLastDragY = 0;
@@ -22387,6 +22387,7 @@ class MeshAnimationPlayConfig {
   static PLAY = MeshAnimationPlayConfig.play();
   static RESTART = MeshAnimationPlayConfig.play().withStartTime(0);
   startTime;
+  speed;
   constructor() {
   }
 
@@ -22404,6 +22405,19 @@ class MeshAnimationPlayConfig {
   withStartTime(startTime) {
     let res = new MeshAnimationPlayConfig();
     res.startTime = startTime;
+    res.speed = this.speed;
+    res.guardInvariants();
+    return res;
+  }
+
+  getSpeed() {
+    return this.speed;
+  }
+
+  withSpeed(speed) {
+    let res = new MeshAnimationPlayConfig();
+    res.startTime = this.startTime;
+    res.speed = speed;
     res.guardInvariants();
     return res;
   }
@@ -22422,6 +22436,7 @@ class MeshAnimationPlayConfig {
   static play() {
     let res = new MeshAnimationPlayConfig();
     res.startTime = null;
+    res.speed = 1;
     res.guardInvariants();
     return res;
   }
@@ -22432,6 +22447,7 @@ class MeshAnimationPlayer {
   collection;
   animationKey = null;
   animation = null;
+  speed = 1;
   time = 0;
   constructor() {
   }
@@ -22445,13 +22461,14 @@ class MeshAnimationPlayer {
 
   move(dt) {
     let st = this.time;
-    this.time = this.time+dt;
+    this.time = this.time+dt*this.speed;
     let triggers = this.animation.getTriggers(st, this.time);
     return MeshAnimationStep.create(this.animationKey, this.time, this.isEnd(), this.getInterpolation(), this.getPose(), triggers);
   }
 
   play(key, config) {
     if (config.getStartTime()==null) {
+      this.speed = config.getSpeed();
       if (this.animationKey.equals(key)) {
         return ;
       }
@@ -22462,6 +22479,7 @@ class MeshAnimationPlayer {
     else {
       this.animationKey = key;
       this.animation = this.collection.getAnimation(key);
+      this.speed = config.getSpeed();
       this.time = config.getStartTime();
     }
   }
@@ -22503,6 +22521,7 @@ class MeshAnimationPlayer {
     res.collection = collection;
     res.animationKey = start;
     res.animation = collection.getAnimation(start);
+    res.speed = 1;
     res.time = 0;
     res.guardInvariants();
     return res;
@@ -30875,6 +30894,9 @@ class GroundedComponent extends Behavior {
   }
 
   isGrounded() {
+    if (this.rigidBody.getVelocity().y()>this.maxUpVelocity) {
+      this.grounded = false;
+    }
     return this.grounded;
   }
 
@@ -36016,143 +36038,5979 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class BoxMeshFactory {
+class AppManager {
+  storyManager;
   constructor() {
   }
 
   getClass() {
-    return "BoxMeshFactory";
+    return "AppManager";
   }
 
-  static rgbBox() {
-    if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&&arguments[3] instanceof Rgb) {
-      return BoxMeshFactory.rgbBox_4_Rgb_Rgb_Rgb_Rgb(arguments[0], arguments[1], arguments[2], arguments[3]);
+  guardInvariants() {
+  }
+
+  getStoryManager() {
+    return this.storyManager;
+  }
+
+  toString() {
+  }
+
+  static create(storyManager) {
+    let res = new AppManager();
+    res.storyManager = storyManager;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.AppManager = AppManager;
+class MenuScreen extends TyracornScreen {
+  appManager;
+  ui = null;
+  constructor(appManager) {
+    super();
+    this.appManager = appManager;
+  }
+
+  getClass() {
+    return "MenuScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let assets = drivers.getDriver("AssetManager");
+    return Dut.list(assets.resolveAsync(Path.of("asset:default.tap")), assets.resolveAsync(Path.of("asset:packages/ui")));
+  }
+
+  init(drivers, screenManager, properties) {
+    if (this.appManager==null) {
+      let storage = drivers.getDriver("LocalDataStorage");
+      let storyManager = StoryManager.create(storage);
+      this.appManager = AppManager.create(storyManager);
     }
-    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
-      return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    MenuUis.prepareScaledFonts(drivers);
+    this.ui = StretchUi.create(MenuUis.createUiSizeFnc()).setStyler(MenuUis.createDefaultStyler());
+    this.ui.addComponent(MenuUis.createTiledBg());
+    let panel916 = MenuUis.createPanel916();
+    this.ui.addComponent(panel916);
+    panel916.addComponent(MenuUis.createTitleScreenBg());
+    let mainMenuTab = Tab.create();
+    let settingsTab = Tab.create();
+    let aboutTab = Tab.create();
+    let tabs = TabContainer.create().setRegionFnc(UiRegionFncs.full()).addTab(mainMenuTab).addTab(settingsTab).addTab(aboutTab);
+    panel916.addComponent(tabs);
+    mainMenuTab.addComponent(MenuUis.createOverlayPanel(4, 8, true));
+    mainMenuTab.addComponent(MenuUis.createMediumBtn("Play", 4, false, UiEventActions.showScreen(screenManager, new QuestScreen(this.appManager, QuestEvent.createNone()))));
+    mainMenuTab.addComponent(MenuUis.createMediumBtn("Training", 5, false, UiEventActions.showScreen(screenManager, new CombatScreen(this.appManager, CombatScenario.create().withTraining(true)))));
+    mainMenuTab.addComponent(MenuUis.createMediumBtn("Settings", 7, false, (btn) => {
+  tabs.setActiveTabIdx(1);
+}).setDisabled(true));
+    mainMenuTab.addComponent(MenuUis.createMediumBtn("About", 8, false, (btn) => {
+  tabs.setActiveTabIdx(2);
+}).setDisabled(true));
+    if (drivers.getPlatform().isExitable()) {
+      mainMenuTab.addComponent(MenuUis.createMediumBtn("Exit", 9, false, UiEventActions.exitApp(screenManager)));
+    }
+    this.ui.subscribe(drivers);
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+  }
+
+}
+classRegistry.MenuScreen = MenuScreen;
+class MenuUis {
+  static SLOT_HEIGHT = 120;
+  static BUTTON_HEIGHT = 100;
+  static PADDING_LEFT_RIGHT = 50;
+  constructor() {
+  }
+
+  getClass() {
+    return "MenuUis";
+  }
+
+  static prepareScaledFonts(drivers) {
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(50, 75, 100));
+  }
+
+  static createUiSizeFnc() {
+    return UiSizeFncs.constantHeight(1600);
+  }
+
+  static createDefaultStyler() {
+    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-mini-100")).setH1Color(Rgba.create(0.95, 0.93, 0.88, 1)).setH2Color(Rgba.create(0.95, 0.93, 0.88, 1)).setH3Color(Rgba.create(0.95, 0.93, 0.88, 1)).setLargeTextFont(FontId.of("kenny-mini-75")).setMediumTextFont(FontId.of("kenny-mini-50")).setSmallTextFont(FontId.of("kenny-mini-40")).setTextColor(Rgba.create(0.95, 0.93, 0.88, 1)).setButtonLabelFont(FontId.of("kenny-mini-50")).setButtonLabelColor(Rgba.create(0.95, 0.82, 1.00, 1)).setDisabledButtonLabelColor(Rgba.create(0.55, 0.55, 0.55, 1)).setPanelBackgroundColor(Rgba.create(0, 0, 0, 0.3)).setPanelBorderColor(Rgba.create(0, 0, 0, 0.7));
+  }
+
+  static createTiledBg() {
+    return TiledBackground.create().setTexture("bg-tile");
+  }
+
+  static createPanel916() {
+    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setInnerSizeFnc((size) => {
+  return Size2.create(900, 1600);
+}).setRegionFnc((t) => {
+  if (t.aspect()>9/16) {
+    return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
+  }
+  else {
+    return Rect2.create(0, 0, t.width(), t.height());
+  }
+});
+  }
+
+  static createTitleScreenBg() {
+    return ImageView.create().setTexture("title-narrow-2").setRegionFnc(UiRegionFncs.full());
+  }
+
+  static createOverlayPanel(startSlot, numSlots, padding) {
+    let pd = padding?0.5:0;
+    return Panel.create().setRegionFnc(UiRegionFncs.centerTop((startSlot-pd)*MenuUis.SLOT_HEIGHT, 850, (numSlots+2*pd)*MenuUis.SLOT_HEIGHT));
+  }
+
+  static createPreviousTabBtnRegionFnc(slot) {
+    return (size) => {
+      return Rect2.create(MenuUis.PADDING_LEFT_RIGHT, slot*MenuUis.SLOT_HEIGHT, MenuUis.BUTTON_HEIGHT, MenuUis.BUTTON_HEIGHT);
+    };
+  }
+
+  static createNextTabBtnRegionFnc(slot) {
+    return (size) => {
+      return Rect2.create(size.width()-MenuUis.BUTTON_HEIGHT-MenuUis.PADDING_LEFT_RIGHT, slot*MenuUis.SLOT_HEIGHT, MenuUis.BUTTON_HEIGHT, MenuUis.BUTTON_HEIGHT);
+    };
+  }
+
+  static createMediumBtn(label, slot, disabled, action) {
+    return Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.centerTop(slot*MenuUis.SLOT_HEIGHT, 600, 100)).setText(label).setDisabled(disabled).addOnClickAction(action);
+  }
+
+  static createLeftMediumBtn(label, slot, disabled, action) {
+    return Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(MenuUis.PADDING_LEFT_RIGHT, slot*MenuUis.SLOT_HEIGHT, 450-MenuUis.PADDING_LEFT_RIGHT*1.5, MenuUis.BUTTON_HEIGHT)).setText(label).setDisabled(disabled).addOnClickAction(action);
+  }
+
+  static createRightMediumBtn(label, slot, disabled, action) {
+    return Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(450+MenuUis.PADDING_LEFT_RIGHT*0.5, slot*MenuUis.SLOT_HEIGHT, 450-MenuUis.PADDING_LEFT_RIGHT*1.5, MenuUis.BUTTON_HEIGHT)).setText(label).setDisabled(disabled).addOnClickAction(action);
+  }
+
+  static createTitleLabel(text, slot) {
+    return Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.centerTop(slot*MenuUis.SLOT_HEIGHT)).setText(text).setAlignment(TextAlignment.CENTER_TOP);
+  }
+
+  slotRegionFnc(slot) {
+    return (size) => {
+      return Rect2.create(0, slot*MenuUis.SLOT_HEIGHT, size.width(), MenuUis.SLOT_HEIGHT);
+    };
+  }
+
+  squareImage(texture, startSlot, numSlots) {
+    let size = MenuUis.SLOT_HEIGHT*numSlots-20;
+    return ImageView.create().setTexture(texture).setRegionFnc(UiRegionFncs.centerTop(startSlot*MenuUis.SLOT_HEIGHT, size, size));
+  }
+
+  normalLabel(text, slot) {
+    return Label.create().addTrait(UiComponentTrait.M).setPosFnc(UiPosFncs.centerTop(slot*MenuUis.SLOT_HEIGHT)).setText(text).setAlignment(TextAlignment.CENTER_TOP);
+  }
+
+  pauseBtn(action) {
+    return Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(75, 0, 75, 75)).addOnClickAction(action);
+  }
+
+  exitBtn(action) {
+    return Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(75, 0, 75, 75)).addOnClickAction(action);
+  }
+
+}
+classRegistry.MenuUis = MenuUis;
+class PlayUis {
+  static ARROW_UP = UiComponentTrait.of("ARROW_UP");
+  static ARROW_DOWN = UiComponentTrait.of("ARROW_DOWN");
+  static ARROW_LEFT = UiComponentTrait.of("ARROW_LEFT");
+  static ARROW_RIGHT = UiComponentTrait.of("ARROW_RIGHT");
+  static BRAKE = UiComponentTrait.of("BRAKE");
+  static PUNCH = UiComponentTrait.of("PUNCH");
+  static WALK_RUN = UiComponentTrait.of("WALK_RUN");
+  static CIRCLE_PUNCH = UiComponentTrait.of("CIRCLE_PUNCH");
+  static CIRCLE_KICK = UiComponentTrait.of("CIRCLE_KICK");
+  static CIRCLE_SPECIAL = UiComponentTrait.of("CIRCLE_SPECIAL");
+  static CIRCLE_BLOCK = UiComponentTrait.of("CIRCLE_BLOCK");
+  constructor() {
+  }
+
+  getClass() {
+    return "PlayUis";
+  }
+
+  static createUiSizeFnc() {
+    return UiSizeFncs.identity();
+  }
+
+  static createDefaultStyler() {
+    let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
+    let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
+    let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
+    let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
+    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-30")).setH2Font(FontId.of("kenny-thick-26")).setH3Font(FontId.of("kenny-thick-24")).setExtraLargeTextFont(FontId.of("kenny-mini-22")).setLargeTextFont(FontId.of("kenny-mini-20")).setMediumTextFont(FontId.of("kenny-mini-18")).setSmallTextFont(FontId.of("kenny-mini-16")).setButtonLabelFont(FontId.of("kenny-mini-18")).setFieldLabelFont(FontId.of("kenny-mini-16")).setFieldValueFont(FontId.of("kenny-mini-16")).setSelectItemTextFont(FontId.of("kenny-mini-18")).setSelectItemHeight(20).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.CIRCLE_PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-circle-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-circle-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-circle-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.CIRCLE_KICK), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-kick-circle-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-kick-circle-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-kick-circle-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.CIRCLE_SPECIAL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-special-circle-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-special-circle-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-special-circle-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.CIRCLE_BLOCK), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-block-circle-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-block-circle-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-block-circle-disabled")))));
+  }
+
+  static create916Panel() {
+    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setRegionFnc((t) => {
+  if (t.aspect()>9/16) {
+    return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
+  }
+  else {
+    return Rect2.create(0, 0, t.width(), t.height());
+  }
+});
+  }
+
+  static createExitButton(action) {
+    return Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
+  }
+
+  static createPauseButton(action) {
+    return Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
+  }
+
+}
+classRegistry.PlayUis = PlayUis;
+class TiledBackground extends UiComponent {
+  texture;
+  tileSize;
+  velocity;
+  containerSize;
+  offset = Vec2.ZERO;
+  spriteStyle = SpriteStyle.PIXEL_EDGE.withTextureStyle(TextureStyle.SMOOTH_REPEAT);
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "TiledBackground";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt) {
+    let nx = this.offset.x()+dt*this.velocity.x();
+    let ny = this.offset.y()+dt*this.velocity.y();
+    while (nx>0) {
+      nx = nx-this.tileSize.width();
+    }
+    while (nx+this.tileSize.width()<0) {
+      nx = nx+this.tileSize.width();
+    }
+    while (ny>0) {
+      ny = ny-this.tileSize.height();
+    }
+    while (ny+this.tileSize.height()<0) {
+      ny = ny+this.tileSize.height();
+    }
+    this.offset = Vec2.create(nx, ny);
+  }
+
+  draw(painter) {
+    for (let y = this.offset.y(); y<=this.containerSize.height(); y=y+this.tileSize.height()) {
+      for (let x = this.offset.x(); x<=this.containerSize.width(); x=x+this.tileSize.width()) {
+        painter.drawImage(this.texture, x, y, this.tileSize.width(), this.tileSize.height(), this.spriteStyle);
+      }
+    }
+  }
+
+  onContainerResize(size) {
+    this.containerSize = size;
+  }
+
+  getTexture() {
+    return this.texture;
+  }
+
+  setTexture() {
+    if (arguments.length===1&&arguments[0] instanceof TextureId) {
+      return this.setTexture_1_TextureId(arguments[0]);
+    }
+    else if (arguments.length===1&& typeof arguments[0]==="string") {
+      return this.setTexture_1_string(arguments[0]);
     }
     else {
       throw new Error("ambiguous overload");
     }
   }
 
-  static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
+  setTexture_1_TextureId(texture) {
+    Guard.notNull(texture, "texture cannot be null");
+    this.texture = texture;
+    return this;
   }
 
-  static rgbBox_3_number_number_number(r, g, b) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
+  setTexture_1_string(texture) {
+    return this.setTexture(TextureId.of(texture));
   }
 
-  static rgbaBox(c1, c2, c3, c4, a) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
+  toString() {
   }
 
-  static fabricBox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.fabric(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelBox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelSkybox() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, -1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22))).toMesh();
-    return res;
-  }
-
-  static modelBoxDeformed1() {
-    let en = Vec2.create(1, -1).normalize();
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
-    return res;
-  }
-
-  static modelBoxDeformed2() {
-    let en = Vec2.create(-1, -1).normalize();
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.floatValues(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+  static create() {
+    let res = new TiledBackground();
+    res.texture = TextureId.of("image");
+    res.tileSize = Size2.create(256, 256);
+    res.velocity = Vec2.create(0, 60);
+    res.containerSize = Size2.create(1, 1);
+    res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp02 extends TyracornApp {
-  planes = Dut.immutableList(MeshId.of("plane-0"), MeshId.of("plane-1"), MeshId.of("plane-2"), MeshId.of("plane-3"), MeshId.of("plane-4"), MeshId.of("plane-5"), MeshId.of("plane-6"), MeshId.of("plane-7"), MeshId.of("plane-8"), MeshId.of("plane-9"), MeshId.of("plane-10"));
-  tex1 = TextureId.of("tex1");
-  tex2 = TextureId.of("tex2");
-  stone = TextureId.of("stone-floor-1");
-  tyracorn = TextureId.of("tyracorn");
-  rug = TextureId.of("rug-1");
-  time = 0;
+classRegistry.TiledBackground = TiledBackground;
+class AudioBehavior extends Behavior {
+  musicVolume = 10;
+  soundVolume = 100;
+  musicPlaybackControl = null;
+  musicPlaybackMode = AudioPlaybackMode.PLAY;
+  musicVolumeChangeSpeed = 0;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "AudioBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt, inputs) {
+    let mpc = this.musicPlaybackControl;
+    if (mpc!=null) {
+      if (this.musicPlaybackMode.equals(AudioPlaybackMode.FADE_IN)) {
+        let targetVolume = this.musicVolume/100;
+        let volume = mpc.getVolume();
+        volume = FMath.min(volume+this.musicVolumeChangeSpeed*dt, targetVolume);
+        mpc.setVolume(volume);
+        if (volume==targetVolume) {
+          this.musicPlaybackMode = AudioPlaybackMode.PLAY;
+        }
+      }
+      else if (this.musicPlaybackMode.equals(AudioPlaybackMode.FADE_OUT)) {
+        let volume = mpc.getVolume();
+        volume = FMath.max(volume-this.musicVolumeChangeSpeed*dt, 0);
+        if (volume<=0.001) {
+          mpc.stop();
+          this.musicPlaybackControl = null;
+        }
+        else {
+          mpc.setVolume(volume);
+        }
+      }
+      else if (this.musicPlaybackMode.equals(AudioPlaybackMode.PLAY)) {
+        let targetVolume = this.musicVolume/100;
+        let volume = mpc.getVolume();
+        if (targetVolume!=volume) {
+          mpc.setVolume(targetVolume);
+        }
+      }
+    }
+  }
+
+  getMusicVolume() {
+    return this.musicVolume;
+  }
+
+  getSoundVolume() {
+    return this.soundVolume;
+  }
+
+  isMusicPlaying() {
+    return this.musicPlaybackControl!=null;
+  }
+
+  playSound(soundId) {
+    if (this.soundVolume>0) {
+      this.world().audio().prepare(PlaybackId.of(Randoms.nextAlphabetic(6)), soundId).setVolume(this.soundVolume/100).setLoop(false).play();
+    }
+    return this;
+  }
+
+  playRandomSound(soundIds) {
+    let idx = Randoms.nextInt(0, soundIds.size());
+    this.playSound(soundIds.get(idx));
+    return this;
+  }
+
+  fadeInAndPlayMusic(soundId, fadeInTime) {
+    if (this.musicPlaybackControl!=null) {
+      this.musicPlaybackControl.stop();
+      this.musicPlaybackControl = null;
+    }
+    this.musicVolumeChangeSpeed = this.musicVolume/fadeInTime;
+    this.musicPlaybackControl = this.world().audio().prepare(PlaybackId.of(Randoms.nextAlphabetic(6)), soundId).setVolume(0.001).setLoop(true).play();
+    this.musicPlaybackMode = AudioPlaybackMode.FADE_IN;
+    return this;
+  }
+
+  fadeOutAndStopMusic(fadeOutTime) {
+    if (this.musicPlaybackControl==null) {
+      return this;
+    }
+    if (fadeOutTime<=0) {
+      this.musicPlaybackControl.stop();
+      this.musicPlaybackControl = null;
+      return this;
+    }
+    this.musicVolumeChangeSpeed = this.musicPlaybackControl.getVolume()/fadeOutTime;
+    this.musicPlaybackMode = AudioPlaybackMode.FADE_OUT;
+    return this;
+  }
+
+  stopAll() {
+    this.world().audio().stop();
+    this.musicPlaybackControl = null;
+    return this;
+  }
+
+  static create(key) {
+    let res = new AudioBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.AudioBehavior = AudioBehavior;
+const createAudioPlaybackMode = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const AudioPlaybackMode = Object.freeze({
+  FADE_IN: createAudioPlaybackMode("FADE_IN"),
+  PLAY: createAudioPlaybackMode("PLAY"),
+  FADE_OUT: createAudioPlaybackMode("FADE_OUT"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class CombatCharacterController extends UiComponent {
+  moveJoystick;
+  kickButton;
+  punchButton;
+  blockButton;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp02";
+    return "CombatCharacterController";
   }
 
-  move(drivers, dt) {
-    this.time = this.time+dt;
-    let gDriver = drivers.getDriver("GraphicsDriver");
-    let aspect = gDriver.getScreenViewport().getAspect();
-    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
-    let m = 2*FMath.sin(this.time/3);
-    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 5), Vec3.ZERO, Vec3.create(0, 1, 0));
-    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let renderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, Light.directional(LightColor.AMBIENT_WHITE, Vec3.DOWN)));
-    renderer.render(this.planes.get(10), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -0.5, 0).mul(Mat44.rotX(-Math.PI/2).mul(Mat44.scale(20, 20, 1))), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.rug, TextureStyle.SMOOTH_REPEAT)));
-    renderer.render(this.planes.get(1), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-4, 1, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.LINEAR, TextureFilterType.LINEAR))));
-    renderer.render(this.planes.get(1), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-4, 0, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.render(this.planes.get(1), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-2.4, 0, 0).mul(Mat44.scale(2, 1, 1)), Material.fromColors(Rgb.BLACK, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.ALPHA, this.tyracorn, TextureStyle.SMOOTH_REPEAT)).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tyracorn, TextureStyle.SMOOTH_REPEAT)));
-    renderer.render(this.planes.get(2), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-0.6, 0, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.render(this.planes.get(2), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-0.6, 1, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.LINEAR, TextureFilterType.LINEAR))));
-    renderer.render(this.planes.get(2), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-0.6, 2, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.SMOOTH_REPEAT)));
-    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0.8, 0, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.EDGE, TextureWrapType.EDGE, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0.8, 1, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.MIRRORED_REPEAT, TextureWrapType.MIRRORED_REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0.8, 2, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(2.0, 0, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.BORDER, TextureWrapType.BORDER, Rgba.RED, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(2.0, 1, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.BORDER, TextureWrapType.BORDER, Rgba.WHITE, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.end();
+  guardInvariants() {
   }
 
-  init(drivers, properties) {
-    let assets = drivers.getDriver("AssetManager");
-    assets.put(this.planes.get(1), this.plane(1, 1));
-    assets.put(this.planes.get(2), this.plane(2, 2));
-    assets.put(this.planes.get(3), this.plane(3, 3));
-    assets.put(this.planes.get(4), this.plane(4, 4));
-    assets.put(this.planes.get(5), this.plane(5, 5));
-    assets.put(this.planes.get(6), this.plane(6, 6));
-    assets.put(this.planes.get(7), this.plane(7, 7));
-    assets.put(this.planes.get(8), this.plane(8, 8));
-    assets.put(this.planes.get(9), this.plane(9, 9));
-    assets.put(this.planes.get(10), this.plane(10, 10));
-    let mtex1 = Texture.rgbFloatValues(4, 4, 1, 1, 1, 0.3, 0.3, 0.3, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 1, 1, 1, 1, 0, 0.3, 0.3, 0.3, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 1, 1, 0, 1).powRgb(2.2);
-    let mtex2 = Texture.rgbaFloatValues(4, 4, 1, 1, 1, 1, 0.3, 0.3, 0.3, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1).powRgb(2.2);
-    assets.put(this.tex1, mtex1);
-    assets.put(this.tex2, mtex2);
-    let res = new ArrayList();
-    res.add(assets.resolveAsync(Path.of("asset:stone-floor-1.png"), "Texture", TextureFncs.flipVertGammaToUnsignedByte(2.2)));
-    res.add(assets.resolveAsync(Path.of("asset:tyracorn.png"), "Texture", TextureFncs.flipVertGammaToUnsignedByte(2.2)));
-    res.add(assets.resolveAsync(Path.of("asset:rug-1.png"), "Texture", TextureFncs.flipVertGammaToUnsignedByte(2.2)));
-    return res;
+  init(container) {
+    this.moveJoystick.init(container);
+    this.kickButton.init(container);
+    this.punchButton.init(container);
+    this.blockButton.init(container);
   }
 
-  close(drivers) {
+  move(dt) {
+    this.moveJoystick.move(dt);
+    this.kickButton.move(dt);
+    this.punchButton.move(dt);
+    this.blockButton.move(dt);
   }
 
-  plane(repU, repV) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3, VertexAttr.TEX2), Dut.list(Vertex.floatValues(-0.5, -0.5, 0, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0, 0, 0, 1, repU, 0), Vertex.floatValues(0.5, 0.5, 0, 0, 0, 1, repU, repV), Vertex.floatValues(-0.5, 0.5, 0, 0, 0, 1, 0, repV))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3))).toMesh();
+  draw(painter) {
+    this.moveJoystick.draw(painter);
+    this.kickButton.draw(painter);
+    this.punchButton.draw(painter);
+    this.blockButton.draw(painter);
+  }
+
+  onContainerResize(size) {
+    this.moveJoystick.onContainerResize(size);
+    this.kickButton.onContainerResize(size);
+    this.punchButton.onContainerResize(size);
+    this.blockButton.onContainerResize(size);
+  }
+
+  onTouchStart(id, pos, size) {
+    this.moveJoystick.onTouchStart(id, pos, size);
+    this.kickButton.onTouchStart(id, pos, size);
+    this.punchButton.onTouchStart(id, pos, size);
+    this.blockButton.onTouchStart(id, pos, size);
+    return false;
+  }
+
+  onTouchMove(id, pos, size) {
+    this.moveJoystick.onTouchMove(id, pos, size);
+    this.kickButton.onTouchMove(id, pos, size);
+    this.punchButton.onTouchMove(id, pos, size);
+    this.blockButton.onTouchMove(id, pos, size);
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    this.moveJoystick.onTouchEnd(id, pos, size, cancel);
+    this.kickButton.onTouchEnd(id, pos, size, cancel);
+    this.punchButton.onTouchEnd(id, pos, size, cancel);
+    this.blockButton.onTouchEnd(id, pos, size, cancel);
+    return false;
+  }
+
+  onKeyPressed(key) {
+    this.moveJoystick.onKeyPressed(key);
+    this.kickButton.onKeyPressed(key);
+    this.punchButton.onKeyPressed(key);
+    this.blockButton.onKeyPressed(key);
+    return false;
+  }
+
+  onKeyReleased(key) {
+    this.moveJoystick.onKeyReleased(key);
+    this.kickButton.onKeyReleased(key);
+    this.punchButton.onKeyReleased(key);
+    this.blockButton.onKeyReleased(key);
+    return false;
+  }
+
+  pushToInputs(inputs) {
+    inputs.put("moveDir", this.moveJoystick.getDir());
+    inputs.put("kick", this.kickButton.isDown());
+    inputs.put("punch", this.punchButton.isDown());
+    inputs.put("block", this.blockButton.isDown());
+  }
+
+  toString() {
+  }
+
+  static create(drivers) {
+    let res = new CombatCharacterController();
+    res.moveJoystick = Joystick.create().addTrait(UiComponentTrait.SQUARE).setCircle(false).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h30 = s.height()*0.3;
+    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h5, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h2, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD());
+    res.kickButton = Button.create().addTrait(PlayUis.CIRCLE_KICK).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h12 = s.height()*0.12;
+    let h15 = s.height()*0.15;
+    let punchSize = FMath.clamp(h15, 1, s.width()*0.3-h5);
+    let size = FMath.clamp(h12, 1, s.width()*0.3-h5);
+    return Rect2.create(s.width()-h5-size, s.height()-h6-h2-size-punchSize, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h12 = s.height()*0.12;
+    let h15 = s.height()*0.15;
+    let punchSize = FMath.clamp(h15, 1, s.width()*0.3-h5);
+    let size = FMath.clamp(h12, 1, s.width()*0.3-h5);
+    return Rect2.create(s.width()-h2-size, s.height()-h6-h2-size-punchSize, size, size);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("O"));
+    res.punchButton = Button.create().addTrait(PlayUis.CIRCLE_PUNCH).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h15 = s.height()*0.15;
+    let size = FMath.clamp(h15, 1, s.width()*0.3-h5);
+    return Rect2.create(s.width()-h5-size, s.height()-h6-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h15 = s.height()*0.15;
+    let size = FMath.clamp(h15, 1, s.width()*0.3-h5);
+    return Rect2.create(s.width()-h2-size, s.height()-h6-size, size, size);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("I"));
+    res.blockButton = Button.create().addTrait(PlayUis.CIRCLE_BLOCK).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h12 = s.height()*0.12;
+    let h15 = s.height()*0.15;
+    let punchSize = FMath.clamp(h15, 1, s.width()*0.3-h5);
+    let size = FMath.clamp(h12, 1, s.width()*0.3-h5);
+    return Rect2.create(s.width()-h5-h2-size-punchSize, s.height()-h6-1.0*size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h12 = s.height()*0.12;
+    let h15 = s.height()*0.15;
+    let punchSize = FMath.clamp(h15, 1, s.width()*0.3-h5);
+    let size = FMath.clamp(h12, 1, s.width()*0.3-h5);
+    return Rect2.create(s.width()-h2-h2-size-punchSize, s.height()-h6-1.0*size, size, size);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("J"));
+    res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.BasicApp02 = BasicApp02;
+classRegistry.CombatCharacterController = CombatCharacterController;
+class CombatGameMasterBehavior extends Behavior {
+  static MUSIC_IDS = Dut.list(SoundId.of("alexander-ehlers-flags"), SoundId.of("alexander-ehlers-waking-the-devil"));
+  scenario;
+  audio;
+  state = CombatGameState.PREPARATION;
+  stateTime = 0;
+  statePlan = null;
+  stateRemainingTime = 0;
+  enemyIdx = 0;
+  playerActor;
+  enemyActor;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "CombatGameMasterBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.audio = this.actor().getComponent("AudioBehavior");
+  }
+
+  move(dt, inputs) {
+    this.stateTime = this.stateTime+dt;
+    if (this.state.equals(CombatGameState.PREPARATION)) {
+      if (this.stateTime>1&&!this.audio.isMusicPlaying()) {
+        this.audio.fadeInAndPlayMusic(CombatGameMasterBehavior.MUSIC_IDS.get(Randoms.nextInt(0, CombatGameMasterBehavior.MUSIC_IDS.size())), 3);
+      }
+      if (this.stateTime>4) {
+        this.state = CombatGameState.COMBAT;
+        this.stateTime = 0;
+        this.broadcastMessage(ActorMatchers.hasTag(WorldActors.FIGHTER_TAG), WorldActors.GAME_STATE_MESSAGE_TYPE, this.state);
+      }
+    }
+    else if (this.state.equals(CombatGameState.COMBAT)) {
+    }
+    else if (this.state.equals(CombatGameState.FINISH_PLAYER_WIN)) {
+    }
+    else if (this.state.equals(CombatGameState.FINISH_PLAYER_LOSE)) {
+    }
+    else {
+      throw new Error("unknown state, implement me"+this.state);
+    }
+    if (this.statePlan!=null) {
+      this.stateRemainingTime = this.stateRemainingTime-dt;
+      if (this.stateRemainingTime<=0) {
+        this.state = this.statePlan;
+        this.statePlan = null;
+        this.stateTime = 0;
+        this.stateRemainingTime = 0;
+        this.broadcastMessage(ActorMatchers.hasTag(WorldActors.FIGHTER_TAG), WorldActors.GAME_STATE_MESSAGE_TYPE, this.state);
+      }
+    }
+  }
+
+  getState() {
+    return this.state;
+  }
+
+  isFinishState() {
+    return this.state.equals(CombatGameState.FINISH_PLAYER_WIN)|this.state.equals(CombatGameState.FINISH_PLAYER_LOSE);
+  }
+
+  isFinishPlayerWinState() {
+    return this.state.equals(CombatGameState.FINISH_PLAYER_WIN);
+  }
+
+  getStateTime() {
+    return this.stateTime;
+  }
+
+  getPlayerActor() {
+    return this.playerActor;
+  }
+
+  getEnemyActor() {
+    return this.enemyActor;
+  }
+
+  onFighterDied(deathActor) {
+    if (deathActor.equals(this.playerActor)) {
+      this.stateRemainingTime = 2;
+      this.statePlan = CombatGameState.FINISH_PLAYER_LOSE;
+      this.audio.fadeOutAndStopMusic(3);
+      return this;
+    }
+    else {
+      if (this.enemyIdx<this.scenario.getNumEnemies()) {
+        this.enemyActor = this.spawnNextEnemy();
+        return this;
+      }
+      else {
+        this.stateRemainingTime = 2;
+        this.statePlan = CombatGameState.FINISH_PLAYER_WIN;
+        this.audio.fadeOutAndStopMusic(3);
+        return this;
+      }
+    }
+  }
+
+  playSound(soundId) {
+    this.audio.playSound(soundId);
+    return this;
+  }
+
+  spawnInitialActors() {
+    this.playerActor = this.spawnPlayer();
+    this.enemyActor = this.spawnNextEnemy();
+    return this;
+  }
+
+  spawnPlayer() {
+    let prefab = this.world().assets().get("ActorPrefab", ActorPrefabId.of("fighter-base"));
+    let req = CreateActorRequest.create(prefab, ActorId.of("player"), Vec3.create(-5, 3, 0), Quaternion.ZERO_ROT);
+    return this.world().constructActor(req).addTag(WorldActors.PLAYER_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.ENEMY_TAG)).addComponent(FighterCharacterBehavior.create(ComponentKey.random())).addComponent(FighterBaseInputBehavior.create(ComponentKey.random()).setInputType(FighterInputType.CONTROLLER)).addComponent(FighterBaseBehavior.create(ComponentKey.random()));
+  }
+
+  spawnNextEnemy() {
+    let pos = Vec3.create(5, 3, 0);
+    if (this.enemyIdx>0) {
+      this.enemyActor.removeTag(WorldActors.ENEMY_TAG);
+      let playerPos = this.playerActor.getComponent("TransformComponent").getPos();
+      pos = pos.withX(playerPos.x()-10*FMath.signum(playerPos.x()));
+    }
+    if (this.scenario.isTraining()) {
+      let prefab = this.world().assets().get("ActorPrefab", ActorPrefabId.of("fighter-base"));
+      let req = CreateActorRequest.create(prefab, null, pos, Quaternion.ZERO_ROT);
+      return this.world().constructActor(req).addTag(WorldActors.ENEMY_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.PLAYER_TAG)).addComponent(FighterCharacterBehavior.create(ComponentKey.random()).setConfig(FighterConfig.create()).setHealthAndStaminaToMax()).addComponent(FighterBaseInputBehavior.create(ComponentKey.random()).setInputType(FighterInputType.TRAINING).setAiDifficuly(0.5)).addComponent(FighterBaseBehavior.create(ComponentKey.random())).addComponent(FighterRecoveryBehavior.create(ComponentKey.random()));
+    }
+    else {
+      let enemy = this.scenario.getEnemies().get(this.enemyIdx);
+      this.enemyIdx = this.enemyIdx+1;
+      let prefab = this.world().assets().get("ActorPrefab", ActorPrefabId.of("fighter-base"));
+      let req = CreateActorRequest.create(prefab, null, pos, Quaternion.ZERO_ROT);
+      let enemyConfig = FighterConfig.create().applyToughnessFactor(enemy.getToughnessFactor());
+      return this.world().constructActor(req).addTag(WorldActors.ENEMY_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.PLAYER_TAG)).addComponent(FighterCharacterBehavior.create(ComponentKey.random()).setConfig(enemyConfig).setHealthAndStaminaToMax()).addComponent(FighterBaseInputBehavior.create(ComponentKey.random()).setInputType(FighterInputType.AI).setAiDifficuly(enemy.getAiDifficulty())).addComponent(FighterBaseBehavior.create(ComponentKey.random()));
+    }
+  }
+
+  toString() {
+  }
+
+  static create(key, scenario) {
+    let res = new CombatGameMasterBehavior(key);
+    res.scenario = scenario;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CombatGameMasterBehavior = CombatGameMasterBehavior;
+const createCombatGameState = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const CombatGameState = Object.freeze({
+  PREPARATION: createCombatGameState("PREPARATION"),
+  COMBAT: createCombatGameState("COMBAT"),
+  FINISH_PLAYER_WIN: createCombatGameState("FINISH_PLAYER_WIN"),
+  FINISH_PLAYER_LOSE: createCombatGameState("FINISH_PLAYER_LOSE"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class CombatGameStateUiComponent extends UiComponent {
+  static PLACEHOLDER_TID = TextureId.of("----");
+  static NUMBER_3_TID = TextureId.of("number-3");
+  static NUMBER_2_TID = TextureId.of("number-2");
+  static NUMBER_1_TID = TextureId.of("number-1");
+  static FIGHT_TID = TextureId.of("fight");
+  static YOU_WIN_TID = TextureId.of("you-win");
+  static YOU_LOSE_TID = TextureId.of("you-lose");
+  gameMaster;
+  textureAspects;
+  centerView;
+  containerSize = Size2.create(1, 1);
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "CombatGameStateUiComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt) {
+    let state = this.gameMaster.getState();
+    let stateTime = this.gameMaster.getStateTime();
+    if (state.equals(CombatGameState.PREPARATION)) {
+      if (stateTime<1) {
+        this.centerView = null;
+      }
+      else {
+        if (this.centerView==null) {
+          this.centerView = ImageView.create().setTexture(CombatGameStateUiComponent.PLACEHOLDER_TID).setRegionFnc((s) => {
+  let h2 = s.height()*0.02;
+  let h5 = s.height()*0.05;
+  return Rect2.create(s.width()/2-h5/2, h2, h5, h5);
+});
+          this.centerView.onContainerResize(this.containerSize);
+        }
+        if (stateTime<2) {
+          if (!this.centerView.getTexture().equals(CombatGameStateUiComponent.NUMBER_3_TID)) {
+            this.centerView.setTexture(CombatGameStateUiComponent.NUMBER_3_TID);
+            this.gameMaster.playSound(SoundId.of("number-3"));
+          }
+        }
+        else if (stateTime<3) {
+          if (!this.centerView.getTexture().equals(CombatGameStateUiComponent.NUMBER_2_TID)) {
+            this.centerView.setTexture(CombatGameStateUiComponent.NUMBER_2_TID);
+            this.gameMaster.playSound(SoundId.of("number-2"));
+          }
+        }
+        else {
+          if (!this.centerView.getTexture().equals(CombatGameStateUiComponent.NUMBER_1_TID)) {
+            this.centerView.setTexture(CombatGameStateUiComponent.NUMBER_1_TID);
+            this.gameMaster.playSound(SoundId.of("number-1"));
+          }
+        }
+        let ttt = stateTime-FMath.trunc(stateTime);
+        let max = 0.4*(1-ttt)+0.3*ttt;
+        this.centerView.setRegionFnc(this.creteCenterRegionFnc(this.centerView.getTexture(), max, max));
+      }
+    }
+    else if (state.equals(CombatGameState.COMBAT)) {
+      if (stateTime<0.5) {
+        if (this.centerView==null||!this.centerView.getTexture().equals(CombatGameStateUiComponent.FIGHT_TID)) {
+          this.centerView = ImageView.create().setTexture(CombatGameStateUiComponent.FIGHT_TID).setRegionFnc((s) => {
+  let h2 = s.height()*0.02;
+  let h5 = s.height()*0.05;
+  return Rect2.create(s.width()/2-h5/2, h2, h5, h5);
+});
+          this.centerView.onContainerResize(this.containerSize);
+          this.gameMaster.playSound(SoundId.of("fight"));
+        }
+        let ttt = stateTime-FMath.trunc(stateTime);
+        let max = 0.3*(1-ttt)+0.1*ttt;
+        this.centerView.setRegionFnc(this.creteCenterRegionFnc(this.centerView.getTexture(), max, max));
+      }
+      else {
+        this.centerView = null;
+      }
+    }
+    else if (state.equals(CombatGameState.FINISH_PLAYER_WIN)) {
+      if (this.centerView==null) {
+        this.centerView = ImageView.create().setTexture(CombatGameStateUiComponent.YOU_WIN_TID).setRegionFnc((s) => {
+  let h2 = s.height()*0.02;
+  let h5 = s.height()*0.05;
+  return Rect2.create(s.width()/2-h5/2, h2, h5, h5);
+});
+        this.centerView.onContainerResize(this.containerSize);
+        this.gameMaster.playSound(SoundId.of("you-win"));
+      }
+      let ttt = FMath.clamp(stateTime, 0, 1);
+      let max = 0.1*(1-ttt)+0.5*ttt;
+      this.centerView.setRegionFnc(this.creteCenterRegionFnc(this.centerView.getTexture(), max, max));
+    }
+    else if (state.equals(CombatGameState.FINISH_PLAYER_LOSE)) {
+      if (this.centerView==null) {
+        this.centerView = ImageView.create().setTexture(CombatGameStateUiComponent.YOU_LOSE_TID).setRegionFnc((s) => {
+  let h2 = s.height()*0.02;
+  let h5 = s.height()*0.05;
+  return Rect2.create(s.width()/2-h5/2, h2, h5, h5);
+});
+        this.centerView.onContainerResize(this.containerSize);
+        this.gameMaster.playSound(SoundId.of("you-lose"));
+      }
+      let ttt = FMath.clamp(stateTime, 0, 1);
+      let max = 0.1*(1-ttt)+0.5*ttt;
+      this.centerView.setRegionFnc(this.creteCenterRegionFnc(this.centerView.getTexture(), max, max));
+    }
+    else {
+      this.centerView = null;
+    }
+    if (this.centerView!=null) {
+      this.centerView.move(dt);
+    }
+  }
+
+  draw(painter) {
+    if (this.centerView!=null) {
+      this.centerView.draw(painter);
+    }
+  }
+
+  onContainerResize(size) {
+    this.containerSize = size;
+    if (this.centerView!=null) {
+      this.centerView.onContainerResize(size);
+    }
+  }
+
+  creteCenterRegionFnc(textureId, maxWidthFactor, maxHeightFactor) {
+    let texAspect = this.textureAspects.get(textureId);
+    return (size) => {
+      let sizeAspect = (size.width()*maxWidthFactor)/(size.height()*maxHeightFactor);
+      if (texAspect>=sizeAspect) {
+        let w = size.width()*maxWidthFactor;
+        let h = w/texAspect;
+        return Rect2.create(size.width()/2-w/2, size.height()/2-h/2, w, h);
+      }
+      else {
+        let h = size.height()*maxHeightFactor;
+        let w = h*texAspect;
+        return Rect2.create(size.width()/2-w/2, size.height()/2-h/2, w, h);
+      }
+    };
+  }
+
+  toString() {
+  }
+
+  static create(assets, gameMaster) {
+    let res = new CombatGameStateUiComponent();
+    res.gameMaster = gameMaster;
+    res.centerView = null;
+    res.textureAspects = Dut.immutableMap(CombatGameStateUiComponent.NUMBER_3_TID, assets.get("Texture", CombatGameStateUiComponent.NUMBER_3_TID).getAspect(), CombatGameStateUiComponent.NUMBER_2_TID, assets.get("Texture", CombatGameStateUiComponent.NUMBER_2_TID).getAspect(), CombatGameStateUiComponent.NUMBER_1_TID, assets.get("Texture", CombatGameStateUiComponent.NUMBER_1_TID).getAspect(), CombatGameStateUiComponent.FIGHT_TID, assets.get("Texture", CombatGameStateUiComponent.FIGHT_TID).getAspect(), CombatGameStateUiComponent.YOU_WIN_TID, assets.get("Texture", CombatGameStateUiComponent.YOU_WIN_TID).getAspect(), CombatGameStateUiComponent.YOU_LOSE_TID, assets.get("Texture", CombatGameStateUiComponent.YOU_LOSE_TID).getAspect());
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CombatGameStateUiComponent = CombatGameStateUiComponent;
+class CombatScenario {
+  arenaType;
+  enemies;
+  training;
+  constructor() {
+  }
+
+  getClass() {
+    return "CombatScenario";
+  }
+
+  guardInvariants() {
+  }
+
+  getArenaType() {
+    return this.arenaType;
+  }
+
+  withArenaType(arenaType) {
+    let res = new CombatScenario();
+    res.arenaType = arenaType;
+    res.enemies = this.enemies;
+    res.training = this.training;
+    res.guardInvariants();
+    return res;
+  }
+
+  getEnemies() {
+    return this.enemies;
+  }
+
+  getNumEnemies() {
+    return this.enemies.size();
+  }
+
+  withEnemies(enemies) {
+    let res = new CombatScenario();
+    res.arenaType = this.arenaType;
+    res.enemies = Dut.copyImmutableList(enemies);
+    res.training = this.training;
+    res.guardInvariants();
+    return res;
+  }
+
+  isTraining() {
+    return this.training;
+  }
+
+  withTraining(training) {
+    let res = new CombatScenario();
+    res.arenaType = this.arenaType;
+    res.enemies = this.enemies;
+    res.training = training;
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new CombatScenario();
+    res.arenaType = CombatArenaType.RANDOM;
+    res.enemies = Collections.emptyList();
+    res.training = false;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CombatScenario = CombatScenario;
+class CombatScreen extends TyracornScreen {
+  appManager;
+  scenario;
+  gameMaster;
+  time = 0;
+  world;
+  inputs = InputCache.create();
+  ui;
+  controller;
+  paused = false;
+  audio;
+  enemyStateIndicator;
+  continueBtn = null;
+  constructor(appManager, scenario) {
+    super();
+    this.appManager = appManager;
+    this.scenario = scenario;
+    this.guardInvariants();
+  }
+
+  getClass() {
+    return "CombatScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    this.time = this.time+dt;
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    if (this.paused&&this.ui.getNumLayers()==1) {
+      this.ui.pushLayer();
+      this.ui.addComponent(Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setRegionFnc(UiRegionFncs.full()));
+      let menuPanel = Panel.create().setRegionFnc(UiRegionFncs.center(250, 250));
+      this.ui.addComponent(menuPanel);
+      menuPanel.addComponent(Label.create().addTrait(UiComponentTrait.H1).setAlignment(TextAlignment.CENTER_TOP).setPosFnc(UiPosFncs.centerTop(10)).setText("Pause"));
+      menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(170, 150, 30)).setText("Resume").addOnClickAction((evtSource) => {
+  this.paused = false;
+  this.ui.popLayer();
+}));
+      menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(210, 150, 30)).setText("Exit").addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.appManager))));
+    }
+    if (this.gameMaster.isFinishState()&&this.gameMaster.getStateTime()>1.5&&this.continueBtn==null) {
+      this.ui.pushLayer();
+      this.ui.addComponent(Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setRegionFnc(UiRegionFncs.full()));
+      let act = null;
+      if (this.gameMaster.isFinishPlayerWinState()) {
+        act = UiEventActions.showScreen(screenManager, new QuestScreen(this.appManager, QuestEvent.createCompleteNode()));
+      }
+      else {
+        act = UiEventActions.showScreen(screenManager, new QuestScreen(this.appManager, QuestEvent.createFailNode()));
+      }
+      this.continueBtn = Button.create().addTrait(UiComponentTrait.M).setText("Continue").setRegionFnc((size) => {
+  let w = FMath.min(200, size.width()*0.7);
+  let h = 50;
+  return Rect2.create(size.width()/2-w/2, size.height()*0.6, w, h);
+}).addOnClickAction(act).setKeyCodeMatcher((keyCode) => {
+  return keyCode.isConrol()||keyCode.getUpperCharacter().equals("J")||keyCode.getUpperCharacter().equals("I")||keyCode.getUpperCharacter().equals("O");
+});
+      this.ui.addComponent(this.continueBtn);
+    }
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    if (!this.paused) {
+      this.controller.pushToInputs(this.inputs);
+      this.world.move(dt, this.inputs);
+      this.enemyStateIndicator.setCharacter(this.gameMaster.getEnemyActor().getComponent("FighterCharacterBehavior"));
+    }
+    this.world.render(RenderRequest.NORMAL);
+    gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.addAll(Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/music.tap")), assets.resolveAsync(Path.of("asset:packages/elements.tap")), assets.resolveAsync(Path.of("asset:packages/characters/base-fighter.tap")), assets.resolveAsync(Path.of("asset:packages/characters/audience.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/skybox.tap")), assets.resolveAsync(Path.of("asset:default.tap")), assets.resolveAsync(Path.of("asset:prefabs.tap")), assets.resolveAsync(Path.of("asset:scenes.tap"))));
+    if (this.scenario.getArenaType().equals(CombatArenaType.MEDIEVAL_VILLAGE)) {
+      res.addAll(Dut.list(assets.resolveAsync(Path.of("asset:packages/worlds/medieval-village.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/nature.tap"))));
+    }
+    else if (this.scenario.getArenaType().equals(CombatArenaType.SCI_FI)) {
+      res.addAll(Dut.list(assets.resolveAsync(Path.of("asset:packages/worlds/sci-fi.tap"))));
+    }
+    else if (this.scenario.getArenaType().equals(CombatArenaType.RANDOM)) {
+      res.addAll(Dut.list(assets.resolveAsync(Path.of("asset:packages/worlds/medieval-village.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/nature.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/sci-fi.tap"))));
+    }
+    else {
+      throw new Error("unsupported arena, implement me: "+this.scenario.getArenaType());
+    }
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 30));
+    this.world = RigidBodyWorld.create(drivers).setCollisionLayerMatrix(CollisionLayerMatrix.standard().plusLayer(CollisionLayer.of("BLOOD"), false, Dut.set(CollisionLayer.WORLD)).plusLayer(CollisionLayer.of("LANDING_DUST"), false, Collections.emptySet()));
+    assets.get("Scene", CombatArenas.getSceneId(this.scenario.getArenaType())).emptyWorld(this.world).loadToWorld(this.world, assets);
+    this.audio = AudioBehavior.create(ComponentKey.random());
+    this.gameMaster = CombatGameMasterBehavior.create(ComponentKey.of("game-master"), this.scenario);
+    this.world.actors().get(WorldActors.WORLD).addComponent(this.audio).addComponent(this.gameMaster);
+    this.gameMaster.spawnInitialActors();
+    this.world.actors().get(WorldActors.CAMERA).addComponent(FighterCameraShiftBehavior.create(ComponentKey.random()));
+    this.world.actors().get(ActorId.of("sun")).getComponent("LightComponent").setDirShadowMapStrategy(DirShadowMapStrategy.createManual(130, 130, 0, 70));
+    this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
+    this.ui.addComponent(PlayUis.createPauseButton((evt) => {
+  this.paused = true;
+}));
+    this.controller = CombatCharacterController.create(drivers);
+    this.ui.addComponent(this.controller);
+    this.ui.addComponent(FighterStateIndicator.create().setCharacter(this.gameMaster.getPlayerActor().getComponent("FighterCharacterBehavior")).setRegionFnc((s) => {
+  let h2 = s.height()*0.02;
+  let h5 = s.height()*0.05;
+  let h30 = s.height()*0.3;
+  let w10 = s.width()*0.1;
+  let w30 = s.width()*0.3;
+  let offsetX = w10;
+  let offsetY = h2;
+  let width = FMath.min(h30, w30);
+  return Rect2.create(offsetX, offsetY, width, h5);
+}).setFlip(false));
+    this.enemyStateIndicator = FighterStateIndicator.create().setCharacter(this.gameMaster.getEnemyActor().getComponent("FighterCharacterBehavior")).setRegionFnc((s) => {
+  let h2 = s.height()*0.02;
+  let h5 = s.height()*0.05;
+  let h30 = s.height()*0.3;
+  let w10 = s.width()*0.1;
+  let w30 = s.width()*0.3;
+  let offsetX = w10;
+  let offsetY = h2;
+  let width = FMath.min(h30, w30);
+  return Rect2.create(s.width()-offsetX-width, offsetY, FMath.min(h30, w30), h5);
+}).setFlip(true);
+    this.ui.addComponent(this.enemyStateIndicator);
+    this.ui.addComponent(CombatGameStateUiComponent.create(assets, this.gameMaster));
+    this.ui.subscribe(drivers);
+    let dlist = InputCacheDisplayListener.create(this.inputs);
+    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
+    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
+  }
+
+  pause(drivers) {
+    this.paused = true;
+  }
+
+  leave(drivers) {
+    this.audio.stopAll();
+    this.ui.unsubscribe(drivers);
+    this.world.destroy(drivers);
+  }
+
+}
+classRegistry.CombatScreen = CombatScreen;
+class HitMessage {
+  pos;
+  dir;
+  damage;
+  impulse;
+  knockdownFactor;
+  zones;
+  constructor() {
+  }
+
+  getClass() {
+    return "HitMessage";
+  }
+
+  guardInvariants() {
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getDir() {
+    return this.dir;
+  }
+
+  getDamage() {
+    return this.damage;
+  }
+
+  getImpulse() {
+    return this.impulse;
+  }
+
+  getKnockdownFactor() {
+    return this.knockdownFactor;
+  }
+
+  getZones() {
+    return this.zones;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(pos, dir, damage, impulse, knockdownFactor, zones) {
+    let res = new HitMessage();
+    res.pos = pos;
+    res.dir = dir;
+    res.damage = damage;
+    res.impulse = impulse;
+    res.knockdownFactor = knockdownFactor;
+    res.zones = Dut.copyImmutableSet(zones);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.HitMessage = HitMessage;
+class WorldActors {
+  static GAME_STATE_MESSAGE_TYPE = ActorMessageType.create("SCENARIO_STATE");
+  static WORLD = ActorId.of("world");
+  static CAMERA = ActorId.of("camera");
+  static PLAYER = ActorId.of("player");
+  static FIGHTER_TAG = ActorTag.of("fighter");
+  static PLAYER_TAG = ActorTag.of("player");
+  static ENEMY_TAG = ActorTag.of("enemy");
+  static PARTICLE_BLOOD_ACTOR_PREFAB_ID = ActorPrefabId.of("particle-blood");
+  static PARTICLE_WHITE_DUST_PREFAB_ID = ActorPrefabId.of("particle-white-dust");
+  static QUEST_NODE_PREFAB_ID = ActorPrefabId.of("quest-node-base");
+  static BASE_FIGHTER_ANIMATION_COLLECTION_ID = MeshAnimationCollectionId.of("base-fighter");
+  static IDLE_ANIMATION_KEY = MeshAnimationKey.of("idle");
+  static WALK_ANIMATION_KEY = MeshAnimationKey.of("walk");
+  static YES_ANIMATION_KEY = MeshAnimationKey.of("yes");
+  static NODE_STATUS_TYPE_UPDATE = ActorMessageType.create("NODE_STATUS_TYPE_UPDATE");
+  constructor() {
+  }
+
+  getClass() {
+    return "WorldActors";
+  }
+
+}
+classRegistry.WorldActors = WorldActors;
+class ActorDetectionSensor extends Behavior {
+  actorTags = new HashSet();
+  detectedActors = Collections.emptySet();
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "ActorDetectionSensor";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt, inputs) {
+    const newDetected = new HashSet();
+    this.world().actors().forEach(ActorId.ROOT, (act) => {
+  for (let tag of this.actorTags) {
+    if (act.hasTag(tag)) {
+      newDetected.add(act);
+      break;
+    }
+  }
+});
+    this.detectedActors = Collections.unmodifiableSet(newDetected);
+  }
+
+  getDetectedActors() {
+    return this.detectedActors;
+  }
+
+  addActorTag(actorTag) {
+    Guard.notNull(actorTag, "actorTag cannot be null");
+    this.actorTags.add(actorTag);
+    return this;
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new ActorDetectionSensor(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ActorDetectionSensor = ActorDetectionSensor;
+const createCharacterAiAction = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const CharacterAiAction = Object.freeze({
+  WAIT: createCharacterAiAction("WAIT"),
+  RUN: createCharacterAiAction("RUN"),
+  ENSURE_SPEED: createCharacterAiAction("ENSURE_SPEED"),
+  JUMP: createCharacterAiAction("JUMP"),
+  FLY: createCharacterAiAction("FLY"),
+  ATTACK: createCharacterAiAction("ATTACK"),
+  BLOCK: createCharacterAiAction("BLOCK"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class CharacterAiStep {
+  action;
+  maxTime;
+  distance;
+  direction;
+  speed;
+  constructor() {
+  }
+
+  getClass() {
+    return "CharacterAiStep";
+  }
+
+  guardInvariants() {
+  }
+
+  getAction() {
+    return this.action;
+  }
+
+  actionEquals(act) {
+    return this.action.equals(act);
+  }
+
+  getMaxTime() {
+    return this.maxTime;
+  }
+
+  getDistance() {
+    return this.distance;
+  }
+
+  getDirection() {
+    return this.direction;
+  }
+
+  getSpeed() {
+    return this.speed;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(action, maxTime, distance, direction, speed) {
+    let res = new CharacterAiStep();
+    res.action = action;
+    res.maxTime = maxTime;
+    res.distance = distance;
+    res.direction = direction;
+    res.speed = speed;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CharacterAiStep = CharacterAiStep;
+class FighterBaseAi1 {
+  character;
+  config = FighterBaseAi1Config.create();
+  sensor;
+  attackDistance;
+  plan = Collections.emptyList();
+  stepIdx = 0;
+  stepTime = 0;
+  blockingDecisionTimeout = 0;
+  knockdownRecoveryStarted = false;
+  knockdownRecoveryTimeout = 0;
+  constructor() {
+  }
+
+  getClass() {
+    return "FighterBaseAi1";
+  }
+
+  guardInvariants() {
+  }
+
+  solveInput(dt) {
+    let target = this.findClosestTarget();
+    if (target==null) {
+      this.plan = Collections.emptyList();
+      this.stepIdx = 0;
+      this.stepTime = 0;
+      this.blockingDecisionTimeout = 0;
+      return FighterInput.ZERO;
+    }
+    this.stepTime = this.stepTime+dt;
+    this.blockingDecisionTimeout = FMath.max(0, this.blockingDecisionTimeout-dt);
+    let targetBehav = target.getComponent("FighterCharacterBehavior");
+    let targetTransform = target.getComponent("TransformComponent");
+    let targetConfig = targetBehav.getConfig();
+    let targetState = targetBehav.getState();
+    let dangerDst = targetConfig.getAttackDistance(1.1);
+    let targetPos = targetTransform.getPos();
+    let dst = targetPos.x()-this.character.getPos().x();
+    let absDst = FMath.abs(dst);
+    if (targetState.actionEquals(FighterAction.ATTACK)&&this.blockingDecisionTimeout==0&&dangerDst.isInside(absDst)) {
+      this.blockingDecisionTimeout = this.config.getRandomBlockDecisionCooldownTime();
+      if (Randoms.nextFloat(0, 1)<this.config.getBlockChance()) {
+        this.plan = Dut.list(CharacterAiStep.create(CharacterAiAction.WAIT, this.config.getRandomBlockReactionTime(), null, 0, 0), CharacterAiStep.create(CharacterAiAction.BLOCK, this.config.getRandomBlockTime(), null, 0, 0));
+      }
+    }
+    let characterConfig = this.character.getConfig();
+    let characterState = this.character.getState();
+    if (characterState.actionEquals(FighterAction.KNOCKDOWN)) {
+      if (this.knockdownRecoveryStarted) {
+        this.knockdownRecoveryTimeout = this.knockdownRecoveryTimeout-dt;
+        if (this.knockdownRecoveryTimeout<=0) {
+          this.knockdownRecoveryStarted = false;
+          return FighterInput.create(Vec2.ZERO, true, false, false);
+        }
+      }
+      else {
+        this.knockdownRecoveryStarted = true;
+        this.knockdownRecoveryTimeout = FMath.max(characterConfig.getKnockdownRecoveryTime()+0.05, this.config.getRandomKnockdownRecoveryTime());
+      }
+    }
+    while (true) {
+      if (this.stepIdx<this.plan.size()&&this.stepTime>=this.plan.get(this.stepIdx).getMaxTime()) {
+        this.stepIdx = this.stepIdx+1;
+        this.stepTime = 0;
+      }
+      if (this.plan.isEmpty()||this.stepIdx>=this.plan.size()) {
+        this.stepIdx = 0;
+        this.stepTime = 0;
+        this.plan = Collections.emptyList();
+        let rnd = Randoms.nextFloat(0, this.config.getActionChancesSum());
+        rnd = rnd-this.config.getEngageChance();
+        if (this.plan.isEmpty()&&rnd<0) {
+          this.plan = Dut.list(CharacterAiStep.create(CharacterAiAction.RUN, this.config.getRandomThinkingTime(), this.attackDistance, 0, 0));
+        }
+        rnd = rnd-this.config.getDisengageChance();
+        if (this.plan.isEmpty()&&rnd<0) {
+          this.plan = Dut.list(CharacterAiStep.create(CharacterAiAction.RUN, this.config.getRandomThinkingTime(), Interval2.create(dangerDst.max()*3, dangerDst.max()*10), 0, 0));
+        }
+        rnd = rnd-this.config.getAttackChance();
+        if (this.plan.isEmpty()&&rnd<0) {
+          this.plan = Dut.list(CharacterAiStep.create(CharacterAiAction.RUN, this.config.getRandomThinkingTime()*2, this.attackDistance, 0, 0), CharacterAiStep.create(CharacterAiAction.ATTACK, this.config.getRandomThinkingTime(), null, 0, 0));
+        }
+        rnd = rnd-this.config.getJumpOverChance();
+        if (this.plan.isEmpty()&&rnd<0) {
+          let direction = FMath.trunc(FMath.signum(dst));
+          this.plan = Dut.list(CharacterAiStep.create(CharacterAiAction.RUN, this.config.getRandomThinkingTime()*2, characterConfig.getJumpOverDistance(), 0, 0), CharacterAiStep.create(CharacterAiAction.ENSURE_SPEED, this.config.getRandomThinkingTime()*2, null, direction, characterConfig.getJumpOverMinSpeed()), CharacterAiStep.create(CharacterAiAction.JUMP, this.config.getRandomThinkingTime()*2, null, direction, 0), CharacterAiStep.create(CharacterAiAction.FLY, this.config.getRandomThinkingTime()*2, null, direction, 0));
+        }
+        rnd = rnd-this.config.getJumpBackChance();
+        if (this.plan.isEmpty()&&rnd<0) {
+          let direction = -FMath.trunc(FMath.signum(dst));
+          this.plan = Dut.list(CharacterAiStep.create(CharacterAiAction.ENSURE_SPEED, this.config.getRandomThinkingTime()*2, null, direction, characterConfig.getJumpOverMinSpeed()), CharacterAiStep.create(CharacterAiAction.JUMP, this.config.getRandomThinkingTime()*2, null, direction, 0), CharacterAiStep.create(CharacterAiAction.FLY, this.config.getRandomThinkingTime()*2, null, direction, 0));
+        }
+        if (this.plan.isEmpty()) {
+          this.plan = Dut.list(CharacterAiStep.create(CharacterAiAction.WAIT, this.config.getRandomThinkingTime(), null, 0, 0));
+        }
+      }
+      let currentStep = this.plan.get(this.stepIdx);
+      if (currentStep.actionEquals(CharacterAiAction.WAIT)) {
+        return FighterInput.ZERO;
+      }
+      else if (currentStep.actionEquals(CharacterAiAction.RUN)) {
+        let targetDst = currentStep.getDistance();
+        if (targetDst.isInside(absDst)) {
+          this.stepIdx = this.stepIdx+1;
+          this.stepTime = 0;
+        }
+        if (absDst<targetDst.min()) {
+          return FighterInput.create(Vec2.create(-FMath.signum(dst), 0), false, false, false);
+        }
+        else {
+          return FighterInput.create(Vec2.create(FMath.signum(dst), 0), false, false, false);
+        }
+      }
+      else if (currentStep.actionEquals(CharacterAiAction.ENSURE_SPEED)) {
+        let vel = this.character.getVelocity();
+        if (FMath.trunc(FMath.signum(vel.x()))==currentStep.getDirection()&&FMath.abs(vel.x())>currentStep.getSpeed()) {
+          this.stepIdx = this.stepIdx+1;
+          this.stepTime = 0;
+        }
+        return FighterInput.create(Vec2.create(currentStep.getDirection(), 0), false, false, false);
+      }
+      else if (currentStep.actionEquals(CharacterAiAction.JUMP)) {
+        this.stepIdx = this.stepIdx+1;
+        this.stepTime = 0;
+        return FighterInput.create(Vec2.create(currentStep.getDirection(), 1), false, false, false);
+      }
+      else if (currentStep.actionEquals(CharacterAiAction.FLY)) {
+        if (this.character.isGrounded()) {
+          this.stepIdx = this.stepIdx+1;
+          this.stepTime = 0;
+        }
+        return FighterInput.create(Vec2.create(currentStep.getDirection(), 0), false, false, false);
+      }
+      else if (currentStep.actionEquals(CharacterAiAction.ATTACK)) {
+        if (this.character.getState().actionEquals(FighterAction.ATTACK)) {
+          this.stepIdx = this.stepIdx+1;
+          this.stepTime = 0;
+        }
+        let attIdx = Randoms.nextInt(0, characterConfig.getAttacks().size());
+        let attConf = characterConfig.getAttacks().get(attIdx);
+        return attConf.getInput().getBestInput(this.character.getState().getTargetTurn());
+      }
+      else if (currentStep.actionEquals(CharacterAiAction.BLOCK)) {
+        return FighterInput.create(Vec2.ZERO, false, false, true);
+      }
+      else {
+        throw new Error("unknown action: "+currentStep.getAction());
+      }
+    }
+  }
+
+  setDifficulty(level) {
+    this.config = this.config.withDifficulty(level);
+  }
+
+  findClosestTarget() {
+    if (this.sensor==null) {
+      return null;
+    }
+    let detectedActors = this.sensor.getDetectedActors();
+    let closest = null;
+    let minDist = Float.POSITIVE_INFINITY;
+    for (let detAct of detectedActors) {
+      let tc = detAct.getComponent("TransformComponent");
+      let dist = FMath.abs(tc.getPos().x()-this.character.getPos().x());
+      if (dist<minDist) {
+        minDist = dist;
+        closest = detAct;
+      }
+    }
+    return closest;
+  }
+
+  isBlockingPlan() {
+    for (let step of this.plan) {
+      if (step.getAction().equals(CharacterAiAction.BLOCK)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  toString() {
+  }
+
+  static create(actor) {
+    let res = new FighterBaseAi1();
+    res.character = actor.getComponent("FighterCharacterBehavior");
+    res.sensor = actor.getComponent("ActorDetectionSensor");
+    res.attackDistance = res.character.getConfig().getAttackDistance(0.95);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FighterBaseAi1 = FighterBaseAi1;
+class FighterBaseAi1Config {
+  thinkingTime = Interval2.create(1, 2);
+  waitChance = 0.2;
+  engageChance = 0.1;
+  disengageChance = 0.1;
+  attackChance = 0.4;
+  jumpOverChance = 0.2;
+  jumpBackChance = 0.2;
+  blockChance = 0.3;
+  blockReactionTime = Interval2.create(0.05, 0.1);
+  blockTime = Interval2.create(0.4, 1.5);
+  blockDecisionCooldownTime = Interval2.create(0.2, 0.8);
+  knockdownRecoveryTime = Interval2.create(1, 2);
+  constructor() {
+  }
+
+  getClass() {
+    return "FighterBaseAi1Config";
+  }
+
+  guardInvariants() {
+  }
+
+  getRandomThinkingTime() {
+    return Randoms.nextFloat(this.thinkingTime.min(), this.thinkingTime.max());
+  }
+
+  getWaitChance() {
+    return this.waitChance;
+  }
+
+  getEngageChance() {
+    return this.engageChance;
+  }
+
+  getDisengageChance() {
+    return this.disengageChance;
+  }
+
+  getAttackChance() {
+    return this.attackChance;
+  }
+
+  getJumpOverChance() {
+    return this.jumpOverChance;
+  }
+
+  getJumpBackChance() {
+    return this.jumpBackChance;
+  }
+
+  getActionChancesSum() {
+    return this.waitChance+this.engageChance+this.disengageChance+this.attackChance+this.jumpOverChance+this.jumpBackChance;
+  }
+
+  getBlockChance() {
+    return this.blockChance;
+  }
+
+  getRandomBlockReactionTime() {
+    return Randoms.nextFloat(this.blockReactionTime.min(), this.blockReactionTime.max());
+  }
+
+  getRandomBlockTime() {
+    return Randoms.nextFloat(this.blockTime.min(), this.blockTime.max());
+  }
+
+  getRandomBlockDecisionCooldownTime() {
+    return Randoms.nextFloat(this.blockDecisionCooldownTime.min(), this.blockDecisionCooldownTime.max());
+  }
+
+  getRandomKnockdownRecoveryTime() {
+    return Randoms.nextFloat(this.knockdownRecoveryTime.min(), this.knockdownRecoveryTime.max());
+  }
+
+  withDifficulty(difficulty) {
+    let res = new FighterBaseAi1Config();
+    let clamped = FMath.clamp(difficulty, 0, 1);
+    res.thinkingTime = Interval2.create(this.lerp(1.5, 0.5, clamped), this.lerp(2.5, 1.5, clamped));
+    res.waitChance = this.lerp(0.6, 0.1, clamped);
+    res.engageChance = this.lerp(0.05, 0.3, clamped);
+    res.disengageChance = this.lerp(0.2, 0.05, clamped);
+    res.attackChance = this.lerp(0.1, 0.6, clamped);
+    res.jumpOverChance = this.lerp(0.1, 0.4, clamped);
+    res.jumpBackChance = this.lerp(0.4, 0.1, clamped);
+    res.blockChance = this.lerp(0.05, 0.9, clamped);
+    res.knockdownRecoveryTime = Interval2.create(this.lerp(1.5, 1, clamped), this.lerp(2, 1.5, clamped));
+    return res;
+  }
+
+  lerp(min, max, t) {
+    return min+(max-min)*t;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new FighterBaseAi1Config();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FighterBaseAi1Config = FighterBaseAi1Config;
+class FighterBaseTrainingAi {
+  character;
+  knockdownRecoveryStarted = false;
+  knockdownRecoveryTimeout = 0;
+  constructor() {
+  }
+
+  getClass() {
+    return "FighterBaseTrainingAi";
+  }
+
+  guardInvariants() {
+  }
+
+  solveInput(dt) {
+    let characterConfig = this.character.getConfig();
+    let characterState = this.character.getState();
+    if (characterState.actionEquals(FighterAction.KNOCKDOWN)) {
+      if (this.knockdownRecoveryStarted) {
+        this.knockdownRecoveryTimeout = this.knockdownRecoveryTimeout-dt;
+        if (this.knockdownRecoveryTimeout<=0) {
+          this.knockdownRecoveryStarted = false;
+          return FighterInput.create(Vec2.ZERO, true, false, false);
+        }
+      }
+      else {
+        this.knockdownRecoveryStarted = true;
+        this.knockdownRecoveryTimeout = 2;
+      }
+    }
+    return FighterInput.ZERO;
+  }
+
+  setDifficulty(level) {
+  }
+
+  toString() {
+  }
+
+  static create(actor) {
+    let res = new FighterBaseTrainingAi();
+    res.character = actor.getComponent("FighterCharacterBehavior");
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FighterBaseTrainingAi = FighterBaseTrainingAi;
+const createCombatArenaType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const CombatArenaType = Object.freeze({
+  RANDOM: createCombatArenaType("RANDOM"),
+  MEDIEVAL_VILLAGE: createCombatArenaType("MEDIEVAL_VILLAGE"),
+  SCI_FI: createCombatArenaType("SCI_FI"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class CombatArenas {
+  constructor() {
+  }
+
+  getClass() {
+    return "CombatArenas";
+  }
+
+  static getRandomType() {
+    let al = new ArrayList();
+    for (let cat of CombatArenaType.values()) {
+      if (cat.equals(CombatArenaType.RANDOM)) {
+        continue;
+      }
+      al.add(cat);
+    }
+    return al.get(Randoms.nextInt(0, al.size()));
+  }
+
+  static getSceneId(arenaType) {
+    if (arenaType.equals(CombatArenaType.MEDIEVAL_VILLAGE)) {
+      return SceneId.of("combat-arena-1");
+    }
+    else if (arenaType.equals(CombatArenaType.SCI_FI)) {
+      return SceneId.of("combat-arena-2");
+    }
+    else if (arenaType.equals(CombatArenaType.RANDOM)) {
+      return CombatArenas.getSceneId(CombatArenas.getRandomType());
+    }
+    else {
+      throw new Error("unsupported arena, implement me: "+arenaType);
+    }
+  }
+
+}
+classRegistry.CombatArenas = CombatArenas;
+class AudienceBaseBehavior extends Behavior {
+  animationPlayer;
+  model;
+  gameMaster;
+  audio;
+  animation = null;
+  animationLifetime = 0;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "AudienceBaseBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.model = this.actor().getComponent("ModelComponent");
+    let animCol = this.world().assets().get("MeshAnimationCollection", MeshAnimationCollectionId.of(this.model.getModelId().id()));
+    this.chooseNextAction();
+    this.animationPlayer = MeshAnimationPlayer.create(animCol, this.animation);
+  }
+
+  move(dt, inputs) {
+    this.animationLifetime = this.animationLifetime-dt;
+    if (this.animationLifetime<=0||this.animationPlayer.isEnd()) {
+      this.chooseNextAction();
+      this.animationPlayer.play(this.animation, MeshAnimationPlayConfig.RESTART);
+    }
+    let step = this.animationPlayer.move(dt);
+    this.model.setInterpolation(step.getInterpolation());
+    this.model.setPose(step.getPose());
+  }
+
+  lateMove(dt, inputs) {
+  }
+
+  onMessage(type, message) {
+  }
+
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  chooseNextAction() {
+    let rnd = Randoms.nextFloat(0, 0.9);
+    if (rnd>0.75) {
+      this.animation = MeshAnimationKey.of("idle-talking");
+    }
+    else if (rnd>0.5) {
+      this.animation = MeshAnimationKey.of("idle-look-around");
+    }
+    else if (rnd>0.25) {
+      this.animation = MeshAnimationKey.of("dance");
+    }
+    else {
+      this.animation = MeshAnimationKey.of("idle");
+    }
+    this.animationLifetime = Randoms.nextFloat(3, 5);
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new AudienceBaseBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.AudienceBaseBehavior = AudienceBaseBehavior;
+const createFighterAction = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const FighterAction = Object.freeze({
+  IDLE: createFighterAction("IDLE"),
+  CROUCH_IDLE: createFighterAction("CROUCH_IDLE"),
+  RUN: createFighterAction("RUN"),
+  CROUCH_WALK: createFighterAction("CROUCH_WALK"),
+  JUMP: createFighterAction("JUMP"),
+  FLY: createFighterAction("FLY"),
+  LAND: createFighterAction("LAND"),
+  ATTACK: createFighterAction("ATTACK"),
+  ATTACK_RECOVERY: createFighterAction("ATTACK_RECOVERY"),
+  BLOCK: createFighterAction("BLOCK"),
+  TIRED: createFighterAction("TIRED"),
+  HIT: createFighterAction("HIT"),
+  KNOCKDOWN_AIR: createFighterAction("KNOCKDOWN_AIR"),
+  KNOCKDOWN: createFighterAction("KNOCKDOWN"),
+  KIP_UP: createFighterAction("KIP_UP"),
+  DEATH: createFighterAction("DEATH"),
+  CELEBRATE: createFighterAction("CELEBRATE"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class FighterAttackConfig {
+  id;
+  animationKey;
+  animationStartTime;
+  recoveryAnimationKey;
+  stamina;
+  damage;
+  impulse;
+  knockdownFactor;
+  singleHit = true;
+  hitTime;
+  hitBoxes;
+  distance;
+  input;
+  constructor(source) {
+    if (source!=null) {
+      this.id = source.id;
+      this.animationKey = source.animationKey;
+      this.animationStartTime = source.animationStartTime;
+      this.recoveryAnimationKey = source.recoveryAnimationKey;
+      this.stamina = source.stamina;
+      this.damage = source.damage;
+      this.impulse = source.impulse;
+      this.knockdownFactor = source.knockdownFactor;
+      this.singleHit = source.singleHit;
+      this.hitTime = source.hitTime;
+      this.hitBoxes = source.hitBoxes;
+      this.distance = source.distance;
+      this.input = source.input;
+    }
+  }
+
+  getClass() {
+    return "FighterAttackConfig";
+  }
+
+  guardInvariants() {
+  }
+
+  getId() {
+    return this.id;
+  }
+
+  getAnimationKey() {
+    return this.animationKey;
+  }
+
+  withAnimationKey(animationKey) {
+    let res = new FighterAttackConfig(this);
+    res.animationKey = animationKey;
+    res.guardInvariants();
+    return res;
+  }
+
+  getAnimationStartTime() {
+    return this.animationStartTime;
+  }
+
+  withAnimationStartTime(animationStartTime) {
+    let res = new FighterAttackConfig(this);
+    res.animationStartTime = animationStartTime;
+    res.guardInvariants();
+    return res;
+  }
+
+  getRecoveryAnimationKey() {
+    return this.recoveryAnimationKey;
+  }
+
+  withRecoveryAnimationKey(recoveryAnimationKey) {
+    let res = new FighterAttackConfig(this);
+    res.recoveryAnimationKey = recoveryAnimationKey;
+    res.guardInvariants();
+    return res;
+  }
+
+  getStamina() {
+    return this.stamina;
+  }
+
+  withStamina(stamina) {
+    let res = new FighterAttackConfig(this);
+    res.stamina = stamina;
+    res.guardInvariants();
+    return res;
+  }
+
+  getDamage() {
+    return this.damage;
+  }
+
+  getRandomDamage() {
+    return Randoms.nextFloat(this.damage.min(), this.damage.max());
+  }
+
+  withDamange(damage) {
+    let res = new FighterAttackConfig(this);
+    res.damage = damage;
+    res.guardInvariants();
+    return res;
+  }
+
+  getImpulse() {
+    return this.impulse;
+  }
+
+  getRandomImpulse() {
+    return Randoms.nextFloat(this.impulse.min(), this.impulse.max());
+  }
+
+  withInpulse(impulse) {
+    let res = new FighterAttackConfig(this);
+    res.impulse = impulse;
+    res.guardInvariants();
+    return res;
+  }
+
+  getKnockdownFactor() {
+    return this.knockdownFactor;
+  }
+
+  withKnockdownFactor(knockdownFactor) {
+    let res = new FighterAttackConfig(this);
+    res.knockdownFactor = knockdownFactor;
+    res.guardInvariants();
+    return res;
+  }
+
+  isSingleHit() {
+    return this.singleHit;
+  }
+
+  withSingleHit(singleHit) {
+    let res = new FighterAttackConfig(this);
+    res.singleHit = singleHit;
+    res.guardInvariants();
+    return res;
+  }
+
+  getHitTime() {
+    return this.hitTime;
+  }
+
+  withHitTime(hitTime) {
+    let res = new FighterAttackConfig(this);
+    res.hitTime = hitTime;
+    res.guardInvariants();
+    return res;
+  }
+
+  isHitTime(start, end) {
+    return !(end<this.hitTime.min()||start>this.hitTime.max());
+  }
+
+  getHitBoxes() {
+    return this.hitBoxes;
+  }
+
+  withHitBoxes(hitBoxes) {
+    let res = new FighterAttackConfig(this);
+    res.hitBoxes = Dut.copyImmutableList(hitBoxes);
+    res.guardInvariants();
+    return res;
+  }
+
+  getDistance() {
+    return this.distance;
+  }
+
+  withDistance(distance) {
+    let res = new FighterAttackConfig(this);
+    res.distance = distance;
+    res.guardInvariants();
+    return res;
+  }
+
+  getInput() {
+    return this.input;
+  }
+
+  withInput(input) {
+    let res = new FighterAttackConfig(this);
+    res.input = input;
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static createDefault(id, animationKey) {
+    let res = new FighterAttackConfig(null);
+    res.id = id;
+    res.animationKey = animationKey;
+    res.animationStartTime = 0;
+    res.recoveryAnimationKey = null;
+    res.stamina = 100;
+    res.damage = Interval2.create(10, 20);
+    res.impulse = Interval2.create(10, 20);
+    res.knockdownFactor = 0;
+    res.singleHit = true;
+    res.hitTime = Interval2.create(0, 1);
+    res.hitBoxes = Collections.emptyList();
+    res.distance = Interval2.create(0, 1);
+    res.input = FighterAttackStandardInput.createDefault(FighterInputMoveDirType.ANY, true, false);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FighterAttackConfig = FighterAttackConfig;
+class FighterAttackId {
+  mId;
+  constructor() {
+  }
+
+  getClass() {
+    return "FighterAttackId";
+  }
+
+  guardInvariants() {
+  }
+
+  id() {
+    return this.mId;
+  }
+
+  hashCode() {
+    return this.mId.hashCode();
+  }
+
+  equals(obj) {
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof FighterAttackId)) {
+      return false;
+    }
+    let other = obj;
+    return other.mId.equals(this.mId);
+  }
+
+  toString() {
+  }
+
+  static of(id) {
+    let res = new FighterAttackId();
+    res.mId = id;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FighterAttackId = FighterAttackId;
+class FighterAttackStandardInput {
+  moveDirType;
+  punch;
+  kick;
+  constructor() {
+  }
+
+  getClass() {
+    return "FighterAttackStandardInput";
+  }
+
+  guardInvariants() {
+  }
+
+  getMatchingScore(input, targetTurn) {
+    let res = 0;
+    let mdt = input.getMoveDirType(targetTurn);
+    if (!this.moveDirType.equals(FighterInputMoveDirType.ANY)) {
+      if (mdt.equals(FighterInputMoveDirType.OTHER)) {
+        return 0;
+      }
+      if (mdt.equals(this.moveDirType)) {
+        res = res+1;
+      }
+      else {
+        return 0;
+      }
+    }
+    if (this.punch) {
+      res = input.isPunch()?(res+1):0;
+    }
+    if (this.kick) {
+      res = input.isKick()?(res+1):0;
+    }
+    return res;
+  }
+
+  getBestInput(targetTurn) {
+    let dir = Vec2.ZERO;
+    if (this.moveDirType.equals(FighterInputMoveDirType.FORWARD)) {
+      dir = targetTurn==FMath.PI_HALF?Vec2.RIGHT:Vec2.LEFT;
+    }
+    else if (this.moveDirType.equals(FighterInputMoveDirType.BACKWARD)) {
+      dir = targetTurn==FMath.PI_HALF?Vec2.LEFT:Vec2.RIGHT;
+    }
+    else if (this.moveDirType.equals(FighterInputMoveDirType.DOWN_ANY)) {
+      dir = Vec2.DOWN;
+    }
+    return FighterInput.create(dir, this.punch, this.kick, false);
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static createDefault(moveDirType, punch, kick) {
+    let res = new FighterAttackStandardInput();
+    res.moveDirType = moveDirType;
+    res.punch = punch;
+    res.kick = kick;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FighterAttackStandardInput = FighterAttackStandardInput;
+class FighterBaseBehavior extends Behavior {
+  character;
+  animationPlayer;
+  transform;
+  model;
+  rigidBody;
+  sensor;
+  inputBehavior;
+  gameMaster;
+  audio;
+  attackHitboxVolumeCollisionProfiles = null;
+  attackHiboxVolumes = new HashMap();
+  attackHitboxVolumeInterpolations = Dut.immutableList(0.33, 0.66, 1);
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FighterBaseBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.character = this.actor().getComponent("FighterCharacterBehavior");
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.model = this.actor().getComponent("ModelComponent");
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
+    this.sensor = this.actor().getComponent("ActorDetectionSensor");
+    this.inputBehavior = this.actor().getComponent("FighterBaseInputBehavior");
+    let animCol = this.world().assets().get("MeshAnimationCollection", MeshAnimationCollectionId.of(this.model.getModelId().id()));
+    this.animationPlayer = MeshAnimationPlayer.create(animCol, MeshAnimationKey.of("idle"));
+    this.gameMaster = this.world().actors().get(WorldActors.WORLD).getComponent("CombatGameMasterBehavior");
+    this.audio = this.world().actors().get(WorldActors.WORLD).getComponent("AudioBehavior");
+    this.attackHitboxVolumeCollisionProfiles = new HashMap();
+    for (let ac of this.character.getConfig().getAttacks()) {
+      for (let ck of ac.getHitBoxes()) {
+        if (this.attackHitboxVolumeCollisionProfiles.containsKey(ck)) {
+          continue;
+        }
+        let collider = this.actor().getComponentByKey("ColliderComponent", ck);
+        this.attackHitboxVolumeCollisionProfiles.put(ck, CollisionVolumeDetectionProfile.create().withLayer(collider.getLayer()).withActorMatcher(ActorMatchers.excludeSingle(this.actor().getId())));
+      }
+    }
+  }
+
+  move(dt, inputs) {
+    let chInput = this.inputBehavior.getInput();
+    if (!this.gameMaster.getState().equals(CombatGameState.COMBAT)) {
+      chInput = FighterInput.ZERO;
+    }
+    this.handleState(dt, chInput);
+    let config = this.character.getConfig();
+    let state = this.character.getState();
+    let actors = this.sensor.getDetectedActors();
+    for (let act of actors) {
+      let tc = act.getComponent("TransformComponent");
+      let otherX = tc.getPos().x();
+      let x = this.transform.getPos().x();
+      if (otherX>=x) {
+        state.setTargetTurn(FMath.PI_HALF);
+      }
+      else {
+        state.setTargetTurn(-FMath.PI_HALF);
+      }
+    }
+    let vx = this.rigidBody.getVelocity().x();
+    let vz = this.rigidBody.getVelocity().z();
+    let friction = this.character.isGrounded()?config.getGroundFriction():config.getAirFriction();
+    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
+    let stepStartTime = this.animationPlayer.getTime();
+    let step = this.animationPlayer.move(dt);
+    if (!step.getTriggers().isEmpty()) {
+      for (let trigger of step.getTriggers()) {
+        if (trigger.equals("landing-dust")) {
+          this.createLandingDust();
+        }
+        else {
+          let soundIds = this.character.getConfig().getSounds(trigger);
+          if (soundIds.isEmpty()) {
+            continue;
+          }
+          this.audio.playRandomSound(soundIds);
+        }
+      }
+    }
+    if (state.actionEquals(FighterAction.ATTACK)) {
+      let ac = state.getAttack();
+      if ((!state.isAttackHit()||!ac.isSingleHit())&&ac.isHitTime(stepStartTime, step.getTime())) {
+        let actorHits = new HashMap();
+        let actorHitPos = new HashMap();
+        for (let hbKey of ac.getHitBoxes()) {
+          let cc = this.actor().getComponentByKey("ColliderComponent", hbKey);
+          let colVolprof = this.attackHitboxVolumeCollisionProfiles.get(hbKey);
+          let oldHbVol = this.attackHiboxVolumes.get(hbKey);
+          let newHbVol = cc.getVolume();
+          for (let hbt of this.attackHitboxVolumeInterpolations) {
+            let colVol = oldHbVol.interpolate(newHbVol, hbt);
+            let hits = this.world().collisions().getVolumeIntersections(colVol, colVolprof);
+            for (let hit of hits) {
+              if (!actorHits.containsKey(hit.getActor().getId())) {
+                actorHits.put(hit.getActor().getId(), new HashSet());
+              }
+              actorHits.get(hit.getActor().getId()).add(hit.getZone());
+              actorHitPos.put(hit.getActor().getId(), cc.toGlobal(Vec3.ZERO));
+            }
+          }
+        }
+        if (!actorHits.isEmpty()) {
+          state.setAttackHit(true);
+          let hitDir = this.transform.toGlobalRot(Vec3.FORWARD);
+          for (let actorId of actorHits.keySet()) {
+            let hitPos = actorHitPos.get(actorId);
+            let damage = ac.getRandomDamage()*(ac.isSingleHit()?1:dt);
+            let hitMsg = HitMessage.create(hitPos, hitDir, damage, ac.getRandomImpulse(), ac.getKnockdownFactor(), actorHits.get(actorId));
+            let hittedActor = this.world().actors().get(actorId);
+            hittedActor.sendMessage(ActorMessageType.HIT_RECEIVED, hitMsg);
+          }
+        }
+      }
+      for (let ck of state.getAttack().getHitBoxes()) {
+        this.attackHiboxVolumes.put(ck, this.actor().getComponentByKey("ColliderComponent", ck).getVolume());
+      }
+    }
+    this.model.setInterpolation(step.getInterpolation());
+    this.model.setPose(step.getPose());
+    this.transform.setRot(Quaternion.rotY(state.getTurn()));
+  }
+
+  lateMove(dt, inputs) {
+    if (this.transform.getPos().y()<-0.05) {
+      this.transform.setPos(this.transform.getPos().withY(-0.05));
+    }
+    this.transform.setPos(this.transform.getPos().withZ(0));
+  }
+
+  onMessage(type, message) {
+    if (type.equals(ActorMessageType.HIT_RECEIVED)) {
+      let config = this.character.getConfig();
+      let state = this.character.getState();
+      if (state.actionEquals(FighterAction.DEATH)) {
+        return ;
+      }
+      let hitMsg = message;
+      let damage = hitMsg.getDamage()*(state.actionNotEquals(FighterAction.BLOCK)?1:config.getBlockDamageRatio());
+      state.changeHealth(-damage);
+      this.rigidBody.applyImpulse(hitMsg.getPos(), hitMsg.getDir().scale(hitMsg.getImpulse()));
+      let knockdown = hitMsg.getKnockdownFactor()>=1||Randoms.nextFloat(0, 1)<hitMsg.getKnockdownFactor();
+      if (knockdown) {
+        this.animationPlayer.play(MeshAnimationKey.of("lift-air-fall"), MeshAnimationPlayConfig.PLAY.withSpeed(0));
+        state.setAction(FighterAction.KNOCKDOWN_AIR);
+      }
+      else if (state.actionNotEquals(FighterAction.HIT)&&state.actionNotEquals(FighterAction.BLOCK)&&state.actionNotEquals(FighterAction.KNOCKDOWN_AIR)&&state.actionNotEquals(FighterAction.KNOCKDOWN)&&state.actionNotEquals(FighterAction.KIP_UP)&&hitMsg.getDamage()>config.getShakeDamage()) {
+        if (hitMsg.getZones().contains(ColliderZone.HEAD)) {
+          this.animationPlayer.play(MeshAnimationKey.of("hit-head"), MeshAnimationPlayConfig.PLAY);
+          state.setAction(FighterAction.HIT);
+        }
+        else {
+          state.setAction(FighterAction.HIT);
+          this.animationPlayer.play(MeshAnimationKey.of("hit-stomach"), MeshAnimationPlayConfig.PLAY);
+        }
+      }
+      this.sendMessage(WorldActors.CAMERA, ActorMessageType.CAMERA_SHAKE, CameraShake.create(state.actionEquals(FighterAction.BLOCK)?0.05:0.1, 0.2));
+      let numBloodParticles = state.actionEquals(FighterAction.BLOCK)?0:20;
+      let prefab = this.world().assets().get("ActorPrefab", WorldActors.PARTICLE_BLOOD_ACTOR_PREFAB_ID);
+      for (let i = 0; i<numBloodParticles; ++i) {
+        let velRand = Vec3.create(Randoms.nextFloat(0, 2*hitMsg.getImpulse())-hitMsg.getImpulse(), Randoms.nextFloat(0, 2*hitMsg.getImpulse())-hitMsg.getImpulse(), Randoms.nextFloat(0, 2*hitMsg.getImpulse())-hitMsg.getImpulse());
+        let bloodActor = this.world().constructActor(CreateActorRequest.create(prefab, null, hitMsg.getPos(), Quaternion.ZERO_ROT));
+        let rb = bloodActor.getComponent("RigidBodyComponent");
+        rb.setVelocity(hitMsg.getDir().scale(hitMsg.getImpulse()*0.1).addScaled(velRand, 0.1));
+      }
+    }
+  }
+
+  handleState(dt, input) {
+    let config = this.character.getConfig();
+    let state = this.character.getState();
+    if (this.character.isGrounded()&&state.getHealth()<=0&&state.actionNotEquals(FighterAction.DEATH)) {
+      state.setAction(FighterAction.DEATH);
+      this.animationPlayer.play(MeshAnimationKey.of(Randoms.nextFloat(0, 1)<0.5?"death-fall-backward":"death-fall-forward"), MeshAnimationPlayConfig.PLAY);
+      let collider = this.actor().getComponentByKey("ColliderComponent", ComponentKey.of("body-collider"));
+      collider.setLayer(CollisionLayer.BODY_DEAD);
+      this.gameMaster.onFighterDied(this.actor());
+    }
+    if (this.gameMaster.isFinishState()&&state.getHealth()>0&&this.character.isGrounded()&&state.actionNotEquals(FighterAction.CELEBRATE)) {
+      state.setAction(FighterAction.CELEBRATE);
+      this.animationPlayer.play(MeshAnimationKey.of("celebration"), MeshAnimationPlayConfig.PLAY);
+    }
+    if (state.actionNotEquals(FighterAction.DEATH)) {
+      state.setStamina(FMath.min(config.getMaxStamina(), state.getStamina()+dt*config.getStaminaRecovery()));
+    }
+    let turnable = true;
+    let attack = false;
+    let block = false;
+    if (state.actionEquals(FighterAction.IDLE)) {
+      this.animationPlayer.play(MeshAnimationKey.of("idle"), MeshAnimationPlayConfig.PLAY);
+      if (!this.character.isGrounded()) {
+        state.setAction(FighterAction.FLY);
+      }
+      else if (this.isJumpDirection(input)) {
+        this.rigidBody.applyImpulse(Vec3.ZERO, Vec3.UP.scale(config.getJumpUpImpulse()));
+        state.setAction(FighterAction.JUMP);
+      }
+      else if (this.isCrouchDirection(input)) {
+        state.setAction(FighterAction.CROUCH_IDLE);
+      }
+      else if (this.isRunDirection(input)) {
+        state.setAction(FighterAction.RUN);
+      }
+      else if (input.isAttack()) {
+        attack = true;
+      }
+      else if (input.isBlock()) {
+        block = true;
+      }
+    }
+    else if (state.actionEquals(FighterAction.CROUCH_IDLE)) {
+      this.animationPlayer.play(MeshAnimationKey.of("crouch-idle"), MeshAnimationPlayConfig.PLAY);
+      if (!this.character.isGrounded()) {
+        state.setAction(FighterAction.FLY);
+      }
+      else if (!this.isCrouchDirection(input)) {
+        state.setAction(FighterAction.IDLE);
+      }
+      else if (this.isRunDirection(input)) {
+        state.setAction(FighterAction.CROUCH_WALK);
+      }
+      else if (input.isAttack()) {
+        attack = true;
+      }
+      else if (input.isBlock()) {
+        block = true;
+      }
+    }
+    else if (state.actionEquals(FighterAction.RUN)) {
+      this.animationPlayer.play(MeshAnimationKey.of(this.isForwardDirInput(input)?"jog-forward":"jog-backward"), MeshAnimationPlayConfig.PLAY);
+      if (!this.character.isGrounded()) {
+        state.setAction(FighterAction.FLY);
+      }
+      else if (!this.isRunDirection(input)) {
+        state.setAction(FighterAction.IDLE);
+      }
+      else if (this.isJumpDirection(input)) {
+        this.rigidBody.applyImpulse(Vec3.ZERO, Vec3.UP.scale(config.getJumpUpImpulse()));
+        state.setAction(FighterAction.FLY);
+      }
+      else if (this.isCrouchDirection(input)) {
+        state.setAction(FighterAction.CROUCH_WALK);
+      }
+      else if (input.isAttack()) {
+        attack = true;
+      }
+      else if (input.isBlock()) {
+        block = true;
+      }
+      else {
+        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*config.getRunForce(), 0, 0));
+      }
+    }
+    else if (state.actionEquals(FighterAction.CROUCH_WALK)) {
+      this.animationPlayer.play(MeshAnimationKey.of(this.isForwardDirInput(input)?"crouch-forward":"crouch-backward"), MeshAnimationPlayConfig.PLAY);
+      if (!this.character.isGrounded()) {
+        state.setAction(FighterAction.FLY);
+      }
+      else if (!this.isCrouchDirection(input)) {
+        state.setAction(FighterAction.RUN);
+      }
+      else if (!this.isRunDirection(input)) {
+        state.setAction(FighterAction.CROUCH_IDLE);
+      }
+      else if (this.isJumpDirection(input)) {
+        this.rigidBody.applyImpulse(Vec3.ZERO, Vec3.UP.scale(config.getJumpUpImpulse()));
+        state.setAction(FighterAction.FLY);
+      }
+      else if (input.isAttack()) {
+        attack = true;
+      }
+      else if (input.isBlock()) {
+        block = true;
+      }
+      else {
+        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*config.getCrouchWalkForce(), 0, 0));
+      }
+    }
+    else if (state.actionEquals(FighterAction.JUMP)) {
+      this.animationPlayer.play(MeshAnimationKey.of("jump-start"), MeshAnimationPlayConfig.PLAY);
+      if (this.animationPlayer.isEnd()) {
+        state.setAction(FighterAction.FLY);
+      }
+      else if (this.character.isGrounded()) {
+        state.setAction(-this.character.getFallVelocity().y()>config.getLandVelocity()?FighterAction.LAND:FighterAction.IDLE);
+        this.createLandingDust();
+      }
+      else if (input.getMoveDir().x()!=0) {
+        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*config.getAirForce(), 0, 0));
+      }
+    }
+    else if (state.actionEquals(FighterAction.FLY)) {
+      this.animationPlayer.play(MeshAnimationKey.of("jump-fly"), MeshAnimationPlayConfig.PLAY);
+      if (this.character.isGrounded()) {
+        this.audio.playRandomSound(this.character.getConfig().getSounds("sfx-land"));
+        state.setAction(-this.character.getFallVelocity().y()>config.getLandVelocity()?FighterAction.LAND:FighterAction.IDLE);
+        this.createLandingDust();
+      }
+      else if (input.getMoveDir().x()!=0) {
+        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*config.getAirForce(), 0, 0));
+      }
+    }
+    else if (state.actionEquals(FighterAction.LAND)) {
+      this.animationPlayer.play(MeshAnimationKey.of("jump-land"), MeshAnimationPlayConfig.PLAY);
+      if (this.animationPlayer.isEnd()) {
+        state.setAction(this.isCrouchDirection(input)?FighterAction.CROUCH_IDLE:FighterAction.IDLE);
+      }
+    }
+    else if (state.actionEquals(FighterAction.ATTACK)) {
+      if (!this.character.isGrounded()) {
+        state.setAction(FighterAction.FLY);
+      }
+      if (this.animationPlayer.isEnd()) {
+        state.setAction(this.isCrouchDirection(input)?FighterAction.CROUCH_IDLE:FighterAction.IDLE);
+      }
+    }
+    else if (state.actionEquals(FighterAction.BLOCK)) {
+      this.animationPlayer.play(MeshAnimationKey.of("spell-double-idle"), MeshAnimationPlayConfig.PLAY);
+      state.reduceStamina(dt*config.getBlockStamina());
+      if (!this.character.isGrounded()) {
+        state.setAction(FighterAction.FLY);
+      }
+      if (!input.isBlock()) {
+        state.setAction(this.isCrouchDirection(input)?FighterAction.CROUCH_IDLE:FighterAction.IDLE);
+      }
+    }
+    else if (state.actionEquals(FighterAction.TIRED)) {
+      if (this.character.getStaminaRatio()>0.2) {
+        state.setAction(FighterAction.IDLE);
+      }
+      turnable = false;
+    }
+    else if (state.actionEquals(FighterAction.HIT)) {
+      if (this.animationPlayer.isEnd()) {
+        state.setAction(FighterAction.IDLE);
+      }
+      turnable = false;
+    }
+    else if (state.actionEquals(FighterAction.KNOCKDOWN_AIR)) {
+      if (this.character.isGrounded()) {
+        state.setAction(FighterAction.KNOCKDOWN);
+      }
+      let collider = this.actor().getComponentByKey("ColliderComponent", ComponentKey.of("body-collider"));
+      collider.setLayer(CollisionLayer.BODY_DEAD);
+      turnable = false;
+    }
+    else if (state.actionEquals(FighterAction.KNOCKDOWN)) {
+      this.animationPlayer.play(MeshAnimationKey.of("lift-air-fall"), MeshAnimationPlayConfig.PLAY);
+      let collider = this.actor().getComponentByKey("ColliderComponent", ComponentKey.of("body-collider"));
+      collider.setLayer(CollisionLayer.BODY_DEAD);
+      if (state.getHealth()<0) {
+        state.setAction(FighterAction.DEATH);
+        this.gameMaster.onFighterDied(this.actor());
+      }
+      turnable = false;
+      if (input.isAttack()&&this.animationPlayer.getTime()>config.getKnockdownRecoveryTime()) {
+        state.setAction(FighterAction.KIP_UP);
+      }
+    }
+    else if (state.actionEquals(FighterAction.KIP_UP)) {
+      this.animationPlayer.play(MeshAnimationKey.of("kip-up"), MeshAnimationPlayConfig.PLAY);
+      if (this.animationPlayer.isEnd()) {
+        state.setAction(this.isCrouchDirection(input)?FighterAction.CROUCH_IDLE:FighterAction.IDLE);
+        let collider = this.actor().getComponentByKey("ColliderComponent", ComponentKey.of("body-collider"));
+        collider.setLayer(CollisionLayer.BODY);
+      }
+      turnable = false;
+    }
+    else if (state.actionEquals(FighterAction.DEATH)) {
+      turnable = false;
+    }
+    else if (state.actionEquals(FighterAction.CELEBRATE)) {
+      if (this.animationPlayer.isEnd()) {
+        state.setAction(FighterAction.IDLE);
+      }
+      turnable = false;
+    }
+    else {
+      throw new Error("unknown state: "+state.toString());
+    }
+    if (attack) {
+      let selectedAttackConf = null;
+      let maxAttInputScr = 0;
+      for (let attackConf of config.getAttacks()) {
+        let score = attackConf.getInput().getMatchingScore(input, state.getTargetTurn());
+        if (score>maxAttInputScr) {
+          selectedAttackConf = attackConf;
+          maxAttInputScr = score;
+        }
+      }
+      if (selectedAttackConf!=null) {
+        if (state.getStamina()>selectedAttackConf.getStamina()) {
+          this.attackHiboxVolumes = new HashMap();
+          for (let ck of selectedAttackConf.getHitBoxes()) {
+            this.attackHiboxVolumes.put(ck, this.actor().getComponentByKey("ColliderComponent", ck).getVolume());
+          }
+          state.reduceStamina(selectedAttackConf.getStamina()).setAction(FighterAction.ATTACK).setAttack(selectedAttackConf).setAttackHit(false);
+          this.animationPlayer.play(selectedAttackConf.getAnimationKey(), MeshAnimationPlayConfig.RESTART.withStartTime(selectedAttackConf.getAnimationStartTime()));
+        }
+      }
+    }
+    if (block) {
+      if (input.isBlock()) {
+        state.setAction(FighterAction.BLOCK);
+        this.animationPlayer.play(MeshAnimationKey.of("spell-double-idle"), MeshAnimationPlayConfig.PLAY);
+      }
+    }
+    if (state.getStamina()<=0) {
+      if (config.getStaminaTiredRecovery()>0) {
+        state.setAction(FighterAction.TIRED);
+        this.animationPlayer.play(MeshAnimationKey.of("idle-tired"), MeshAnimationPlayConfig.PLAY);
+      }
+    }
+    if (turnable) {
+      let turnDiff = state.getTargetTurn()-state.getTurn();
+      let maxTurn = dt*config.getTurnSpeed();
+      state.setTurn(FMath.abs(turnDiff)<maxTurn?state.getTargetTurn():state.getTurn()+FMath.signum(turnDiff)*maxTurn);
+    }
+  }
+
+  isForwardDirInput(input) {
+    let targetTurn = this.character.getState().getTargetTurn();
+    if (targetTurn==FMath.PI_HALF) {
+      return input.getMoveDir().x()>0;
+    }
+    else if (targetTurn==-FMath.PI_HALF) {
+      return input.getMoveDir().x()<0;
+    }
+    else {
+      throw new Error("unknown target turn");
+    }
+  }
+
+  isRunDirection(input) {
+    return FMath.abs(input.getMoveDir().x())>=0.5;
+  }
+
+  isJumpDirection(input) {
+    return input.getMoveDir().y()>=0.9;
+  }
+
+  isCrouchDirection(input) {
+    return input.getMoveDir().y()<=-0.9;
+  }
+
+  createLandingDust() {
+    let numBloodParticles = 20;
+    let prefab = this.world().assets().get("ActorPrefab", WorldActors.PARTICLE_WHITE_DUST_PREFAB_ID);
+    for (let i = 0; i<numBloodParticles; ++i) {
+      this.world().constructActor(CreateActorRequest.create(prefab, null, this.rigidBody.getPos(), Quaternion.ZERO_ROT));
+    }
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new FighterBaseBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FighterBaseBehavior = FighterBaseBehavior;
+class FighterBaseInputBehavior extends Behavior {
+  inputType = FighterInputType.NONE;
+  ai;
+  aiDifficulty = 0.3;
+  input = FighterInput.ZERO;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FighterBaseInputBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.ai = FighterBaseAi1.create(this.actor());
+    this.ai.setDifficulty(this.aiDifficulty);
+    if (this.inputType.equals(FighterInputType.TRAINING)) {
+      this.ai = FighterBaseTrainingAi.create(this.actor());
+    }
+  }
+
+  move(dt, inputs) {
+    if (this.inputType.equals(FighterInputType.CONTROLLER)) {
+      this.input = FighterInput.create(inputs.getVec2("moveDir", Vec2.ZERO), inputs.getBoolean("punch", false), inputs.getBoolean("kick", false), inputs.getBoolean("block", false));
+    }
+    else if (this.inputType.equals(FighterInputType.AI)) {
+      this.input = this.ai.solveInput(dt);
+    }
+    else if (this.inputType.equals(FighterInputType.TRAINING)) {
+      this.input = this.ai.solveInput(dt);
+    }
+    else if (this.inputType.equals(FighterInputType.NONE)) {
+      this.input = FighterInput.ZERO;
+    }
+    else {
+      throw new Error("unsupported input type, implement me: "+this.inputType);
+    }
+  }
+
+  setInputType(inputType) {
+    this.inputType = inputType;
+    return this;
+  }
+
+  setAiDifficuly(difficulty) {
+    this.aiDifficulty = difficulty;
+    if (this.ai!=null) {
+      this.ai.setDifficulty(difficulty);
+    }
+    return this;
+  }
+
+  getInput() {
+    return this.input;
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new FighterBaseInputBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FighterBaseInputBehavior = FighterBaseInputBehavior;
+class FighterCameraShiftBehavior extends Behavior {
+  cameraFovy;
+  cameraController;
+  targetTurn = -600;
+  aspect = -1;
+  basePosOffset = Vec3.BACKWARD;
+  baseLookAtOffset = Vec3.ZERO;
+  basePosK = -1;
+  baseLookAtK = -1;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FighterCameraShiftBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.cameraFovy = this.actor().getComponent("CameraFovyComponent");
+    this.cameraController = this.actor().getComponent("CameraControllerComponent");
+    this.basePosOffset = this.cameraController.getPosOffset();
+    this.baseLookAtOffset = this.cameraController.getLookAtOffset();
+    this.basePosK = this.cameraController.getPosK();
+    this.baseLookAtK = this.cameraController.getLookAtK();
+  }
+
+  move(dt, inputs) {
+    let targetId = this.cameraController.getTargetId();
+    if (this.world().actors().exists(targetId)) {
+      let tracked = this.world().actors().get(targetId).getComponent("FighterCharacterBehavior");
+      let tt = tracked.getState().getTargetTurn();
+      let asc = this.cameraFovy.getDisplaySize().aspect();
+      if (tt!=this.targetTurn||this.aspect!=asc) {
+        let pk = this.basePosK;
+        let lak = this.baseLookAtK;
+        this.aspect = asc;
+        this.targetTurn = tt;
+        let xFact = 1;
+        let zFact = 1;
+        if (this.aspect>2) {
+          xFact = 3;
+          zFact = 1;
+          pk = this.basePosK;
+          lak = this.baseLookAtK;
+        }
+        else if (this.aspect>1) {
+          xFact = 2.2;
+          zFact = 1.1;
+          pk = FMath.min(1, 1.5*this.basePosK);
+          lak = FMath.min(1, 1.5*this.baseLookAtK);
+        }
+        else if (this.aspect>0.75) {
+          xFact = 1.8;
+          zFact = 1.2;
+          pk = FMath.min(1, 2*this.basePosK);
+          lak = FMath.min(1, 2*this.baseLookAtK);
+        }
+        else if (this.aspect>0.5) {
+          xFact = 1.5;
+          zFact = 1.3;
+          pk = FMath.min(1, 2.5*this.basePosK);
+          lak = FMath.min(1, 2.5*this.baseLookAtK);
+        }
+        else {
+          xFact = 1.2;
+          zFact = 1.4;
+          pk = FMath.min(1, 3*this.basePosK);
+          lak = FMath.min(1, 3*this.baseLookAtK);
+        }
+        let mx = xFact*FMath.sin(this.targetTurn);
+        let mz = zFact*this.basePosOffset.z();
+        this.cameraController.setPosOffset(this.basePosOffset.withX(mx).withZ(mz)).setLookAtOffset(this.baseLookAtOffset.withX(mx)).setPosK(pk).setLookAtK(lak);
+      }
+    }
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new FighterCameraShiftBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FighterCameraShiftBehavior = FighterCameraShiftBehavior;
+class FighterCharacterBehavior extends Behavior {
+  config = FighterConfig.create();
+  state = FighterState.create();
+  transform;
+  rigidBody;
+  grounded;
+  fallVelocity = Vec3.ZERO;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FighterCharacterBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
+    this.grounded = this.actor().getComponent("GroundedComponent");
+    this.state.setAction(FighterAction.IDLE);
+  }
+
+  move(dt, inputs) {
+    if (!this.grounded.isGrounded()) {
+      this.fallVelocity = this.rigidBody.getVelocity();
+    }
+  }
+
+  lateMove(dt, inputs) {
+  }
+
+  getConfig() {
+    return this.config;
+  }
+
+  setConfig(config) {
+    Guard.notNull(config, "config cannot be null");
+    this.config = config;
+    return this;
+  }
+
+  getState() {
+    return this.state;
+  }
+
+  getPos() {
+    return this.transform.getPos();
+  }
+
+  getVelocity() {
+    return this.rigidBody.getVelocity();
+  }
+
+  isGrounded() {
+    return this.grounded.isGrounded();
+  }
+
+  getFallVelocity() {
+    return this.fallVelocity;
+  }
+
+  getHealthRatio() {
+    return this.state.getHealth()/this.config.getMaxHealth();
+  }
+
+  getStaminaRatio() {
+    return this.state.getStamina()/this.config.getMaxStamina();
+  }
+
+  setHealthAndStaminaToMax() {
+    this.state.setHealth(this.config.getMaxHealth());
+    this.state.setStamina(this.config.getMaxStamina());
+    return this;
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new FighterCharacterBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FighterCharacterBehavior = FighterCharacterBehavior;
+class FighterConfig {
+  maxHealth = 100;
+  maxStamina = 100;
+  staminaRecovery = 20;
+  staminaTiredRecovery = 0;
+  blockStamina = 18;
+  airFriction = 3;
+  groundFriction = 200;
+  walkForce = 300;
+  runForce = 1000;
+  crouchWalkForce = 150;
+  airForce = 15;
+  turnSpeed = 4*FMath.PI;
+  jumpUpImpulse = 100;
+  landVelocity = 15;
+  sounds = Dut.map("sfx-hit", Dut.list(SoundId.of("man-hit-1"), SoundId.of("man-hit-2"), SoundId.of("man-hit-3"), SoundId.of("man-hit-4"), SoundId.of("man-hit-5")), "sfx-death", Dut.list(SoundId.of("man-death-1"), SoundId.of("man-death-2"), SoundId.of("man-death-3")), "sfx-attack", Dut.list(SoundId.of("man-attack-1"), SoundId.of("man-attack-2"), SoundId.of("man-attack-3"), SoundId.of("man-attack-4"), SoundId.of("man-attack-5"), SoundId.of("man-attack-6"), SoundId.of("man-attack-7")), "sfx-land", Dut.list(SoundId.of("man-land-1")));
+  attacks = Dut.immutableList(FighterAttackConfig.createDefault(FighterAttackId.of("jab"), MeshAnimationKey.of("fight-jab")).withAnimationStartTime(0.11).withStamina(20).withDamange(Interval2.create(5, 10)).withInpulse(Interval2.create(10, 20)).withSingleHit(true).withHitTime(Interval2.create(0.15, 0.22)).withHitBoxes(Dut.list(ComponentKey.of("hand-left-hitbox"))).withDistance(Interval2.create(0.7, 0.87)).withInput(FighterAttackStandardInput.createDefault(FighterInputMoveDirType.ANY, true, false)), FighterAttackConfig.createDefault(FighterAttackId.of("cross"), MeshAnimationKey.of("fight-cross")).withAnimationStartTime(0.13).withStamina(20).withDamange(Interval2.create(10, 20)).withInpulse(Interval2.create(20, 30)).withSingleHit(true).withHitTime(Interval2.create(0.2, 0.32)).withHitBoxes(Dut.list(ComponentKey.of("hand-right-hitbox"))).withDistance(Interval2.create(0.6, 0.83)).withInput(FighterAttackStandardInput.createDefault(FighterInputMoveDirType.FORWARD, true, false)), FighterAttackConfig.createDefault(FighterAttackId.of("upper"), MeshAnimationKey.of("fight-upper")).withAnimationStartTime(0.10).withStamina(20).withDamange(Interval2.create(15, 25)).withInpulse(Interval2.create(10, 20)).withKnockdownFactor(1).withSingleHit(true).withHitTime(Interval2.create(0.24, 0.45)).withHitBoxes(Dut.list(ComponentKey.of("hand-left-hitbox"))).withDistance(Interval2.create(0.7, 0.87)).withInput(FighterAttackStandardInput.createDefault(FighterInputMoveDirType.DOWN_ANY, true, false)), FighterAttackConfig.createDefault(FighterAttackId.of("kick"), MeshAnimationKey.of("fight-kick")).withStamina(40).withDamange(Interval2.create(20, 30)).withInpulse(Interval2.create(40, 60)).withSingleHit(true).withHitTime(Interval2.create(0.27, 0.31)).withHitBoxes(Dut.list(ComponentKey.of("shin-right-hitbox"), ComponentKey.of("foot-right-hitbox"))).withDistance(Interval2.create(0.6, 1)).withInput(FighterAttackStandardInput.createDefault(FighterInputMoveDirType.ANY, false, true)), FighterAttackConfig.createDefault(FighterAttackId.of("knee"), MeshAnimationKey.of("fight-knee")).withStamina(40).withDamange(Interval2.create(30, 40)).withInpulse(Interval2.create(60, 80)).withKnockdownFactor(1).withSingleHit(true).withHitTime(Interval2.create(0.29, 0.47)).withHitBoxes(Dut.list(ComponentKey.of("shin-right-hitbox"))).withDistance(Interval2.create(0.6, 1)).withInput(FighterAttackStandardInput.createDefault(FighterInputMoveDirType.BACKWARD, false, true)), FighterAttackConfig.createDefault(FighterAttackId.of("backflip"), MeshAnimationKey.of("backflip")).withAnimationStartTime(0.24).withStamina(95).withDamange(Interval2.create(500, 1000)).withInpulse(Interval2.create(20, 50)).withSingleHit(false).withHitTime(Interval2.create(0.35, 0.6)).withHitBoxes(Dut.list(ComponentKey.of("shin-left-hitbox"), ComponentKey.of("shin-right-hitbox"), ComponentKey.of("foot-left-hitbox"), ComponentKey.of("foot-right-hitbox"))).withDistance(Interval2.create(0.6, 1.1)).withInput(FighterAttackStandardInput.createDefault(FighterInputMoveDirType.DOWN_ANY, false, true)));
+  blockDamageRatio = 0.1;
+  shakeDamage = 2;
+  knockdownRecoveryTime = 2;
+  jumpOverDistance = Interval2.create(1, 2);
+  jumpOverMinSpeed = 1.9;
+  constructor() {
+  }
+
+  getClass() {
+    return "FighterConfig";
+  }
+
+  guardInvariants() {
+  }
+
+  getMaxHealth() {
+    return this.maxHealth;
+  }
+
+  getMaxStamina() {
+    return this.maxStamina;
+  }
+
+  getStaminaRecovery() {
+    return this.staminaRecovery;
+  }
+
+  getStaminaTiredRecovery() {
+    return this.staminaTiredRecovery;
+  }
+
+  getBlockStamina() {
+    return this.blockStamina;
+  }
+
+  getAirFriction() {
+    return this.airFriction;
+  }
+
+  getGroundFriction() {
+    return this.groundFriction;
+  }
+
+  getWalkForce() {
+    return this.walkForce;
+  }
+
+  getRunForce() {
+    return this.runForce;
+  }
+
+  getCrouchWalkForce() {
+    return this.crouchWalkForce;
+  }
+
+  getAirForce() {
+    return this.airForce;
+  }
+
+  getTurnSpeed() {
+    return this.turnSpeed;
+  }
+
+  getJumpUpImpulse() {
+    return this.jumpUpImpulse;
+  }
+
+  getLandVelocity() {
+    return this.landVelocity;
+  }
+
+  getAttacks() {
+    return this.attacks;
+  }
+
+  getAttackDistance(eppct) {
+    let min = 100000;
+    let max = -100000;
+    for (let attack of this.attacks) {
+      let dist = attack.getDistance();
+      min = FMath.min(min, dist.min());
+      max = FMath.max(max, dist.max());
+    }
+    let length = max-min;
+    let epsilon = length*(eppct-1)/2;
+    return Interval2.create(min-epsilon, max+epsilon);
+  }
+
+  getBlockDamageRatio() {
+    return this.blockDamageRatio;
+  }
+
+  getShakeDamage() {
+    return this.shakeDamage;
+  }
+
+  getKnockdownRecoveryTime() {
+    return this.knockdownRecoveryTime;
+  }
+
+  getJumpOverDistance() {
+    return this.jumpOverDistance;
+  }
+
+  getJumpOverMinSpeed() {
+    return this.jumpOverMinSpeed;
+  }
+
+  getSounds(category) {
+    return this.sounds.getOrDefault(category, Collections.emptyList());
+  }
+
+  applyToughnessFactor(toughnessFactor) {
+    let res = new FighterConfig();
+    res.maxHealth = this.maxHealth*toughnessFactor;
+    res.maxStamina = this.maxStamina*toughnessFactor;
+    res.staminaRecovery = this.staminaRecovery*toughnessFactor;
+    res.staminaTiredRecovery = this.staminaTiredRecovery;
+    res.blockStamina = this.blockStamina;
+    res.airFriction = this.airFriction;
+    res.groundFriction = this.groundFriction;
+    res.walkForce = this.walkForce;
+    res.runForce = this.runForce;
+    res.crouchWalkForce = this.crouchWalkForce;
+    res.airForce = this.airForce;
+    res.turnSpeed = this.turnSpeed;
+    res.jumpUpImpulse = this.jumpUpImpulse;
+    res.landVelocity = this.landVelocity;
+    res.sounds = this.sounds;
+    res.attacks = this.attacks;
+    res.blockDamageRatio = this.blockDamageRatio;
+    res.shakeDamage = this.shakeDamage*toughnessFactor;
+    res.jumpOverDistance = this.jumpOverDistance;
+    res.jumpOverMinSpeed = this.jumpOverMinSpeed;
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new FighterConfig();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FighterConfig = FighterConfig;
+class FighterInput {
+  static ZERO = FighterInput.create(Vec2.ZERO, false, false, false);
+  moveDir;
+  punch;
+  kick;
+  block;
+  constructor() {
+  }
+
+  getClass() {
+    return "FighterInput";
+  }
+
+  guardInvariants() {
+  }
+
+  getMoveDir() {
+    return this.moveDir;
+  }
+
+  isPunch() {
+    return this.punch;
+  }
+
+  isKick() {
+    return this.kick;
+  }
+
+  isAttack() {
+    return this.punch||this.kick;
+  }
+
+  isBlock() {
+    return this.block;
+  }
+
+  getMoveDirType(targetTurn) {
+    let absX = FMath.abs(this.moveDir.x());
+    let absY = FMath.abs(this.moveDir.y());
+    if (absX<0.5&&absY<0.5) {
+      return FighterInputMoveDirType.ZERO;
+    }
+    if (absY<0.5) {
+      let sgn = targetTurn==FMath.PI_HALF?1:-1;
+      if (sgn==1) {
+        if (this.moveDir.x()>0.5) {
+          return FighterInputMoveDirType.FORWARD;
+        }
+        else {
+          return FighterInputMoveDirType.BACKWARD;
+        }
+      }
+      else {
+        if (this.moveDir.x()>0.5) {
+          return FighterInputMoveDirType.BACKWARD;
+        }
+        else {
+          return FighterInputMoveDirType.FORWARD;
+        }
+      }
+    }
+    else if (absX<0.5) {
+      if (this.moveDir.y()<-0.5) {
+        return FighterInputMoveDirType.DOWN_ANY;
+      }
+    }
+    return FighterInputMoveDirType.OTHER;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(moveDir, punch, kick, block) {
+    let res = new FighterInput();
+    res.moveDir = moveDir;
+    res.punch = punch;
+    res.kick = kick;
+    res.block = block;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FighterInput = FighterInput;
+const createFighterInputMoveDirType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const FighterInputMoveDirType = Object.freeze({
+  ZERO: createFighterInputMoveDirType("ZERO"),
+  FORWARD: createFighterInputMoveDirType("FORWARD"),
+  BACKWARD: createFighterInputMoveDirType("BACKWARD"),
+  DOWN_ANY: createFighterInputMoveDirType("DOWN_ANY"),
+  OTHER: createFighterInputMoveDirType("OTHER"),
+  ANY: createFighterInputMoveDirType("ANY"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+const createFighterInputType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const FighterInputType = Object.freeze({
+  NONE: createFighterInputType("NONE"),
+  CONTROLLER: createFighterInputType("CONTROLLER"),
+  AI: createFighterInputType("AI"),
+  TRAINING: createFighterInputType("TRAINING"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class FighterRecoveryBehavior extends Behavior {
+  character;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FighterRecoveryBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.character = this.actor().getComponent("FighterCharacterBehavior");
+  }
+
+  move(dt, inputs) {
+    if (this.character.getHealthRatio()<1) {
+      let state = this.character.getState();
+      let health = FMath.min(state.getHealth()+25*dt, this.character.getConfig().getMaxHealth());
+      state.setHealth(health);
+    }
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new FighterRecoveryBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FighterRecoveryBehavior = FighterRecoveryBehavior;
+class FighterState {
+  health = 100;
+  stamina = 100;
+  action = FighterAction.IDLE;
+  turn = FMath.PI_HALF;
+  targetTurn = FMath.PI_HALF;
+  attack = null;
+  attackHit = false;
+  constructor() {
+  }
+
+  getClass() {
+    return "FighterState";
+  }
+
+  guardInvariants() {
+  }
+
+  getHealth() {
+    return this.health;
+  }
+
+  setHealth(health) {
+    this.health = health;
+    return this;
+  }
+
+  changeHealth(dHealth) {
+    this.health = this.health+dHealth;
+    return this;
+  }
+
+  getStamina() {
+    return this.stamina;
+  }
+
+  setStamina(stamina) {
+    this.stamina = stamina;
+    return this;
+  }
+
+  reduceStamina(delta) {
+    this.stamina = FMath.max(0, this.stamina-delta);
+    return this;
+  }
+
+  actionEquals(act) {
+    return this.action.equals(act);
+  }
+
+  actionNotEquals(act) {
+    return !this.action.equals(act);
+  }
+
+  getAction() {
+    return this.action;
+  }
+
+  setAction(action) {
+    this.action = action;
+    return this;
+  }
+
+  getTurn() {
+    return this.turn;
+  }
+
+  setTurn(turn) {
+    this.turn = turn;
+    return this;
+  }
+
+  getTargetTurn() {
+    return this.targetTurn;
+  }
+
+  setTargetTurn(targetTurn) {
+    this.targetTurn = targetTurn;
+    return this;
+  }
+
+  getAttack() {
+    return this.attack;
+  }
+
+  setAttack(attack) {
+    this.attack = attack;
+    return this;
+  }
+
+  isAttackHit() {
+    return this.attackHit;
+  }
+
+  setAttackHit(attackHit) {
+    this.attackHit = attackHit;
+    return this;
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new FighterState();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FighterState = FighterState;
+class FighterStateIndicator extends UiComponent {
+  borderColor;
+  bgColor;
+  healthBarColor;
+  staminaBarColor;
+  flip = false;
+  character;
+  regionFnc;
+  containerSize;
+  region;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "FighterStateIndicator";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt) {
+  }
+
+  draw(painter) {
+    if (this.character==null) {
+      return ;
+    }
+    let hbRect = Rect2.create(this.region.x(), this.region.y(), this.region.width(), this.region.height()*0.7);
+    let stRect = Rect2.create(this.flip?this.region.x()+this.region.width()*0.3:this.region.x(), this.region.y()+this.region.height()*0.7, this.region.width()*0.7, this.region.height()*0.3);
+    if (this.bgColor.a()>0) {
+      painter.fillRect(hbRect, this.bgColor);
+      painter.fillRect(stRect, this.bgColor);
+    }
+    if (this.flip) {
+      let healthRect = Rect2.create(this.region.x()+this.region.width()*(1-this.character.getHealthRatio()), this.region.y(), FMath.max(0, this.region.width()*this.character.getHealthRatio()), this.region.height()*0.7);
+      let staminaRect = Rect2.create(this.region.x()+this.region.width()*0.3+this.region.width()*0.7*(1-this.character.getStaminaRatio()), this.region.y()+this.region.height()*0.7, FMath.max(0, this.region.width()*0.7*this.character.getStaminaRatio()), this.region.height()*0.3);
+      painter.fillRect(healthRect, this.healthBarColor);
+      painter.fillRect(staminaRect, this.staminaBarColor);
+    }
+    else {
+      let healthRect = Rect2.create(this.region.x(), this.region.y(), FMath.max(0, this.region.width()*this.character.getHealthRatio()), this.region.height()*0.7);
+      let staminaRect = Rect2.create(this.region.x(), this.region.y()+this.region.height()*0.7, FMath.max(0, this.region.width()*0.7*this.character.getStaminaRatio()), this.region.height()*0.3);
+      painter.fillRect(healthRect, this.healthBarColor);
+      painter.fillRect(staminaRect, this.staminaBarColor);
+    }
+    if (this.borderColor.a()>0) {
+      let p1 = Vec2.create(hbRect.x(), hbRect.y());
+      let p2 = Vec2.create(hbRect.x()+hbRect.width(), hbRect.y());
+      let p3 = Vec2.create(hbRect.x()+hbRect.width(), hbRect.y()+hbRect.height());
+      let p4 = Vec2.create(hbRect.x(), hbRect.y()+hbRect.height());
+      let p5 = Vec2.create(stRect.x(), stRect.y());
+      let p6 = Vec2.create(stRect.x()+stRect.width(), stRect.y());
+      let p7 = Vec2.create(stRect.x()+stRect.width(), stRect.y()+stRect.height());
+      let p8 = Vec2.create(stRect.x(), stRect.y()+stRect.height());
+      painter.drawLine(p1, p2, this.borderColor);
+      painter.drawLine(p2, p3, this.borderColor);
+      painter.drawLine(p3, p4, this.borderColor);
+      painter.drawLine(p4, p1, this.borderColor);
+      painter.drawLine(p5, p6, this.borderColor);
+      painter.drawLine(p6, p7, this.borderColor);
+      painter.drawLine(p7, p8, this.borderColor);
+      painter.drawLine(p8, p5, this.borderColor);
+    }
+  }
+
+  onContainerResize(size) {
+    this.containerSize = size;
+    this.region = Functions.apply(this.regionFnc, size);
+  }
+
+  setBorderColor(borderColor) {
+    Guard.notNull(borderColor, "borderColor cannot be null");
+    this.borderColor = borderColor;
+    return this;
+  }
+
+  setBgColor(bgColor) {
+    Guard.notNull(bgColor, "bgColor cannot be null");
+    this.bgColor = bgColor;
+    return this;
+  }
+
+  setRegionFnc(regionFnc) {
+    Guard.notNull(regionFnc, "regionFnc cannot be null");
+    this.regionFnc = regionFnc;
+    this.onContainerResize(this.containerSize);
+    return this;
+  }
+
+  setCharacter(character) {
+    this.character = character;
+    return this;
+  }
+
+  setFlip(flip) {
+    this.flip = flip;
+    return this;
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new FighterStateIndicator();
+    res.borderColor = Rgba.create(0.8, 0.8, 0.8, 1);
+    res.bgColor = Rgba.create(0.2, 0.2, 0.2, 1);
+    res.healthBarColor = Rgba.create(0.9, 0.2, 0.2, 1);
+    res.staminaBarColor = Rgba.create(0.2, 0.2, 0.9, 1);
+    res.regionFnc = UiRegionFncs.center(100, 25);
+    res.containerSize = Size2.create(1, 1);
+    res.region = Functions.apply(res.regionFnc, res.containerSize);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FighterStateIndicator = FighterStateIndicator;
+class BloodBehavior extends Behavior {
+  rigidBody;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "BloodBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
+  }
+
+  move(dt, inputs) {
+  }
+
+  lateMove(dt, inputs) {
+    if (this.rigidBody.isKinematic()) {
+      return ;
+    }
+    for (let cmp of this.actor().getComponents()) {
+      if (!(cmp instanceof ColliderComponent)) {
+        continue;
+      }
+      let collider = cmp;
+      let cols = this.world().collisions().getColliderIntersections(collider);
+      if (!cols.isEmpty()) {
+        this.rigidBody.setVelocity(Vec3.ZERO);
+        this.rigidBody.setAngularVelocity(Vec3.ZERO);
+        this.rigidBody.setKinematic(true);
+        return ;
+      }
+    }
+  }
+
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  static create(key) {
+    let res = new BloodBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.BloodBehavior = BloodBehavior;
+class DustBehavior extends Behavior {
+  rigidBody;
+  force;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "DustBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
+    this.force = Vec3.create(Randoms.nextFloat(-10, 10), Randoms.nextFloat(15, 20), Randoms.nextFloat(-10, 10)).scale(this.rigidBody.getMass());
+  }
+
+  move(dt, inputs) {
+    this.rigidBody.applyForce(this.rigidBody.getPos(), this.force);
+  }
+
+  lateMove(dt, inputs) {
+  }
+
+  setPrefabProperties(idMapping, properties) {
+  }
+
+  static create(key) {
+    let res = new DustBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.DustBehavior = DustBehavior;
+class Quest {
+  id;
+  name;
+  level;
+  nodes;
+  constructor() {
+  }
+
+  getClass() {
+    return "Quest";
+  }
+
+  guardInvariants() {
+  }
+
+  getId() {
+    return this.id;
+  }
+
+  getName() {
+    return this.name;
+  }
+
+  withName(name) {
+    let res = new Quest();
+    res.id = this.id;
+    res.name = name;
+    res.level = this.level;
+    res.nodes = this.nodes;
+    res.guardInvariants();
+    return res;
+  }
+
+  getLevel() {
+    return this.level;
+  }
+
+  withLevel(level) {
+    let res = new Quest();
+    res.id = this.id;
+    res.name = this.name;
+    res.level = level;
+    res.nodes = this.nodes;
+    res.guardInvariants();
+    return res;
+  }
+
+  getNodes() {
+    return this.nodes;
+  }
+
+  getNode(idx) {
+    return this.nodes.get(idx);
+  }
+
+  getNodeById(id) {
+    for (let i = 0; i<this.nodes.size(); ++i) {
+      if (this.nodes.get(i).getId().equals(id)) {
+        return this.nodes.get(i);
+      }
+    }
+    throw new Error("id not found: "+id);
+  }
+
+  getNumNodes() {
+    return this.nodes.size();
+  }
+
+  getNodeIdx(id) {
+    for (let i = 0; i<this.nodes.size(); ++i) {
+      if (this.nodes.get(i).getId().equals(id)) {
+        return i;
+      }
+    }
+    throw new Error("id not found: "+id);
+  }
+
+  getPrevNode(baseId) {
+    return this.nodes.get(this.getNodeIdx(baseId)-1);
+  }
+
+  getNextNode(baseId) {
+    return this.nodes.get(this.getNodeIdx(baseId)+1);
+  }
+
+  plusNode(node) {
+    let res = new Quest();
+    res.id = this.id;
+    res.name = this.name;
+    res.level = this.level;
+    res.nodes = Dut.immutableListPlusItem(this.nodes, node);
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(id) {
+    let res = new Quest();
+    res.id = id;
+    res.name = "";
+    res.level = 0;
+    res.nodes = Collections.emptyList();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.Quest = Quest;
+class QuestCameraShiftBehavior extends Behavior {
+  cameraFovy;
+  cameraController;
+  aspect = -1;
+  basePosOffset = Vec3.BACKWARD;
+  baseLookAtOffset = Vec3.ZERO;
+  basePosK = -1;
+  baseLookAtK = -1;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "QuestCameraShiftBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.cameraFovy = this.actor().getComponent("CameraFovyComponent");
+    this.cameraController = this.actor().getComponent("CameraControllerComponent");
+    this.basePosOffset = this.cameraController.getPosOffset();
+    this.baseLookAtOffset = this.cameraController.getLookAtOffset();
+    this.basePosK = this.cameraController.getPosK();
+    this.baseLookAtK = this.cameraController.getLookAtK();
+  }
+
+  move(dt, inputs) {
+    let targetId = this.cameraController.getTargetId();
+    if (this.world().actors().exists(targetId)) {
+      let asc = this.cameraFovy.getDisplaySize().aspect();
+      if (this.aspect!=asc) {
+        let pk = this.basePosK;
+        let lak = this.baseLookAtK;
+        this.aspect = asc;
+        let zFact = 1;
+        if (this.aspect>2) {
+          zFact = 1;
+          pk = this.basePosK;
+          lak = this.baseLookAtK;
+        }
+        else if (this.aspect>1) {
+          zFact = 1.5;
+          pk = FMath.min(1, 1.5*this.basePosK);
+          lak = FMath.min(1, 1.5*this.baseLookAtK);
+        }
+        else if (this.aspect>0.75) {
+          zFact = 2;
+          pk = FMath.min(1, 2*this.basePosK);
+          lak = FMath.min(1, 2*this.baseLookAtK);
+        }
+        else if (this.aspect>0.5) {
+          zFact = 2.5;
+          pk = FMath.min(1, 2.5*this.basePosK);
+          lak = FMath.min(1, 2.5*this.baseLookAtK);
+        }
+        else {
+          zFact = 3;
+          pk = FMath.min(1, 3*this.basePosK);
+          lak = FMath.min(1, 3*this.baseLookAtK);
+        }
+        let mz = zFact*this.basePosOffset.z();
+        this.cameraController.setPosOffset(this.basePosOffset.withZ(mz)).setLookAtOffset(this.baseLookAtOffset).setPosK(pk).setLookAtK(lak);
+      }
+    }
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new QuestCameraShiftBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestCameraShiftBehavior = QuestCameraShiftBehavior;
+class QuestCharacterController extends UiComponent {
+  moveJoystick;
+  fightButton;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "QuestCharacterController";
+  }
+
+  guardInvariants() {
+  }
+
+  init(container) {
+    this.moveJoystick.init(container);
+    this.fightButton.init(container);
+  }
+
+  move(dt) {
+    this.moveJoystick.move(dt);
+    this.fightButton.move(dt);
+  }
+
+  draw(painter) {
+    this.moveJoystick.draw(painter);
+    this.fightButton.draw(painter);
+  }
+
+  onContainerResize(size) {
+    this.moveJoystick.onContainerResize(size);
+    this.fightButton.onContainerResize(size);
+  }
+
+  onTouchStart(id, pos, size) {
+    this.moveJoystick.onTouchStart(id, pos, size);
+    this.fightButton.onTouchStart(id, pos, size);
+    return false;
+  }
+
+  onTouchMove(id, pos, size) {
+    this.moveJoystick.onTouchMove(id, pos, size);
+    this.fightButton.onTouchMove(id, pos, size);
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    this.moveJoystick.onTouchEnd(id, pos, size, cancel);
+    this.fightButton.onTouchEnd(id, pos, size, cancel);
+    return false;
+  }
+
+  onKeyPressed(key) {
+    this.moveJoystick.onKeyPressed(key);
+    this.fightButton.onKeyPressed(key);
+    return false;
+  }
+
+  onKeyReleased(key) {
+    this.moveJoystick.onKeyReleased(key);
+    this.fightButton.onKeyReleased(key);
+    return false;
+  }
+
+  getMoveDir() {
+    return this.moveJoystick.getDir();
+  }
+
+  addFightButtonOnClickAction(action) {
+    this.fightButton.addOnClickAction(action);
+    return this;
+  }
+
+  toString() {
+  }
+
+  static create(drivers) {
+    let res = new QuestCharacterController();
+    res.moveJoystick = Joystick.create().addTrait(UiComponentTrait.SQUARE).setCircle(false).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h30 = s.height()*0.3;
+    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h5, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h2, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD());
+    res.fightButton = Button.create().addTrait(UiComponentTrait.M).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h30 = s.height()*0.3;
+    let joystickSize = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(s.width()-joystickSize*2-h5, s.height()-joystickSize*0.75-h5, joystickSize*2, joystickSize/2);
+  }
+  else {
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let joystickSize = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+    let width = FMath.clamp(joystickSize*2, 1, s.width()-joystickSize-3*h5);
+    return Rect2.create(joystickSize+h5+h5, s.height()-joystickSize*0.75-h5, width, joystickSize/2);
+  }
+}).setText("Fight").setKeyCodeMatcher((keyCode) => {
+  return keyCode.isConrol()||keyCode.getUpperCharacter().equals("J")||keyCode.getUpperCharacter().equals("I")||keyCode.getUpperCharacter().equals("O");
+});
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestCharacterController = QuestCharacterController;
+class QuestEnemy {
+  id;
+  aiDifficulty;
+  toughnessFactor;
+  constructor() {
+  }
+
+  getClass() {
+    return "QuestEnemy";
+  }
+
+  guardInvariants() {
+  }
+
+  getId() {
+    return this.id;
+  }
+
+  getAiDifficulty() {
+    return this.aiDifficulty;
+  }
+
+  withAiDifficulty(aiDifficulty) {
+    let res = new QuestEnemy();
+    res.id = this.id;
+    res.aiDifficulty = aiDifficulty;
+    res.toughnessFactor = this.toughnessFactor;
+    res.guardInvariants();
+    return res;
+  }
+
+  getToughnessFactor() {
+    return this.toughnessFactor;
+  }
+
+  withToughnessFactor(toughnessFactor) {
+    let res = new QuestEnemy();
+    res.id = this.id;
+    res.aiDifficulty = this.aiDifficulty;
+    res.toughnessFactor = toughnessFactor;
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(id) {
+    let res = new QuestEnemy();
+    res.id = id;
+    res.aiDifficulty = 0.5;
+    res.toughnessFactor = 1;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestEnemy = QuestEnemy;
+class QuestEnemyId {
+  id;
+  constructor() {
+  }
+
+  getClass() {
+    return "QuestEnemyId";
+  }
+
+  guardInvariants() {
+  }
+
+  getId() {
+    return this.id;
+  }
+
+  hashCode() {
+    return this.id.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof QuestEnemyId)) {
+      return false;
+    }
+    let other = obj;
+    return other.id.equals(this.id);
+  }
+
+  toString() {
+  }
+
+  static of(id) {
+    let res = new QuestEnemyId();
+    res.id = id;
+    res.guardInvariants();
+    return res;
+  }
+
+  static random() {
+    let res = new QuestEnemyId();
+    res.id = Randoms.nextAlphabetic(6);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestEnemyId = QuestEnemyId;
+class QuestEvent {
+  type;
+  constructor() {
+  }
+
+  getClass() {
+    return "QuestEvent";
+  }
+
+  guardInvariants() {
+  }
+
+  getType() {
+    return this.type;
+  }
+
+  withType(type) {
+    let res = new QuestEvent();
+    res.type = type;
+    res.guardInvariants();
+    return res;
+  }
+
+  isNodeCompleteType() {
+    return this.type.equals(QuestEventType.NODE_COMPLETED);
+  }
+
+  isNodeFailType() {
+    return this.type.equals(QuestEventType.NODE_FAILED);
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new QuestEvent();
+    res.type = QuestEventType.NONE;
+    res.guardInvariants();
+    return res;
+  }
+
+  static createNone() {
+    let res = new QuestEvent();
+    res.type = QuestEventType.NONE;
+    res.guardInvariants();
+    return res;
+  }
+
+  static createCompleteNode() {
+    let res = new QuestEvent();
+    res.type = QuestEventType.NODE_COMPLETED;
+    res.guardInvariants();
+    return res;
+  }
+
+  static createFailNode() {
+    let res = new QuestEvent();
+    res.type = QuestEventType.NODE_FAILED;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestEvent = QuestEvent;
+const createQuestEventType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const QuestEventType = Object.freeze({
+  NONE: createQuestEventType("NONE"),
+  NODE_COMPLETED: createQuestEventType("NODE_COMPLETED"),
+  NODE_FAILED: createQuestEventType("NODE_FAILED"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class QuestId {
+  id;
+  constructor() {
+  }
+
+  getClass() {
+    return "QuestId";
+  }
+
+  guardInvariants() {
+  }
+
+  getId() {
+    return this.id;
+  }
+
+  hashCode() {
+    return this.id.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof QuestId)) {
+      return false;
+    }
+    let other = obj;
+    return other.id.equals(this.id);
+  }
+
+  toString() {
+  }
+
+  static of(id) {
+    let res = new QuestId();
+    res.id = id;
+    res.guardInvariants();
+    return res;
+  }
+
+  static random() {
+    let res = new QuestId();
+    res.id = Randoms.nextAlphabetic(6);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestId = QuestId;
+class QuestNode {
+  id;
+  enemies;
+  constructor() {
+  }
+
+  getClass() {
+    return "QuestNode";
+  }
+
+  guardInvariants() {
+  }
+
+  getId() {
+    return this.id;
+  }
+
+  getEnemies() {
+    return this.enemies;
+  }
+
+  plusEnemy(enemy) {
+    let res = new QuestNode();
+    res.id = this.id;
+    res.enemies = Dut.immutableListPlusItem(this.enemies, enemy);
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(id) {
+    let res = new QuestNode();
+    res.id = id;
+    res.enemies = Collections.emptyList();
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestNode = QuestNode;
+class QuestNodeBehavior extends Behavior {
+  model;
+  statusType = null;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "QuestNodeBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.model = this.actor().getComponent("ModelComponent");
+  }
+
+  move(dt, inputs) {
+    Guard.notNull(this.statusType, "status type must be set before first move");
+  }
+
+  lateMove(dt, inputs) {
+  }
+
+  setStatusType(statusType) {
+    Guard.notNull(statusType, "status type cannot be null");
+    if (this.statusType==null||this.statusType.equals(statusType)) {
+      this.statusType = statusType;
+      this.model.setModelId(this.statusTypeToModelId(statusType));
+    }
+    else {
+      this.statusType = statusType;
+      let modelId = this.statusTypeToModelId(statusType);
+      this.actor().getComponent("TransformActionBehavior").addAction(QuestNodeStatusTransformAction.create(modelId));
+    }
+    return this;
+  }
+
+  onMessage(type, message) {
+    if (type.equals(WorldActors.NODE_STATUS_TYPE_UPDATE)) {
+      let modelId = message;
+      this.model.setModelId(modelId);
+    }
+  }
+
+  statusTypeToModelId(statusType) {
+    if (statusType.equals(QuestNodeStatusType.CLOSED)) {
+      return ModelId.of("cube-ruby");
+    }
+    else if (statusType.equals(QuestNodeStatusType.OPENED)) {
+      return ModelId.of("cube-tin");
+    }
+    else if (statusType.equals(QuestNodeStatusType.COMPLETED)) {
+      return ModelId.of("cube-emerald");
+    }
+    else {
+      throw new Error("unsupported status type: "+statusType);
+    }
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new QuestNodeBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestNodeBehavior = QuestNodeBehavior;
+class QuestNodeId {
+  id;
+  constructor() {
+  }
+
+  getClass() {
+    return "QuestNodeId";
+  }
+
+  guardInvariants() {
+  }
+
+  getId() {
+    return this.id;
+  }
+
+  hashCode() {
+    return this.id.hashCode();
+  }
+
+  equals(obj) {
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof QuestNodeId)) {
+      return false;
+    }
+    let other = obj;
+    return other.id.equals(this.id);
+  }
+
+  toString() {
+  }
+
+  static of(id) {
+    let res = new QuestNodeId();
+    res.id = id;
+    res.guardInvariants();
+    return res;
+  }
+
+  static random() {
+    let res = new QuestNodeId();
+    res.id = Randoms.nextAlphabetic(6);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestNodeId = QuestNodeId;
+class QuestNodeStatus {
+  id;
+  type;
+  constructor() {
+  }
+
+  getClass() {
+    return "QuestNodeStatus";
+  }
+
+  guardInvariants() {
+  }
+
+  getId() {
+    return this.id;
+  }
+
+  getType() {
+    return this.type;
+  }
+
+  withType(type) {
+    let res = new QuestNodeStatus();
+    res.id = this.id;
+    res.type = type;
+    res.guardInvariants();
+    return res;
+  }
+
+  isAvailable() {
+    return this.type.equals(QuestNodeStatusType.OPENED)|this.type.equals(QuestNodeStatusType.COMPLETED);
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(id) {
+    let res = new QuestNodeStatus();
+    res.id = id;
+    res.type = QuestNodeStatusType.CLOSED;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestNodeStatus = QuestNodeStatus;
+class QuestNodeStatusTransformAction {
+  modelId;
+  initialPos;
+  initialRot;
+  time;
+  pos;
+  constructor() {
+  }
+
+  getClass() {
+    return "QuestNodeStatusTransformAction";
+  }
+
+  guardInvariants() {
+  }
+
+  start(pos, rot) {
+    this.initialPos = pos;
+    this.initialRot = rot;
+    this.time = 0;
+  }
+
+  move(dt) {
+    this.time = this.time+dt;
+    if (this.time<0.5) {
+      let h = 0.5*FMath.sin(this.time/0.5*FMath.PI_HALF);
+      this.pos = this.initialPos.add(Vec3.create(0, h, 0));
+      return TransformActionResult.create(this.pos, this.initialRot, false, 0);
+    }
+    else if (this.time<1.5) {
+      let ratio = (this.time-0.5)/1;
+      let spin = Quaternion.rotY(4*FMath.PI*ratio);
+      if (this.time>1&&this.modelId!=null) {
+        let mid = this.modelId;
+        this.modelId = null;
+        return TransformActionResult.createWithMessage(this.pos, this.initialRot.mul(spin), WorldActors.NODE_STATUS_TYPE_UPDATE, mid, false, 0);
+      }
+      else {
+        return TransformActionResult.create(this.pos, this.initialRot.mul(spin), false, 0);
+      }
+    }
+    else if (this.time<2) {
+      let h = 0.5*FMath.sin((this.time-1.5)/0.5*FMath.PI_HALF+FMath.PI_HALF);
+      this.pos = this.initialPos.add(Vec3.create(0, h, 0));
+      return TransformActionResult.create(this.pos, this.initialRot, false, 0);
+    }
+    else {
+      return TransformActionResult.create(this.initialPos, this.initialRot, true, this.time-2);
+    }
+  }
+
+  toString() {
+  }
+
+  static create(modelId) {
+    let res = new QuestNodeStatusTransformAction();
+    res.modelId = modelId;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestNodeStatusTransformAction = QuestNodeStatusTransformAction;
+const createQuestNodeStatusType = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const QuestNodeStatusType = Object.freeze({
+  CLOSED: createQuestNodeStatusType("CLOSED"),
+  OPENED: createQuestNodeStatusType("OPENED"),
+  COMPLETED: createQuestNodeStatusType("COMPLETED"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class QuestPlayerBehavior extends Behavior {
+  static WALK_SPEED = 5;
+  static TURN_SPEED = 4*FMath.PI;
+  transform;
+  model;
+  animationPlayer;
+  targetPos = Vec3.ZERO;
+  turn = 0;
+  targetTurn = 0;
+  commit = false;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "QuestPlayerBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.model = this.actor().getComponent("ModelComponent");
+    this.targetPos = this.transform.getPos();
+    let animCol = this.world().assets().get("MeshAnimationCollection", WorldActors.BASE_FIGHTER_ANIMATION_COLLECTION_ID);
+    this.animationPlayer = MeshAnimationPlayer.create(animCol, WorldActors.IDLE_ANIMATION_KEY);
+  }
+
+  move(dt, inputs) {
+    let targetDiff = this.targetPos.sub(this.transform.getPos());
+    let targetDist = targetDiff.mag();
+    let travelDist = dt*QuestPlayerBehavior.WALK_SPEED;
+    if (targetDist<travelDist) {
+      this.transform.setPos(this.targetPos);
+      if (this.commit) {
+        this.animationPlayer.play(WorldActors.YES_ANIMATION_KEY, MeshAnimationPlayConfig.PLAY);
+      }
+      else {
+        this.animationPlayer.play(WorldActors.IDLE_ANIMATION_KEY, MeshAnimationPlayConfig.PLAY);
+      }
+    }
+    else {
+      this.transform.move(targetDiff.scale(travelDist/targetDist));
+      this.animationPlayer.play(WorldActors.WALK_ANIMATION_KEY, MeshAnimationPlayConfig.PLAY);
+    }
+    if (targetDist>travelDist) {
+      this.targetTurn = targetDiff.x()>0?FMath.PI_HALF:-FMath.PI_HALF;
+    }
+    else {
+      this.targetTurn = 0;
+    }
+    let step = this.animationPlayer.move(dt);
+    this.model.setInterpolation(step.getInterpolation());
+    this.model.setPose(step.getPose());
+    let turnDiff = this.targetTurn-this.turn;
+    let maxTurn = dt*QuestPlayerBehavior.TURN_SPEED;
+    this.turn = FMath.abs(turnDiff)<maxTurn?this.targetTurn:this.turn+FMath.signum(turnDiff)*maxTurn;
+    this.transform.setRot(Quaternion.rotY(this.turn));
+  }
+
+  lateMove(dt, inputs) {
+  }
+
+  setTargetPos(targetPos) {
+    Guard.notNull(targetPos, "targetPos cannot be null");
+    Guard.beFalse(this.commit, "commit must be false to move");
+    this.targetPos = targetPos;
+    return this;
+  }
+
+  commitFight() {
+    this.commit = true;
+    return this;
+  }
+
+  isFightReady() {
+    return this.animationPlayer.getKey().equals(WorldActors.YES_ANIMATION_KEY)&&this.animationPlayer.isEnd();
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new QuestPlayerBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestPlayerBehavior = QuestPlayerBehavior;
+const createQuestPlayerState = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const QuestPlayerState = Object.freeze({
+  IDLE: createQuestPlayerState("IDLE"),
+  WALK: createQuestPlayerState("WALK"),
+  READY: createQuestPlayerState("READY"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class QuestScreen extends TyracornScreen {
+  static NODE_DISTANCE = 4;
+  static NODE_Z = -1;
+  appManager;
+  questEvent;
+  time = 0;
+  world;
+  inputs = InputCache.create();
+  ui;
+  paused = false;
+  audio;
+  moveConsumed = false;
+  nodeConfirmed = false;
+  controller;
+  questPlayerBehavior;
+  questNodeActors;
+  constructor(appManager, questEvent) {
+    super();
+    this.appManager = appManager;
+    this.questEvent = questEvent;
+    this.guardInvariants();
+  }
+
+  getClass() {
+    return "QuestScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    this.time = this.time+dt;
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    if (this.paused&&this.ui.getNumLayers()==1) {
+      this.ui.pushLayer();
+      this.ui.addComponent(Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setRegionFnc(UiRegionFncs.full()));
+      let menuPanel = Panel.create().setRegionFnc(UiRegionFncs.center(250, 250));
+      this.ui.addComponent(menuPanel);
+      menuPanel.addComponent(Label.create().addTrait(UiComponentTrait.H1).setAlignment(TextAlignment.CENTER_TOP).setPosFnc(UiPosFncs.centerTop(10)).setText("Pause"));
+      menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(170, 150, 30)).setText("Resume").addOnClickAction((evtSource) => {
+  this.paused = false;
+  this.ui.popLayer();
+}));
+      menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(210, 150, 30)).setText("Exit").addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.appManager))));
+    }
+    if (this.moveConsumed) {
+      if (this.controller.getMoveDir().mag()<0.1) {
+        this.moveConsumed = false;
+      }
+    }
+    else {
+      if (!this.nodeConfirmed) {
+        let questStatus = this.appManager.getStoryManager().getCurrentQuestStatus();
+        if (this.controller.getMoveDir().x()>0.9) {
+          this.moveConsumed = true;
+          if (questStatus.isNextNodeAvailable()) {
+            let nodeIdx = this.appManager.getStoryManager().moveToNextNode();
+            this.questPlayerBehavior.setTargetPos(Vec3.create(nodeIdx*QuestScreen.NODE_DISTANCE, 0, 0));
+          }
+        }
+        else if (this.controller.getMoveDir().x()<-0.9) {
+          this.moveConsumed = true;
+          if (questStatus.isPreviousNodeAvailable()) {
+            let nodeIdx = this.appManager.getStoryManager().moveToPreviousNode();
+            this.questPlayerBehavior.setTargetPos(Vec3.create(nodeIdx*QuestScreen.NODE_DISTANCE, 0, 0));
+          }
+        }
+      }
+    }
+    if (this.questPlayerBehavior.isFightReady()) {
+      let node = this.appManager.getStoryManager().getCurrentQuestNode();
+      let scenario = CombatScenario.create().withArenaType(CombatArenaType.RANDOM).withEnemies(node.getEnemies());
+      let screen = new CombatScreen(this.appManager, scenario);
+      screenManager.showScreen(screen);
+    }
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    if (!this.paused) {
+      if (this.questEvent.isNodeCompleteType()&&this.time>0.5) {
+        let currentQuestStatus = this.appManager.getStoryManager().completeCurrentNode();
+        for (let i = 0; i<this.questNodeActors.size(); ++i) {
+          let actor = this.questNodeActors.get(i);
+          let nodeStatus = currentQuestStatus.getNode(i);
+          actor.getComponent("QuestNodeBehavior").setStatusType(nodeStatus.getType());
+        }
+        this.questEvent = QuestEvent.createNone();
+      }
+      else if (this.questEvent.isNodeFailType()&&this.time>0.5) {
+        this.questEvent = QuestEvent.createNone();
+      }
+      this.world.move(dt, this.inputs);
+    }
+    this.world.render(RenderRequest.NORMAL);
+    gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    res.addAll(Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/music.tap")), assets.resolveAsync(Path.of("asset:packages/elements.tap")), assets.resolveAsync(Path.of("asset:packages/characters/base-fighter.tap")), assets.resolveAsync(Path.of("asset:packages/characters/audience.tap")), assets.resolveAsync(Path.of("asset:default.tap")), assets.resolveAsync(Path.of("asset:prefabs.tap")), assets.resolveAsync(Path.of("asset:scenes.tap"))));
+    return res;
+  }
+
+  init(drivers, screenManager, properties) {
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 30));
+    this.world = RigidBodyWorld.create(drivers);
+    this.audio = AudioBehavior.create(ComponentKey.random());
+    let storyManager = this.appManager.getStoryManager();
+    let currentQuest = storyManager.getCurrentQuest();
+    let currentQuestStatus = storyManager.getCurrentQuestStatus();
+    let initialPlayerPos = Vec3.create(currentQuestStatus.getCurrentNodeIdx()*QuestScreen.NODE_DISTANCE, 0, 0);
+    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(10, 25, 20), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
+    this.world.actors().add(light);
+    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY).setFovyLandscape(FMath.toRadians(60)).setFovyPortrait(FMath.toRadians(60))).addComponent(CameraControllerComponent.create(ComponentKey.random()).setMode(CameraControlMode.ISOMETRIC).setTargetId(ActorId.of("player")).setPosOffset(Vec3.create(0, 4, 8)).setLookAtOffset(Vec3.create(0, 1, 0)).setPosK(0.05).setLookAtK(0.15)).addComponent(QuestCameraShiftBehavior.create(ComponentKey.random())).addComponent(this.audio);
+    this.world.actors().add(camera);
+    this.questPlayerBehavior = this.spawnPlayer(assets, initialPlayerPos).getComponent("QuestPlayerBehavior");
+    this.questNodeActors = new ArrayList();
+    for (let i = 0; i<currentQuest.getNodes().size(); ++i) {
+      let nodeStatus = currentQuestStatus.getNode(i);
+      let actor = this.spawnNode(assets, Vec3.create(i*QuestScreen.NODE_DISTANCE, 0, QuestScreen.NODE_Z));
+      actor.getComponent("QuestNodeBehavior").setStatusType(nodeStatus.getType());
+      this.questNodeActors.add(actor);
+    }
+    this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
+    this.controller = QuestCharacterController.create(drivers).addFightButtonOnClickAction((src) => {
+  this.nodeConfirmed = true;
+  this.questPlayerBehavior.commitFight();
+  camera.getComponent("CameraControllerComponent").setPosOffset(Vec3.create(-2, 2, 3));
+});
+    this.ui.addComponent(this.controller);
+    this.ui.addComponent(PlayUis.createPauseButton((evt) => {
+  this.paused = true;
+}));
+    this.ui.subscribe(drivers);
+    let dlist = InputCacheDisplayListener.create(this.inputs);
+    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
+    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
+  }
+
+  pause(drivers) {
+    this.paused = true;
+  }
+
+  leave(drivers) {
+    this.audio.stopAll();
+    this.ui.unsubscribe(drivers);
+    this.world.destroy(drivers);
+  }
+
+  spawnPlayer(assets, pos) {
+    let prefab = assets.get("ActorPrefab", ActorPrefabId.of("quest-fighter-base"));
+    let req = CreateActorRequest.create(prefab, ActorId.of("player"), pos, Quaternion.ZERO_ROT);
+    return this.world.constructActor(req).addComponent(QuestPlayerBehavior.create(ComponentKey.random()));
+  }
+
+  spawnNode(assets, pos) {
+    let prefab = assets.get("ActorPrefab", WorldActors.QUEST_NODE_PREFAB_ID);
+    let req = CreateActorRequest.create(prefab, null, pos, Quaternion.ZERO_ROT);
+    return this.world.constructActor(req).addComponent(TransformActionBehavior.create(ComponentKey.random())).addComponent(QuestNodeBehavior.create(ComponentKey.random()));
+  }
+
+}
+classRegistry.QuestScreen = QuestScreen;
+class QuestStatus {
+  id;
+  nodes;
+  currentNodeIdx;
+  constructor() {
+  }
+
+  getClass() {
+    return "QuestStatus";
+  }
+
+  guardInvariants() {
+  }
+
+  getId() {
+    return this.id;
+  }
+
+  getNodes() {
+    return this.nodes;
+  }
+
+  getNode(idx) {
+    return this.nodes.get(idx);
+  }
+
+  getNumNodes() {
+    return this.nodes.size();
+  }
+
+  plusNode(node) {
+    let res = new QuestStatus();
+    res.id = this.id;
+    res.nodes = Dut.immutableListPlusItem(this.nodes, node);
+    res.currentNodeIdx = this.currentNodeIdx;
+    res.guardInvariants();
+    return res;
+  }
+
+  getCurrentNodeIdx() {
+    return this.currentNodeIdx;
+  }
+
+  withCurrentNodeIdx(currentNodeIdx) {
+    let res = new QuestStatus();
+    res.id = this.id;
+    res.nodes = this.nodes;
+    res.currentNodeIdx = currentNodeIdx;
+    res.guardInvariants();
+    return res;
+  }
+
+  isPreviousNodeAvailable() {
+    if (this.currentNodeIdx<=0) {
+      return false;
+    }
+    return this.nodes.get(this.currentNodeIdx-1).isAvailable();
+  }
+
+  isNextNodeAvailable() {
+    if (this.currentNodeIdx>=this.nodes.size()-1) {
+      return false;
+    }
+    return this.nodes.get(this.currentNodeIdx+1).isAvailable();
+  }
+
+  withCompletedCurrentNode() {
+    let res = new QuestStatus();
+    res.id = this.id;
+    let newNodes = new ArrayList();
+    for (let i = 0; i<this.nodes.size(); ++i) {
+      let node = this.nodes.get(i);
+      if (i==this.currentNodeIdx) {
+        newNodes.add(node.withType(QuestNodeStatusType.COMPLETED));
+      }
+      else if (i==this.currentNodeIdx+1) {
+        if (node.getType().equals(QuestNodeStatusType.CLOSED)) {
+          newNodes.add(node.withType(QuestNodeStatusType.OPENED));
+        }
+        else {
+          newNodes.add(node);
+        }
+      }
+      else {
+        newNodes.add(node);
+      }
+    }
+    res.nodes = Collections.unmodifiableList(newNodes);
+    res.currentNodeIdx = this.currentNodeIdx;
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(id) {
+    let res = new QuestStatus();
+    res.id = id;
+    res.nodes = Collections.emptyList();
+    res.currentNodeIdx = 0;
+    res.guardInvariants();
+    return res;
+  }
+
+  static createInitial(quest) {
+    let res = new QuestStatus();
+    res.id = quest.getId();
+    let nodes = new ArrayList();
+    for (let node of quest.getNodes()) {
+      nodes.add(QuestNodeStatus.create(node.getId()).withType(nodes.isEmpty()?QuestNodeStatusType.OPENED:QuestNodeStatusType.CLOSED));
+    }
+    res.nodes = Collections.unmodifiableList(nodes);
+    res.currentNodeIdx = 0;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestStatus = QuestStatus;
+class Quests {
+  static GIRL_NAMES = Dut.list("Mariko", "Aya", "Kana", "Yuka", "Yumi", "Ayumi", "Satomi", "Naomi", "Ria", "Kaori");
+  constructor() {
+  }
+
+  getClass() {
+    return "Quests";
+  }
+
+  static generateRandom(level) {
+    let res = Quest.create(QuestId.random()).withName(Randoms.pickOne(Quests.GIRL_NAMES)).withLevel(level);
+    let numNodes = Randoms.nextInt(10+level*2, 30+level*3);
+    for (let i = 0; i<numNodes; ++i) {
+      let node = QuestNode.create(QuestNodeId.random());
+      let progress = numNodes<2?1:(i/(numNodes-1));
+      let curve = FMath.pow(progress, 1.4);
+      let numEnemyScore = curve*4.0+Randoms.nextFloat(0, 1.5);
+      let numEnemies = 1;
+      if (numEnemyScore<2.5) {
+        numEnemies = 1;
+      }
+      else if (numEnemyScore<3.5) {
+        numEnemies = 2;
+      }
+      else if (numEnemyScore<4.2) {
+        numEnemies = 3;
+      }
+      else if (numEnemyScore<4.8) {
+        numEnemies = 4;
+      }
+      else {
+        numEnemies = 5;
+      }
+      for (let j = 0; j<numEnemies; ++j) {
+        let aiDifficulty = FMath.clamp(0.3+curve*0.7+Randoms.nextFloat(-0.08, 0.08), 0.3, 1);
+        let baseTough = 0.7+level*0.15;
+        let progressionMultiplier = 1.0+curve*1.5;
+        let toughnessFactor = baseTough*progressionMultiplier*Randoms.nextFloat(0.9, 1.1);
+        let enemy = QuestEnemy.create(QuestEnemyId.random()).withAiDifficulty(aiDifficulty).withToughnessFactor(toughnessFactor);
+        node = node.plusEnemy(enemy);
+      }
+      res = res.plusNode(node);
+    }
+    return res;
+  }
+
+  static questToJson(quest) {
+    let res = JsonObject.empty().withInt("version", 1).withString("id", quest.getId().getId()).withString("name", quest.getName()).withInt("level", quest.getLevel());
+    let nodesJson = JsonArray.empty();
+    for (let node of quest.getNodes()) {
+      nodesJson = nodesJson.plusObject(Quests.questNodeToJson(node));
+    }
+    res = res.withArray("nodes", nodesJson);
+    return res;
+  }
+
+  static questToJsonString(quest) {
+    let json = Quests.questToJson(quest);
+    return JsonObjects.toJson(json);
+  }
+
+  static jsonToQuest(json) {
+    let version = json.getInt("version");
+    if (version==1) {
+      let res = Quest.create(QuestId.of(json.getString("id"))).withName(json.getString("name")).withLevel(json.getInt("level"));
+      let nodesJson = json.getJsonArray("nodes");
+      for (let i = 0; i<nodesJson.size(); ++i) {
+        let nodeJson = nodesJson.getJsonObject(i);
+        res = res.plusNode(Quests.jsonToQuestNode(nodeJson));
+      }
+      return res;
+    }
+    else {
+      throw new Error("versoin not implemented: "+version);
+    }
+  }
+
+  static jsonStringToQuest(jsonStr) {
+    let json = JsonObjects.parse(jsonStr);
+    return Quests.jsonToQuest(json);
+  }
+
+  static questNodeToJson(questNode) {
+    let res = JsonObject.empty().withInt("version", 1).withString("id", questNode.getId().getId());
+    let enemiesJson = JsonArray.empty();
+    for (let enemy of questNode.getEnemies()) {
+      enemiesJson = enemiesJson.plusObject(Quests.questEnemyToJson(enemy));
+    }
+    res = res.withArray("enemies", enemiesJson);
+    return res;
+  }
+
+  static jsonToQuestNode(json) {
+    let version = json.getInt("version");
+    if (version==1) {
+      let res = QuestNode.create(QuestNodeId.of(json.getString("id")));
+      let enemiesJson = json.getJsonArray("enemies");
+      for (let i = 0; i<enemiesJson.size(); ++i) {
+        let enemyJson = enemiesJson.getJsonObject(i);
+        res = res.plusEnemy(Quests.jsonToQuestEnemy(enemyJson));
+      }
+      return res;
+    }
+    else {
+      throw new Error("versoin not implemented: "+version);
+    }
+  }
+
+  static questEnemyToJson(questEnemy) {
+    return JsonObject.empty().withInt("version", 1).withString("id", questEnemy.getId().getId()).withFloat("aiDifficulty", questEnemy.getAiDifficulty()).withFloat("toughnessFactor", questEnemy.getToughnessFactor());
+  }
+
+  static jsonToQuestEnemy(json) {
+    let version = json.getInt("version");
+    if (version==1) {
+      return QuestEnemy.create(QuestEnemyId.of(json.getString("id"))).withAiDifficulty(json.getFloat("aiDifficulty")).withToughnessFactor(json.getFloat("toughnessFactor"));
+    }
+    else {
+      throw new Error("versoin not implemented: "+version);
+    }
+  }
+
+  static questStatusToJson(questStatus) {
+    let res = JsonObject.empty().withInt("version", 1).withString("id", questStatus.getId().getId()).withInt("currentNodeIdx", questStatus.getCurrentNodeIdx());
+    let nodesJson = JsonArray.empty();
+    for (let node of questStatus.getNodes()) {
+      nodesJson = nodesJson.plusObject(Quests.questNodeStatusToJson(node));
+    }
+    res = res.withArray("nodes", nodesJson);
+    return res;
+  }
+
+  static questStatusToJsonString(questStatus) {
+    let json = Quests.questStatusToJson(questStatus);
+    return JsonObjects.toJson(json);
+  }
+
+  static jsonToQuestStatus(json) {
+    let version = json.getInt("version");
+    if (version==1) {
+      let res = QuestStatus.create(QuestId.of(json.getString("id"))).withCurrentNodeIdx(json.getInt("currentNodeIdx"));
+      let nodesJson = json.getJsonArray("nodes");
+      for (let i = 0; i<nodesJson.size(); ++i) {
+        let nodeJson = nodesJson.getJsonObject(i);
+        res = res.plusNode(Quests.jsonToQuestNodeStatus(nodeJson));
+      }
+      return res;
+    }
+    else {
+      throw new Error("versoin not implemented: "+version);
+    }
+  }
+
+  static jsonStringToQuestStatus(jsonStr) {
+    let json = JsonObjects.parse(jsonStr);
+    return Quests.jsonToQuestStatus(json);
+  }
+
+  static questNodeStatusToJson(questNodeStatus) {
+    let res = JsonObject.empty().withInt("version", 1).withString("id", questNodeStatus.getId().getId()).withString("type", questNodeStatus.getType().name());
+    return res;
+  }
+
+  static jsonToQuestNodeStatus(json) {
+    let version = json.getInt("version");
+    if (version==1) {
+      let res = QuestNodeStatus.create(QuestNodeId.of(json.getString("id"))).withType(QuestNodeStatusType.valueOf(json.getString("type")));
+      return res;
+    }
+    else {
+      throw new Error("versoin not implemented: "+version);
+    }
+  }
+
+}
+classRegistry.Quests = Quests;
+class Stories {
+  constructor() {
+  }
+
+  getClass() {
+    return "Stories";
+  }
+
+  static storyStatusToJson(storyStatus) {
+    let res = JsonObject.empty().withInt("version", 1).withInt("currentQuestIdx", storyStatus.getCurrentQuestIdx());
+    let questIdsJson = JsonArray.empty();
+    for (let qid of storyStatus.getQuestIds()) {
+      questIdsJson = questIdsJson.plusString(qid.getId());
+    }
+    res = res.withArray("questIds", questIdsJson);
+    return res;
+  }
+
+  static storyStatusToJsonString(storyStatus) {
+    let json = Stories.storyStatusToJson(storyStatus);
+    return JsonObjects.toJson(json);
+  }
+
+  static jsonToStoryStatus(json) {
+    let version = json.getInt("version");
+    if (version==1) {
+      let res = StoryStatus.create();
+      let questsIdsJson = json.getJsonArray("questIds");
+      for (let i = 0; i<questsIdsJson.size(); ++i) {
+        res = res.plusQuestId(QuestId.of(questsIdsJson.getString(i)));
+      }
+      res = res.withCurrentQuestIdx(json.getInt("currentQuestIdx"));
+      return res;
+    }
+    else {
+      throw new Error("versoin not implemented: "+version);
+    }
+  }
+
+  static jsonStringToStoryStatus(jsonStr) {
+    let json = JsonObjects.parse(jsonStr);
+    return Stories.jsonToStoryStatus(json);
+  }
+
+}
+classRegistry.Stories = Stories;
+class StoryManager {
+  static STORY_STAUS_KEY = LocalDataKey.of("story.status.json");
+  storage;
+  storyStatus;
+  currentQuest;
+  currentQuestStatus;
+  constructor() {
+  }
+
+  getClass() {
+    return "StoryManager";
+  }
+
+  guardInvariants() {
+  }
+
+  initialize() {
+    if (this.storage.exists(StoryManager.STORY_STAUS_KEY)) {
+      this.storyStatus = Stories.jsonStringToStoryStatus(this.storage.loadString(StoryManager.STORY_STAUS_KEY));
+      let currentQuestId = this.storyStatus.getCurrentQuestId();
+      this.currentQuest = Quests.jsonStringToQuest(this.storage.loadString(this.getQuestLocalDataKey(currentQuestId)));
+      this.currentQuestStatus = Quests.jsonStringToQuestStatus(this.storage.loadString(this.getQuestStatusLocalDataKey(currentQuestId)));
+    }
+    else {
+      this.currentQuest = Quests.generateRandom(1);
+      this.currentQuestStatus = QuestStatus.createInitial(this.currentQuest);
+      this.storyStatus = StoryStatus.create().plusQuestId(this.currentQuest.getId()).withCurrentQuestIdx(0);
+      this.storage.saveString(this.getQuestLocalDataKey(this.currentQuest.getId()), Quests.questToJsonString(this.currentQuest));
+      this.storage.saveString(this.getQuestStatusLocalDataKey(this.currentQuest.getId()), Quests.questStatusToJsonString(this.currentQuestStatus));
+      this.storage.saveString(StoryManager.STORY_STAUS_KEY, Stories.storyStatusToJsonString(this.storyStatus));
+    }
+  }
+
+  getCurrentQuest() {
+    return this.currentQuest;
+  }
+
+  getCurrentQuestNode() {
+    return this.currentQuest.getNode(this.currentQuestStatus.getCurrentNodeIdx());
+  }
+
+  getCurrentQuestStatus() {
+    return this.currentQuestStatus;
+  }
+
+  completeCurrentNode() {
+    this.currentQuestStatus = this.currentQuestStatus.withCompletedCurrentNode();
+    this.storage.saveString(this.getQuestStatusLocalDataKey(this.currentQuestStatus.getId()), Quests.questStatusToJsonString(this.currentQuestStatus));
+    return this.currentQuestStatus;
+  }
+
+  moveToPreviousNode() {
+    Guard.beTrue(this.currentQuestStatus.isPreviousNodeAvailable(), "node must be available to move");
+    this.currentQuestStatus = this.currentQuestStatus.withCurrentNodeIdx(this.currentQuestStatus.getCurrentNodeIdx()-1);
+    this.storage.saveString(this.getQuestStatusLocalDataKey(this.currentQuestStatus.getId()), Quests.questStatusToJsonString(this.currentQuestStatus));
+    return this.currentQuestStatus.getCurrentNodeIdx();
+  }
+
+  moveToNextNode() {
+    Guard.beTrue(this.currentQuestStatus.isNextNodeAvailable(), "node must be available to move");
+    this.currentQuestStatus = this.currentQuestStatus.withCurrentNodeIdx(this.currentQuestStatus.getCurrentNodeIdx()+1);
+    this.storage.saveString(this.getQuestStatusLocalDataKey(this.currentQuestStatus.getId()), Quests.questStatusToJsonString(this.currentQuestStatus));
+    return this.currentQuestStatus.getCurrentNodeIdx();
+  }
+
+  getQuestLocalDataKey(questId) {
+    return LocalDataKey.of("quests."+questId.getId()+".definition.json");
+  }
+
+  getQuestStatusLocalDataKey(questId) {
+    return LocalDataKey.of("quests."+questId.getId()+".status.json");
+  }
+
+  toString() {
+  }
+
+  static create(storage) {
+    let res = new StoryManager();
+    res.storage = storage;
+    res.guardInvariants();
+    res.initialize();
+    return res;
+  }
+
+}
+classRegistry.StoryManager = StoryManager;
+class StoryStatus {
+  questIds;
+  currentQuestIdx;
+  constructor() {
+  }
+
+  getClass() {
+    return "StoryStatus";
+  }
+
+  guardInvariants() {
+  }
+
+  getQuestIds() {
+    return this.questIds;
+  }
+
+  plusQuestId(questId) {
+    let res = new StoryStatus();
+    res.questIds = Dut.immutableListPlusItem(this.questIds, questId);
+    res.currentQuestIdx = this.currentQuestIdx;
+    res.guardInvariants();
+    return res;
+  }
+
+  getCurrentQuestIdx() {
+    return this.currentQuestIdx;
+  }
+
+  getCurrentQuestId() {
+    return this.questIds.get(this.currentQuestIdx);
+  }
+
+  withCurrentQuestIdx(currentQuestIdx) {
+    let res = new StoryStatus();
+    res.questIds = this.questIds;
+    res.currentQuestIdx = currentQuestIdx;
+    res.guardInvariants();
+    return res;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new StoryStatus();
+    res.questIds = Collections.emptyList();
+    res.currentQuestIdx = 0;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.StoryStatus = StoryStatus;
+class JumpTransformAction {
+  height;
+  duration;
+  offset;
+  initialPos;
+  initialRot;
+  targetPos;
+  time;
+  constructor() {
+  }
+
+  getClass() {
+    return "JumpTransformAction";
+  }
+
+  guardInvariants() {
+  }
+
+  start(pos, rot) {
+    this.initialPos = pos;
+    this.initialRot = rot;
+    this.targetPos = this.initialPos.add(this.offset);
+    this.time = 0;
+  }
+
+  move(dt) {
+    if (this.time+dt>=this.duration) {
+      return TransformActionResult.create(this.targetPos, this.initialRot, true, this.duration-this.time-dt);
+    }
+    else {
+      this.time = this.time+dt;
+      let h = this.height*FMath.sin(this.time/this.duration*FMath.PI);
+      let inter = this.initialPos.interpolate(this.targetPos, this.time/this.duration);
+      return TransformActionResult.create(inter.withY(this.initialPos.y()+h), this.initialRot, false, 0);
+    }
+  }
+
+  toString() {
+  }
+
+  static create(height, duration, offset) {
+    let res = new JumpTransformAction();
+    res.height = height;
+    res.duration = duration;
+    res.offset = offset;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.JumpTransformAction = JumpTransformAction;
+class MoveToTransformAction {
+  targetPos;
+  duration;
+  initialPos;
+  initialRot;
+  time;
+  constructor() {
+  }
+
+  getClass() {
+    return "MoveToTransformAction";
+  }
+
+  guardInvariants() {
+  }
+
+  start(pos, rot) {
+    this.initialPos = pos;
+    this.initialRot = rot;
+    this.time = 0;
+  }
+
+  move(dt) {
+    if (this.time+dt>=this.duration) {
+      return TransformActionResult.create(this.targetPos, this.initialRot, true, this.duration-this.time-dt);
+    }
+    else {
+      this.time = this.time+dt;
+      let inter = this.initialPos.interpolate(this.targetPos, this.time/this.duration);
+      return TransformActionResult.create(inter, this.initialRot, false, 0);
+    }
+  }
+
+  toString() {
+  }
+
+  static create(targetPos, duration) {
+    let res = new MoveToTransformAction();
+    res.targetPos = targetPos;
+    res.duration = duration;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.MoveToTransformAction = MoveToTransformAction;
+class SpinTransformAction {
+  duration;
+  initialPos;
+  initialRot;
+  time;
+  constructor() {
+  }
+
+  getClass() {
+    return "SpinTransformAction";
+  }
+
+  guardInvariants() {
+  }
+
+  start(pos, rot) {
+    this.initialPos = pos;
+    this.initialRot = rot;
+    this.time = 0;
+  }
+
+  move(dt) {
+    if (this.time+dt>=this.duration) {
+      return TransformActionResult.create(this.initialPos, this.initialRot, true, this.duration-this.time-dt);
+    }
+    else {
+      this.time = this.time+dt;
+      let ratio = this.time/this.duration;
+      let spin = Quaternion.rotY(2*FMath.PI*ratio);
+      return TransformActionResult.create(this.initialPos, this.initialRot.mul(spin), false, 0);
+    }
+  }
+
+  toString() {
+  }
+
+  static create(duration) {
+    let res = new SpinTransformAction();
+    res.duration = duration;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.SpinTransformAction = SpinTransformAction;
+class TransformAction {
+  hash = Randoms.nextInt(0, 10000000);
+  constructor() {
+  }
+
+  getClass() {
+    return "TransformAction";
+  }
+
+  start(pos, rot) {
+  }
+
+  move(dt) {
+  }
+
+  hashCode() {
+    return this.hash;
+  }
+
+  equals(obj) {
+    return this==obj;
+  }
+
+}
+classRegistry.TransformAction = TransformAction;
+class TransformActionBehavior extends Behavior {
+  transform;
+  actions = new ArrayList();
+  cleanUpAction = null;
+  actionStarted = false;
+  lock = new Object();
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "TransformActionBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+  }
+
+  move(dt, inputs) {
+    let remDt = dt;
+    while (remDt>0) {
+      if (this.actions.isEmpty()) {
+        if (this.cleanUpAction==null) {
+          remDt = 0;
+        }
+        else {
+          if (!this.actionStarted) {
+            this.cleanUpAction.start(this.transform.getPos(), this.transform.getRot());
+            this.actionStarted = true;
+          }
+          let res = this.cleanUpAction.move(remDt);
+          this.transform.setPos(res.getPos());
+          this.transform.setRot(res.getRot());
+          if (res.getMessageType()!=null) {
+            this.actor().sendMessage(res.getMessageType(), res.getMessage());
+          }
+          remDt = 0;
+        }
+      }
+      else {
+        let action = this.actions.get(0);
+        if (!this.actionStarted) {
+          action.start(this.transform.getPos(), this.transform.getRot());
+          this.actionStarted = true;
+        }
+        let res = action.move(remDt);
+        this.transform.setPos(res.getPos());
+        this.transform.setRot(res.getRot());
+        if (res.getMessageType()!=null) {
+          this.actor().sendMessage(res.getMessageType(), res.getMessage());
+        }
+        if (res.isDone()) {
+          remDt = res.getLeftoverDt();
+          this.actionStarted = false;
+          let newActions = new ArrayList();
+          for (let i = 1; i<this.actions.size(); ++i) {
+            newActions.add(this.actions.get(i));
+          }
+          this.actions = newActions;
+        }
+        else {
+          remDt = 0;
+        }
+      }
+    }
+  }
+
+  addAction(action) {
+    Guard.notNull(action, "action cannot be null");
+    if (this.actions.isEmpty()) {
+      this.actionStarted = false;
+    }
+    this.actions.add(action);
+    return this;
+  }
+
+  setCleanUpAction(cleanUpAction) {
+    this.cleanUpAction = cleanUpAction;
+    return this;
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new TransformActionBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.TransformActionBehavior = TransformActionBehavior;
+class TransformActionResult {
+  pos;
+  rot;
+  messageType;
+  message;
+  done;
+  leftoverDt;
+  constructor() {
+  }
+
+  getClass() {
+    return "TransformActionResult";
+  }
+
+  guardInvariants() {
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getRot() {
+    return this.rot;
+  }
+
+  getMessageType() {
+    return this.messageType;
+  }
+
+  getMessage() {
+    return this.message;
+  }
+
+  isDone() {
+    return this.done;
+  }
+
+  getLeftoverDt() {
+    return this.leftoverDt;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(pos, rot, done, leftoverDt) {
+    let res = new TransformActionResult();
+    res.pos = pos;
+    res.rot = rot;
+    res.messageType = null;
+    res.message = null;
+    res.done = done;
+    res.leftoverDt = leftoverDt;
+    res.guardInvariants();
+    return res;
+  }
+
+  static createWithMessage(pos, rot, messageType, message, done, leftoverDt) {
+    let res = new TransformActionResult();
+    res.pos = pos;
+    res.rot = rot;
+    res.messageType = messageType;
+    res.message = message;
+    res.done = done;
+    res.leftoverDt = leftoverDt;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.TransformActionResult = TransformActionResult;
 
 
 // -------------------------------------
@@ -36535,7 +42393,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = new BasicApp02();
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/loading.tap", "loading-screen-1").setRegionFnc((size) => {  if (size.width() / size.height() > 1.33) {    return Rect2.create(0, 0, size.width(), size.height());  }  else {    return Rect2.create(size.width() / 2 - size.height() * 0.665, 0, size.height() * 1.33, size.height());  }}), new MenuScreen());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

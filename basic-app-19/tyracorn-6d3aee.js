@@ -22387,6 +22387,7 @@ class MeshAnimationPlayConfig {
   static PLAY = MeshAnimationPlayConfig.play();
   static RESTART = MeshAnimationPlayConfig.play().withStartTime(0);
   startTime;
+  speed;
   constructor() {
   }
 
@@ -22404,6 +22405,19 @@ class MeshAnimationPlayConfig {
   withStartTime(startTime) {
     let res = new MeshAnimationPlayConfig();
     res.startTime = startTime;
+    res.speed = this.speed;
+    res.guardInvariants();
+    return res;
+  }
+
+  getSpeed() {
+    return this.speed;
+  }
+
+  withSpeed(speed) {
+    let res = new MeshAnimationPlayConfig();
+    res.startTime = this.startTime;
+    res.speed = speed;
     res.guardInvariants();
     return res;
   }
@@ -22422,6 +22436,7 @@ class MeshAnimationPlayConfig {
   static play() {
     let res = new MeshAnimationPlayConfig();
     res.startTime = null;
+    res.speed = 1;
     res.guardInvariants();
     return res;
   }
@@ -22432,6 +22447,7 @@ class MeshAnimationPlayer {
   collection;
   animationKey = null;
   animation = null;
+  speed = 1;
   time = 0;
   constructor() {
   }
@@ -22445,13 +22461,14 @@ class MeshAnimationPlayer {
 
   move(dt) {
     let st = this.time;
-    this.time = this.time+dt;
+    this.time = this.time+dt*this.speed;
     let triggers = this.animation.getTriggers(st, this.time);
     return MeshAnimationStep.create(this.animationKey, this.time, this.isEnd(), this.getInterpolation(), this.getPose(), triggers);
   }
 
   play(key, config) {
     if (config.getStartTime()==null) {
+      this.speed = config.getSpeed();
       if (this.animationKey.equals(key)) {
         return ;
       }
@@ -22462,6 +22479,7 @@ class MeshAnimationPlayer {
     else {
       this.animationKey = key;
       this.animation = this.collection.getAnimation(key);
+      this.speed = config.getSpeed();
       this.time = config.getStartTime();
     }
   }
@@ -22503,6 +22521,7 @@ class MeshAnimationPlayer {
     res.collection = collection;
     res.animationKey = start;
     res.animation = collection.getAnimation(start);
+    res.speed = 1;
     res.time = 0;
     res.guardInvariants();
     return res;
@@ -30875,6 +30894,9 @@ class GroundedComponent extends Behavior {
   }
 
   isGrounded() {
+    if (this.rigidBody.getVelocity().y()>this.maxUpVelocity) {
+      this.grounded = false;
+    }
     return this.grounded;
   }
 

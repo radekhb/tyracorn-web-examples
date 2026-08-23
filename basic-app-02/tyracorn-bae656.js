@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-13";
-const assetsDirName = "/assets-737589";
+const basePath = "/tyracorn-web-examples/basic-app-02";
+const assetsDirName = "/assets-1921d2";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -22387,6 +22387,7 @@ class MeshAnimationPlayConfig {
   static PLAY = MeshAnimationPlayConfig.play();
   static RESTART = MeshAnimationPlayConfig.play().withStartTime(0);
   startTime;
+  speed;
   constructor() {
   }
 
@@ -22404,6 +22405,19 @@ class MeshAnimationPlayConfig {
   withStartTime(startTime) {
     let res = new MeshAnimationPlayConfig();
     res.startTime = startTime;
+    res.speed = this.speed;
+    res.guardInvariants();
+    return res;
+  }
+
+  getSpeed() {
+    return this.speed;
+  }
+
+  withSpeed(speed) {
+    let res = new MeshAnimationPlayConfig();
+    res.startTime = this.startTime;
+    res.speed = speed;
     res.guardInvariants();
     return res;
   }
@@ -22422,6 +22436,7 @@ class MeshAnimationPlayConfig {
   static play() {
     let res = new MeshAnimationPlayConfig();
     res.startTime = null;
+    res.speed = 1;
     res.guardInvariants();
     return res;
   }
@@ -22432,6 +22447,7 @@ class MeshAnimationPlayer {
   collection;
   animationKey = null;
   animation = null;
+  speed = 1;
   time = 0;
   constructor() {
   }
@@ -22445,13 +22461,14 @@ class MeshAnimationPlayer {
 
   move(dt) {
     let st = this.time;
-    this.time = this.time+dt;
+    this.time = this.time+dt*this.speed;
     let triggers = this.animation.getTriggers(st, this.time);
     return MeshAnimationStep.create(this.animationKey, this.time, this.isEnd(), this.getInterpolation(), this.getPose(), triggers);
   }
 
   play(key, config) {
     if (config.getStartTime()==null) {
+      this.speed = config.getSpeed();
       if (this.animationKey.equals(key)) {
         return ;
       }
@@ -22462,6 +22479,7 @@ class MeshAnimationPlayer {
     else {
       this.animationKey = key;
       this.animation = this.collection.getAnimation(key);
+      this.speed = config.getSpeed();
       this.time = config.getStartTime();
     }
   }
@@ -22503,6 +22521,7 @@ class MeshAnimationPlayer {
     res.collection = collection;
     res.animationKey = start;
     res.animation = collection.getAnimation(start);
+    res.speed = 1;
     res.time = 0;
     res.guardInvariants();
     return res;
@@ -30875,6 +30894,9 @@ class GroundedComponent extends Behavior {
   }
 
   isGrounded() {
+    if (this.rigidBody.getVelocity().y()>this.maxUpVelocity) {
+      this.grounded = false;
+    }
     return this.grounded;
   }
 
@@ -36016,209 +36038,143 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class CustomLabel extends UiComponent {
-  container;
-  text;
-  posFnc;
-  font;
-  alignment;
-  containerSize;
-  pos;
+class BoxMeshFactory {
   constructor() {
-    super();
   }
 
   getClass() {
-    return "CustomLabel";
+    return "BoxMeshFactory";
   }
 
-  guardInvariants() {
+  static rgbBox() {
+    if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&&arguments[3] instanceof Rgb) {
+      return BoxMeshFactory.rgbBox_4_Rgb_Rgb_Rgb_Rgb(arguments[0], arguments[1], arguments[2], arguments[3]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
   }
 
-  init(container) {
-    this.container = container;
+  static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  move(dt) {
+  static rgbBox_3_number_number_number(r, g, b) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  draw(painter) {
-    let color = null;
-    painter.drawText(this.text, this.pos, this.alignment, this.font, color);
+  static rgbaBox(c1, c2, c3, c4, a) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  onContainerResize(size) {
-    this.containerSize = size;
-    this.pos = Functions.apply(this.posFnc, size);
+  static fabricBox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.fabric(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  getText() {
-    return this.text;
+  static modelBox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  setText(text) {
-    Guard.notNull(text, "text cannot be null");
-    this.text = text;
-    return this;
+  static modelSkybox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, -1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22))).toMesh();
+    return res;
   }
 
-  getPosFnc() {
-    return this.posFnc;
+  static modelBoxDeformed1() {
+    let en = Vec2.create(1, -1).normalize();
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  setPosFnc(posFnc) {
-    Guard.notNull(posFnc, "posFnc cannot be null");
-    this.posFnc = posFnc;
-    this.onContainerResize(this.containerSize);
-    return this;
-  }
-
-  getFont() {
-    return this.font;
-  }
-
-  setFont(font) {
-    Guard.notNull(font, "font cannot be null");
-    this.font = font;
-    return this;
-  }
-
-  getAlignment() {
-    return this.alignment;
-  }
-
-  setAlignment(alignment) {
-    Guard.notNull(alignment, "alignment cannot be null");
-    this.alignment = alignment;
-    return this;
-  }
-
-  toString() {
-  }
-
-  static create() {
-    let res = new CustomLabel();
-    res.text = "";
-    res.alignment = TextAlignment.CENTER;
-    res.posFnc = UiPosFncs.center();
-    res.font = FontId.DEFAULT;
-    res.containerSize = Size2.create(1, 1);
-    res.pos = Functions.apply(res.posFnc, res.containerSize);
-    res.guardInvariants();
+  static modelBoxDeformed2() {
+    let en = Vec2.create(-1, -1).normalize();
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.floatValues(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
     return res;
   }
 
 }
-classRegistry.CustomLabel = CustomLabel;
-class BasicApp13 extends TyracornScreen {
+classRegistry.BoxMeshFactory = BoxMeshFactory;
+class BasicApp02 extends TyracornApp {
+  planes = Dut.immutableList(MeshId.of("plane-0"), MeshId.of("plane-1"), MeshId.of("plane-2"), MeshId.of("plane-3"), MeshId.of("plane-4"), MeshId.of("plane-5"), MeshId.of("plane-6"), MeshId.of("plane-7"), MeshId.of("plane-8"), MeshId.of("plane-9"), MeshId.of("plane-10"));
+  tex1 = TextureId.of("tex1");
+  tex2 = TextureId.of("tex2");
+  stone = TextureId.of("stone-floor-1");
+  tyracorn = TextureId.of("tyracorn");
+  rug = TextureId.of("rug-1");
   time = 0;
-  ui;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp13";
+    return "BasicApp02";
   }
 
-  move(drivers, screenManager, dt) {
+  move(drivers, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
+    let aspect = gDriver.getScreenViewport().getAspect();
+    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
+    let m = 2*FMath.sin(this.time/3);
+    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 5), Vec3.ZERO, Vec3.create(0, 1, 0));
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
-    uiRenderer.render(this.ui);
-    uiRenderer.end();
+    let renderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, Light.directional(LightColor.AMBIENT_WHITE, Vec3.DOWN)));
+    renderer.render(this.planes.get(10), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -0.5, 0).mul(Mat44.rotX(-Math.PI/2).mul(Mat44.scale(20, 20, 1))), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.rug, TextureStyle.SMOOTH_REPEAT)));
+    renderer.render(this.planes.get(1), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-4, 1, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.LINEAR, TextureFilterType.LINEAR))));
+    renderer.render(this.planes.get(1), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-4, 0, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(1), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-2.4, 0, 0).mul(Mat44.scale(2, 1, 1)), Material.fromColors(Rgb.BLACK, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.ALPHA, this.tyracorn, TextureStyle.SMOOTH_REPEAT)).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tyracorn, TextureStyle.SMOOTH_REPEAT)));
+    renderer.render(this.planes.get(2), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-0.6, 0, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(2), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-0.6, 1, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.LINEAR, TextureFilterType.LINEAR))));
+    renderer.render(this.planes.get(2), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-0.6, 2, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.SMOOTH_REPEAT)));
+    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0.8, 0, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.EDGE, TextureWrapType.EDGE, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0.8, 1, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.MIRRORED_REPEAT, TextureWrapType.MIRRORED_REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0.8, 2, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(2.0, 0, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.BORDER, TextureWrapType.BORDER, Rgba.RED, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(2.0, 1, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.BORDER, TextureWrapType.BORDER, Rgba.WHITE, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    renderer.end();
   }
 
-  load(drivers, screenManager, properties) {
+  init(drivers, properties) {
+    let assets = drivers.getDriver("AssetManager");
+    assets.put(this.planes.get(1), this.plane(1, 1));
+    assets.put(this.planes.get(2), this.plane(2, 2));
+    assets.put(this.planes.get(3), this.plane(3, 3));
+    assets.put(this.planes.get(4), this.plane(4, 4));
+    assets.put(this.planes.get(5), this.plane(5, 5));
+    assets.put(this.planes.get(6), this.plane(6, 6));
+    assets.put(this.planes.get(7), this.plane(7, 7));
+    assets.put(this.planes.get(8), this.plane(8, 8));
+    assets.put(this.planes.get(9), this.plane(9, 9));
+    assets.put(this.planes.get(10), this.plane(10, 10));
+    let mtex1 = Texture.rgbFloatValues(4, 4, 1, 1, 1, 0.3, 0.3, 0.3, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 1, 1, 1, 1, 0, 0.3, 0.3, 0.3, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 1, 1, 0, 1).powRgb(2.2);
+    let mtex2 = Texture.rgbaFloatValues(4, 4, 1, 1, 1, 1, 0.3, 0.3, 0.3, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1).powRgb(2.2);
+    assets.put(this.tex1, mtex1);
+    assets.put(this.tex2, mtex2);
     let res = new ArrayList();
-    let assets = drivers.getDriver("AssetManager");
-    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/fonts-extra")));
+    res.add(assets.resolveAsync(Path.of("asset:stone-floor-1.png"), "Texture", TextureFncs.flipVertGammaToUnsignedByte(2.2)));
+    res.add(assets.resolveAsync(Path.of("asset:tyracorn.png"), "Texture", TextureFncs.flipVertGammaToUnsignedByte(2.2)));
+    res.add(assets.resolveAsync(Path.of("asset:rug-1.png"), "Texture", TextureFncs.flipVertGammaToUnsignedByte(2.2)));
     return res;
   }
 
-  init(drivers, screenManager, properties) {
-    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
-    let assets = drivers.getDriver("AssetManager");
-    let sizes = Dut.immutableList(12, 14, 16, 20, 24, 32, 48, 64, 72, 80);
-    Fonts.prepareScaledFonts(assets, Dut.copySet(sizes));
-    const fontIdBasess = Dut.immutableList("rubik-regular-", "rubik-bold-", "nobile-regular-", "kenny-blocks-", "kenny-future-", "kenny-future-square-", "kenny-bold-", "kenny-space-", "kenny-mini-", "kenny-thick-");
-    const label = CustomLabel.create().setText("Tyracorn").setFont(FontId.of("rubik-regular-32")).setPosFnc(UiPosFncs.center()).setAlignment(TextAlignment.CENTER);
-    const fontLabel = Label.create().setText("rubik-regular-32").setPosFnc(UiPosFncs.center(0, 160)).setAlignment(TextAlignment.CENTER_TOP);
-    let fontAct = (evtSource) => {
-      let oldFontId = label.getFont().id();
-      let oldSize = this.getFontSize(oldFontId);
-      let oldFontIdBase = this.getFontBase(oldFontId)+"-";
-      let newIdx = fontIdBasess.indexOf(oldFontIdBase)+1;
-      if (newIdx>=fontIdBasess.size()) {
-        newIdx = 0;
-      }
-      label.setFont(FontId.of(fontIdBasess.get(newIdx)+oldSize));
-      fontLabel.setText(fontIdBasess.get(newIdx)+oldSize);
-    };
-    const alignemnts = Dut.immutableList(TextAlignment.LEFT_TOP, TextAlignment.CENTER_TOP, TextAlignment.RIGHT_TOP, TextAlignment.LEFT_CENTER, TextAlignment.CENTER, TextAlignment.RIGHT_CENTER, TextAlignment.LEFT_BASE, TextAlignment.CENTER_BASE, TextAlignment.RIGHT_BASE, TextAlignment.LEFT_BOTTOM, TextAlignment.CENTER_BOTTOM, TextAlignment.RIGHT_BOTTOM);
-    let alignAct = (evtSource) => {
-      let idx = alignemnts.indexOf(label.getAlignment())+1;
-      if (idx>=alignemnts.size()) {
-        idx = 0;
-      }
-      label.setAlignment(alignemnts.get(idx));
-    };
-    const texts = Dut.immutableList("Tyracorn", "Hello World!!!", "I love you");
-    let textAct = (evtSource) => {
-      let idx = texts.indexOf(label.getText())+1;
-      if (idx>=texts.size()) {
-        idx = 0;
-      }
-      label.setText(texts.get(idx));
-    };
-    let sizeAct = (evtSource) => {
-      let oldFontId = label.getFont().id();
-      let oldSize = this.getFontSize(oldFontId);
-      let oldFontIdBase = this.getFontBase(oldFontId)+"-";
-      let newIdx = sizes.indexOf(oldSize)+1;
-      if (newIdx>=sizes.size()) {
-        newIdx = 0;
-      }
-      label.setFont(FontId.of(oldFontIdBase+sizes.get(newIdx)));
-      fontLabel.setText(oldFontIdBase+sizes.get(newIdx));
-    };
-    this.ui.addComponent(Panel.create().setRegionFnc(UiRegionFncs.center(5, 5)));
-    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(-130, 80, 120, 30)).setText("Font").addOnClickAction(fontAct));
-    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(10, 80, 120, 30)).setText("Alignment").addOnClickAction(alignAct));
-    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(-130, 120, 120, 30)).setText("Text").addOnClickAction(textAct));
-    this.ui.addComponent(Button.create().setRegionFnc(UiRegionFncs.center(10, 120, 120, 30)).setText("Size").addOnClickAction(sizeAct));
-    this.ui.addComponent(label);
-    this.ui.addComponent(fontLabel);
-    if (drivers.getPlatform().isExitable()) {
-      this.ui.addComponent(PlayUis.createExitButton(UiEventActions.exitApp(screenManager)));
-    }
-    this.ui.subscribe(drivers);
+  close(drivers) {
   }
 
-  leave(drivers) {
-    this.ui.unsubscribe(drivers);
-  }
-
-  getFontBase(fontName) {
-    let parts = fontName.split("-");
-    let res = parts[0];
-    for (let i = 1; i<parts.length-1; ++i) {
-      res = res+"-"+parts[i];
-    }
+  plane(repU, repV) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3, VertexAttr.TEX2), Dut.list(Vertex.floatValues(-0.5, -0.5, 0, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0, 0, 0, 1, repU, 0), Vertex.floatValues(0.5, 0.5, 0, 0, 0, 1, repU, repV), Vertex.floatValues(-0.5, 0.5, 0, 0, 0, 1, 0, repV))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3))).toMesh();
     return res;
-  }
-
-  getFontSize(fontName) {
-    let parts = fontName.split("-");
-    let resStr = parts[parts.length-1];
-    return Integer.parseInt(resStr);
   }
 
 }
-classRegistry.BasicApp13 = BasicApp13;
+classRegistry.BasicApp02 = BasicApp02;
 
 
 // -------------------------------------
@@ -36601,7 +36557,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp13());
+    tyracornApp = new BasicApp02();
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
