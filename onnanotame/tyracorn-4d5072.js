@@ -37238,7 +37238,7 @@ class CombatScreen extends TyracornScreen {
     this.gameMaster = CombatGameMasterBehavior.create(ComponentKey.of("game-master"), this.scenario);
     this.world.actors().get(WorldActors.WORLD).addComponent(this.audio).addComponent(this.gameMaster);
     this.gameMaster.spawnInitialActors();
-    this.world.actors().get(WorldActors.CAMERA).addComponent(CameraShiftBehavior.create(ComponentKey.random()));
+    this.world.actors().get(WorldActors.CAMERA).addComponent(FighterCameraShiftBehavior.create(ComponentKey.random()));
     this.world.actors().get(ActorId.of("sun")).getComponent("LightComponent").setDirShadowMapStrategy(DirShadowMapStrategy.createManual(130, 130, 0, 70));
     this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
     this.ui.addComponent(PlayUis.createPauseButton((evt) => {
@@ -37983,96 +37983,6 @@ class AudienceBaseBehavior extends Behavior {
 
 }
 classRegistry.AudienceBaseBehavior = AudienceBaseBehavior;
-class CameraShiftBehavior extends Behavior {
-  cameraFovy;
-  cameraController;
-  targetTurn = -600;
-  aspect = -1;
-  basePosOffset = Vec3.BACKWARD;
-  baseLookAtOffset = Vec3.ZERO;
-  basePosK = -1;
-  baseLookAtK = -1;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "CameraShiftBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.cameraFovy = this.actor().getComponent("CameraFovyComponent");
-    this.cameraController = this.actor().getComponent("CameraControllerComponent");
-    this.basePosOffset = this.cameraController.getPosOffset();
-    this.baseLookAtOffset = this.cameraController.getLookAtOffset();
-    this.basePosK = this.cameraController.getPosK();
-    this.baseLookAtK = this.cameraController.getLookAtK();
-  }
-
-  move(dt, inputs) {
-    let targetId = this.cameraController.getTargetId();
-    if (this.world().actors().exists(targetId)) {
-      let tracked = this.world().actors().get(targetId).getComponent("FighterCharacterBehavior");
-      let tt = tracked.getState().getTargetTurn();
-      let asc = this.cameraFovy.getDisplaySize().aspect();
-      if (tt!=this.targetTurn||this.aspect!=asc) {
-        let pk = this.basePosK;
-        let lak = this.baseLookAtK;
-        this.aspect = asc;
-        this.targetTurn = tt;
-        let xFact = 1;
-        let zFact = 1;
-        if (this.aspect>2) {
-          xFact = 3;
-          zFact = 1;
-          pk = this.basePosK;
-          lak = this.baseLookAtK;
-        }
-        else if (this.aspect>1) {
-          xFact = 2.2;
-          zFact = 1.1;
-          pk = FMath.min(1, 1.5*this.basePosK);
-          lak = FMath.min(1, 1.5*this.baseLookAtK);
-        }
-        else if (this.aspect>0.75) {
-          xFact = 1.8;
-          zFact = 1.2;
-          pk = FMath.min(1, 2*this.basePosK);
-          lak = FMath.min(1, 2*this.baseLookAtK);
-        }
-        else if (this.aspect>0.5) {
-          xFact = 1.5;
-          zFact = 1.3;
-          pk = FMath.min(1, 2.5*this.basePosK);
-          lak = FMath.min(1, 2.5*this.baseLookAtK);
-        }
-        else {
-          xFact = 1.2;
-          zFact = 1.4;
-          pk = FMath.min(1, 3*this.basePosK);
-          lak = FMath.min(1, 3*this.baseLookAtK);
-        }
-        let mx = xFact*FMath.sin(this.targetTurn);
-        let mz = zFact*this.basePosOffset.z();
-        this.cameraController.setPosOffset(this.basePosOffset.withX(mx).withZ(mz)).setLookAtOffset(this.baseLookAtOffset.withX(mx)).setPosK(pk).setLookAtK(lak);
-      }
-    }
-  }
-
-  toString() {
-  }
-
-  static create(key) {
-    let res = new CameraShiftBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.CameraShiftBehavior = CameraShiftBehavior;
 const createFighterAction = (description) => {
   const symbol = Symbol(description);
   return {
@@ -39064,6 +38974,96 @@ class FighterBaseInputBehavior extends Behavior {
 
 }
 classRegistry.FighterBaseInputBehavior = FighterBaseInputBehavior;
+class FighterCameraShiftBehavior extends Behavior {
+  cameraFovy;
+  cameraController;
+  targetTurn = -600;
+  aspect = -1;
+  basePosOffset = Vec3.BACKWARD;
+  baseLookAtOffset = Vec3.ZERO;
+  basePosK = -1;
+  baseLookAtK = -1;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FighterCameraShiftBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.cameraFovy = this.actor().getComponent("CameraFovyComponent");
+    this.cameraController = this.actor().getComponent("CameraControllerComponent");
+    this.basePosOffset = this.cameraController.getPosOffset();
+    this.baseLookAtOffset = this.cameraController.getLookAtOffset();
+    this.basePosK = this.cameraController.getPosK();
+    this.baseLookAtK = this.cameraController.getLookAtK();
+  }
+
+  move(dt, inputs) {
+    let targetId = this.cameraController.getTargetId();
+    if (this.world().actors().exists(targetId)) {
+      let tracked = this.world().actors().get(targetId).getComponent("FighterCharacterBehavior");
+      let tt = tracked.getState().getTargetTurn();
+      let asc = this.cameraFovy.getDisplaySize().aspect();
+      if (tt!=this.targetTurn||this.aspect!=asc) {
+        let pk = this.basePosK;
+        let lak = this.baseLookAtK;
+        this.aspect = asc;
+        this.targetTurn = tt;
+        let xFact = 1;
+        let zFact = 1;
+        if (this.aspect>2) {
+          xFact = 3;
+          zFact = 1;
+          pk = this.basePosK;
+          lak = this.baseLookAtK;
+        }
+        else if (this.aspect>1) {
+          xFact = 2.2;
+          zFact = 1.1;
+          pk = FMath.min(1, 1.5*this.basePosK);
+          lak = FMath.min(1, 1.5*this.baseLookAtK);
+        }
+        else if (this.aspect>0.75) {
+          xFact = 1.8;
+          zFact = 1.2;
+          pk = FMath.min(1, 2*this.basePosK);
+          lak = FMath.min(1, 2*this.baseLookAtK);
+        }
+        else if (this.aspect>0.5) {
+          xFact = 1.5;
+          zFact = 1.3;
+          pk = FMath.min(1, 2.5*this.basePosK);
+          lak = FMath.min(1, 2.5*this.baseLookAtK);
+        }
+        else {
+          xFact = 1.2;
+          zFact = 1.4;
+          pk = FMath.min(1, 3*this.basePosK);
+          lak = FMath.min(1, 3*this.baseLookAtK);
+        }
+        let mx = xFact*FMath.sin(this.targetTurn);
+        let mz = zFact*this.basePosOffset.z();
+        this.cameraController.setPosOffset(this.basePosOffset.withX(mx).withZ(mz)).setLookAtOffset(this.baseLookAtOffset.withX(mx)).setPosK(pk).setLookAtK(lak);
+      }
+    }
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new FighterCameraShiftBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FighterCameraShiftBehavior = FighterCameraShiftBehavior;
 class FighterCharacterBehavior extends Behavior {
   config = FighterConfig.create();
   state = FighterState.create();
@@ -39948,6 +39948,85 @@ class Quest {
 
 }
 classRegistry.Quest = Quest;
+class QuestCameraShiftBehavior extends Behavior {
+  cameraFovy;
+  cameraController;
+  aspect = -1;
+  basePosOffset = Vec3.BACKWARD;
+  baseLookAtOffset = Vec3.ZERO;
+  basePosK = -1;
+  baseLookAtK = -1;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "QuestCameraShiftBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.cameraFovy = this.actor().getComponent("CameraFovyComponent");
+    this.cameraController = this.actor().getComponent("CameraControllerComponent");
+    this.basePosOffset = this.cameraController.getPosOffset();
+    this.baseLookAtOffset = this.cameraController.getLookAtOffset();
+    this.basePosK = this.cameraController.getPosK();
+    this.baseLookAtK = this.cameraController.getLookAtK();
+  }
+
+  move(dt, inputs) {
+    let targetId = this.cameraController.getTargetId();
+    if (this.world().actors().exists(targetId)) {
+      let asc = this.cameraFovy.getDisplaySize().aspect();
+      if (this.aspect!=asc) {
+        let pk = this.basePosK;
+        let lak = this.baseLookAtK;
+        this.aspect = asc;
+        let zFact = 1;
+        if (this.aspect>2) {
+          zFact = 1;
+          pk = this.basePosK;
+          lak = this.baseLookAtK;
+        }
+        else if (this.aspect>1) {
+          zFact = 1.5;
+          pk = FMath.min(1, 1.5*this.basePosK);
+          lak = FMath.min(1, 1.5*this.baseLookAtK);
+        }
+        else if (this.aspect>0.75) {
+          zFact = 2;
+          pk = FMath.min(1, 2*this.basePosK);
+          lak = FMath.min(1, 2*this.baseLookAtK);
+        }
+        else if (this.aspect>0.5) {
+          zFact = 2.5;
+          pk = FMath.min(1, 2.5*this.basePosK);
+          lak = FMath.min(1, 2.5*this.baseLookAtK);
+        }
+        else {
+          zFact = 3;
+          pk = FMath.min(1, 3*this.basePosK);
+          lak = FMath.min(1, 3*this.baseLookAtK);
+        }
+        let mz = zFact*this.basePosOffset.z();
+        this.cameraController.setPosOffset(this.basePosOffset.withZ(mz)).setLookAtOffset(this.baseLookAtOffset).setPosK(pk).setLookAtK(lak);
+      }
+    }
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new QuestCameraShiftBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestCameraShiftBehavior = QuestCameraShiftBehavior;
 class QuestCharacterController extends UiComponent {
   moveJoystick;
   fightButton;
@@ -40864,7 +40943,7 @@ class QuestScreen extends TyracornScreen {
     let initialPlayerPos = Vec3.create(currentQuestStatus.getCurrentNodeIdx()*QuestScreen.NODE_DISTANCE, 0, 0);
     let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(10, 25, 20), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
     this.world.actors().add(light);
-    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY).setFovyLandscape(FMath.toRadians(60)).setFovyPortrait(FMath.toRadians(60))).addComponent(CameraControllerComponent.create(ComponentKey.random()).setMode(CameraControlMode.ISOMETRIC).setTargetId(ActorId.of("player")).setPosOffset(Vec3.create(0, 4, 8)).setLookAtOffset(Vec3.create(0, 1, 0)).setPosK(0.05).setLookAtK(0.15)).addComponent(this.audio);
+    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY).setFovyLandscape(FMath.toRadians(60)).setFovyPortrait(FMath.toRadians(60))).addComponent(CameraControllerComponent.create(ComponentKey.random()).setMode(CameraControlMode.ISOMETRIC).setTargetId(ActorId.of("player")).setPosOffset(Vec3.create(0, 4, 8)).setLookAtOffset(Vec3.create(0, 1, 0)).setPosK(0.05).setLookAtK(0.15)).addComponent(QuestCameraShiftBehavior.create(ComponentKey.random())).addComponent(this.audio);
     this.world.actors().add(camera);
     this.questPlayerBehavior = this.spawnPlayer(assets, initialPlayerPos).getComponent("QuestPlayerBehavior");
     this.questNodeActors = new ArrayList();
@@ -40878,7 +40957,7 @@ class QuestScreen extends TyracornScreen {
     this.controller = QuestCharacterController.create(drivers).addFightButtonOnClickAction((src) => {
   this.nodeConfirmed = true;
   this.questPlayerBehavior.commitFight();
-  camera.getComponent("CameraControllerComponent").setPosOffset(Vec3.create(0, 2, 3));
+  camera.getComponent("CameraControllerComponent").setPosOffset(Vec3.create(-2, 2, 3));
 });
     this.ui.addComponent(this.controller);
     this.ui.addComponent(PlayUis.createPauseButton((evt) => {
@@ -41412,6 +41491,316 @@ class StoryStatus {
 
 }
 classRegistry.StoryStatus = StoryStatus;
+class JumpTransformAction {
+  height;
+  duration;
+  offset;
+  initialPos;
+  initialRot;
+  targetPos;
+  time;
+  constructor() {
+  }
+
+  getClass() {
+    return "JumpTransformAction";
+  }
+
+  guardInvariants() {
+  }
+
+  start(pos, rot) {
+    this.initialPos = pos;
+    this.initialRot = rot;
+    this.targetPos = this.initialPos.add(this.offset);
+    this.time = 0;
+  }
+
+  move(dt) {
+    if (this.time+dt>=this.duration) {
+      return TransformActionResult.create(this.targetPos, this.initialRot, true, this.duration-this.time-dt);
+    }
+    else {
+      this.time = this.time+dt;
+      let h = this.height*FMath.sin(this.time/this.duration*FMath.PI);
+      let inter = this.initialPos.interpolate(this.targetPos, this.time/this.duration);
+      return TransformActionResult.create(inter.withY(this.initialPos.y()+h), this.initialRot, false, 0);
+    }
+  }
+
+  toString() {
+  }
+
+  static create(height, duration, offset) {
+    let res = new JumpTransformAction();
+    res.height = height;
+    res.duration = duration;
+    res.offset = offset;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.JumpTransformAction = JumpTransformAction;
+class MoveToTransformAction {
+  targetPos;
+  duration;
+  initialPos;
+  initialRot;
+  time;
+  constructor() {
+  }
+
+  getClass() {
+    return "MoveToTransformAction";
+  }
+
+  guardInvariants() {
+  }
+
+  start(pos, rot) {
+    this.initialPos = pos;
+    this.initialRot = rot;
+    this.time = 0;
+  }
+
+  move(dt) {
+    if (this.time+dt>=this.duration) {
+      return TransformActionResult.create(this.targetPos, this.initialRot, true, this.duration-this.time-dt);
+    }
+    else {
+      this.time = this.time+dt;
+      let inter = this.initialPos.interpolate(this.targetPos, this.time/this.duration);
+      return TransformActionResult.create(inter, this.initialRot, false, 0);
+    }
+  }
+
+  toString() {
+  }
+
+  static create(targetPos, duration) {
+    let res = new MoveToTransformAction();
+    res.targetPos = targetPos;
+    res.duration = duration;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.MoveToTransformAction = MoveToTransformAction;
+class SpinTransformAction {
+  duration;
+  initialPos;
+  initialRot;
+  time;
+  constructor() {
+  }
+
+  getClass() {
+    return "SpinTransformAction";
+  }
+
+  guardInvariants() {
+  }
+
+  start(pos, rot) {
+    this.initialPos = pos;
+    this.initialRot = rot;
+    this.time = 0;
+  }
+
+  move(dt) {
+    if (this.time+dt>=this.duration) {
+      return TransformActionResult.create(this.initialPos, this.initialRot, true, this.duration-this.time-dt);
+    }
+    else {
+      this.time = this.time+dt;
+      let ratio = this.time/this.duration;
+      let spin = Quaternion.rotY(2*FMath.PI*ratio);
+      return TransformActionResult.create(this.initialPos, this.initialRot.mul(spin), false, 0);
+    }
+  }
+
+  toString() {
+  }
+
+  static create(duration) {
+    let res = new SpinTransformAction();
+    res.duration = duration;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.SpinTransformAction = SpinTransformAction;
+class TransformAction {
+  hash = Randoms.nextInt(0, 10000000);
+  constructor() {
+  }
+
+  getClass() {
+    return "TransformAction";
+  }
+
+  start(pos, rot) {
+  }
+
+  move(dt) {
+  }
+
+  hashCode() {
+    return this.hash;
+  }
+
+  equals(obj) {
+    return this==obj;
+  }
+
+}
+classRegistry.TransformAction = TransformAction;
+class TransformActionBehavior extends Behavior {
+  transform;
+  actions = new ArrayList();
+  cleanUpAction = null;
+  actionStarted = false;
+  lock = new Object();
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "TransformActionBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+  }
+
+  move(dt, inputs) {
+    let remDt = dt;
+    while (remDt>0) {
+      if (this.actions.isEmpty()) {
+        if (this.cleanUpAction==null) {
+          remDt = 0;
+        }
+        else {
+          if (!this.actionStarted) {
+            this.cleanUpAction.start(this.transform.getPos(), this.transform.getRot());
+            this.actionStarted = true;
+          }
+          let res = this.cleanUpAction.move(remDt);
+          this.transform.setPos(res.getPos());
+          this.transform.setRot(res.getRot());
+          remDt = 0;
+        }
+      }
+      else {
+        let action = this.actions.get(0);
+        if (!this.actionStarted) {
+          action.start(this.transform.getPos(), this.transform.getRot());
+          this.actionStarted = true;
+        }
+        let res = action.move(remDt);
+        this.transform.setPos(res.getPos());
+        this.transform.setRot(res.getRot());
+        if (res.isDone()) {
+          remDt = res.getLeftoverDt();
+          this.actionStarted = false;
+          let newActions = new ArrayList();
+          for (let i = 1; i<this.actions.size(); ++i) {
+            newActions.add(this.actions.get(i));
+          }
+          this.actions = newActions;
+        }
+        else {
+          remDt = 0;
+        }
+      }
+    }
+  }
+
+  addAction(action) {
+    Guard.notNull(action, "action cannot be null");
+    if (this.actions.isEmpty()) {
+      this.actionStarted = false;
+    }
+    this.actions.add(action);
+    return this;
+  }
+
+  setCleanUpAction(cleanUpAction) {
+    this.cleanUpAction = cleanUpAction;
+    return this;
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new TransformActionBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.TransformActionBehavior = TransformActionBehavior;
+class TransformActionResult {
+  pos;
+  rot;
+  done;
+  leftoverDt;
+  constructor() {
+  }
+
+  getClass() {
+    return "TransformActionResult";
+  }
+
+  guardInvariants() {
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getRot() {
+    return this.rot;
+  }
+
+  isDone() {
+    return this.done;
+  }
+
+  getLeftoverDt() {
+    return this.leftoverDt;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(pos, rot, done, leftoverDt) {
+    let res = new TransformActionResult();
+    res.pos = pos;
+    res.rot = rot;
+    res.done = done;
+    res.leftoverDt = leftoverDt;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.TransformActionResult = TransformActionResult;
 
 
 // -------------------------------------
