@@ -36090,18 +36090,17 @@ class MenuScreen extends TyracornScreen {
     let aboutTab = Tab.create();
     let tabs = TabContainer.create().setRegionFnc(UiRegionFncs.full()).addTab(mainMenuTab).addTab(settingsTab).addTab(aboutTab);
     panel916.addComponent(tabs);
-    mainMenuTab.addComponent(MenuUis.createOverlayPanel(3, 7, true));
-    mainMenuTab.addComponent(MenuUis.createTitleLabel("Main Menu", 3));
-    mainMenuTab.addComponent(MenuUis.createMediumBtn("Play", 5, false, UiEventActions.showScreen(screenManager, new QuestScreen(this.appManager, QuestEvent.createNone()))));
-    mainMenuTab.addComponent(MenuUis.createMediumBtn("Training", 6, false, UiEventActions.showScreen(screenManager, new CombatScreen(this.appManager, CombatScenario.create().withTraining(true)))));
-    mainMenuTab.addComponent(MenuUis.createMediumBtn("Settings", 8, false, (btn) => {
+    mainMenuTab.addComponent(MenuUis.createOverlayPanel(4, 8, true));
+    mainMenuTab.addComponent(MenuUis.createMediumBtn("Play", 4, false, UiEventActions.showScreen(screenManager, new QuestScreen(this.appManager, QuestEvent.createNone()))));
+    mainMenuTab.addComponent(MenuUis.createMediumBtn("Training", 5, false, UiEventActions.showScreen(screenManager, new CombatScreen(this.appManager, CombatScenario.create().withTraining(true)))));
+    mainMenuTab.addComponent(MenuUis.createMediumBtn("Settings", 7, false, (btn) => {
   tabs.setActiveTabIdx(1);
 }).setDisabled(true));
-    mainMenuTab.addComponent(MenuUis.createMediumBtn("About", 9, false, (btn) => {
+    mainMenuTab.addComponent(MenuUis.createMediumBtn("About", 8, false, (btn) => {
   tabs.setActiveTabIdx(2);
 }).setDisabled(true));
     if (drivers.getPlatform().isExitable()) {
-      mainMenuTab.addComponent(MenuUis.createMediumBtn("Exit", 10, false, UiEventActions.exitApp(screenManager)));
+      mainMenuTab.addComponent(MenuUis.createMediumBtn("Exit", 9, false, UiEventActions.exitApp(screenManager)));
     }
     this.ui.subscribe(drivers);
   }
@@ -36825,12 +36824,19 @@ class CombatGameMasterBehavior extends Behavior {
       let playerPos = this.playerActor.getComponent("TransformComponent").getPos();
       pos = pos.withX(playerPos.x()-10*FMath.signum(playerPos.x()));
     }
-    let enemy = this.scenario.getEnemies().get(this.enemyIdx);
-    this.enemyIdx = this.enemyIdx+1;
-    let prefab = this.world().assets().get("ActorPrefab", ActorPrefabId.of("fighter-base"));
-    let req = CreateActorRequest.create(prefab, null, pos, Quaternion.ZERO_ROT);
-    let enemyConfig = FighterConfig.create().applyToughnessFactor(enemy.getToughnessFactor());
-    return this.world().constructActor(req).addTag(WorldActors.ENEMY_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.PLAYER_TAG)).addComponent(FighterCharacterBehavior.create(ComponentKey.random()).setConfig(enemyConfig).setHealthAndStaminaToMax()).addComponent(FighterBaseInputBehavior.create(ComponentKey.random()).setInputType(this.scenario.isTraining()?FighterInputType.NONE:FighterInputType.AI).setAiDifficuly(enemy.getAiDifficulty())).addComponent(FighterBaseBehavior.create(ComponentKey.random()));
+    if (this.scenario.isTraining()) {
+      let prefab = this.world().assets().get("ActorPrefab", ActorPrefabId.of("fighter-base"));
+      let req = CreateActorRequest.create(prefab, null, pos, Quaternion.ZERO_ROT);
+      return this.world().constructActor(req).addTag(WorldActors.ENEMY_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.PLAYER_TAG)).addComponent(FighterCharacterBehavior.create(ComponentKey.random()).setConfig(FighterConfig.create()).setHealthAndStaminaToMax()).addComponent(FighterBaseInputBehavior.create(ComponentKey.random()).setInputType(this.scenario.isTraining()?FighterInputType.NONE:FighterInputType.AI).setAiDifficuly(0.5)).addComponent(FighterBaseBehavior.create(ComponentKey.random())).addComponent(FighterRecoveryBehavior.create(ComponentKey.random()));
+    }
+    else {
+      let enemy = this.scenario.getEnemies().get(this.enemyIdx);
+      this.enemyIdx = this.enemyIdx+1;
+      let prefab = this.world().assets().get("ActorPrefab", ActorPrefabId.of("fighter-base"));
+      let req = CreateActorRequest.create(prefab, null, pos, Quaternion.ZERO_ROT);
+      let enemyConfig = FighterConfig.create().applyToughnessFactor(enemy.getToughnessFactor());
+      return this.world().constructActor(req).addTag(WorldActors.ENEMY_TAG).addComponent(ActorDetectionSensor.create(ComponentKey.random()).addActorTag(WorldActors.PLAYER_TAG)).addComponent(FighterCharacterBehavior.create(ComponentKey.random()).setConfig(enemyConfig).setHealthAndStaminaToMax()).addComponent(FighterBaseInputBehavior.create(ComponentKey.random()).setInputType(FighterInputType.AI).setAiDifficuly(enemy.getAiDifficulty())).addComponent(FighterBaseBehavior.create(ComponentKey.random()));
+    }
   }
 
   toString() {
@@ -39516,6 +39522,42 @@ const FighterInputType = Object.freeze({
     return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
   }
 });
+class FighterRecoveryBehavior extends Behavior {
+  character;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FighterRecoveryBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.character = this.actor().getComponent("FighterCharacterBehavior");
+  }
+
+  move(dt, inputs) {
+    if (this.character.getHealthRatio()<1) {
+      let state = this.character.getState();
+      let health = FMath.min(state.getHealth()+25*dt, this.character.getConfig().getMaxHealth());
+      state.setHealth(health);
+    }
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new FighterRecoveryBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FighterRecoveryBehavior = FighterRecoveryBehavior;
 class FighterState {
   health = 100;
   stamina = 100;
