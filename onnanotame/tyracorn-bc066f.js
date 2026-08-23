@@ -37363,6 +37363,7 @@ class WorldActors {
   static IDLE_ANIMATION_KEY = MeshAnimationKey.of("idle");
   static WALK_ANIMATION_KEY = MeshAnimationKey.of("walk");
   static YES_ANIMATION_KEY = MeshAnimationKey.of("yes");
+  static NODE_STATUS_TYPE_UPDATE = ActorMessageType.create("NODE_STATUS_TYPE_UPDATE");
   constructor() {
   }
 
@@ -40482,7 +40483,7 @@ class QuestNode {
 classRegistry.QuestNode = QuestNode;
 class QuestNodeBehavior extends Behavior {
   model;
-  statusType = QuestNodeStatusType.CLOSED;
+  statusType = null;
   constructor(key) {
     super(key);
   }
@@ -40499,6 +40500,7 @@ class QuestNodeBehavior extends Behavior {
   }
 
   move(dt, inputs) {
+    Guard.notNull(this.statusType, "status type must be set before first move");
   }
 
   lateMove(dt, inputs) {
@@ -40506,20 +40508,38 @@ class QuestNodeBehavior extends Behavior {
 
   setStatusType(statusType) {
     Guard.notNull(statusType, "status type cannot be null");
-    this.statusType = statusType;
+    if (this.statusType==null||this.statusType.equals(statusType)) {
+      this.statusType = statusType;
+      this.model.setModelId(this.statusTypeToModelId(statusType));
+    }
+    else {
+      this.statusType = statusType;
+      let modelId = this.statusTypeToModelId(statusType);
+      this.actor().getComponent("TransformActionBehavior").addAction(QuestNodeStatusTransformAction.create(modelId));
+    }
+    return this;
+  }
+
+  onMessage(type, message) {
+    if (type.equals(WorldActors.NODE_STATUS_TYPE_UPDATE)) {
+      let modelId = message;
+      this.model.setModelId(modelId);
+    }
+  }
+
+  statusTypeToModelId(statusType) {
     if (statusType.equals(QuestNodeStatusType.CLOSED)) {
-      this.model.setModelId(ModelId.of("cube-ruby"));
+      return ModelId.of("cube-ruby");
     }
     else if (statusType.equals(QuestNodeStatusType.OPENED)) {
-      this.model.setModelId(ModelId.of("cube-tin"));
+      return ModelId.of("cube-tin");
     }
     else if (statusType.equals(QuestNodeStatusType.COMPLETED)) {
-      this.model.setModelId(ModelId.of("cube-emerald"));
+      return ModelId.of("cube-emerald");
     }
     else {
       throw new Error("unsupported status type: "+statusType);
     }
-    return this;
   }
 
   toString() {
@@ -40637,6 +40657,69 @@ class QuestNodeStatus {
 
 }
 classRegistry.QuestNodeStatus = QuestNodeStatus;
+class QuestNodeStatusTransformAction {
+  modelId;
+  initialPos;
+  initialRot;
+  time;
+  pos;
+  constructor() {
+  }
+
+  getClass() {
+    return "QuestNodeStatusTransformAction";
+  }
+
+  guardInvariants() {
+  }
+
+  start(pos, rot) {
+    this.initialPos = pos;
+    this.initialRot = rot;
+    this.time = 0;
+  }
+
+  move(dt) {
+    this.time = this.time+dt;
+    if (this.time<0.5) {
+      let h = 0.5*FMath.sin(this.time/0.5*FMath.PI_HALF);
+      this.pos = this.initialPos.add(Vec3.create(0, h, 0));
+      return TransformActionResult.create(this.pos, this.initialRot, false, 0);
+    }
+    else if (this.time<1.5) {
+      let ratio = (this.time-0.5)/1;
+      let spin = Quaternion.rotY(4*FMath.PI*ratio);
+      if (this.time>1&&this.modelId!=null) {
+        let mid = this.modelId;
+        this.modelId = null;
+        return TransformActionResult.createWithMessage(this.pos, this.initialRot.mul(spin), WorldActors.NODE_STATUS_TYPE_UPDATE, mid, false, 0);
+      }
+      else {
+        return TransformActionResult.create(this.pos, this.initialRot.mul(spin), false, 0);
+      }
+    }
+    else if (this.time<2) {
+      let h = 0.5*FMath.sin((this.time-1.5)/0.5*FMath.PI_HALF+FMath.PI_HALF);
+      this.pos = this.initialPos.add(Vec3.create(0, h, 0));
+      return TransformActionResult.create(this.pos, this.initialRot, false, 0);
+    }
+    else {
+      return TransformActionResult.create(this.initialPos, this.initialRot, true, this.time-2);
+    }
+  }
+
+  toString() {
+  }
+
+  static create(modelId) {
+    let res = new QuestNodeStatusTransformAction();
+    res.modelId = modelId;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.QuestNodeStatusTransformAction = QuestNodeStatusTransformAction;
 const createQuestNodeStatusType = (description) => {
   const symbol = Symbol(description);
   return {
@@ -40988,7 +41071,7 @@ class QuestScreen extends TyracornScreen {
   spawnNode(assets, pos) {
     let prefab = assets.get("ActorPrefab", WorldActors.QUEST_NODE_PREFAB_ID);
     let req = CreateActorRequest.create(prefab, null, pos, Quaternion.ZERO_ROT);
-    return this.world.constructActor(req).addComponent(QuestNodeBehavior.create(ComponentKey.random()));
+    return this.world.constructActor(req).addComponent(TransformActionBehavior.create(ComponentKey.random())).addComponent(QuestNodeBehavior.create(ComponentKey.random()));
   }
 
 }
@@ -41694,6 +41777,9 @@ class TransformActionBehavior extends Behavior {
           let res = this.cleanUpAction.move(remDt);
           this.transform.setPos(res.getPos());
           this.transform.setRot(res.getRot());
+          if (res.getMessageType()!=null) {
+            this.actor().sendMessage(res.getMessageType(), res.getMessage());
+          }
           remDt = 0;
         }
       }
@@ -41706,6 +41792,9 @@ class TransformActionBehavior extends Behavior {
         let res = action.move(remDt);
         this.transform.setPos(res.getPos());
         this.transform.setRot(res.getRot());
+        if (res.getMessageType()!=null) {
+          this.actor().sendMessage(res.getMessageType(), res.getMessage());
+        }
         if (res.isDone()) {
           remDt = res.getLeftoverDt();
           this.actionStarted = false;
@@ -41750,6 +41839,8 @@ classRegistry.TransformActionBehavior = TransformActionBehavior;
 class TransformActionResult {
   pos;
   rot;
+  messageType;
+  message;
   done;
   leftoverDt;
   constructor() {
@@ -41768,6 +41859,14 @@ class TransformActionResult {
 
   getRot() {
     return this.rot;
+  }
+
+  getMessageType() {
+    return this.messageType;
+  }
+
+  getMessage() {
+    return this.message;
   }
 
   isDone() {
@@ -41793,6 +41892,20 @@ class TransformActionResult {
     let res = new TransformActionResult();
     res.pos = pos;
     res.rot = rot;
+    res.messageType = null;
+    res.message = null;
+    res.done = done;
+    res.leftoverDt = leftoverDt;
+    res.guardInvariants();
+    return res;
+  }
+
+  static createWithMessage(pos, rot, messageType, message, done, leftoverDt) {
+    let res = new TransformActionResult();
+    res.pos = pos;
+    res.rot = rot;
+    res.messageType = messageType;
+    res.message = message;
     res.done = done;
     res.leftoverDt = leftoverDt;
     res.guardInvariants();
