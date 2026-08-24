@@ -41121,9 +41121,9 @@ class QuestScreen extends TyracornScreen {
     let currentQuest = storyManager.getCurrentQuest();
     let currentQuestStatus = storyManager.getCurrentQuestStatus();
     let initialPlayerPos = Vec3.create(currentQuestStatus.getCurrentNodeIdx()*QuestScreen.NODE_DISTANCE, 0, 0);
-    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(10, 25, 20), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
+    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(10, 25, 20), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE)).addComponent(FollowCameraXaxBehavior.create(ComponentKey.random()));
     this.world.actors().add(light);
-    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY).setFovyLandscape(FMath.toRadians(60)).setFovyPortrait(FMath.toRadians(60))).addComponent(CameraControllerComponent.create(ComponentKey.random()).setMode(CameraControlMode.ISOMETRIC).setTargetId(ActorId.of("player")).setPosOffset(Vec3.create(0, 4, 8)).setLookAtOffset(Vec3.create(0, 1, 0)).setPosK(0.05).setLookAtK(0.15)).addComponent(QuestCameraShiftBehavior.create(ComponentKey.random())).addComponent(this.audio);
+    let camera = Actor.create(WorldActors.CAMERA).setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY).setFovyLandscape(FMath.toRadians(60)).setFovyPortrait(FMath.toRadians(60))).addComponent(CameraControllerComponent.create(ComponentKey.random()).setMode(CameraControlMode.ISOMETRIC).setTargetId(ActorId.of("player")).setPosOffset(Vec3.create(0, 4, 8)).setLookAtOffset(Vec3.create(0, 1, 0)).setPosK(0.05).setLookAtK(0.15)).addComponent(QuestCameraShiftBehavior.create(ComponentKey.random())).addComponent(this.audio);
     this.world.actors().add(camera);
     this.questPlayerBehavior = this.spawnPlayer(assets, initialPlayerPos).getComponent("QuestPlayerBehavior");
     this.questNodeActors = new ArrayList();
@@ -41671,6 +41671,43 @@ class StoryStatus {
 
 }
 classRegistry.StoryStatus = StoryStatus;
+class FollowCameraXaxBehavior extends Behavior {
+  transform;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FollowCameraXaxBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+  }
+
+  lateMove(dt, inputs) {
+    if (this.world().actors().exists(WorldActors.CAMERA)) {
+      let camera = this.world().actors().get(WorldActors.CAMERA);
+      let camTr = camera.getComponent("TransformComponent");
+      let x = FMath.trunc(camTr.getPos().x()/5)*5;
+      this.transform.setPos(this.transform.getPos().withX(x));
+    }
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new FollowCameraXaxBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FollowCameraXaxBehavior = FollowCameraXaxBehavior;
 class JumpTransformAction {
   height;
   duration;
