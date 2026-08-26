@@ -37578,11 +37578,11 @@ class MedievalArenaGenerator01 {
     }
     let houses = Dut.list(ActorPrefabId.of("med-house-1"), ActorPrefabId.of("med-house-2"), ActorPrefabId.of("med-house-3"), ActorPrefabId.of("med-house-4"));
     if (villageLayout.startsWith("one-")) {
-      scene = scene.plusObject(SceneObject.create("", Randoms.pickOne(houses)).withPos(Vec3.create(0, 0, -12)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 0, 0)));
+      scene = scene.plusObject(SceneObject.create("", buildingRng.pickOne(houses)).withPos(Vec3.create(0, 0, -12)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 0, 0)));
     }
     else if (villageLayout.startsWith("two-")) {
-      scene = scene.plusObject(SceneObject.create("", Randoms.pickOne(houses)).withPos(Vec3.create(-10, 0, -12)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 0, 0)));
-      scene = scene.plusObject(SceneObject.create("", Randoms.pickOne(houses)).withPos(Vec3.create(10, 0, -12)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 0, 0)));
+      scene = scene.plusObject(SceneObject.create("", buildingRng.pickOne(houses)).withPos(Vec3.create(-10, 0, -12)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 0, 0)));
+      scene = scene.plusObject(SceneObject.create("", buildingRng.pickOne(houses)).withPos(Vec3.create(10, 0, -12)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 0, 0)));
     }
     else {
       throw new Error("unknown villageLayout:"+villageLayout);
