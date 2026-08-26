@@ -1589,6 +1589,111 @@ class Randoms {
 
 }
 /**
+ * Implementation of XOR shift 32 bit random generator.
+ * Generates pseudo random numbers in a deterministic way, based on the initial seed.
+ * This implementation works purely in 32 bit space and for integers produces the same results across nearly all platforms.
+ * For float numbers this is not entirely true as in java there is a division in 4 bytes space, while javascript has only 8 byte numbers.
+ * Therefore the result numbers might be slightly off after five significant digits.
+ * 
+ * @type XorShift32RandomGenerator
+ */
+class XorShift32RandomGenerator {
+
+    /**
+     * State.
+     */
+    state;
+    /**
+     * Creates new instance.
+     * 
+     * @returns {XorShift32RandomGenerator}
+     */
+    constructor() {
+    }
+
+    /**
+     * Returns a random integer within the specified range.
+     *
+     * @param {Number} start start number (inclusive)
+     * @param {Number} end end number (exclusive)
+     * @return {Number} random number
+     */
+    nextInt(start, end) {
+        Guard.beTrue(end >= start, "end must be >= start");
+        if (start === end) {
+            return start;
+        }
+
+        const range = end - start;
+        const r = this.nextState() & 0x7FFFFFFF;
+        return start + r % range;
+    }
+
+    /**
+     * Returns a random float within the specified range.
+     *
+     * @param {Number} start start number (inclusive)
+     * @param {Number} end end number (exclusive)
+     * @return {Number} random number
+     */
+    nextFloat(start, end) {
+        Guard.beTrue(end >= start, "end must be >= start");
+        if (start === end) {
+            return start;
+        }
+        const r = this.nextState() >>> 8; // 24 random bits
+        const f01 = r / 16777216.0;
+        return start + ((end - start) * f01);
+    }
+
+    /**
+     * Picks one item from the list of the items based on the uniform distribution.
+     *
+     * @param {ArrayList} items items
+     * @return {Object} picked up item
+     */
+    pickOne(items) {
+        return items.get(this.nextInt(0, items.size()));
+    }
+
+    /**
+     * Moves state to the next.
+     *
+     * @return {Number} returns the state
+     */
+    nextState() {
+        let x = this.state;
+        x ^= x << 13;
+        x ^= x >>> 17;
+        x ^= x << 5;
+        this.state = x | 0;
+        return this.state;
+    }
+
+    /**
+     * Converts this object to string.
+     * 
+     * @return {String} string representation
+     */
+    toString() {
+        return "XorShift32RandomGenerator";
+    }
+
+    /**
+     * Creates new generator.
+     *
+     * @param {Number} seed seed must be integer
+     * @return {XorShift32RandomGenerator} created object
+     */
+    static create(seed) {
+        const res = new XorShift32RandomGenerator();
+        // Xorshift generators must not have a zero state.
+        res.state = (seed !== 0) ? seed : 0x6D2B79F5;
+        return res;
+    }
+
+}
+/**
  * Utility class for working with reflections.
  *
  * @author radek.hecl
@@ -16395,11 +16500,21 @@ class UiComponentStyle {
   }
 
   hashCode() {
-    return Reflections.hashCode(this);
+    return this.properties.hashCode();
   }
 
   equals(obj) {
-    return Reflections.equals(this, obj);
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof UiComponentStyle)) {
+      return false;
+    }
+    let other = obj;
+    return other.properties.equals(this.properties);
   }
 
   toString() {
