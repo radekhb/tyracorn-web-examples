@@ -1942,6 +1942,21 @@ class Jsons {
     }
 
     /**
+     * Encodes integer list as a JSON string.
+     * The result has format as [1, 2, 3].
+     *
+     * @param {ArrayList} data input data, has to be array list of floats
+     * @return encoded string
+     */
+    static floatListToJson(data) {
+        const items = [];
+        for (let item of data) {
+            items.push(item);
+        }
+        return JSON.stringify(items);
+    }
+
+    /**
      * Decodes float list from the JSON string.
      *
      * @param {String} str data in the [1, 2, 3] format
@@ -1954,6 +1969,24 @@ class Jsons {
             res.add(items[i]);
         }
         return res;
+    }
+
+    /**
+     * Converts vector to JSON string.
+     *
+     * @param {Ojbect} obj object to convert
+     * @return JSON string
+     */
+    static toJson(obj) {
+        if (obj instanceof Vec3) {
+            return JSON.stringify([obj.x(), obj.y(), obj.z()]);
+        } else if (obj instanceof Vec4) {
+            return JSON.stringify([obj.x(), obj.y(), obj.z(), obj.w()]);
+        } else if (obj instanceof Quaternion) {
+            return JSON.stringify([obj.a(), obj.b(), obj.c(), obj.d()]);
+        } else {
+            throw new Error("unknown object type, implement me: " + obj);
+        }
     }
 
     /**
