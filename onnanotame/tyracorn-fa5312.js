@@ -8,7 +8,7 @@ let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
 const basePath = "/tyracorn-web-examples/onnanotame";
-const assetsDirName = "/assets-55af8b";
+const assetsDirName = "/assets-eb43b5";
 const localStoragePrefix = "onnanotame.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -41581,7 +41581,7 @@ class QuestScreen extends TyracornScreen {
   load(drivers, screenManager, properties) {
     let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
-    res.addAll(Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/music.tap")), assets.resolveAsync(Path.of("asset:packages/elements.tap")), assets.resolveAsync(Path.of("asset:packages/characters/base-fighter.tap")), assets.resolveAsync(Path.of("asset:packages/characters/audience.tap")), assets.resolveAsync(Path.of("asset:default.tap")), assets.resolveAsync(Path.of("asset:prefabs.tap")), assets.resolveAsync(Path.of("asset:scenes.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/medieval-village.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/nature.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/sci-fi.tap"))));
+    res.addAll(Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/music.tap")), assets.resolveAsync(Path.of("asset:packages/elements.tap")), assets.resolveAsync(Path.of("asset:packages/characters/base-fighter.tap")), assets.resolveAsync(Path.of("asset:packages/characters/audience.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/skybox.tap")), assets.resolveAsync(Path.of("asset:default.tap")), assets.resolveAsync(Path.of("asset:prefabs.tap")), assets.resolveAsync(Path.of("asset:scenes.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/medieval-village.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/nature.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/sci-fi.tap"))));
     return res;
   }
 
@@ -41593,12 +41593,15 @@ class QuestScreen extends TyracornScreen {
     let storyManager = this.appManager.getStoryManager();
     let currentQuest = storyManager.getCurrentQuest();
     let currentQuestStatus = storyManager.getCurrentQuestStatus();
-    let initialPlayerPos = Vec3.create(currentQuestStatus.getCurrentNodeIdx()*QuestScreen.NODE_DISTANCE, 0, 0);
-    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(10, 25, 20), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE)).addComponent(FollowCameraXaxBehavior.create(ComponentKey.random()));
+    let playerInitialPos = Vec3.create(currentQuestStatus.getCurrentNodeIdx()*QuestScreen.NODE_DISTANCE, 0, 0);
+    let nodeSpawnSize = currentQuest.getNumNodes()*QuestScreen.NODE_DISTANCE;
+    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(playerInitialPos.x()+10, 25, 20), Vec3.create(playerInitialPos.x(), 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setDirShadowMapStrategy(DirShadowMapStrategy.createManual(250, 160, 0, 100)).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE)).addComponent(FollowCameraXaxBehavior.create(ComponentKey.random()));
     this.world.actors().add(light);
-    let camera = Actor.create(GameActors.CAMERA).setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY).setFovyLandscape(FMath.toRadians(60)).setFovyPortrait(FMath.toRadians(60))).addComponent(CameraControllerComponent.create(ComponentKey.random()).setMode(CameraControlMode.ISOMETRIC).setTargetId(ActorId.of("player")).setPosOffset(Vec3.create(0, 4, 8)).setLookAtOffset(Vec3.create(0, 1, 0)).setPosK(0.05).setLookAtK(0.15)).addComponent(QuestCameraShiftBehavior.create(ComponentKey.random())).addComponent(this.audio);
+    let camera = Actor.create(GameActors.CAMERA).setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(playerInitialPos.x(), 9, 15), Vec3.create(playerInitialPos.x(), 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY).setFovyLandscape(FMath.toRadians(60)).setFovyPortrait(FMath.toRadians(60))).addComponent(CameraControllerComponent.create(ComponentKey.random()).setMode(CameraControlMode.ISOMETRIC).setTargetId(ActorId.of("player")).setPosOffset(Vec3.create(0, 4, 8)).setLookAtOffset(Vec3.create(0, 1, 0)).setPosK(0.05).setLookAtK(0.15)).addComponent(QuestCameraShiftBehavior.create(ComponentKey.random())).addComponent(this.audio);
     this.world.actors().add(camera);
-    this.questPlayerBehavior = this.spawnPlayer(assets, initialPlayerPos).getComponent("QuestPlayerBehavior");
+    let skyboxPrefab = assets.get("ActorPrefab", ActorPrefabId.of("skybox-1"));
+    this.world.constructActor(CreateActorRequest.create(skyboxPrefab, null, Vec3.ZERO, Quaternion.ZERO_ROT));
+    this.world.actors().add(Actor.create(ActorId.random()).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(Vec3.create(nodeSpawnSize/2, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(ModelId.of("nature-ground-tile")).setTransform(Mat44.scale(nodeSpawnSize*2, 1, 50))));
     this.questNodeActors = new ArrayList();
     for (let i = 0; i<currentQuest.getNodes().size(); ++i) {
       let nodeStatus = currentQuestStatus.getNode(i);
@@ -41606,6 +41609,7 @@ class QuestScreen extends TyracornScreen {
       actor.getComponent("QuestNodeBehavior").setStatusType(nodeStatus.getType());
       this.questNodeActors.add(actor);
     }
+    this.questPlayerBehavior = this.spawnPlayer(assets, playerInitialPos).getComponent("QuestPlayerBehavior");
     this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
     this.controller = QuestCharacterController.create(drivers).addFightButtonOnClickAction((src) => {
   this.nodeConfirmed = true;
@@ -42031,12 +42035,19 @@ class StoryManager {
 
   initialize() {
     if (this.storage.exists(StoryManager.STORY_STAUS_KEY)) {
-      this.storyStatus = Stories.jsonStringToStoryStatus(this.storage.loadString(StoryManager.STORY_STAUS_KEY));
-      let currentQuestId = this.storyStatus.getCurrentQuestId();
-      this.currentQuest = Quests.jsonStringToQuest(this.storage.loadString(this.getQuestLocalDataKey(currentQuestId)));
-      this.currentQuestStatus = Quests.jsonStringToQuestStatus(this.storage.loadString(this.getQuestStatusLocalDataKey(currentQuestId)));
+      try {
+        this.storyStatus = Stories.jsonStringToStoryStatus(this.storage.loadString(StoryManager.STORY_STAUS_KEY));
+        let currentQuestId = this.storyStatus.getCurrentQuestId();
+        this.currentQuest = Quests.jsonStringToQuest(this.storage.loadString(this.getQuestLocalDataKey(currentQuestId)));
+        this.currentQuestStatus = Quests.jsonStringToQuestStatus(this.storage.loadString(this.getQuestStatusLocalDataKey(currentQuestId)));
+      }
+      catch (e) {
+        this.storyStatus = null;
+        this.currentQuest = null;
+        this.currentQuestStatus = null;
+      }
     }
-    else {
+    if (this.storyStatus==null) {
       this.currentQuest = Quests.generateRandom(1);
       this.currentQuestStatus = QuestStatus.createInitial(this.currentQuest);
       this.storyStatus = StoryStatus.create().plusQuestId(this.currentQuest.getId()).withCurrentQuestIdx(0);
