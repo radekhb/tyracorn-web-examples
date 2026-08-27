@@ -8,7 +8,7 @@ let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
 const basePath = "/tyracorn-web-examples/onnanotame";
-const assetsDirName = "/assets-eb43b5";
+const assetsDirName = "/assets-fb48eb";
 const localStoragePrefix = "onnanotame.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -40405,8 +40405,9 @@ class QuestCameraShiftBehavior extends Behavior {
           pk = FMath.min(1, 3*this.basePosK);
           lak = FMath.min(1, 3*this.baseLookAtK);
         }
+        let my = zFact*this.basePosOffset.y();
         let mz = zFact*this.basePosOffset.z();
-        this.cameraController.setPosOffset(this.basePosOffset.withZ(mz)).setLookAtOffset(this.baseLookAtOffset).setPosK(pk).setLookAtK(lak);
+        this.cameraController.setPosOffset(this.basePosOffset.withY(my).withZ(mz)).setLookAtOffset(this.baseLookAtOffset).setPosK(pk).setLookAtK(lak);
       }
     }
   }
@@ -41056,6 +41057,7 @@ class QuestNodeArenaId {
 classRegistry.QuestNodeArenaId = QuestNodeArenaId;
 class QuestNodeBehavior extends Behavior {
   statusType = null;
+  blockBoxActorId = null;
   constructor(key) {
     super(key);
   }
@@ -41080,34 +41082,39 @@ class QuestNodeBehavior extends Behavior {
   setStatusType(statusType) {
     Guard.notNull(statusType, "status type cannot be null");
     if (this.statusType==null||this.statusType.equals(statusType)) {
-      this.statusType = statusType;
+      this.applyStatusType(statusType);
     }
     else {
-      this.statusType = statusType;
-      let modelId = this.statusTypeToModelId(statusType);
-      this.actor().getComponent("TransformActionBehavior").addAction(QuestNodeStatusTransformAction.create(modelId));
+      this.actor().getComponent("TransformActionBehavior").addAction(QuestNodeStatusTransformAction.create(statusType));
     }
     return this;
   }
 
   onMessage(type, message) {
     if (type.equals(GameActors.NODE_STATUS_TYPE_UPDATE)) {
-      let modelId = message;
+      let st = message;
+      this.applyStatusType(st);
     }
   }
 
-  statusTypeToModelId(statusType) {
+  applyStatusType(statusType) {
+    this.statusType = statusType;
     if (statusType.equals(QuestNodeStatusType.CLOSED)) {
-      return ModelId.of("cube-ruby");
+      this.blockBoxActorId = ActorId.random();
+      let blockBox = Actor.create(this.blockBoxActorId).addComponent(TransformComponent.create(ComponentKey.TRANSFORM)).addComponent(ModelComponent.create(ComponentKey.of("block-box")).setTransform(Mat44.trans(Vec3.create(0, 1, 0)).mul(Mat44.scale(3))).setModelId(ModelId.of("cube-ruby-transparent")).setCastShadows(false).setReceiveShadows(true));
+      this.world().actors().add(this.actor().getId(), blockBox);
     }
     else if (statusType.equals(QuestNodeStatusType.OPENED)) {
-      return ModelId.of("cube-tin");
+      if (this.blockBoxActorId!=null) {
+        this.world().actors().remove(this.blockBoxActorId);
+        this.blockBoxActorId = null;
+      }
     }
     else if (statusType.equals(QuestNodeStatusType.COMPLETED)) {
-      return ModelId.of("cube-emerald");
-    }
-    else {
-      throw new Error("unsupported status type: "+statusType);
+      if (this.blockBoxActorId!=null) {
+        this.world().actors().remove(this.blockBoxActorId);
+        this.blockBoxActorId = null;
+      }
     }
   }
 
@@ -41227,7 +41234,7 @@ class QuestNodeStatus {
 }
 classRegistry.QuestNodeStatus = QuestNodeStatus;
 class QuestNodeStatusTransformAction {
-  modelId;
+  statusType;
   initialPos;
   initialRot;
   time;
@@ -41258,10 +41265,10 @@ class QuestNodeStatusTransformAction {
     else if (this.time<1.5) {
       let ratio = (this.time-0.5)/1;
       let spin = Quaternion.rotY(4*FMath.PI*ratio);
-      if (this.time>1&&this.modelId!=null) {
-        let mid = this.modelId;
-        this.modelId = null;
-        return TransformActionResult.createWithMessage(this.pos, this.initialRot.mul(spin), GameActors.NODE_STATUS_TYPE_UPDATE, mid, false, 0);
+      if (this.time>1&&this.statusType!=null) {
+        let st = this.statusType;
+        this.statusType = null;
+        return TransformActionResult.createWithMessage(this.pos, this.initialRot.mul(spin), GameActors.NODE_STATUS_TYPE_UPDATE, st, false, 0);
       }
       else {
         return TransformActionResult.create(this.pos, this.initialRot.mul(spin), false, 0);
@@ -41280,9 +41287,9 @@ class QuestNodeStatusTransformAction {
   toString() {
   }
 
-  static create(modelId) {
+  static create(statusType) {
     let res = new QuestNodeStatusTransformAction();
-    res.modelId = modelId;
+    res.statusType = statusType;
     res.guardInvariants();
     return res;
   }
@@ -41480,7 +41487,7 @@ const QuestPlayerState = Object.freeze({
 });
 class QuestScreen extends TyracornScreen {
   static NODE_DISTANCE = 4;
-  static NODE_Z = -1;
+  static NODE_Z = -1.5;
   appManager;
   questEvent;
   time = 0;
@@ -41597,7 +41604,7 @@ class QuestScreen extends TyracornScreen {
     let nodeSpawnSize = currentQuest.getNumNodes()*QuestScreen.NODE_DISTANCE;
     let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(playerInitialPos.x()+10, 25, 20), Vec3.create(playerInitialPos.x(), 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setDirShadowMapStrategy(DirShadowMapStrategy.createManual(250, 160, 0, 100)).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE)).addComponent(FollowCameraXaxBehavior.create(ComponentKey.random()));
     this.world.actors().add(light);
-    let camera = Actor.create(GameActors.CAMERA).setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(playerInitialPos.x(), 9, 15), Vec3.create(playerInitialPos.x(), 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY).setFovyLandscape(FMath.toRadians(60)).setFovyPortrait(FMath.toRadians(60))).addComponent(CameraControllerComponent.create(ComponentKey.random()).setMode(CameraControlMode.ISOMETRIC).setTargetId(ActorId.of("player")).setPosOffset(Vec3.create(0, 4, 8)).setLookAtOffset(Vec3.create(0, 1, 0)).setPosK(0.05).setLookAtK(0.15)).addComponent(QuestCameraShiftBehavior.create(ComponentKey.random())).addComponent(this.audio);
+    let camera = Actor.create(GameActors.CAMERA).setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(playerInitialPos.x(), 9, 15), Vec3.create(playerInitialPos.x(), 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY).setFovyLandscape(FMath.toRadians(60)).setFovyPortrait(FMath.toRadians(60))).addComponent(CameraControllerComponent.create(ComponentKey.random()).setMode(CameraControlMode.ISOMETRIC).setTargetId(ActorId.of("player")).setPosOffset(Vec3.create(0, 5, 7)).setLookAtOffset(Vec3.create(0, 1, 0)).setPosK(0.05).setLookAtK(0.15)).addComponent(QuestCameraShiftBehavior.create(ComponentKey.random())).addComponent(this.audio);
     this.world.actors().add(camera);
     let skyboxPrefab = assets.get("ActorPrefab", ActorPrefabId.of("skybox-1"));
     this.world.constructActor(CreateActorRequest.create(skyboxPrefab, null, Vec3.ZERO, Quaternion.ZERO_ROT));
