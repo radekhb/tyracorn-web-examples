@@ -8,7 +8,7 @@ let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
 const basePath = "/tyracorn-web-examples/onnanotame";
-const assetsDirName = "/assets-fb48eb";
+const assetsDirName = "/assets-49d482";
 const localStoragePrefix = "onnanotame.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -41058,6 +41058,7 @@ classRegistry.QuestNodeArenaId = QuestNodeArenaId;
 class QuestNodeBehavior extends Behavior {
   statusType = null;
   blockBoxActorId = null;
+  bannerActorId = null;
   constructor(key) {
     super(key);
   }
@@ -41098,23 +41099,38 @@ class QuestNodeBehavior extends Behavior {
   }
 
   applyStatusType(statusType) {
-    this.statusType = statusType;
     if (statusType.equals(QuestNodeStatusType.CLOSED)) {
+      this.statusType = statusType;
+      this.removeBannerActor();
       this.blockBoxActorId = ActorId.random();
       let blockBox = Actor.create(this.blockBoxActorId).addComponent(TransformComponent.create(ComponentKey.TRANSFORM)).addComponent(ModelComponent.create(ComponentKey.of("block-box")).setTransform(Mat44.trans(Vec3.create(0, 1, 0)).mul(Mat44.scale(3))).setModelId(ModelId.of("cube-ruby-transparent")).setCastShadows(false).setReceiveShadows(true));
       this.world().actors().add(this.actor().getId(), blockBox);
     }
     else if (statusType.equals(QuestNodeStatusType.OPENED)) {
-      if (this.blockBoxActorId!=null) {
-        this.world().actors().remove(this.blockBoxActorId);
-        this.blockBoxActorId = null;
-      }
+      this.statusType = statusType;
+      this.removeBannerActor();
+      this.removeBlockBoxActor();
     }
     else if (statusType.equals(QuestNodeStatusType.COMPLETED)) {
-      if (this.blockBoxActorId!=null) {
-        this.world().actors().remove(this.blockBoxActorId);
-        this.blockBoxActorId = null;
-      }
+      this.statusType = statusType;
+      this.removeBlockBoxActor();
+      this.bannerActorId = ActorId.random();
+      let bannerActor = Actor.create(this.bannerActorId).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(Vec3.create(-1.2, 0, 1))).addComponent(ModelComponent.create(ComponentKey.of("banner")).setModelId(ModelId.of("banner-2")).setTransform(Mat44.trans(0, 1, 0).mul(Mat44.scale(0.6))));
+      this.world().actors().add(this.actor().getId(), bannerActor);
+    }
+  }
+
+  removeBlockBoxActor() {
+    if (this.blockBoxActorId!=null) {
+      this.world().actors().remove(this.blockBoxActorId);
+      this.blockBoxActorId = null;
+    }
+  }
+
+  removeBannerActor() {
+    if (this.bannerActorId!=null) {
+      this.world().actors().remove(this.bannerActorId);
+      this.bannerActorId = null;
     }
   }
 
