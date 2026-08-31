@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/pwa-test-app";
-const assetsDirName = "/assets-fba731";
+const basePath = "/tyracorn-web-examples/audio-app-01";
+const assetsDirName = "/assets-a382d2";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -30652,6 +30652,50 @@ class LifetimeComponent extends Behavior {
 
 }
 classRegistry.LifetimeComponent = LifetimeComponent;
+class PoiComponent extends Behavior {
+  pos;
+  transform;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "PoiComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+  }
+
+  move(dt, inputs) {
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  setPos(pos) {
+    Guard.notNull(pos, "pos cannot be null");
+    this.pos = pos;
+    return this;
+  }
+
+  getGlobalPos() {
+    return this.transform.toGlobal(this.pos);
+  }
+
+  static create(key) {
+    let res = new PoiComponent(key);
+    res.pos = Vec3.ZERO;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.PoiComponent = PoiComponent;
 const createRpGeneratorShape = (description) => {
   const symbol = Symbol(description);
   return {
@@ -36193,24 +36237,23 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class PwaTestApp extends TyracornScreen {
+class AudioApp01 extends TyracornScreen {
+  static MUSIC_PLAYBACK_ID = PlaybackId.of("music");
   ui;
-  storedValuesKey = LocalDataKey.of("values");
-  storedValues;
   constructor() {
     super();
   }
 
   getClass() {
-    return "PwaTestApp";
+    return "AudioApp01";
   }
 
   move(drivers, screenManager, dt) {
     let gDriver = drivers.getDriver("GraphicsDriver");
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    this.ui.move(dt);
     gDriver.clearBuffers(BufferId.DEPTH);
     let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
     uiRenderer.render(this.ui);
     uiRenderer.end();
   }
@@ -36219,50 +36262,111 @@ class PwaTestApp extends TyracornScreen {
     let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
     res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/sounds.tap")));
     return res;
   }
 
   init(drivers, screenManager, properties) {
-    let platform = drivers.getPlatform();
     let assets = drivers.getDriver("AssetManager");
-    let lds = drivers.getDriver("LocalDataStorage");
-    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 28));
-    this.ui = StretchUi.create(UiSizeFncs.scale(0.7));
-    let ldsString = lds.exists(this.storedValuesKey)?lds.loadString(this.storedValuesKey):"{\"listSelect1\":\"item0\"}";
-    this.storedValues = JsonObjects.parse(ldsString);
-    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Select 1").setAlignment(TextAlignment.LEFT_TOP));
-    let listSelect1Items = Dut.list(ListSelectItem.create("item0", "Item 1"), ListSelectItem.create("item1", "Item 2"), ListSelectItem.create("item2", "Item 3"), ListSelectItem.create("item3", "Item 4"), ListSelectItem.create("item4", "Item 5"), ListSelectItem.create("item5", "Item 6"), ListSelectItem.create("item6", "Item 7"), ListSelectItem.create("item7", "Item 8"), ListSelectItem.create("item8", "Item 9"), ListSelectItem.create("item9", "Item 10"), ListSelectItem.create("item10", "Item 11"), ListSelectItem.create("item11", "Item 12"), ListSelectItem.create("item12", "Item 13"), ListSelectItem.create("item13", "Item 14"), ListSelectItem.create("item14", "Item 15"), ListSelectItem.create("item15", "Item 16"), ListSelectItem.create("item16", "Item 17"), ListSelectItem.create("item17", "Item 18"), ListSelectItem.create("item18", "Item 19"), ListSelectItem.create("item19", "Item 20"), ListSelectItem.create("item20", "Item 21"), ListSelectItem.create("item21", "Item 22"), ListSelectItem.create("item22", "Item 23"), ListSelectItem.create("item23", "Item 24"), ListSelectItem.create("item24", "Item 25"), ListSelectItem.create("item25", "Item 26"), ListSelectItem.create("item26", "Item 27"), ListSelectItem.create("item27", "Item 28"), ListSelectItem.create("item28", "Item 29"), ListSelectItem.create("item29", "Item 30"));
-    let listSelect1Value = this.storedValues.getString("listSelect1");
-    let listSelect1SelectedIdx = 0;
-    for (let i = 0; i<listSelect1Items.size(); ++i) {
-      if (listSelect1Items.get(i).getValue().equals(listSelect1Value)) {
-        listSelect1SelectedIdx = i;
-        break;
-      }
+    Fonts.prepareScaledFonts(assets, Dut.set(12, 14, 20, 24, 26, 28));
+    let audio = drivers.getDriver("AudioDriver");
+    let mixer = audio.getMixer();
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
+    let uiTop = -100;
+    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Audio").setAlignment(TextAlignment.CENTER_TOP));
+    let musicVol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+65)).setText("0.3").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(musicVol);
+    let musicVolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+50, 30, 30)).setText("-").addOnClickAction(this.getChangeMusicVolumeAction(mixer, musicVol, -0.1));
+    this.ui.addComponent(musicVolDownBtn);
+    let musicVolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+50, 30, 30)).setText("+").addOnClickAction(this.getChangeMusicVolumeAction(mixer, musicVol, 0.1));
+    this.ui.addComponent(musicVolUpBtn);
+    let musicBtn = ToggleButton.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+50, 120, 30)).setText("Music");
+    musicBtn.addOnToggleAction(this.getToggleMusicAction(mixer, musicBtn, musicVol));
+    this.ui.addComponent(musicBtn);
+    let sound1Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+105)).setText("1.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(sound1Vol);
+    let sound1VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+90, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound1Vol, -0.1));
+    this.ui.addComponent(sound1VolDownBtn);
+    let sound1VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+90, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound1Vol, 0.1));
+    this.ui.addComponent(sound1VolUpBtn);
+    let sound1Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+90, 120, 30)).setText("Spell").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("spell1"), sound1Vol));
+    this.ui.addComponent(sound1Btn);
+    let sound2Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+145)).setText("1.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(sound2Vol);
+    let sound2VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+130, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound2Vol, -0.1));
+    this.ui.addComponent(sound2VolDownBtn);
+    let sound2VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+130, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound2Vol, 0.1));
+    this.ui.addComponent(sound2VolUpBtn);
+    let sound2Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+130, 120, 30)).setText("Magic").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("magic1"), sound2Vol));
+    this.ui.addComponent(sound2Btn);
+    let sound3Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+185)).setText("1.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(sound3Vol);
+    let sound3VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+170, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound3Vol, -0.1));
+    this.ui.addComponent(sound3VolDownBtn);
+    let sound3VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+170, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound3Vol, 0.1));
+    this.ui.addComponent(sound3VolUpBtn);
+    let sound3Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+170, 120, 30)).setText("Swing").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("swing1"), sound3Vol));
+    this.ui.addComponent(sound3Btn);
+    if (drivers.getPlatform().isExitable()) {
+      this.ui.addComponent(PlayUis.createExitButton(UiEventActions.exitApp(screenManager)));
     }
-    this.ui.addComponent(ListSelect.create().setRegionFnc(UiRegionFncs.leftTop(10, 50, 200, 150)).addItems(listSelect1Items).setSelectedAt(listSelect1SelectedIdx, true).addOnSelectAction((src) => {
-  let ls = src;
-  let indexes = ls.getSelectedIndexes();
-  if (indexes.isEmpty()) {
-    return ;
-  }
-  let idx = indexes.get(0);
-  let item = ls.getItems().get(idx);
-  this.storedValues = this.storedValues.withString("listSelect1", item.getValue());
-  let storedStr = JsonObjects.toJson(this.storedValues);
-  lds.saveString(this.storedValuesKey, storedStr);
-  platform.logInfo("Updated listSelect1 value to "+item.getValue()+" at index "+idx);
-}));
-    this.ui.addComponent(Label.create().setText("Test Version 9").setPosFnc(UiPosFncs.rightBottom(10, 10)).setAlignment(TextAlignment.RIGHT_BOTTOM));
     this.ui.subscribe(drivers);
   }
 
   leave(drivers) {
+    drivers.getDriver("AudioDriver").getMixer().stop();
     this.ui.unsubscribe(drivers);
   }
 
+  getPlaySoundAction(mixer, soundId, volLabel) {
+    let res = (evtSource) => {
+      mixer.prepare(PlaybackId.of(Randoms.nextAlphabetic(10)), soundId).setVolume(Float.valueOf(volLabel.getText())).play();
+    };
+    return res;
+  }
+
+  getChangeSoundVolumeAction(label, delta) {
+    let res = (evtSource) => {
+      let vol = Float.valueOf(label.getText());
+      vol = FMath.clamp(vol+delta, 0, 1);
+      label.setText(Formats.floatToFixedDecimals(vol, 1));
+    };
+    return res;
+  }
+
+  getChangeMusicVolumeAction(mixer, label, delta) {
+    let res = (evtSource) => {
+      let vol = Float.valueOf(label.getText());
+      vol = FMath.clamp(vol+delta, 0, 1);
+      label.setText(Formats.floatToFixedDecimals(vol, 1));
+      let control = mixer.getControlNonStrict(AudioApp01.MUSIC_PLAYBACK_ID);
+      if (control!=null) {
+        control.setVolume(vol);
+      }
+    };
+    return res;
+  }
+
+  getToggleMusicAction(mixer, button, volLabel) {
+    let res = (evtSource) => {
+      let control = mixer.getControlNonStrict(AudioApp01.MUSIC_PLAYBACK_ID);
+      if (control!=null) {
+        if (button.isToggledOn()) {
+          control.play();
+        }
+        else {
+          control.stop();
+        }
+      }
+      else if (button.isToggledOn()) {
+        mixer.prepare(AudioApp01.MUSIC_PLAYBACK_ID, SoundId.of("space-cadet")).setLoop(true).setVolume(Float.valueOf(volLabel.getText())).play();
+      }
+    };
+    return res;
+  }
+
 }
-classRegistry.PwaTestApp = PwaTestApp;
+classRegistry.AudioApp01 = AudioApp01;
 
 
 // -------------------------------------
@@ -36645,7 +36749,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new PwaTestApp());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new AudioApp01());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
