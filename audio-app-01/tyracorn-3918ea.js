@@ -1357,6 +1357,20 @@ class Dut {
         return res;
     }
 
+    /**
+     * Creates immutable list from the given elements without the given first occurence of the item.
+     *
+     * @param {ArrayList} items items
+     * @param {Object} item item to remove
+     * @return {ArrayList} created list
+     */
+    static immutableListMinusItem(items, item) {
+        const res = new ArrayList();
+        res.addAll(items);
+        res.remove(item);
+        return Collections.unmodifiableList(res);
+    }
+
     static immutableListPlusItems(collection, plusItems) {
         let res = new ArrayList();
         res.addAll(collection);
@@ -1585,6 +1599,24 @@ class Randoms {
      */
     static pickOne(items) {
         return items.get(Randoms.nextInt(0, items.size()));
+    }
+
+    /**
+     * Shuffles the list of items.
+     *
+     * @param {ArrayList} items items
+     * @return {ArrayList} list with shuffled items
+     */
+    static shuffle(items) {
+        const inter = new ArrayList();
+        inter.addAll(items);
+        const res = new ArrayList();
+        while (!inter.isEmpty()) {
+            const item = Randoms.pickOne(inter);
+            inter.remove(item);
+            res.add(item);
+        }
+        return res;
     }
 
 }
