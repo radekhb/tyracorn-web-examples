@@ -36411,12 +36411,13 @@ class MenuScreen extends TyracornScreen {
     }
     let openQuest = this.appManager.getStoryManager().isCurrentQuestOpened();
     questTab.addComponent(MenuUis.createOverlayPanel(4, 8, true));
-    questTab.addComponent(MenuUis.createMediumBtn("Continue", 4, false, UiEventActions.showScreen(screenManager, new QuestScreen(this.appManager, QuestEvent.createNone()))).setDisabled(!openQuest));
-    questTab.addComponent(MenuUis.createMediumBtn("New Quest", 5, false, (btn) => {
+    questTab.addComponent(MenuUis.createTitleLabel("Play", 4));
+    questTab.addComponent(MenuUis.createMediumBtn("Continue", 6, false, UiEventActions.showScreen(screenManager, new QuestScreen(this.appManager, QuestEvent.createNone()))).setDisabled(!openQuest));
+    questTab.addComponent(MenuUis.createMediumBtn("New Quest", 7, false, (btn) => {
   this.appManager.getStoryManager().startNewQuest();
   screenManager.showScreen(new QuestScreen(this.appManager, QuestEvent.createNone()));
 }));
-    questTab.addComponent(MenuUis.createMediumBtn("Back", 7, false, (btn) => {
+    questTab.addComponent(MenuUis.createMediumBtn("Back", 9, false, (btn) => {
   tabs.setActiveTabIdx(0);
 }));
     this.ui.subscribe(drivers);
