@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-02";
-const assetsDirName = "/assets-1921d2";
+const basePath = "/tyracorn-web-examples/basic-app-01";
+const assetsDirName = "/null";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -1306,6 +1306,16 @@ class Collections {
  * Domain utility class.
  */
 class Dut {
+
+    /**
+     * Creates an empty list.
+     *
+     * @return {ArrayList} created list
+     */
+    static emptyList() {
+        return Collections.emptyList();
+    }
+
     static list() {
         let res = new ArrayList();
         if (arguments.length === 1 && Array.isArray(arguments[0])) {
@@ -1378,6 +1388,15 @@ class Dut {
         return res;
     }
 
+    /**
+     * Creates an empty set.
+     *
+     * @return {HashSet} created set
+     */
+    static emptySet() {
+        return Collections.emptySet();
+    }
+
     static set() {
         let res = new HashSet();
         if (arguments.length === 1 && Array.isArray(arguments[0])) {
@@ -1425,6 +1444,15 @@ class Dut {
         res.addAll(items);
         res.add(item);
         return res;
+    }
+
+    /**
+     * Creates an empty map.
+     *
+     * @return {HashMap} created map
+     */
+    static emptyMap() {
+        return Collections.emptyMap();
     }
 
     static map() {
@@ -26452,6 +26480,60 @@ class ActorMessageType {
 
 }
 classRegistry.ActorMessageType = ActorMessageType;
+class ActorMessage {
+  type;
+  payload;
+  constructor() {
+  }
+
+  getClass() {
+    return "ActorMessage";
+  }
+
+  guardInvariants() {
+  }
+
+  getType() {
+    return this.type;
+  }
+
+  typeEquals(tp) {
+    return this.type.equals(tp);
+  }
+
+  getPayload(clazz) {
+    return this.payload;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(type, payload) {
+    let res = new ActorMessage();
+    res.type = type;
+    res.payload = payload;
+    res.guardInvariants();
+    return res;
+  }
+
+  static createPlain(type) {
+    let res = new ActorMessage();
+    res.type = type;
+    res.payload = null;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.ActorMessage = ActorMessage;
 class ActorTag {
   mTag;
   constructor() {
@@ -26770,9 +26852,9 @@ class Actor {
     }
   }
 
-  sendMessage(type, message) {
+  sendMessage(message) {
     for (let i = 0; i<this.components.size(); ++i) {
-      this.components.get(i).onMessage(type, message);
+      this.components.get(i).onMessage(message);
     }
     return this;
   }
@@ -27510,7 +27592,7 @@ class Component {
   onRemove() {
   }
 
-  onMessage(type, message) {
+  onMessage(message) {
   }
 
   actor() {
@@ -27531,19 +27613,19 @@ class Component {
     }
   }
 
-  sendMessage(targetId, type, message) {
+  sendMessage(targetId, message) {
     if (this.world().actors().exists(targetId)) {
-      this.world().actors().get(targetId).sendMessage(type, message);
+      this.world().actors().get(targetId).sendMessage(message);
     }
     else {
       throw new Error("actor doesn't exists: "+targetId.id());
     }
   }
 
-  broadcastMessage(matcher, type, message) {
+  broadcastMessage(matcher, message) {
     this.world().actors().forEach(ActorId.ROOT, (act) => {
   if (Functions.actorMatches(matcher, act)) {
-    act.sendMessage(type, message);
+    act.sendMessage(message);
   }
 });
   }
@@ -28678,10 +28760,9 @@ class CameraControllerComponent extends Behavior {
     this.cameraLookAt = newLookAt;
   }
 
-  onMessage(type, message) {
-    if (type.equals(ActorMessageType.CAMERA_SHAKE)) {
-      let shakeMsg = message;
-      this.shake(shakeMsg);
+  onMessage(message) {
+    if (message.typeEquals(ActorMessageType.CAMERA_SHAKE)) {
+      this.shake(message.getPayload("CameraShake"));
     }
   }
 
@@ -28869,6 +28950,7 @@ class WorldComponent extends Behavior {
   angularDrag = 0.5;
   boundary = Aabb3.create(-1000, -1000, -1000, 1000, 1000, 1000);
   action;
+  outspaceMessage = ActorMessage.createPlain(ActorMessageType.OUTSPACE);
   constructor(key) {
     super(key);
   }
@@ -28937,7 +29019,7 @@ class WorldComponent extends Behavior {
           rb.applyTorque(dragTorque);
         }
         if (!this.boundary.isInside(rb.getPos())) {
-          fncActor.sendMessage(ActorMessageType.OUTSPACE, null);
+          fncActor.sendMessage(this.outspaceMessage);
         }
       }
       else {
@@ -28945,7 +29027,7 @@ class WorldComponent extends Behavior {
         if (tc!=null) {
           let pos = tc.toGlobal(Vec3.ZERO);
           if (!this.boundary.isInside(pos)) {
-            fncActor.sendMessage(ActorMessageType.OUTSPACE, null);
+            fncActor.sendMessage(this.outspaceMessage);
           }
         }
       }
@@ -30598,8 +30680,8 @@ class RemoveOnOutspaceComponent extends Component {
   guardInvariants() {
   }
 
-  onMessage(type, message) {
-    if (type.equals(ActorMessageType.OUTSPACE)) {
+  onMessage(message) {
+    if (message.typeEquals(ActorMessageType.OUTSPACE)) {
       this.world().actors().remove(this.actor().getId());
     }
   }
@@ -36333,20 +36415,18 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp02 extends TyracornApp {
-  planes = Dut.immutableList(MeshId.of("plane-0"), MeshId.of("plane-1"), MeshId.of("plane-2"), MeshId.of("plane-3"), MeshId.of("plane-4"), MeshId.of("plane-5"), MeshId.of("plane-6"), MeshId.of("plane-7"), MeshId.of("plane-8"), MeshId.of("plane-9"), MeshId.of("plane-10"));
-  tex1 = TextureId.of("tex1");
-  tex2 = TextureId.of("tex2");
-  stone = TextureId.of("stone-floor-1");
-  tyracorn = TextureId.of("tyracorn");
-  rug = TextureId.of("rug-1");
+class BasicApp01 extends TyracornApp {
+  box1 = MeshId.of("box1");
+  box2 = MeshId.of("box2");
+  box3 = MeshId.of("box3");
+  boxT = MeshId.of("boxT");
   time = 0;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp02";
+    return "BasicApp01";
   }
 
   move(drivers, dt) {
@@ -36355,57 +36435,36 @@ class BasicApp02 extends TyracornApp {
     let aspect = gDriver.getScreenViewport().getAspect();
     let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
     let m = 2*FMath.sin(this.time/3);
-    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 5), Vec3.ZERO, Vec3.create(0, 1, 0));
+    let cam = Camera.persp(fovy, aspect, 1.0, 50.0).lookAt(Vec3.create(m, 2, 7), Vec3.ZERO, Vec3.create(0, 1, 0));
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let renderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, Light.directional(LightColor.AMBIENT_WHITE, Vec3.DOWN)));
-    renderer.render(this.planes.get(10), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -0.5, 0).mul(Mat44.rotX(-Math.PI/2).mul(Mat44.scale(20, 20, 1))), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.rug, TextureStyle.SMOOTH_REPEAT)));
-    renderer.render(this.planes.get(1), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-4, 1, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.LINEAR, TextureFilterType.LINEAR))));
-    renderer.render(this.planes.get(1), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-4, 0, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.render(this.planes.get(1), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-2.4, 0, 0).mul(Mat44.scale(2, 1, 1)), Material.fromColors(Rgb.BLACK, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.ALPHA, this.tyracorn, TextureStyle.SMOOTH_REPEAT)).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tyracorn, TextureStyle.SMOOTH_REPEAT)));
-    renderer.render(this.planes.get(2), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-0.6, 0, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.render(this.planes.get(2), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-0.6, 1, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.LINEAR, TextureFilterType.LINEAR))));
-    renderer.render(this.planes.get(2), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-0.6, 2, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.stone, TextureStyle.SMOOTH_REPEAT)));
-    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0.8, 0, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.EDGE, TextureWrapType.EDGE, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0.8, 1, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.MIRRORED_REPEAT, TextureWrapType.MIRRORED_REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0.8, 2, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.REPEAT, TextureWrapType.REPEAT, Rgba.TRANSPARENT, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(2.0, 0, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.BORDER, TextureWrapType.BORDER, Rgba.RED, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
-    renderer.render(this.planes.get(4), Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(2.0, 1, 0), Material.fromColors(Rgb.WHITE, Rgb.BLACK, Rgb.BLACK, 1).plusTexture(TextureAttachment.create(TextureType.DIFFUSE, this.tex1, TextureStyle.create(TextureWrapType.BORDER, TextureWrapType.BORDER, Rgba.WHITE, TextureFilterType.NEAREST, TextureFilterType.NEAREST))));
+    let renderer = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
+    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(-4, 0, -2).mul(Mat44.rotX(this.time/2)));
+    renderer.render(this.box2, Interpolation.ZERO, Mat44.trans(-4, 0, 0).mul(Mat44.rotY(this.time/1)));
+    renderer.render(this.box3, Interpolation.ZERO, Mat44.trans(-4, 0, 2).mul(Mat44.rotZ(this.time/0.4)));
+    renderer.render(this.box1, Interpolation.ZERO, Mat44.trans(-2, 0, 0));
+    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(-2, 0, 2), BlendType.ALPHA);
+    renderer.render(this.box2, Interpolation.ZERO, Mat44.trans(0, 0, 0));
+    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(0, 0, 2), BlendType.ADDITIVE);
+    renderer.render(this.box3, Interpolation.ZERO, Mat44.trans(2, 0, 0));
+    renderer.renderTransparent(this.boxT, Interpolation.ZERO, Mat44.trans(2, 0, 2), BlendType.MULTIPLICATIVE);
     renderer.end();
   }
 
   init(drivers, properties) {
     let assets = drivers.getDriver("AssetManager");
-    assets.put(this.planes.get(1), this.plane(1, 1));
-    assets.put(this.planes.get(2), this.plane(2, 2));
-    assets.put(this.planes.get(3), this.plane(3, 3));
-    assets.put(this.planes.get(4), this.plane(4, 4));
-    assets.put(this.planes.get(5), this.plane(5, 5));
-    assets.put(this.planes.get(6), this.plane(6, 6));
-    assets.put(this.planes.get(7), this.plane(7, 7));
-    assets.put(this.planes.get(8), this.plane(8, 8));
-    assets.put(this.planes.get(9), this.plane(9, 9));
-    assets.put(this.planes.get(10), this.plane(10, 10));
-    let mtex1 = Texture.rgbFloatValues(4, 4, 1, 1, 1, 0.3, 0.3, 0.3, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 1, 1, 1, 1, 0, 0.3, 0.3, 0.3, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 1, 1, 0, 1).powRgb(2.2);
-    let mtex2 = Texture.rgbaFloatValues(4, 4, 1, 1, 1, 1, 0.3, 0.3, 0.3, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0.3, 0.3, 0.3, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0.3, 0.3, 0.3, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1).powRgb(2.2);
-    assets.put(this.tex1, mtex1);
-    assets.put(this.tex2, mtex2);
-    let res = new ArrayList();
-    res.add(assets.resolveAsync(Path.of("asset:stone-floor-1.png"), "Texture", TextureFncs.flipVertGammaToUnsignedByte(2.2)));
-    res.add(assets.resolveAsync(Path.of("asset:tyracorn.png"), "Texture", TextureFncs.flipVertGammaToUnsignedByte(2.2)));
-    res.add(assets.resolveAsync(Path.of("asset:rug-1.png"), "Texture", TextureFncs.flipVertGammaToUnsignedByte(2.2)));
-    return res;
+    assets.put(this.box1, BoxMeshFactory.rgbBox(Rgb.RED, Rgb.GREEN, Rgb.BLUE, Rgb.WHITE));
+    assets.put(this.box2, BoxMeshFactory.rgbBox(Rgb.GREEN, Rgb.GREEN, Rgb.create(1, 1, 0), Rgb.BLUE));
+    assets.put(this.box3, BoxMeshFactory.rgbBox(Rgb.create(1, 0, 1), Rgb.GREEN, Rgb.create(0, 1, 1), Rgb.BLUE));
+    assets.put(this.boxT, BoxMeshFactory.rgbaBox(Rgb.WHITE, Rgb.BLUE, Rgb.create(1, 0, 1), Rgb.RED, 0.5));
+    return Collections.emptyList();
   }
 
   close(drivers) {
   }
 
-  plane(repU, repV) {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.NORM3, VertexAttr.TEX2), Dut.list(Vertex.floatValues(-0.5, -0.5, 0, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0, 0, 0, 1, repU, 0), Vertex.floatValues(0.5, 0.5, 0, 0, 0, 1, repU, repV), Vertex.floatValues(-0.5, 0.5, 0, 0, 0, 1, 0, repV))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3))).toMesh();
-    return res;
-  }
-
 }
-classRegistry.BasicApp02 = BasicApp02;
+classRegistry.BasicApp01 = BasicApp01;
 
 
 // -------------------------------------
@@ -36788,7 +36847,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = new BasicApp02();
+    tyracornApp = new BasicApp01();
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
