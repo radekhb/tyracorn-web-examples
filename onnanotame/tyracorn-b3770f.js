@@ -42669,6 +42669,14 @@ class QuestNode {
     return this.type;
   }
 
+  typeEquals(tp) {
+    return this.type.equals(tp);
+  }
+
+  isCombat() {
+    return this.type.equals(QuestNodeType.COMBAT);
+  }
+
   withType(type) {
     let res = new QuestNode();
     res.id = this.id;
@@ -43474,7 +43482,7 @@ class QuestScreen extends TyracornScreen {
     this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(MenuUis.createDefaultStyler());
     let panel916 = MenuUis.createPanel916();
     this.ui.addComponent(panel916);
-    if (currentQuestStatus.isOpened()) {
+    if (currentQuestStatus.isOpened()&&currentQuest.getNode(currentQuestStatus.getCurrentNodeIdx()).isCombat()) {
       panel916.addComponent(MenuUis.createMediumBtn("Fight", 9, false, (btn) => {
   if (!this.questPlayerBehavior.isControllable()) {
     return ;
