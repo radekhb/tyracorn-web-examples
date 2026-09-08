@@ -22703,6 +22703,22 @@ class MeshAnimationPlayer {
     return this.animationKey;
   }
 
+  keyEquals(other) {
+    return this.animationKey.equals(other);
+  }
+
+  keyNotEquals(other) {
+    return !this.animationKey.equals(other);
+  }
+
+  keyIn(others) {
+    return others.contains(this.animationKey);
+  }
+
+  keyNotIn(others) {
+    return !others.contains(this.animationKey);
+  }
+
   getTime() {
     return this.time;
   }
