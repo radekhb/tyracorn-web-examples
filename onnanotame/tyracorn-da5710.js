@@ -37394,27 +37394,27 @@ class FighterCharacters {
   }
 
   static createRiven() {
-    return FighterCharacter.create(FighterCharacterType.RIVEN).withName("Riven").withPrefabId(ActorPrefabId.of("fighter-skeleton-a-1")).withAnimationCollectionId(MeshAnimationCollectionId.of("fighter-skeleton-a")).withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.8).plusChoice(FighterAttackType.KICK, 0.2));
+    return FighterCharacter.create(FighterCharacterType.RIVEN).withName("Riven").withPrefabId(ActorPrefabId.of("fighter-skeleton-a-2")).withAnimationCollectionId(MeshAnimationCollectionId.of("fighter-skeleton-a")).withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.8).plusChoice(FighterAttackType.KICK, 0.2));
   }
 
   static createMordik() {
-    return FighterCharacter.create(FighterCharacterType.MORDIK).withName("Mordik").withPrefabId(ActorPrefabId.of("fighter-imp-1")).withAnimationCollectionId(MeshAnimationCollectionId.of("fighter-imp")).withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.6).plusChoice(FighterAttackType.KICK, 0.4));
+    return FighterCharacter.create(FighterCharacterType.MORDIK).withName("Mordik").withPrefabId(ActorPrefabId.of("fighter-imp-2")).withAnimationCollectionId(MeshAnimationCollectionId.of("fighter-imp")).withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.6).plusChoice(FighterAttackType.KICK, 0.4));
   }
 
   static createNyx() {
-    return FighterCharacter.create(FighterCharacterType.NYX).withName("Nyx").withPrefabId(ActorPrefabId.of("fighter-skeleton-b-1")).withAnimationCollectionId(MeshAnimationCollectionId.of("fighter-skeleton-b")).withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.5).plusChoice(FighterAttackType.KICK, 0.5));
+    return FighterCharacter.create(FighterCharacterType.NYX).withName("Nyx").withPrefabId(ActorPrefabId.of("fighter-skeleton-b-3")).withAnimationCollectionId(MeshAnimationCollectionId.of("fighter-skeleton-b")).withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.5).plusChoice(FighterAttackType.KICK, 0.5));
   }
 
   static createUngo() {
-    return FighterCharacter.create(FighterCharacterType.UNGO).withName("Ungo").withPrefabId(ActorPrefabId.of("fighter-lycan-1")).withAnimationCollectionId(MeshAnimationCollectionId.of("fighter-lycan")).withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.2).plusChoice(FighterAttackType.KICK, 0.8));
+    return FighterCharacter.create(FighterCharacterType.UNGO).withName("Ungo").withPrefabId(ActorPrefabId.of("fighter-lycan-2")).withAnimationCollectionId(MeshAnimationCollectionId.of("fighter-lycan")).withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.2).plusChoice(FighterAttackType.KICK, 0.8));
   }
 
   static createRaze() {
-    return FighterCharacter.create(FighterCharacterType.RAZE).withName("Raze").withPrefabId(ActorPrefabId.of("fighter-skeleton-b-2")).withAnimationCollectionId(MeshAnimationCollectionId.of("fighter-skeleton-b")).withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.2).plusChoice(FighterAttackType.KICK, 0.8));
+    return FighterCharacter.create(FighterCharacterType.RAZE).withName("Raze").withPrefabId(ActorPrefabId.of("fighter-skeleton-b-3")).withAnimationCollectionId(MeshAnimationCollectionId.of("fighter-skeleton-b")).withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.2).plusChoice(FighterAttackType.KICK, 0.8));
   }
 
   static createCrow() {
-    return FighterCharacter.create(FighterCharacterType.CROW).withName("Crow").withPrefabId(ActorPrefabId.of("fighter-skeleton-a-3")).withAnimationCollectionId(MeshAnimationCollectionId.of("fighter-skeleton-a")).withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.5).plusChoice(FighterAttackType.KICK, 0.4).plusChoice(FighterAttackType.SPELL, 0.1));
+    return FighterCharacter.create(FighterCharacterType.CROW).withName("Crow").withPrefabId(ActorPrefabId.of("fighter-skeleton-a-2")).withAnimationCollectionId(MeshAnimationCollectionId.of("fighter-skeleton-a")).withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.5).plusChoice(FighterAttackType.KICK, 0.4).plusChoice(FighterAttackType.SPELL, 0.1));
   }
 
   static createAbyss() {
