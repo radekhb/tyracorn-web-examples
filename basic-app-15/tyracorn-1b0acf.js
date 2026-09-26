@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/rigid-body-app-03";
-const assetsDirName = "/assets-3d362e";
+const basePath = "/tyracorn-web-examples/basic-app-15";
+const assetsDirName = "/assets-e8b1d8";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -5217,6 +5217,9 @@ class WebglSceneRenderer {
         Guard.notNull(this.defaultTexture, "defaultTexture shader cannot be null");
     }
 
+    /**
+     * Performs an initialization.
+     */
     init() {
         this.shader.use();
 
@@ -5268,7 +5271,6 @@ class WebglSceneRenderer {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         this.shader.setUniformInt("shadowTexture3", 7);
-
     }
 
     /**
@@ -8467,6 +8469,7 @@ class DriverProvider {
 // -------------------------------------
 
 class JsonObject {
+  static EMPTY = JsonObject.empty();
   entries;
   constructor() {
   }
@@ -8500,11 +8503,25 @@ class JsonObject {
     throw new Error("key doesn't exists: "+key);
   }
 
+  getBooleanOrDefault(key, def) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    return def;
+  }
+
   getString(key) {
     if (this.entries.containsKey(key)) {
       return this.entries.get(key);
     }
     throw new Error("key doesn't exists: "+key);
+  }
+
+  getStringOrDefault(key, def) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    return def;
   }
 
   getInt(key) {
@@ -8514,11 +8531,25 @@ class JsonObject {
     throw new Error("key doesn't exists: "+key);
   }
 
+  getIntOrDefault(key, def) {
+    if (this.entries.containsKey(key)) {
+      return FMath.trunc(this.entries.get(key));
+    }
+    return def;
+  }
+
   getFloat(key) {
     if (this.entries.containsKey(key)) {
       return this.entries.get(key);
     }
     throw new Error("key doesn't exists: "+key);
+  }
+
+  getFloatOrDefault(key, def) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    return def;
   }
 
   getJsonObject(key) {
@@ -8528,11 +8559,25 @@ class JsonObject {
     throw new Error("key doesn't exists: "+key);
   }
 
+  getJsonObjectOrEmpty(key) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    return JsonObject.EMPTY;
+  }
+
   getJsonArray(key) {
     if (this.entries.containsKey(key)) {
       return this.entries.get(key);
     }
     throw new Error("key doesn't exists: "+key);
+  }
+
+  getJsonArrayOrEmpty(key) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    return JsonArray.EMPTY;
   }
 
   withBoolean(key, val) {
@@ -8616,6 +8661,7 @@ class JsonObject {
 }
 classRegistry.JsonObject = JsonObject;
 class JsonArray {
+  static EMPTY = JsonArray.empty();
   items;
   constructor() {
   }
@@ -9712,6 +9758,62 @@ class Mat44 {
     return res;
   }
 
+  decompose() {
+    let tr = Vec3.create(this.mm03, this.mm13, this.mm23);
+    let sx = FMath.sqrt(this.mm00*this.mm00+this.mm10*this.mm10+this.mm20*this.mm20);
+    let sy = FMath.sqrt(this.mm01*this.mm01+this.mm11*this.mm11+this.mm21*this.mm21);
+    let sz = FMath.sqrt(this.mm02*this.mm02+this.mm12*this.mm12+this.mm22*this.mm22);
+    let sc = Vec3.create(sx, sy, sz);
+    let r00 = this.mm00/sx;
+    let r10 = this.mm10/sx;
+    let r20 = this.mm20/sx;
+    let r01 = this.mm01/sy;
+    let r11 = this.mm11/sy;
+    let r21 = this.mm21/sy;
+    let r02 = this.mm02/sz;
+    let r12 = this.mm12/sz;
+    let r22 = this.mm22/sz;
+    let rt = null;
+    let trace = r00+r11+r22;
+    if (trace>0.0) {
+      let s = Math.sqrt(trace+1.0)*2.0;
+      let qa = 0.25*s;
+      let qb = (r21-r12)/s;
+      let qc = (r02-r20)/s;
+      let qd = (r10-r01)/s;
+      let qlen = FMath.sqrt(qa*qa+qb*qb+qc*qc+qd*qd);
+      rt = Quaternion.create(qa/qlen, qb/qlen, qc/qlen, qd/qlen);
+    }
+    else if (r00>r11&&r00>r22) {
+      let s = Math.sqrt(1.0+r00-r11-r22)*2.0;
+      let qa = (r21-r12)/s;
+      let qb = 0.25*s;
+      let qc = (r01+r10)/s;
+      let qd = (r02+r20)/s;
+      let qlen = FMath.sqrt(qa*qa+qb*qb+qc*qc+qd*qd);
+      rt = Quaternion.create(qa/qlen, qb/qlen, qc/qlen, qd/qlen);
+    }
+    else if (r11>r22) {
+      let s = Math.sqrt(1.0+r11-r00-r22)*2.0;
+      let qa = (r02-r20)/s;
+      let qb = (r01+r10)/s;
+      let qc = 0.25*s;
+      let qd = (r12+r21)/s;
+      let qlen = FMath.sqrt(qa*qa+qb*qb+qc*qc+qd*qd);
+      rt = Quaternion.create(qa/qlen, qb/qlen, qc/qlen, qd/qlen);
+    }
+    else {
+      let s = Math.sqrt(1.0+r22-r00-r11)*2.0;
+      let qa = (r10-r01)/s;
+      let qb = (r02+r20)/s;
+      let qc = (r12+r21)/s;
+      let qd = 0.25*s;
+      let qlen = FMath.sqrt(qa*qa+qb*qb+qc*qc+qd*qd);
+      rt = Quaternion.create(qa/qlen, qb/qlen, qc/qlen, qd/qlen);
+    }
+    return Trs3.create(tr, rt, sc);
+  }
+
   toBufCol(buf) {
     buf[0] = this.mm00;
     buf[1] = this.mm10;
@@ -9969,7 +10071,7 @@ class Mat44 {
     return res;
   }
 
-  static transofm(pos, rot) {
+  static transofm(trans, rot) {
     let bb = rot.b()*rot.b();
     let cc = rot.c()*rot.c();
     let dd = rot.d()*rot.d();
@@ -9977,15 +10079,15 @@ class Mat44 {
     res.mm00 = 1-2*cc-2*dd;
     res.mm01 = 2*rot.b()*rot.c()-2*rot.d()*rot.a();
     res.mm02 = 2*rot.b()*rot.d()+2*rot.c()*rot.a();
-    res.mm03 = pos.x();
+    res.mm03 = trans.x();
     res.mm10 = 2*rot.b()*rot.c()+2*rot.d()*rot.a();
     res.mm11 = 1-2*bb-2*dd;
     res.mm12 = 2*rot.c()*rot.d()-2*rot.b()*rot.a();
-    res.mm13 = pos.y();
+    res.mm13 = trans.y();
     res.mm20 = 2*rot.b()*rot.d()-2*rot.c()*rot.a();
     res.mm21 = 2*rot.c()*rot.d()+2*rot.b()*rot.a();
     res.mm22 = 1-2*bb-2*cc;
-    res.mm23 = pos.z();
+    res.mm23 = trans.z();
     res.mm30 = 0;
     res.mm31 = 0;
     res.mm32 = 0;
@@ -9993,7 +10095,7 @@ class Mat44 {
     return res;
   }
 
-  static transofmScaled(pos, rot, scale) {
+  static transofmScaled(trans, rot, scale) {
     let bb = rot.b()*rot.b();
     let cc = rot.c()*rot.c();
     let dd = rot.d()*rot.d();
@@ -10001,15 +10103,15 @@ class Mat44 {
     res.mm00 = scale.x()*(1-2*cc-2*dd);
     res.mm01 = scale.y()*(2*rot.b()*rot.c()-2*rot.d()*rot.a());
     res.mm02 = scale.z()*(2*rot.b()*rot.d()+2*rot.c()*rot.a());
-    res.mm03 = pos.x();
+    res.mm03 = trans.x();
     res.mm10 = scale.x()*(2*rot.b()*rot.c()+2*rot.d()*rot.a());
     res.mm11 = scale.y()*(1-2*bb-2*dd);
     res.mm12 = scale.z()*(2*rot.c()*rot.d()-2*rot.b()*rot.a());
-    res.mm13 = pos.y();
+    res.mm13 = trans.y();
     res.mm20 = scale.x()*(2*rot.b()*rot.d()-2*rot.c()*rot.a());
     res.mm21 = scale.y()*(2*rot.c()*rot.d()+2*rot.b()*rot.a());
     res.mm22 = scale.z()*(1-2*bb-2*cc);
-    res.mm23 = pos.z();
+    res.mm23 = trans.z();
     res.mm30 = 0;
     res.mm31 = 0;
     res.mm32 = 0;
@@ -10113,6 +10215,7 @@ class Pos2 {
 }
 classRegistry.Pos2 = Pos2;
 class Size2 {
+  static ZERO = Size2.create(0, 0);
   mWidth;
   mHeight;
   constructor() {
@@ -12825,6 +12928,15 @@ class TextureAttachment {
     return this.texture;
   }
 
+  withTexture(texture) {
+    let res = new TextureAttachment();
+    res.type = this.type;
+    res.texture = texture;
+    res.style = this.style;
+    res.guardInvariants();
+    return res;
+  }
+
   getStyle() {
     return this.style;
   }
@@ -13521,6 +13633,15 @@ class Material {
 
   withShininess(shininess) {
     return Material.create(this.base.withShininess(shininess), this.alphaMode, this.textures);
+  }
+
+  withTextures(textures) {
+    let res = new Material();
+    res.base = this.base;
+    res.alphaMode = this.alphaMode;
+    res.textures = Dut.copyImmutableList(textures);
+    res.guardInvariants();
+    return res;
   }
 
   plusTexture(texture) {
@@ -14545,13 +14666,12 @@ class Armature {
   guardInvariants() {
   }
 
-  init() {
+  buildIndexesMap() {
     this.idsToIndexes = new HashMap();
     for (let i = 0; i<this.nodes.size(); ++i) {
       this.idsToIndexes.put(this.nodes.get(i).getId(), i);
     }
     this.idsToIndexes = Collections.unmodifiableMap(this.idsToIndexes);
-    Guard.beTrue(this.nodes.size()==this.idsToIndexes.size(), "nodes cannot have duplicated ids");
   }
 
   getNodes() {
@@ -14593,8 +14713,41 @@ class Armature {
   plusNode(node) {
     let res = new Armature();
     res.nodes = Dut.immutableListPlusItem(this.nodes, node);
+    res.buildIndexesMap();
     res.guardInvariants();
-    res.init();
+    return res;
+  }
+
+  minusNode(nodeId) {
+    let res = new Armature();
+    res.nodes = new ArrayList();
+    for (let node of this.nodes) {
+      if (node.getId().equals(nodeId)) {
+        continue;
+      }
+      res.nodes.add(node);
+    }
+    res.nodes = Collections.unmodifiableList(res.nodes);
+    res.buildIndexesMap();
+    res.guardInvariants();
+    return res;
+  }
+
+  mapNodeId(fromId, toId) {
+    let res = new Armature();
+    res.nodes = new ArrayList();
+    for (let node of this.nodes) {
+      if (node.getId().equals(fromId)) {
+        node = ArmatureNode.create(toId, node.getParentId(), node.getTransform(), node.getBoneOffset());
+      }
+      if (node.getParentId()!=null&&node.getParentId().equals(fromId)) {
+        node = ArmatureNode.create(node.getId(), toId, node.getTransform(), node.getBoneOffset());
+      }
+      res.nodes.add(node);
+    }
+    res.nodes = Collections.unmodifiableList(res.nodes);
+    res.buildIndexesMap();
+    res.guardInvariants();
     return res;
   }
 
@@ -14612,16 +14765,16 @@ class Armature {
   static create(nodes) {
     let res = new Armature();
     res.nodes = Dut.copyImmutableList(nodes);
+    res.buildIndexesMap();
     res.guardInvariants();
-    res.init();
     return res;
   }
 
   static empty() {
     let res = new Armature();
     res.nodes = Collections.emptyList();
+    res.buildIndexesMap();
     res.guardInvariants();
-    res.init();
     return res;
   }
 
@@ -17103,6 +17256,9 @@ class StretchUiPainter {
   }
 
   drawImage_6_TextureId_number_number_number_number_SpriteStyle(img, x, y, width, height, style) {
+    if (this.size.width()==0||this.size.height()==0) {
+      return ;
+    }
     let nx = x/this.size.width();
     let ny = y/this.size.height();
     let nw = width/this.size.width();
@@ -17119,17 +17275,27 @@ class StretchUiPainter {
   }
 
   fillRect(rect, color) {
+    if (this.size.width()==0||this.size.height()==0) {
+      return ;
+    }
     let normRect = Rect2.create(rect.x()/this.size.width(), rect.y()/this.size.height(), rect.width()/this.size.width(), rect.height()/this.size.height());
     this.target.fillRect(normRect, color);
   }
 
   drawLine(start, end, color) {
+    if (this.size.width()==0||this.size.height()==0) {
+      return ;
+    }
     let normStart = Vec2.create(start.x()/this.size.width(), start.y()/this.size.height());
     let normEnd = Vec2.create(end.x()/this.size.width(), end.y()/this.size.height());
     this.target.drawLine(normStart, normEnd, color);
   }
 
   setClipRect(rect) {
+    if (this.size.width()==0||this.size.height()==0) {
+      this.target.setClipRect(Rect2.create(Pos2.ZERO, Size2.ZERO));
+      return ;
+    }
     let normRect = Rect2.create(rect.x()/this.size.width(), rect.y()/this.size.height(), rect.width()/this.size.width(), rect.height()/this.size.height());
     this.target.setClipRect(normRect);
   }
@@ -18522,6 +18688,10 @@ class PanelPainter {
   }
 
   setClipRect(rect) {
+    if (this.innerSize.width()==0||this.innerSize.height()==0) {
+      this.fullyClipped = true;
+      return ;
+    }
     let normRect = Rect2.create(this.region.x()+rect.x()*this.region.width()/this.innerSize.width(), this.region.y()+rect.y()*this.region.height()/this.innerSize.height(), rect.width()*this.region.width()/this.innerSize.width(), rect.height()*this.region.height()/this.innerSize.height());
     if (this.clipRegion) {
       if (this.region.isIntersect(normRect)) {
@@ -19816,10 +19986,6 @@ class ListSelect extends UiComponent {
       this.addItem(item);
     }
     return this;
-  }
-
-  removeItem(index) {
-    throw new Error("TODO");
   }
 
   clearItems() {
@@ -21639,9 +21805,9 @@ class Fonts {
       let texId = TextureId.of(file.getPlainName()+"."+ch);
       let rch = Character.create(ch, texId, height, Vec2.create(Integer.valueOf(chconf.get("offsetX")), Integer.valueOf(chconf.get("offsetY"))), Size2.create(Integer.valueOf(chconf.get("width")), Integer.valueOf(chconf.get("height"))), Integer.valueOf(chconf.get("advance")), kernings.getOrDefault(ch, Collections.emptyMap()));
       font = font.addCharacter(rch);
-      res = res.put(texId, tex);
+      res = res.plus(texId, tex);
     }
-    res = res.put(FontId.of(file.getPlainName()), font);
+    res = res.plus(FontId.of(file.getPlainName()), font);
     return res;
   }
 
@@ -22554,6 +22720,18 @@ class MeshAnimationCollection {
     let res = new MeshAnimationCollection();
     res.animations = Dut.immutableListPlusItem(this.animations, animation);
     res.animationsByKey = Dut.immutableMapPlusEntry(this.animationsByKey, animation.getKey(), animation);
+    res.guardInvariants();
+    return res;
+  }
+
+  plusAnimations(anims) {
+    let res = new MeshAnimationCollection();
+    res.animations = Dut.immutableListPlusItems(this.animations, anims);
+    let animsByKey = new HashMap();
+    for (let anim of anims) {
+      animsByKey.put(anim.getKey(), anim);
+    }
+    res.animationsByKey = Dut.immutableMapPlusEntries(this.animationsByKey, animsByKey);
     res.guardInvariants();
     return res;
   }
@@ -23520,7 +23698,7 @@ class AssetGroup {
   guardInvariants() {
   }
 
-  put(key, asset) {
+  plus(key, asset) {
     Guard.notNull(key, "key cannot be null");
     Guard.notNull(asset, "asset cannot be null");
     let c = new HashMap();
@@ -23532,7 +23710,7 @@ class AssetGroup {
     return res;
   }
 
-  remove(key) {
+  minus(key) {
     Guard.notNull(key, "key cannot be null");
     let c = new HashMap();
     c.putAll(this.cache);
@@ -23607,7 +23785,7 @@ class AssetGroup {
     if (!this.cache.containsKey(key)) {
       throw new Error("no asset under "+key);
     }
-    return AssetGroup.empty().put(key, this.cache.get(key));
+    return AssetGroup.empty().plus(key, this.cache.get(key));
   }
 
   mergeStrict(other) {
@@ -23694,10 +23872,10 @@ class AssetGroup {
     for (let key of this.cache.keySet()) {
       let val = this.cache.get(key);
       if (val.getClass().equals(clazz)) {
-        res = res.put(key, fnc(val));
+        res = res.plus(key, fnc(val));
       }
       else {
-        res = res.put(key, val);
+        res = res.plus(key, val);
       }
     }
     return res;
@@ -23707,10 +23885,10 @@ class AssetGroup {
     let res = AssetGroup.empty();
     for (let key of this.cache.keySet()) {
       if (key.getClass().equals(clazz)) {
-        res = res.put(fnc(key), this.cache.get(key));
+        res = res.plus(fnc(key), this.cache.get(key));
       }
       else {
-        res = res.put(key, this.cache.get(key));
+        res = res.plus(key, this.cache.get(key));
       }
     }
     return res;
@@ -23761,7 +23939,7 @@ class AssetGroup {
   }
 
   static of(key, asset) {
-    return AssetGroup.empty().put(key, asset);
+    return AssetGroup.empty().plus(key, asset);
   }
 
 }
@@ -23852,55 +24030,30 @@ class Assets {
             }
             res = res.mergeStrict(Objs.loadAnimatedModel(modelId, loader, animFiles));
           }
-          else if (type.equals("LOAD_STATIC_MODEL")) {
-            let file = dir.getChild(taskJson.getString("file"));
-            let modelId = ModelId.of(taskJson.getString("modelId"));
-            let options = StaticModelImportOptions.create(modelId).withScale(taskJson.containsKey("scale")?Float.valueOf(taskJson.getString("scale")):1);
-            res = res.mergeStrict(loader.loadBundle(file, options));
-          }
           else if (type.equals("LOAD_RIGGED_MODEL")) {
             let file = dir.getChild(taskJson.getString("file"));
-            let modelId = ModelId.of(taskJson.getString("modelId"));
-            let options = RiggedModelImportOptions.create(modelId).withScale(taskJson.containsKey("scale")?Float.valueOf(taskJson.getString("scale")):1).withApproximateRigAllowed(taskJson.containsKey("approximateRigAllowed")?taskJson.getBoolean("approximateRigAllowed"):false);
-            let animationsJson = taskJson.getJsonArray("animations");
-            for (let j = 0; j<animationsJson.size(); ++j) {
-              let animJson = animationsJson.getJsonObject(j);
-              let animOpts = RiggedModelAnimationImportOptions.create(animJson.getString("sourceId"), MeshAnimationKey.of(animJson.getString("key")), animJson.getBoolean("loop"));
-              let triggers = animJson.containsKey("triggers")?Assets.parseMeshAnimationTriggers(animJson.getJsonArray("triggers")):Collections.emptyList();
-              animOpts = animOpts.plusTriggers(triggers);
-              options = options.plusAnimation(animOpts);
-            }
+            let options = Assets.parseModelImportOptions(taskJson, loader, dir);
             res = res.mergeStrict(loader.loadBundle(file, options));
           }
           else if (type.equals("LOAD_RIGGED_MODEL_EXTRA_ANIMATIONS")) {
             let file = dir.getChild(taskJson.getString("file"));
-            let targetCollectionId = MeshAnimationCollectionId.of(taskJson.getString("targetCollectionId"));
+            let targetCollectionId = MeshAnimationCollectionId.of(taskJson.getString("targetAnimationCollectionId"));
             let targetCollection = res.get("MeshAnimationCollection", targetCollectionId);
-            let options = RiggedModelExtraAnimationImportOptions.create(targetCollectionId, targetCollection).withScale(taskJson.containsKey("scale")?Float.parseFloat(taskJson.getString("scale")):1);
-            let armatureNodesJson = taskJson.getJsonObject("armatureNodes");
-            for (let sourceIdStr of armatureNodesJson.keySet()) {
-              let targetIdStr = armatureNodesJson.getString(sourceIdStr);
-              options = options.plusArmatureNode(ArmatureNodeId.of(sourceIdStr), ArmatureNodeId.of(targetIdStr));
-            }
-            let animationsJson = taskJson.getJsonArray("animations");
-            for (let j = 0; j<animationsJson.size(); ++j) {
-              let animJson = animationsJson.getJsonObject(j);
-              let animOpts = RiggedModelAnimationImportOptions.create(animJson.getString("sourceId"), MeshAnimationKey.of(animJson.getString("key")), animJson.getBoolean("loop"));
-              let triggers = animJson.containsKey("triggers")?Assets.parseMeshAnimationTriggers(animJson.getJsonArray("triggers")):Collections.emptyList();
-              animOpts = animOpts.plusTriggers(triggers);
-              options = options.plusAnimation(animOpts);
-            }
-            res = res.mergeOverride(loader.loadBundle(file, options));
+            let options = Assets.parseModelImportOptions(taskJson, loader, dir).withModelId(ModelId.of(taskJson.getString("targetAnimationCollectionId")));
+            let bundleGroup = loader.loadBundle(file, options);
+            let addedCollection = bundleGroup.get("MeshAnimationCollection", targetCollectionId);
+            let resCollection = targetCollection.plusAnimations(addedCollection.getAnimations());
+            res = res.plus(targetCollectionId, resCollection);
           }
           else if (type.equals("TEXTURE_FLIP_VERT")) {
             res = res.transform("Texture", TextureFncs.flipVert());
           }
           else if (type.equals("TEXTURE_GAMMA")) {
-            let gamma = Float.valueOf(taskJson.getString("gamma"));
+            let gamma = Float.parseFloat(taskJson.getString("gamma"));
             res = res.transform("Texture", TextureFncs.gamma(gamma));
           }
           else if (type.equals("TEXTURE_THRES_ALPHA")) {
-            let thres = Float.valueOf(taskJson.getString("thres"));
+            let thres = Float.parseFloat(taskJson.getString("thres"));
             res = res.transform("Texture", (t) => {
   return t.thresAlpha(thres);
 });
@@ -23916,9 +24069,9 @@ class Assets {
             res = res.transform("Material", Assets.materialAlphaModeBlendToMaskFnc());
           }
           else if (type.equals("MATERIAL_SPECULAR")) {
-            let red = Float.valueOf(taskJson.getString("red"));
-            let green = Float.valueOf(taskJson.getString("green"));
-            let blue = Float.valueOf(taskJson.getString("blue"));
+            let red = Float.parseFloat(taskJson.getString("red"));
+            let green = Float.parseFloat(taskJson.getString("green"));
+            let blue = Float.parseFloat(taskJson.getString("blue"));
             let rgb = Rgb.create(red, green, blue);
             res = res.transform("Material", (m) => {
   return m.withSpecular(rgb);
@@ -23941,6 +24094,79 @@ class Assets {
           }
           else if (type.equals("CREATE_SPRITES")) {
             res = Assets.createSprites(taskJson, res);
+          }
+          else if (type.equals("MODEL_RENAME")) {
+            let sourceModelId = ModelId.of(taskJson.getString("sourceId"));
+            let sourceModelIdStr = sourceModelId.id();
+            let sourceModel = res.get("Model", sourceModelId);
+            let destModelId = ModelId.of(taskJson.getString("destId"));
+            let renameMaterials = taskJson.getBooleanOrDefault("renameMaterials", false);
+            if (renameMaterials) {
+              let destModel = Model.empty().withArmature(sourceModel.getArmature());
+              let alreadyDoneIds = new HashMap();
+              let alreadyDoneMaterials = new HashMap();
+              for (let sourcePart of sourceModel.getParts()) {
+                let sourceMaterialId = sourcePart.getMaterial();
+                let destMaterialId = null;
+                let sourceMaterial = null;
+                if (alreadyDoneIds.containsKey(sourceMaterialId)) {
+                  destMaterialId = alreadyDoneIds.get(sourceMaterialId);
+                  sourceMaterial = alreadyDoneMaterials.get(sourceMaterialId);
+                }
+                else {
+                  sourceMaterial = res.get("Material", sourceMaterialId);
+                  destMaterialId = sourceMaterialId.id().startsWith(sourceModelIdStr)?MaterialId.of(destModelId.id()+sourceMaterialId.id().substring(sourceModelIdStr.length())):MaterialId.of(destModelId.id()+"."+sourceMaterialId.id());
+                  alreadyDoneIds.put(sourceMaterialId, destMaterialId);
+                  alreadyDoneMaterials.put(sourceMaterialId, sourceMaterial);
+                }
+                let destPart = sourcePart.withMaterial(destMaterialId);
+                res = res.minus(sourceMaterialId).plus(destMaterialId, sourceMaterial);
+                destModel = destModel.plusPart(destPart);
+              }
+              res = res.minus(sourceModelId).plus(destModelId, destModel);
+            }
+            else {
+              throw new Error("renaming model without clonning materials is not supported yet, implement me");
+            }
+          }
+          else if (type.equals("MODEL_MATERIAL_MAP_TEXTURES")) {
+            let model = res.get("Model", ModelId.of(taskJson.getString("id")));
+            let texIds = Assets.parseStringMap(taskJson.getJsonObject("textures"));
+            for (let part of model.getParts()) {
+              let material = res.get("Material", part.getMaterial());
+              let tatts = new ArrayList();
+              for (let ta of material.getTextures()) {
+                if (texIds.containsKey(ta.getTexture().id())) {
+                  tatts.add(ta.withTexture(TextureId.of(texIds.get(ta.getTexture().id()))));
+                }
+                else {
+                  tatts.add(ta);
+                }
+              }
+              res = res.plus(part.getMaterial(), material.withTextures(tatts));
+            }
+          }
+          else if (type.equals("MODEL_CLONE")) {
+            let sourceModelId = ModelId.of(taskJson.getString("sourceId"));
+            let sourceModelIdStr = sourceModelId.id();
+            let sourceModel = res.get("Model", sourceModelId);
+            let destModelId = ModelId.of(taskJson.getString("destId"));
+            let cloneMaterials = taskJson.getBooleanOrDefault("cloneMaterials", false);
+            if (cloneMaterials) {
+              let destModel = Model.empty().withArmature(sourceModel.getArmature());
+              for (let sourcePart of sourceModel.getParts()) {
+                let sourceMaterialId = sourcePart.getMaterial();
+                let sourceMaterial = res.get("Material", sourceMaterialId);
+                let destMaterialId = sourceMaterialId.id().startsWith(sourceModelIdStr)?MaterialId.of(destModelId.id()+sourceMaterialId.id().substring(sourceModelIdStr.length())):MaterialId.of(destModelId.id()+"."+sourceMaterialId.id());
+                let destPart = sourcePart.withMaterial(destMaterialId);
+                res = res.plus(destMaterialId, sourceMaterial);
+                destModel = destModel.plusPart(destPart);
+              }
+              res = res.plus(destModelId, destModel);
+            }
+            else {
+              throw new Error("cloning model without clonning materials is not supported yet, implement me");
+            }
           }
           else {
             throw new Error("unsupported task type, fix the file or implement: "+type);
@@ -24049,11 +24275,9 @@ class Assets {
       let key = animJson.getString("key");
       let clip = Assets.parseClip(animJson.getJsonArray("clip"));
       let ticksPerSecond = animJson.getInt("ticksPerSecond");
-      ;
       let numTicks = animJson.getInt("numTicks");
-      ;
       let loop = animJson.getBoolean("loop");
-      let triggers = animJson.containsKey("triggers")?Assets.parseMeshAnimationTriggers(animJson.getJsonArray("triggers")):Collections.emptyList();
+      let triggers = Assets.parseMeshAnimationTriggers(animJson.getJsonArrayOrEmpty("triggers"));
       animations.add(MeshAnimation.create(MeshAnimationKey.of(key), ticksPerSecond, numTicks, loop).withClip(clip).plusTriggers(triggers));
     }
     let res = MeshAnimationCollection.create(animations);
@@ -24087,7 +24311,7 @@ class Assets {
       let triggers = spriteJson.containsKey("triggers")?Assets.parseSpriteTriggers(spriteJson.getJsonArray("triggers")):Collections.emptyList();
       let sprite = sheet.createSprite(ticksPerSecond, numTicks, loop).plusTriggers(triggers);
       let id = SpriteId.of(key);
-      res = res.remove(tid).mergeStrict(sheet.getAssets()).put(id, sprite);
+      res = res.minus(tid).mergeStrict(sheet.getAssets()).plus(id, sprite);
     }
     return res;
   }
@@ -24147,6 +24371,69 @@ class Assets {
         triggers.add(trgsJson.getString(j));
       }
       res.add(SpriteTrigger.multiple(tick, triggers));
+    }
+    return res;
+  }
+
+  static parseModelImportOptions(taskJson, loader, dir) {
+    let excludedMeshIds = new HashSet();
+    if (taskJson.containsKey("excludedMeshIds")) {
+      let excludedMeshIdsJson = taskJson.getJsonArray("excludedMeshIds");
+      for (let i = 0; i<excludedMeshIdsJson.size(); ++i) {
+        excludedMeshIds.add(MeshId.of(excludedMeshIdsJson.getString(i)));
+      }
+    }
+    let materialOptions = ModelMaterialImportOptions.create();
+    if (taskJson.containsKey("material")) {
+      let materialJson = taskJson.getJsonObject("material");
+      materialOptions = materialOptions.withEnabled(materialJson.getBooleanOrDefault("enabled", false)).withDiffuseToAmbient(materialJson.getBooleanOrDefault("diffuseToAmbient", false));
+    }
+    let textureOptions = ModelTextureImportOptions.create();
+    if (taskJson.containsKey("texture")) {
+      let textureJson = taskJson.getJsonObject("texture");
+      textureOptions = textureOptions.withEnabled(textureJson.getBooleanOrDefault("enabled", false)).withFlipVert(textureJson.getBooleanOrDefault("flipVert", false)).withGamma(Float.parseFloat(textureJson.getStringOrDefault("gamma", "1")));
+    }
+    let armatureOptions = ModelArmatureImportOptions.create();
+    if (taskJson.containsKey("armature")) {
+      let armatureJson = taskJson.getJsonObject("armature");
+      armatureOptions = armatureOptions.withEnabled(armatureJson.getBooleanOrDefault("enabled", false)).withApproximateRigAllowed(armatureJson.getBooleanOrDefault("approximateRigAllowed", false));
+      let nodeReductionsJson = armatureJson.getJsonObjectOrEmpty("nodeReductions");
+      for (let key of nodeReductionsJson.keySet()) {
+        armatureOptions = armatureOptions.plusNodeReduction(ArmatureNodeId.of(key), ArmatureNodeId.of(nodeReductionsJson.getString(key)));
+      }
+      let nodeNamesJson = armatureJson.getJsonObjectOrEmpty("nodeNames");
+      for (let key of nodeNamesJson.keySet()) {
+        armatureOptions = armatureOptions.plusNodeName(ArmatureNodeId.of(key), ArmatureNodeId.of(nodeNamesJson.getString(key)));
+      }
+    }
+    let animationCollectionOptions = ModelAnimationCollectionImportOptions.create();
+    if (taskJson.containsKey("animationCollection")) {
+      let animationCollectionJson = taskJson.getJsonObject("animationCollection");
+      let animationsOptionsJson = animationCollectionJson.getJsonArrayOrEmpty("animations");
+      for (let i = 0; i<animationsOptionsJson.size(); ++i) {
+        let animationOptionsJson = animationsOptionsJson.getJsonObject(i);
+        let animationOptions = ModelAnimationImportOptions.create().withSourceId(animationOptionsJson.getString("sourceId")).withKey(MeshAnimationKey.of(animationOptionsJson.getString("key"))).withLoop(animationOptionsJson.getBooleanOrDefault("loop", false)).withNumFrames(animationOptionsJson.getIntOrDefault("numFrames", 2)).withLastFrameReplaced(animationOptionsJson.getBooleanOrDefault("lastFrameReplaced", false)).withTiggers(Assets.parseMeshAnimationTriggers(animationOptionsJson.getJsonArrayOrEmpty("triggers")));
+        animationCollectionOptions = animationCollectionOptions.plusAnimationOptions(animationOptions);
+      }
+      let repurposesOptionsJson = animationCollectionJson.getJsonArrayOrEmpty("repurposes");
+      for (let i = 0; i<repurposesOptionsJson.size(); ++i) {
+        let repurposeOptionsJson = repurposesOptionsJson.getJsonObject(i);
+        let sourceDirPathStr = repurposeOptionsJson.getString("sourceDirPath");
+        let sourceCollectionId = MeshAnimationCollectionId.of(repurposeOptionsJson.getString("sourceAnimationCollectionId"));
+        let sourceDir = dir.getChild(sourceDirPathStr);
+        let sourceGroup = Assets.loadDir(loader, sourceDir, true);
+        let repOptions = ModelAnimationRepurposeImportOptions.create().withSource(sourceGroup.get("MeshAnimationCollection", sourceCollectionId));
+        animationCollectionOptions = animationCollectionOptions.plusRepurposeOptions(repOptions);
+      }
+    }
+    let res = ModelImportOptions.create().withModelId(ModelId.of(taskJson.getStringOrDefault("modelId", "model"))).withExcludedMeshIds(excludedMeshIds).withScale(Float.parseFloat(taskJson.getStringOrDefault("scale", "1"))).withMaterialOptions(materialOptions).withTextureOptions(textureOptions).withArmatureOptions(armatureOptions).withAnimationCollectionOptions(animationCollectionOptions);
+    return res;
+  }
+
+  static parseStringMap(obj) {
+    let res = new HashMap();
+    for (let key of obj.keySet()) {
+      res.put(key, obj.getString(key));
     }
     return res;
   }
@@ -25634,6 +25921,7 @@ class MouseButton {
 }
 classRegistry.MouseButton = MouseButton;
 class KeyCode {
+  static UNKNOWN = KeyCode.create("UNKNOWN", "");
   static ENTER = KeyCode.create("ENTER", "");
   static ESCAPE = KeyCode.create("ESCAPE", "");
   static BACKSPACE = KeyCode.create("BACKSPACE", "");
@@ -36528,6 +36816,90 @@ class GamePad extends UiComponent {
 
 }
 classRegistry.GamePad = GamePad;
+class FreeCameraController {
+  initCamera;
+  pos;
+  rotX;
+  rotY;
+  moveSpeed;
+  rotSpeed;
+  gamePad;
+  constructor() {
+  }
+
+  getClass() {
+    return "FreeCameraController";
+  }
+
+  guardInvariants() {
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getTarget() {
+    let rxMat = Mat33.rotX(this.rotX);
+    let ryMat = Mat33.rotY(this.rotY);
+    return ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
+  }
+
+  getCamera() {
+    let rxMat = Mat33.rotX(this.rotX);
+    let ryMat = Mat33.rotY(this.rotY);
+    let target = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
+    let up = ryMat.mul(rxMat.mul(Vec3.create(0, 1, 0)));
+    return this.initCamera.lookAt(this.pos, target, up);
+  }
+
+  move(dt) {
+    let moveDir = this.gamePad.getLeftDir();
+    let rotDir = this.gamePad.getRightDir();
+    let rxMat = Mat33.rotX(this.rotX);
+    let ryMat = Mat33.rotY(this.rotY);
+    let fwd = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).normalize().scale(moveDir.y()*this.moveSpeed*dt);
+    let right = ryMat.mul(rxMat.mul(Vec3.create(1, 0, 0))).normalize().scale(moveDir.x()*this.moveSpeed*dt);
+    this.pos = this.pos.add(fwd).add(right);
+    this.rotX = this.rotX+rotDir.y()*this.rotSpeed*dt;
+    if (this.rotX>FMath.PI/2) {
+      this.rotX = FMath.PI/2;
+    }
+    if (this.rotX<-FMath.PI/2) {
+      this.rotX = -FMath.PI/2;
+    }
+    this.rotY = this.rotY-rotDir.x()*this.rotSpeed*dt;
+    while (this.rotY>FMath.PI) {
+      this.rotY = this.rotY-2*FMath.PI;
+    }
+    while (this.rotY<-FMath.PI) {
+      this.rotY = this.rotY+2*FMath.PI;
+    }
+  }
+
+  setPersp(fovy, aspect, near, far) {
+    this.initCamera = this.initCamera.withPersp(fovy, aspect, near, far);
+  }
+
+  toString() {
+  }
+
+  static create(initCamera, gamePad, moveSpeed, rotSpeed) {
+    let res = new FreeCameraController();
+    res.initCamera = initCamera;
+    res.pos = initCamera.getPos();
+    let fwd = Vec3.create(-initCamera.getView().m20(), -initCamera.getView().m21(), -initCamera.getView().m22());
+    let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
+    res.rotX = FMath.asin(fwd.y());
+    res.rotY = fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y());
+    res.moveSpeed = moveSpeed;
+    res.rotSpeed = rotSpeed;
+    res.gamePad = gamePad;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FreeCameraController = FreeCameraController;
 class BoxMeshFactory {
   constructor() {
   }
@@ -36592,218 +36964,112 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class FreeCameraBehavior extends Behavior {
-  moveDirInput = "moveDir";
-  rotDirInput = "rotDir";
-  moveSpeed = 3;
-  rotSpeed = 1;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "FreeCameraBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  move(dt, inputs) {
-    let moveDir = inputs.getVec2(this.moveDirInput, Vec2.ZERO);
-    let rotDir = inputs.getVec2(this.rotDirInput, Vec2.ZERO);
-    let tc = this.actor().getComponent("TransformComponent");
-    let rot = tc.getRot();
-    if (!moveDir.equals(Vec2.ZERO)) {
-      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize().scale(moveDir.y()*this.moveSpeed*dt);
-      let right = rot.rotate(Vec3.create(1, 0, 0)).normalize().scale(moveDir.x()*this.moveSpeed*dt);
-      tc.move(fwd.add(right));
-    }
-    if (!rotDir.equals(Vec2.ZERO)) {
-      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize();
-      let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
-      let rotX = FMath.asin(fwd.y())+rotDir.y()*this.rotSpeed*dt;
-      let rotY = (fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y()))-rotDir.x()*this.rotSpeed*dt;
-      let rx = Quaternion.rot(1, 0, 0, rotX);
-      let ry = Quaternion.rot(0, 1, 0, rotY);
-      tc.setRot(ry.mul(rx));
-    }
-  }
-
-  static create() {
-    if (arguments.length===1&&arguments[0] instanceof ComponentKey) {
-      return FreeCameraBehavior.create_1_ComponentKey(arguments[0]);
-    }
-    else if (arguments.length===5&&arguments[0] instanceof ComponentKey&& typeof arguments[1]==="string"&& typeof arguments[2]==="string"&& typeof arguments[3]==="number"&& typeof arguments[4]==="number") {
-      return FreeCameraBehavior.create_5_ComponentKey_string_string_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  static create_1_ComponentKey(key) {
-    let res = new FreeCameraBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-  static create_5_ComponentKey_string_string_number_number(key, moveDirInput, rotDirInput, moveSpeed, rotSpeed) {
-    let res = new FreeCameraBehavior(key);
-    res.moveDirInput = moveDirInput;
-    res.rotDirInput = rotDirInput;
-    res.moveSpeed = moveSpeed;
-    res.rotSpeed = rotSpeed;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FreeCameraBehavior = FreeCameraBehavior;
-class RigidBodyApp03 extends TyracornScreen {
+class BasicApp15 extends TyracornScreen {
+  groundModel = null;
+  box1Model = null;
+  shadow1 = ShadowBufferId.of("shadow1");
   time = 0;
-  world;
   inputs = InputCache.create();
   ui;
-  gamePad;
-  paused = false;
+  camera;
+  armature;
   constructor() {
     super();
   }
 
   getClass() {
-    return "RigidBodyApp03";
+    return "BasicApp15";
   }
 
   move(drivers, screenManager, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
-    if (this.paused&&this.ui.getNumLayers()==1) {
-      this.ui.pushLayer();
-      this.ui.addComponent(Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setRegionFnc(UiRegionFncs.full()));
-      let menuPanel = Panel.create().setRegionFnc(UiRegionFncs.center(250, 250));
-      this.ui.addComponent(menuPanel);
-      menuPanel.addComponent(Label.create().addTrait(UiComponentTrait.H1).setAlignment(TextAlignment.CENTER_TOP).setPosFnc(UiPosFncs.centerTop(40)).setText("Pause"));
-      menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(100, 150, 30)).setText("Resume").addOnClickAction((evtSource) => {
-  this.paused = false;
-  this.ui.popLayer();
-}));
-      if (drivers.getPlatform().isExitable()) {
-        menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(150, 150, 30)).setText("Exit").addOnClickAction(UiEventActions.exitApp(screenManager)));
-      }
-    }
+    let aspect = this.inputs.getSize2(InputCacheDisplayListener.DEFAULT_KEY, Size2.create(1, 1)).aspect();
+    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
+    this.camera.setPersp(fovy, aspect, 1.0, 50.0);
+    this.camera.move(dt);
+    this.ui.move(dt);
+    let angleFact = FMath.abs(FMath.sin(this.time/3));
+    let pose = this.armature.getPose(Dut.map(ArmatureNodeId.of("node-1"), Mat44.rotZ(angleFact*FMath.PI_QUARTER), ArmatureNodeId.of("node-2"), Mat44.transofm(Vec3.create(1, 0, 0), Quaternion.rotZ(angleFact*FMath.PI_QUARTER)), ArmatureNodeId.of("node-3"), Mat44.transofm(Vec3.create(1, 0, 0), Quaternion.rotZ(angleFact*FMath.PI_QUARTER))));
+    let dirLightColor = LightColor.create(Rgb.gray(0.5), Rgb.gray(0.5), Rgb.WHITE);
+    let dirLightDir = Vec3.create(0.6, -1, -0.2).normalize();
+    let dirLightPos = dirLightDir.scale(-5);
+    let dirLightShadowMap = ShadowMap.createDirCircle(this.shadow1, dirLightPos, dirLightDir, 13, 20);
+    let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
+    let smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
+    this.renderSceneShaow(smapRndr, pose);
+    smapRndr.end();
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    if (!this.paused) {
-      this.inputs.put("moveDir", this.gamePad.getLeftDir());
-      this.inputs.put("rotDir", this.gamePad.getRightDir());
-      this.world.move(dt, this.inputs);
-    }
-    this.world.render(RenderRequest.NORMAL);
+    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(this.camera.getCamera(), dirLight));
+    this.renderScene(objRnderer, pose);
+    objRnderer.end();
     gDriver.clearBuffers(BufferId.DEPTH);
     let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
     uiRenderer.render(this.ui);
     uiRenderer.end();
   }
 
   load(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/primitives.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")));
+    let res = new ArrayList();
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/box-01.tap")));
+    return res;
   }
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 30));
+    let boxMeshId = MeshId.of("box-mesh");
+    let riggeMeshId = MeshId.of("rigged-mesh");
+    assets.put(boxMeshId, BoxMeshFactory.modelBox());
+    assets.put(riggeMeshId, this.createRiggedMesh());
+    let boxDiffuse = TextureId.of("tex_box_01_d");
+    let boxSpecular = TextureId.of("tex_box_01_s");
     assets.put(MaterialId.of("brass"), Material.BRASS);
-    assets.put(MaterialId.of("copper"), Material.COPPER);
-    assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
-    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("brass"));
-    let groundModelId = ModelId.of("ground");
-    assets.put(groundModelId, groundModel);
-    let sphereModelId = ModelId.of("sphere");
-    let boxModelId = ModelId.of("box");
-    let cylinderRoundModelId = ModelId.of("cylinder-round");
-    let halfSphereModelId = ModelId.of("half-sphere");
-    let boxModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
-    assets.put(boxModelId, boxModel);
-    const wallColMatId = PhysicalMaterialId.of("wall");
-    assets.put(wallColMatId, PhysicalMaterial.simple(0.6, 1.8, 1.8));
-    const objectColMatId = PhysicalMaterialId.of("object");
-    assets.put(objectColMatId, PhysicalMaterial.create(0.6, PhysicalMaterialCombineType.AVG, 18, 18, PhysicalMaterialCombineType.MAX));
-    this.world = RigidBodyWorld.create(drivers);
-    let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create(ComponentKey.WORLD).setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-30, -30, -30, 30, 30, 30)));
-    this.world.actors().add(ActorId.ROOT, worldActor);
-    let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create(ComponentKey.TRANSFORM)).addComponent(SkyboxComponent.create(ComponentKey.SKYBOX).setModelId(ModelId.of("skybox-1")).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create(ComponentKey.AUTO_ROTATE).setAngularVelocity(Vec3.create(0, 0.1, 0)));
-    this.world.actors().add(ActorId.ROOT, skybox);
-    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(20, 1, 20)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 2, 22)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, ground);
-    let back = Actor.create("back").setName("back").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, -10))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(22, 1, 7)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 7, 1)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, back);
-    let front = Actor.create("front").setName("front").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 10))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(22, 1, 7)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 7, 1)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, front);
-    let left = Actor.create("left").setName("left").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-10, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 22, 7)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 22)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, left);
-    let right = Actor.create("right").setName("right").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(10, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 22, 7)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 22)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, right);
-    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(5, 12.5, 12.5), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
-    this.world.actors().add(ActorId.ROOT, light);
-    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create(ComponentKey.of("FREE_CAMERA"), "moveDir", "rotDir", 5, 1)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY));
-    this.world.actors().add(ActorId.ROOT, camera);
+    assets.put(MaterialId.of("wood-box"), Material.BLACK.withShininess(50).plusTexture(TextureAttachment.diffuse(boxDiffuse)).plusTexture(TextureAttachment.specular(boxSpecular)));
+    assets.put(this.shadow1, ShadowBuffer.create(2048, 2048));
+    this.groundModel = Model.simple(boxMeshId, MaterialId.of("brass"));
+    this.box1Model = Model.simple(riggeMeshId, MaterialId.of("wood-box"));
+    let node1 = ArmatureNodeId.of("node-1");
+    let node2 = ArmatureNodeId.of("node-2");
+    let node3 = ArmatureNodeId.of("node-3");
+    this.armature = Armature.empty().plusNode(ArmatureNode.create(node1, null, Mat44.IDENTITY, Mat44.IDENTITY)).plusNode(ArmatureNode.create(node2, node1, Mat44.trans(1, 0, 0), Mat44.trans(-1, 0, 0))).plusNode(ArmatureNode.create(node3, node2, Mat44.trans(1, 0, 0), Mat44.trans(-2, 0, 0)));
     this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
-    this.gamePad = GamePad.create(drivers);
-    this.ui.addComponent(this.gamePad);
-    let addSphereAct = (evtSource) => {
-      let r = Randoms.nextFloat(0.5, 1.5);
-      let m = Randoms.nextFloat(1, 2);
-      let sphere = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create(ComponentKey.REMOVE_ON_OUTSPACE)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(m).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(objectColMatId));
-      this.world.actors().add(ActorId.ROOT, sphere);
-    };
-    let sphereBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(10, 10, 120, 30)).setText("Sphere").addOnClickAction(addSphereAct);
-    this.ui.addComponent(sphereBtn);
-    let addBoxAct = (evtSource) => {
-      let box = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create(ComponentKey.REMOVE_ON_OUTSPACE)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(1).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId));
-      this.world.actors().add(ActorId.ROOT, box);
-    };
-    let boxBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(10, 50, 120, 30)).setText("Box").addOnClickAction(addBoxAct);
-    this.ui.addComponent(boxBtn);
-    let addBoxStraightAct = (evtSource) => {
-      let box = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 12, 0))).addComponent(RemoveOnOutspaceComponent.create(ComponentKey.REMOVE_ON_OUTSPACE)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(1)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId));
-      this.world.actors().add(ActorId.ROOT, box);
-    };
-    let boxStraightBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(10, 90, 120, 30)).setText("Box Straight").addOnClickAction(addBoxStraightAct);
-    this.ui.addComponent(boxStraightBtn);
-    let addCapsuleAct = (evtSource) => {
-      let capsule = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create(ComponentKey.REMOVE_ON_OUTSPACE)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(cylinderRoundModelId).setTransform(Mat44.rotX(FMath.PI/2).mul(Mat44.scale(1, 1, 1)))).addComponent(ModelComponent.create(ComponentKey.MODEL_2).setModelId(halfSphereModelId).setTransform(Mat44.trans(0, 1, 0).mul(Mat44.rotX(FMath.PI/2)))).addComponent(ModelComponent.create(ComponentKey.MODEL_3).setModelId(halfSphereModelId).setTransform(Mat44.trans(0, -1, 0).mul(Mat44.rotX(-FMath.PI/2)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(1).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.CAPSULE).setRadius(1).setHeight(4).setMaterialId(objectColMatId));
-      this.world.actors().add(ActorId.ROOT, capsule);
-    };
-    let capsuleBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(10, 130, 120, 30)).setText("Capsule").addOnClickAction(addCapsuleAct);
-    this.ui.addComponent(capsuleBtn);
-    this.ui.addComponent(PlayUis.createPauseButton((evt) => {
-  this.paused = true;
-}));
+    let gamePad = GamePad.create(drivers);
+    this.ui.addComponent(gamePad);
+    let cam = Camera.persp(FMath.toRadians(60.0), 1, 0.1, 1000.0).lookAt(Vec3.create(0.0, 1, 4), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0));
+    this.camera = FreeCameraController.create(cam, gamePad, 3, 1);
     this.ui.subscribe(drivers);
     let dlist = InputCacheDisplayListener.create(this.inputs);
     screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
     drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
   }
 
-  pause(drivers) {
-    this.paused = true;
-  }
-
   leave(drivers) {
     this.ui.unsubscribe(drivers);
-    this.world.destroy(drivers);
   }
 
-  getRandomVelocity() {
-    let vx = Randoms.nextFloat(0, 2)-1;
-    let vy = Randoms.nextFloat(0, 2)-1;
-    let vz = Randoms.nextFloat(0, 2)-1;
-    return Vec3.create(vx, vy, vz);
+  renderScene(renderer, pose) {
+    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    renderer.render(this.box1Model, Interpolation.ZERO, pose, Mat44.trans(0, 0, 0));
+  }
+
+  renderSceneShaow(renderer, pose) {
+    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    renderer.render(this.box1Model, Interpolation.ZERO, pose, Mat44.trans(0, 0, 0));
+  }
+
+  createRiggedMesh() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.riggedModel(Dut.list(this.rmVert(-0.5, -0.5, 0, 0, 0, 1, 0, 0, 0, -1, -1, -1, 1, 0, 0, 0), this.rmVert(-0.5, 0.5, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, 1, 0, 0, 0), this.rmVert(0.5, -0.5, 0, 0, 0, 1, 1, 0, 0, 1, -1, -1, 0.75, 0.25, 0, 0), this.rmVert(0.5, 0.5, 0, 0, 0, 1, 1, 1, 0, 1, -1, -1, 0.75, 0.25, 0, 0), this.rmVert(1.5, -0.5, 0, 0, 0, 1, 2, 0, 1, 2, -1, -1, 0.5, 0.5, 0, 0), this.rmVert(1.5, 0.5, 0, 0, 0, 1, 2, 1, 1, 2, -1, -1, 0.5, 0.5, 0, 0), this.rmVert(2.5, -0.5, 0, 0, 0, 1, 3, 0, 2, -1, -1, -1, 1, 0, 0, 0), this.rmVert(2.5, 0.5, 0, 0, 0, 1, 3, 1, 2, -1, -1, -1, 1, 0, 0, 0))), Dut.list(Face.triangle(0, 2, 3), Face.triangle(0, 3, 1), Face.triangle(2, 4, 5), Face.triangle(2, 5, 3), Face.triangle(4, 6, 7), Face.triangle(4, 7, 5))).toMesh();
+    return res;
+  }
+
+  rmVert(x, y, z, nx, ny, nz, tu, tv, bidx1, bidx2, bidx3, bidx4, bw1, bw2, bw3, bw4) {
+    return Vertex.create(Dut.list(Float.valueOf(x), Float.valueOf(y), Float.valueOf(z), Float.valueOf(nx), Float.valueOf(ny), Float.valueOf(nz), Float.valueOf(tu), Float.valueOf(tv), Short.valueOf(bidx1), Short.valueOf(bidx2), Short.valueOf(bidx3), Short.valueOf(bidx4), Float.valueOf(bw1), Float.valueOf(bw2), Float.valueOf(bw3), Float.valueOf(bw4)));
   }
 
 }
-classRegistry.RigidBodyApp03 = RigidBodyApp03;
+classRegistry.BasicApp15 = BasicApp15;
 
 
 // -------------------------------------
@@ -37186,7 +37452,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new RigidBodyApp03());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp15());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

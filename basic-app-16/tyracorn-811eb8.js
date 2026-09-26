@@ -7,9 +7,9 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/onnanotame";
-const assetsDirName = "/assets-d436dd";
-const localStoragePrefix = "onnanotame.";
+const basePath = "/tyracorn-web-examples/basic-app-16";
+const assetsDirName = "/assets-259ca6";
+const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
 let mouseLastDragY = 0;
@@ -5217,6 +5217,9 @@ class WebglSceneRenderer {
         Guard.notNull(this.defaultTexture, "defaultTexture shader cannot be null");
     }
 
+    /**
+     * Performs an initialization.
+     */
     init() {
         this.shader.use();
 
@@ -5268,7 +5271,6 @@ class WebglSceneRenderer {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         this.shader.setUniformInt("shadowTexture3", 7);
-
     }
 
     /**
@@ -8467,6 +8469,7 @@ class DriverProvider {
 // -------------------------------------
 
 class JsonObject {
+  static EMPTY = JsonObject.empty();
   entries;
   constructor() {
   }
@@ -8500,11 +8503,25 @@ class JsonObject {
     throw new Error("key doesn't exists: "+key);
   }
 
+  getBooleanOrDefault(key, def) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    return def;
+  }
+
   getString(key) {
     if (this.entries.containsKey(key)) {
       return this.entries.get(key);
     }
     throw new Error("key doesn't exists: "+key);
+  }
+
+  getStringOrDefault(key, def) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    return def;
   }
 
   getInt(key) {
@@ -8514,11 +8531,25 @@ class JsonObject {
     throw new Error("key doesn't exists: "+key);
   }
 
+  getIntOrDefault(key, def) {
+    if (this.entries.containsKey(key)) {
+      return FMath.trunc(this.entries.get(key));
+    }
+    return def;
+  }
+
   getFloat(key) {
     if (this.entries.containsKey(key)) {
       return this.entries.get(key);
     }
     throw new Error("key doesn't exists: "+key);
+  }
+
+  getFloatOrDefault(key, def) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    return def;
   }
 
   getJsonObject(key) {
@@ -8528,11 +8559,25 @@ class JsonObject {
     throw new Error("key doesn't exists: "+key);
   }
 
+  getJsonObjectOrEmpty(key) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    return JsonObject.EMPTY;
+  }
+
   getJsonArray(key) {
     if (this.entries.containsKey(key)) {
       return this.entries.get(key);
     }
     throw new Error("key doesn't exists: "+key);
+  }
+
+  getJsonArrayOrEmpty(key) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    return JsonArray.EMPTY;
   }
 
   withBoolean(key, val) {
@@ -8616,6 +8661,7 @@ class JsonObject {
 }
 classRegistry.JsonObject = JsonObject;
 class JsonArray {
+  static EMPTY = JsonArray.empty();
   items;
   constructor() {
   }
@@ -9712,6 +9758,62 @@ class Mat44 {
     return res;
   }
 
+  decompose() {
+    let tr = Vec3.create(this.mm03, this.mm13, this.mm23);
+    let sx = FMath.sqrt(this.mm00*this.mm00+this.mm10*this.mm10+this.mm20*this.mm20);
+    let sy = FMath.sqrt(this.mm01*this.mm01+this.mm11*this.mm11+this.mm21*this.mm21);
+    let sz = FMath.sqrt(this.mm02*this.mm02+this.mm12*this.mm12+this.mm22*this.mm22);
+    let sc = Vec3.create(sx, sy, sz);
+    let r00 = this.mm00/sx;
+    let r10 = this.mm10/sx;
+    let r20 = this.mm20/sx;
+    let r01 = this.mm01/sy;
+    let r11 = this.mm11/sy;
+    let r21 = this.mm21/sy;
+    let r02 = this.mm02/sz;
+    let r12 = this.mm12/sz;
+    let r22 = this.mm22/sz;
+    let rt = null;
+    let trace = r00+r11+r22;
+    if (trace>0.0) {
+      let s = Math.sqrt(trace+1.0)*2.0;
+      let qa = 0.25*s;
+      let qb = (r21-r12)/s;
+      let qc = (r02-r20)/s;
+      let qd = (r10-r01)/s;
+      let qlen = FMath.sqrt(qa*qa+qb*qb+qc*qc+qd*qd);
+      rt = Quaternion.create(qa/qlen, qb/qlen, qc/qlen, qd/qlen);
+    }
+    else if (r00>r11&&r00>r22) {
+      let s = Math.sqrt(1.0+r00-r11-r22)*2.0;
+      let qa = (r21-r12)/s;
+      let qb = 0.25*s;
+      let qc = (r01+r10)/s;
+      let qd = (r02+r20)/s;
+      let qlen = FMath.sqrt(qa*qa+qb*qb+qc*qc+qd*qd);
+      rt = Quaternion.create(qa/qlen, qb/qlen, qc/qlen, qd/qlen);
+    }
+    else if (r11>r22) {
+      let s = Math.sqrt(1.0+r11-r00-r22)*2.0;
+      let qa = (r02-r20)/s;
+      let qb = (r01+r10)/s;
+      let qc = 0.25*s;
+      let qd = (r12+r21)/s;
+      let qlen = FMath.sqrt(qa*qa+qb*qb+qc*qc+qd*qd);
+      rt = Quaternion.create(qa/qlen, qb/qlen, qc/qlen, qd/qlen);
+    }
+    else {
+      let s = Math.sqrt(1.0+r22-r00-r11)*2.0;
+      let qa = (r10-r01)/s;
+      let qb = (r02+r20)/s;
+      let qc = (r12+r21)/s;
+      let qd = 0.25*s;
+      let qlen = FMath.sqrt(qa*qa+qb*qb+qc*qc+qd*qd);
+      rt = Quaternion.create(qa/qlen, qb/qlen, qc/qlen, qd/qlen);
+    }
+    return Trs3.create(tr, rt, sc);
+  }
+
   toBufCol(buf) {
     buf[0] = this.mm00;
     buf[1] = this.mm10;
@@ -9969,7 +10071,7 @@ class Mat44 {
     return res;
   }
 
-  static transofm(pos, rot) {
+  static transofm(trans, rot) {
     let bb = rot.b()*rot.b();
     let cc = rot.c()*rot.c();
     let dd = rot.d()*rot.d();
@@ -9977,15 +10079,15 @@ class Mat44 {
     res.mm00 = 1-2*cc-2*dd;
     res.mm01 = 2*rot.b()*rot.c()-2*rot.d()*rot.a();
     res.mm02 = 2*rot.b()*rot.d()+2*rot.c()*rot.a();
-    res.mm03 = pos.x();
+    res.mm03 = trans.x();
     res.mm10 = 2*rot.b()*rot.c()+2*rot.d()*rot.a();
     res.mm11 = 1-2*bb-2*dd;
     res.mm12 = 2*rot.c()*rot.d()-2*rot.b()*rot.a();
-    res.mm13 = pos.y();
+    res.mm13 = trans.y();
     res.mm20 = 2*rot.b()*rot.d()-2*rot.c()*rot.a();
     res.mm21 = 2*rot.c()*rot.d()+2*rot.b()*rot.a();
     res.mm22 = 1-2*bb-2*cc;
-    res.mm23 = pos.z();
+    res.mm23 = trans.z();
     res.mm30 = 0;
     res.mm31 = 0;
     res.mm32 = 0;
@@ -9993,7 +10095,7 @@ class Mat44 {
     return res;
   }
 
-  static transofmScaled(pos, rot, scale) {
+  static transofmScaled(trans, rot, scale) {
     let bb = rot.b()*rot.b();
     let cc = rot.c()*rot.c();
     let dd = rot.d()*rot.d();
@@ -10001,15 +10103,15 @@ class Mat44 {
     res.mm00 = scale.x()*(1-2*cc-2*dd);
     res.mm01 = scale.y()*(2*rot.b()*rot.c()-2*rot.d()*rot.a());
     res.mm02 = scale.z()*(2*rot.b()*rot.d()+2*rot.c()*rot.a());
-    res.mm03 = pos.x();
+    res.mm03 = trans.x();
     res.mm10 = scale.x()*(2*rot.b()*rot.c()+2*rot.d()*rot.a());
     res.mm11 = scale.y()*(1-2*bb-2*dd);
     res.mm12 = scale.z()*(2*rot.c()*rot.d()-2*rot.b()*rot.a());
-    res.mm13 = pos.y();
+    res.mm13 = trans.y();
     res.mm20 = scale.x()*(2*rot.b()*rot.d()-2*rot.c()*rot.a());
     res.mm21 = scale.y()*(2*rot.c()*rot.d()+2*rot.b()*rot.a());
     res.mm22 = scale.z()*(1-2*bb-2*cc);
-    res.mm23 = pos.z();
+    res.mm23 = trans.z();
     res.mm30 = 0;
     res.mm31 = 0;
     res.mm32 = 0;
@@ -10113,6 +10215,7 @@ class Pos2 {
 }
 classRegistry.Pos2 = Pos2;
 class Size2 {
+  static ZERO = Size2.create(0, 0);
   mWidth;
   mHeight;
   constructor() {
@@ -12825,6 +12928,15 @@ class TextureAttachment {
     return this.texture;
   }
 
+  withTexture(texture) {
+    let res = new TextureAttachment();
+    res.type = this.type;
+    res.texture = texture;
+    res.style = this.style;
+    res.guardInvariants();
+    return res;
+  }
+
   getStyle() {
     return this.style;
   }
@@ -13521,6 +13633,15 @@ class Material {
 
   withShininess(shininess) {
     return Material.create(this.base.withShininess(shininess), this.alphaMode, this.textures);
+  }
+
+  withTextures(textures) {
+    let res = new Material();
+    res.base = this.base;
+    res.alphaMode = this.alphaMode;
+    res.textures = Dut.copyImmutableList(textures);
+    res.guardInvariants();
+    return res;
   }
 
   plusTexture(texture) {
@@ -14545,13 +14666,12 @@ class Armature {
   guardInvariants() {
   }
 
-  init() {
+  buildIndexesMap() {
     this.idsToIndexes = new HashMap();
     for (let i = 0; i<this.nodes.size(); ++i) {
       this.idsToIndexes.put(this.nodes.get(i).getId(), i);
     }
     this.idsToIndexes = Collections.unmodifiableMap(this.idsToIndexes);
-    Guard.beTrue(this.nodes.size()==this.idsToIndexes.size(), "nodes cannot have duplicated ids");
   }
 
   getNodes() {
@@ -14593,8 +14713,41 @@ class Armature {
   plusNode(node) {
     let res = new Armature();
     res.nodes = Dut.immutableListPlusItem(this.nodes, node);
+    res.buildIndexesMap();
     res.guardInvariants();
-    res.init();
+    return res;
+  }
+
+  minusNode(nodeId) {
+    let res = new Armature();
+    res.nodes = new ArrayList();
+    for (let node of this.nodes) {
+      if (node.getId().equals(nodeId)) {
+        continue;
+      }
+      res.nodes.add(node);
+    }
+    res.nodes = Collections.unmodifiableList(res.nodes);
+    res.buildIndexesMap();
+    res.guardInvariants();
+    return res;
+  }
+
+  mapNodeId(fromId, toId) {
+    let res = new Armature();
+    res.nodes = new ArrayList();
+    for (let node of this.nodes) {
+      if (node.getId().equals(fromId)) {
+        node = ArmatureNode.create(toId, node.getParentId(), node.getTransform(), node.getBoneOffset());
+      }
+      if (node.getParentId()!=null&&node.getParentId().equals(fromId)) {
+        node = ArmatureNode.create(node.getId(), toId, node.getTransform(), node.getBoneOffset());
+      }
+      res.nodes.add(node);
+    }
+    res.nodes = Collections.unmodifiableList(res.nodes);
+    res.buildIndexesMap();
+    res.guardInvariants();
     return res;
   }
 
@@ -14612,16 +14765,16 @@ class Armature {
   static create(nodes) {
     let res = new Armature();
     res.nodes = Dut.copyImmutableList(nodes);
+    res.buildIndexesMap();
     res.guardInvariants();
-    res.init();
     return res;
   }
 
   static empty() {
     let res = new Armature();
     res.nodes = Collections.emptyList();
+    res.buildIndexesMap();
     res.guardInvariants();
-    res.init();
     return res;
   }
 
@@ -17103,6 +17256,9 @@ class StretchUiPainter {
   }
 
   drawImage_6_TextureId_number_number_number_number_SpriteStyle(img, x, y, width, height, style) {
+    if (this.size.width()==0||this.size.height()==0) {
+      return ;
+    }
     let nx = x/this.size.width();
     let ny = y/this.size.height();
     let nw = width/this.size.width();
@@ -17119,17 +17275,27 @@ class StretchUiPainter {
   }
 
   fillRect(rect, color) {
+    if (this.size.width()==0||this.size.height()==0) {
+      return ;
+    }
     let normRect = Rect2.create(rect.x()/this.size.width(), rect.y()/this.size.height(), rect.width()/this.size.width(), rect.height()/this.size.height());
     this.target.fillRect(normRect, color);
   }
 
   drawLine(start, end, color) {
+    if (this.size.width()==0||this.size.height()==0) {
+      return ;
+    }
     let normStart = Vec2.create(start.x()/this.size.width(), start.y()/this.size.height());
     let normEnd = Vec2.create(end.x()/this.size.width(), end.y()/this.size.height());
     this.target.drawLine(normStart, normEnd, color);
   }
 
   setClipRect(rect) {
+    if (this.size.width()==0||this.size.height()==0) {
+      this.target.setClipRect(Rect2.create(Pos2.ZERO, Size2.ZERO));
+      return ;
+    }
     let normRect = Rect2.create(rect.x()/this.size.width(), rect.y()/this.size.height(), rect.width()/this.size.width(), rect.height()/this.size.height());
     this.target.setClipRect(normRect);
   }
@@ -18522,6 +18688,10 @@ class PanelPainter {
   }
 
   setClipRect(rect) {
+    if (this.innerSize.width()==0||this.innerSize.height()==0) {
+      this.fullyClipped = true;
+      return ;
+    }
     let normRect = Rect2.create(this.region.x()+rect.x()*this.region.width()/this.innerSize.width(), this.region.y()+rect.y()*this.region.height()/this.innerSize.height(), rect.width()*this.region.width()/this.innerSize.width(), rect.height()*this.region.height()/this.innerSize.height());
     if (this.clipRegion) {
       if (this.region.isIntersect(normRect)) {
@@ -19816,10 +19986,6 @@ class ListSelect extends UiComponent {
       this.addItem(item);
     }
     return this;
-  }
-
-  removeItem(index) {
-    throw new Error("TODO");
   }
 
   clearItems() {
@@ -21639,9 +21805,9 @@ class Fonts {
       let texId = TextureId.of(file.getPlainName()+"."+ch);
       let rch = Character.create(ch, texId, height, Vec2.create(Integer.valueOf(chconf.get("offsetX")), Integer.valueOf(chconf.get("offsetY"))), Size2.create(Integer.valueOf(chconf.get("width")), Integer.valueOf(chconf.get("height"))), Integer.valueOf(chconf.get("advance")), kernings.getOrDefault(ch, Collections.emptyMap()));
       font = font.addCharacter(rch);
-      res = res.put(texId, tex);
+      res = res.plus(texId, tex);
     }
-    res = res.put(FontId.of(file.getPlainName()), font);
+    res = res.plus(FontId.of(file.getPlainName()), font);
     return res;
   }
 
@@ -22554,6 +22720,18 @@ class MeshAnimationCollection {
     let res = new MeshAnimationCollection();
     res.animations = Dut.immutableListPlusItem(this.animations, animation);
     res.animationsByKey = Dut.immutableMapPlusEntry(this.animationsByKey, animation.getKey(), animation);
+    res.guardInvariants();
+    return res;
+  }
+
+  plusAnimations(anims) {
+    let res = new MeshAnimationCollection();
+    res.animations = Dut.immutableListPlusItems(this.animations, anims);
+    let animsByKey = new HashMap();
+    for (let anim of anims) {
+      animsByKey.put(anim.getKey(), anim);
+    }
+    res.animationsByKey = Dut.immutableMapPlusEntries(this.animationsByKey, animsByKey);
     res.guardInvariants();
     return res;
   }
@@ -23520,7 +23698,7 @@ class AssetGroup {
   guardInvariants() {
   }
 
-  put(key, asset) {
+  plus(key, asset) {
     Guard.notNull(key, "key cannot be null");
     Guard.notNull(asset, "asset cannot be null");
     let c = new HashMap();
@@ -23532,7 +23710,7 @@ class AssetGroup {
     return res;
   }
 
-  remove(key) {
+  minus(key) {
     Guard.notNull(key, "key cannot be null");
     let c = new HashMap();
     c.putAll(this.cache);
@@ -23607,7 +23785,7 @@ class AssetGroup {
     if (!this.cache.containsKey(key)) {
       throw new Error("no asset under "+key);
     }
-    return AssetGroup.empty().put(key, this.cache.get(key));
+    return AssetGroup.empty().plus(key, this.cache.get(key));
   }
 
   mergeStrict(other) {
@@ -23694,10 +23872,10 @@ class AssetGroup {
     for (let key of this.cache.keySet()) {
       let val = this.cache.get(key);
       if (val.getClass().equals(clazz)) {
-        res = res.put(key, fnc(val));
+        res = res.plus(key, fnc(val));
       }
       else {
-        res = res.put(key, val);
+        res = res.plus(key, val);
       }
     }
     return res;
@@ -23707,10 +23885,10 @@ class AssetGroup {
     let res = AssetGroup.empty();
     for (let key of this.cache.keySet()) {
       if (key.getClass().equals(clazz)) {
-        res = res.put(fnc(key), this.cache.get(key));
+        res = res.plus(fnc(key), this.cache.get(key));
       }
       else {
-        res = res.put(key, this.cache.get(key));
+        res = res.plus(key, this.cache.get(key));
       }
     }
     return res;
@@ -23761,7 +23939,7 @@ class AssetGroup {
   }
 
   static of(key, asset) {
-    return AssetGroup.empty().put(key, asset);
+    return AssetGroup.empty().plus(key, asset);
   }
 
 }
@@ -23852,55 +24030,30 @@ class Assets {
             }
             res = res.mergeStrict(Objs.loadAnimatedModel(modelId, loader, animFiles));
           }
-          else if (type.equals("LOAD_STATIC_MODEL")) {
-            let file = dir.getChild(taskJson.getString("file"));
-            let modelId = ModelId.of(taskJson.getString("modelId"));
-            let options = StaticModelImportOptions.create(modelId).withScale(taskJson.containsKey("scale")?Float.valueOf(taskJson.getString("scale")):1);
-            res = res.mergeStrict(loader.loadBundle(file, options));
-          }
           else if (type.equals("LOAD_RIGGED_MODEL")) {
             let file = dir.getChild(taskJson.getString("file"));
-            let modelId = ModelId.of(taskJson.getString("modelId"));
-            let options = RiggedModelImportOptions.create(modelId).withScale(taskJson.containsKey("scale")?Float.valueOf(taskJson.getString("scale")):1).withApproximateRigAllowed(taskJson.containsKey("approximateRigAllowed")?taskJson.getBoolean("approximateRigAllowed"):false);
-            let animationsJson = taskJson.getJsonArray("animations");
-            for (let j = 0; j<animationsJson.size(); ++j) {
-              let animJson = animationsJson.getJsonObject(j);
-              let animOpts = RiggedModelAnimationImportOptions.create(animJson.getString("sourceId"), MeshAnimationKey.of(animJson.getString("key")), animJson.getBoolean("loop"));
-              let triggers = animJson.containsKey("triggers")?Assets.parseMeshAnimationTriggers(animJson.getJsonArray("triggers")):Collections.emptyList();
-              animOpts = animOpts.plusTriggers(triggers);
-              options = options.plusAnimation(animOpts);
-            }
+            let options = Assets.parseModelImportOptions(taskJson, loader, dir);
             res = res.mergeStrict(loader.loadBundle(file, options));
           }
           else if (type.equals("LOAD_RIGGED_MODEL_EXTRA_ANIMATIONS")) {
             let file = dir.getChild(taskJson.getString("file"));
-            let targetCollectionId = MeshAnimationCollectionId.of(taskJson.getString("targetCollectionId"));
+            let targetCollectionId = MeshAnimationCollectionId.of(taskJson.getString("targetAnimationCollectionId"));
             let targetCollection = res.get("MeshAnimationCollection", targetCollectionId);
-            let options = RiggedModelExtraAnimationImportOptions.create(targetCollectionId, targetCollection).withScale(taskJson.containsKey("scale")?Float.parseFloat(taskJson.getString("scale")):1);
-            let armatureNodesJson = taskJson.getJsonObject("armatureNodes");
-            for (let sourceIdStr of armatureNodesJson.keySet()) {
-              let targetIdStr = armatureNodesJson.getString(sourceIdStr);
-              options = options.plusArmatureNode(ArmatureNodeId.of(sourceIdStr), ArmatureNodeId.of(targetIdStr));
-            }
-            let animationsJson = taskJson.getJsonArray("animations");
-            for (let j = 0; j<animationsJson.size(); ++j) {
-              let animJson = animationsJson.getJsonObject(j);
-              let animOpts = RiggedModelAnimationImportOptions.create(animJson.getString("sourceId"), MeshAnimationKey.of(animJson.getString("key")), animJson.getBoolean("loop"));
-              let triggers = animJson.containsKey("triggers")?Assets.parseMeshAnimationTriggers(animJson.getJsonArray("triggers")):Collections.emptyList();
-              animOpts = animOpts.plusTriggers(triggers);
-              options = options.plusAnimation(animOpts);
-            }
-            res = res.mergeOverride(loader.loadBundle(file, options));
+            let options = Assets.parseModelImportOptions(taskJson, loader, dir).withModelId(ModelId.of(taskJson.getString("targetAnimationCollectionId")));
+            let bundleGroup = loader.loadBundle(file, options);
+            let addedCollection = bundleGroup.get("MeshAnimationCollection", targetCollectionId);
+            let resCollection = targetCollection.plusAnimations(addedCollection.getAnimations());
+            res = res.plus(targetCollectionId, resCollection);
           }
           else if (type.equals("TEXTURE_FLIP_VERT")) {
             res = res.transform("Texture", TextureFncs.flipVert());
           }
           else if (type.equals("TEXTURE_GAMMA")) {
-            let gamma = Float.valueOf(taskJson.getString("gamma"));
+            let gamma = Float.parseFloat(taskJson.getString("gamma"));
             res = res.transform("Texture", TextureFncs.gamma(gamma));
           }
           else if (type.equals("TEXTURE_THRES_ALPHA")) {
-            let thres = Float.valueOf(taskJson.getString("thres"));
+            let thres = Float.parseFloat(taskJson.getString("thres"));
             res = res.transform("Texture", (t) => {
   return t.thresAlpha(thres);
 });
@@ -23916,9 +24069,9 @@ class Assets {
             res = res.transform("Material", Assets.materialAlphaModeBlendToMaskFnc());
           }
           else if (type.equals("MATERIAL_SPECULAR")) {
-            let red = Float.valueOf(taskJson.getString("red"));
-            let green = Float.valueOf(taskJson.getString("green"));
-            let blue = Float.valueOf(taskJson.getString("blue"));
+            let red = Float.parseFloat(taskJson.getString("red"));
+            let green = Float.parseFloat(taskJson.getString("green"));
+            let blue = Float.parseFloat(taskJson.getString("blue"));
             let rgb = Rgb.create(red, green, blue);
             res = res.transform("Material", (m) => {
   return m.withSpecular(rgb);
@@ -23941,6 +24094,79 @@ class Assets {
           }
           else if (type.equals("CREATE_SPRITES")) {
             res = Assets.createSprites(taskJson, res);
+          }
+          else if (type.equals("MODEL_RENAME")) {
+            let sourceModelId = ModelId.of(taskJson.getString("sourceId"));
+            let sourceModelIdStr = sourceModelId.id();
+            let sourceModel = res.get("Model", sourceModelId);
+            let destModelId = ModelId.of(taskJson.getString("destId"));
+            let renameMaterials = taskJson.getBooleanOrDefault("renameMaterials", false);
+            if (renameMaterials) {
+              let destModel = Model.empty().withArmature(sourceModel.getArmature());
+              let alreadyDoneIds = new HashMap();
+              let alreadyDoneMaterials = new HashMap();
+              for (let sourcePart of sourceModel.getParts()) {
+                let sourceMaterialId = sourcePart.getMaterial();
+                let destMaterialId = null;
+                let sourceMaterial = null;
+                if (alreadyDoneIds.containsKey(sourceMaterialId)) {
+                  destMaterialId = alreadyDoneIds.get(sourceMaterialId);
+                  sourceMaterial = alreadyDoneMaterials.get(sourceMaterialId);
+                }
+                else {
+                  sourceMaterial = res.get("Material", sourceMaterialId);
+                  destMaterialId = sourceMaterialId.id().startsWith(sourceModelIdStr)?MaterialId.of(destModelId.id()+sourceMaterialId.id().substring(sourceModelIdStr.length())):MaterialId.of(destModelId.id()+"."+sourceMaterialId.id());
+                  alreadyDoneIds.put(sourceMaterialId, destMaterialId);
+                  alreadyDoneMaterials.put(sourceMaterialId, sourceMaterial);
+                }
+                let destPart = sourcePart.withMaterial(destMaterialId);
+                res = res.minus(sourceMaterialId).plus(destMaterialId, sourceMaterial);
+                destModel = destModel.plusPart(destPart);
+              }
+              res = res.minus(sourceModelId).plus(destModelId, destModel);
+            }
+            else {
+              throw new Error("renaming model without clonning materials is not supported yet, implement me");
+            }
+          }
+          else if (type.equals("MODEL_MATERIAL_MAP_TEXTURES")) {
+            let model = res.get("Model", ModelId.of(taskJson.getString("id")));
+            let texIds = Assets.parseStringMap(taskJson.getJsonObject("textures"));
+            for (let part of model.getParts()) {
+              let material = res.get("Material", part.getMaterial());
+              let tatts = new ArrayList();
+              for (let ta of material.getTextures()) {
+                if (texIds.containsKey(ta.getTexture().id())) {
+                  tatts.add(ta.withTexture(TextureId.of(texIds.get(ta.getTexture().id()))));
+                }
+                else {
+                  tatts.add(ta);
+                }
+              }
+              res = res.plus(part.getMaterial(), material.withTextures(tatts));
+            }
+          }
+          else if (type.equals("MODEL_CLONE")) {
+            let sourceModelId = ModelId.of(taskJson.getString("sourceId"));
+            let sourceModelIdStr = sourceModelId.id();
+            let sourceModel = res.get("Model", sourceModelId);
+            let destModelId = ModelId.of(taskJson.getString("destId"));
+            let cloneMaterials = taskJson.getBooleanOrDefault("cloneMaterials", false);
+            if (cloneMaterials) {
+              let destModel = Model.empty().withArmature(sourceModel.getArmature());
+              for (let sourcePart of sourceModel.getParts()) {
+                let sourceMaterialId = sourcePart.getMaterial();
+                let sourceMaterial = res.get("Material", sourceMaterialId);
+                let destMaterialId = sourceMaterialId.id().startsWith(sourceModelIdStr)?MaterialId.of(destModelId.id()+sourceMaterialId.id().substring(sourceModelIdStr.length())):MaterialId.of(destModelId.id()+"."+sourceMaterialId.id());
+                let destPart = sourcePart.withMaterial(destMaterialId);
+                res = res.plus(destMaterialId, sourceMaterial);
+                destModel = destModel.plusPart(destPart);
+              }
+              res = res.plus(destModelId, destModel);
+            }
+            else {
+              throw new Error("cloning model without clonning materials is not supported yet, implement me");
+            }
           }
           else {
             throw new Error("unsupported task type, fix the file or implement: "+type);
@@ -24049,11 +24275,9 @@ class Assets {
       let key = animJson.getString("key");
       let clip = Assets.parseClip(animJson.getJsonArray("clip"));
       let ticksPerSecond = animJson.getInt("ticksPerSecond");
-      ;
       let numTicks = animJson.getInt("numTicks");
-      ;
       let loop = animJson.getBoolean("loop");
-      let triggers = animJson.containsKey("triggers")?Assets.parseMeshAnimationTriggers(animJson.getJsonArray("triggers")):Collections.emptyList();
+      let triggers = Assets.parseMeshAnimationTriggers(animJson.getJsonArrayOrEmpty("triggers"));
       animations.add(MeshAnimation.create(MeshAnimationKey.of(key), ticksPerSecond, numTicks, loop).withClip(clip).plusTriggers(triggers));
     }
     let res = MeshAnimationCollection.create(animations);
@@ -24087,7 +24311,7 @@ class Assets {
       let triggers = spriteJson.containsKey("triggers")?Assets.parseSpriteTriggers(spriteJson.getJsonArray("triggers")):Collections.emptyList();
       let sprite = sheet.createSprite(ticksPerSecond, numTicks, loop).plusTriggers(triggers);
       let id = SpriteId.of(key);
-      res = res.remove(tid).mergeStrict(sheet.getAssets()).put(id, sprite);
+      res = res.minus(tid).mergeStrict(sheet.getAssets()).plus(id, sprite);
     }
     return res;
   }
@@ -24147,6 +24371,69 @@ class Assets {
         triggers.add(trgsJson.getString(j));
       }
       res.add(SpriteTrigger.multiple(tick, triggers));
+    }
+    return res;
+  }
+
+  static parseModelImportOptions(taskJson, loader, dir) {
+    let excludedMeshIds = new HashSet();
+    if (taskJson.containsKey("excludedMeshIds")) {
+      let excludedMeshIdsJson = taskJson.getJsonArray("excludedMeshIds");
+      for (let i = 0; i<excludedMeshIdsJson.size(); ++i) {
+        excludedMeshIds.add(MeshId.of(excludedMeshIdsJson.getString(i)));
+      }
+    }
+    let materialOptions = ModelMaterialImportOptions.create();
+    if (taskJson.containsKey("material")) {
+      let materialJson = taskJson.getJsonObject("material");
+      materialOptions = materialOptions.withEnabled(materialJson.getBooleanOrDefault("enabled", false)).withDiffuseToAmbient(materialJson.getBooleanOrDefault("diffuseToAmbient", false));
+    }
+    let textureOptions = ModelTextureImportOptions.create();
+    if (taskJson.containsKey("texture")) {
+      let textureJson = taskJson.getJsonObject("texture");
+      textureOptions = textureOptions.withEnabled(textureJson.getBooleanOrDefault("enabled", false)).withFlipVert(textureJson.getBooleanOrDefault("flipVert", false)).withGamma(Float.parseFloat(textureJson.getStringOrDefault("gamma", "1")));
+    }
+    let armatureOptions = ModelArmatureImportOptions.create();
+    if (taskJson.containsKey("armature")) {
+      let armatureJson = taskJson.getJsonObject("armature");
+      armatureOptions = armatureOptions.withEnabled(armatureJson.getBooleanOrDefault("enabled", false)).withApproximateRigAllowed(armatureJson.getBooleanOrDefault("approximateRigAllowed", false));
+      let nodeReductionsJson = armatureJson.getJsonObjectOrEmpty("nodeReductions");
+      for (let key of nodeReductionsJson.keySet()) {
+        armatureOptions = armatureOptions.plusNodeReduction(ArmatureNodeId.of(key), ArmatureNodeId.of(nodeReductionsJson.getString(key)));
+      }
+      let nodeNamesJson = armatureJson.getJsonObjectOrEmpty("nodeNames");
+      for (let key of nodeNamesJson.keySet()) {
+        armatureOptions = armatureOptions.plusNodeName(ArmatureNodeId.of(key), ArmatureNodeId.of(nodeNamesJson.getString(key)));
+      }
+    }
+    let animationCollectionOptions = ModelAnimationCollectionImportOptions.create();
+    if (taskJson.containsKey("animationCollection")) {
+      let animationCollectionJson = taskJson.getJsonObject("animationCollection");
+      let animationsOptionsJson = animationCollectionJson.getJsonArrayOrEmpty("animations");
+      for (let i = 0; i<animationsOptionsJson.size(); ++i) {
+        let animationOptionsJson = animationsOptionsJson.getJsonObject(i);
+        let animationOptions = ModelAnimationImportOptions.create().withSourceId(animationOptionsJson.getString("sourceId")).withKey(MeshAnimationKey.of(animationOptionsJson.getString("key"))).withLoop(animationOptionsJson.getBooleanOrDefault("loop", false)).withNumFrames(animationOptionsJson.getIntOrDefault("numFrames", 2)).withLastFrameReplaced(animationOptionsJson.getBooleanOrDefault("lastFrameReplaced", false)).withTiggers(Assets.parseMeshAnimationTriggers(animationOptionsJson.getJsonArrayOrEmpty("triggers")));
+        animationCollectionOptions = animationCollectionOptions.plusAnimationOptions(animationOptions);
+      }
+      let repurposesOptionsJson = animationCollectionJson.getJsonArrayOrEmpty("repurposes");
+      for (let i = 0; i<repurposesOptionsJson.size(); ++i) {
+        let repurposeOptionsJson = repurposesOptionsJson.getJsonObject(i);
+        let sourceDirPathStr = repurposeOptionsJson.getString("sourceDirPath");
+        let sourceCollectionId = MeshAnimationCollectionId.of(repurposeOptionsJson.getString("sourceAnimationCollectionId"));
+        let sourceDir = dir.getChild(sourceDirPathStr);
+        let sourceGroup = Assets.loadDir(loader, sourceDir, true);
+        let repOptions = ModelAnimationRepurposeImportOptions.create().withSource(sourceGroup.get("MeshAnimationCollection", sourceCollectionId));
+        animationCollectionOptions = animationCollectionOptions.plusRepurposeOptions(repOptions);
+      }
+    }
+    let res = ModelImportOptions.create().withModelId(ModelId.of(taskJson.getStringOrDefault("modelId", "model"))).withExcludedMeshIds(excludedMeshIds).withScale(Float.parseFloat(taskJson.getStringOrDefault("scale", "1"))).withMaterialOptions(materialOptions).withTextureOptions(textureOptions).withArmatureOptions(armatureOptions).withAnimationCollectionOptions(animationCollectionOptions);
+    return res;
+  }
+
+  static parseStringMap(obj) {
+    let res = new HashMap();
+    for (let key of obj.keySet()) {
+      res.put(key, obj.getString(key));
     }
     return res;
   }
@@ -25634,6 +25921,7 @@ class MouseButton {
 }
 classRegistry.MouseButton = MouseButton;
 class KeyCode {
+  static UNKNOWN = KeyCode.create("UNKNOWN", "");
   static ENTER = KeyCode.create("ENTER", "");
   static ESCAPE = KeyCode.create("ESCAPE", "");
   static BACKSPACE = KeyCode.create("BACKSPACE", "");
@@ -36367,275 +36655,6 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class AppManager {
-  storyManager;
-  constructor() {
-  }
-
-  getClass() {
-    return "AppManager";
-  }
-
-  guardInvariants() {
-  }
-
-  getStoryManager() {
-    return this.storyManager;
-  }
-
-  toString() {
-  }
-
-  static create(storyManager) {
-    let res = new AppManager();
-    res.storyManager = storyManager;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.AppManager = AppManager;
-class GameActors {
-  static GAME_STATE_MESSAGE_TYPE = ActorMessageType.create("SCENARIO_STATE");
-  static DIE_MESSAGE_TYPE = ActorMessageType.create("DIE");
-  static DANCE_MESSAGE_TYPE = ActorMessageType.create("DANCE");
-  static WORLD = ActorId.of("world");
-  static CAMERA = ActorId.of("camera");
-  static PLAYER = ActorId.of("player");
-  static SPAWN_PLAYER = ActorId.of("spawn-player");
-  static SPAWN_ENEMY = ActorId.of("spawn-enemy");
-  static NO_TEAM_TAG = ActorTag.of("no-team");
-  static BLUE_TEAM_TAG = ActorTag.of("blue-team");
-  static RED_TEAM_TAG = ActorTag.of("red-team");
-  static FIGHTER_TAG = ActorTag.of("fighter");
-  static SPELL_TAG = ActorTag.of("spell");
-  static FIREBALL_TAG = ActorTag.of("fireball");
-  static PARTICLE_BLOOD_ACTOR_PREFAB_ID = ActorPrefabId.of("particle-blood");
-  static PARTICLE_WHITE_DUST_PREFAB_ID = ActorPrefabId.of("particle-white-dust");
-  static QUEST_NODE_PREFAB_ID = ActorPrefabId.of("quest-node-base");
-  static BASE_FIGHTER_ANIMATION_COLLECTION_ID = MeshAnimationCollectionId.of("base-fighter");
-  static IDLE_ANIMATION_KEY = MeshAnimationKey.of("idle");
-  static WALK_ANIMATION_KEY = MeshAnimationKey.of("walk");
-  static DANCE_ANIMATION_KEY = MeshAnimationKey.of("dance");
-  static YES_ANIMATION_KEY = MeshAnimationKey.of("yes");
-  static DEATH_FALL_FORWARD_ANIMATION_KEY = MeshAnimationKey.of("death-fall-forward");
-  static DEATH_FALL_BACKWARD_ANIMATION_KEY = MeshAnimationKey.of("death-fall-backward");
-  static DEATH_ANIMATION_KEYS = Dut.immutableList(GameActors.DEATH_FALL_FORWARD_ANIMATION_KEY, GameActors.DEATH_FALL_BACKWARD_ANIMATION_KEY);
-  static NODE_STATUS_TYPE_UPDATE = ActorMessageType.create("NODE_STATUS_TYPE_UPDATE");
-  constructor() {
-  }
-
-  getClass() {
-    return "GameActors";
-  }
-
-  static getTeamTag(actor) {
-    if (actor.hasTag(GameActors.BLUE_TEAM_TAG)) {
-      return GameActors.BLUE_TEAM_TAG;
-    }
-    else if (actor.hasTag(GameActors.RED_TEAM_TAG)) {
-      return GameActors.RED_TEAM_TAG;
-    }
-    else {
-      return GameActors.NO_TEAM_TAG;
-    }
-  }
-
-  static isEnemies(act1, act2) {
-    let teamTag1 = GameActors.getTeamTag(act1);
-    let teamTag2 = GameActors.getTeamTag(act2);
-    if (teamTag1.equals(GameActors.NO_TEAM_TAG)||teamTag2.equals(GameActors.NO_TEAM_TAG)) {
-      return true;
-    }
-    return !teamTag1.equals(teamTag2);
-  }
-
-}
-classRegistry.GameActors = GameActors;
-class MenuScreen extends TyracornScreen {
-  appManager;
-  ui = null;
-  constructor(appManager) {
-    super();
-    this.appManager = appManager;
-  }
-
-  getClass() {
-    return "MenuScreen";
-  }
-
-  guardInvariants() {
-  }
-
-  move(drivers, screenManager, dt) {
-    let gDriver = drivers.getDriver("GraphicsDriver");
-    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
-    uiRenderer.render(this.ui);
-    uiRenderer.end();
-  }
-
-  load(drivers, screenManager, properties) {
-    let assets = drivers.getDriver("AssetManager");
-    return Dut.list(assets.resolveAsync(Path.of("asset:default.tap")), assets.resolveAsync(Path.of("asset:packages/ui")));
-  }
-
-  init(drivers, screenManager, properties) {
-    if (this.appManager==null) {
-      let storage = drivers.getDriver("LocalDataStorage");
-      let storyManager = StoryManager.create(storage);
-      this.appManager = AppManager.create(storyManager);
-    }
-    MenuUis.prepareScaledFonts(drivers);
-    this.ui = StretchUi.create(MenuUis.createUiSizeFnc()).setStyler(MenuUis.createDefaultStyler());
-    this.ui.addComponent(MenuUis.createTiledBg());
-    let panel916 = MenuUis.createPanel916();
-    this.ui.addComponent(panel916);
-    panel916.addComponent(MenuUis.createTitleScreenBg());
-    let mainMenuTab = Tab.create();
-    let questTab = Tab.create();
-    let settingsTab = Tab.create();
-    let aboutTab = Tab.create();
-    let tabs = TabContainer.create().setRegionFnc(UiRegionFncs.full()).addTab(mainMenuTab).addTab(questTab).addTab(settingsTab).addTab(aboutTab);
-    panel916.addComponent(tabs);
-    mainMenuTab.addComponent(MenuUis.createOverlayPanel(4, 8, true));
-    mainMenuTab.addComponent(MenuUis.createMediumBtn("Play", 4, false, (btn) => {
-  tabs.setActiveTabIdx(1);
-}));
-    mainMenuTab.addComponent(MenuUis.createMediumBtn("Training", 5, false, UiEventActions.showScreen(screenManager, new CombatScreen(this.appManager, CombatScenario.create(CombatArenas.createRandomArenaScene()).withTraining(true)))));
-    mainMenuTab.addComponent(MenuUis.createMediumBtn("Settings", 7, false, (btn) => {
-  tabs.setActiveTabIdx(1);
-}).setDisabled(true));
-    mainMenuTab.addComponent(MenuUis.createMediumBtn("About", 8, false, (btn) => {
-  tabs.setActiveTabIdx(2);
-}).setDisabled(true));
-    if (drivers.getPlatform().isExitable()) {
-      mainMenuTab.addComponent(MenuUis.createMediumBtn("Exit", 9, false, UiEventActions.exitApp(screenManager)));
-    }
-    let openQuest = this.appManager.getStoryManager().isCurrentQuestOpened();
-    questTab.addComponent(MenuUis.createOverlayPanel(4, 8, true));
-    questTab.addComponent(MenuUis.createTitleLabel("Play", 4));
-    questTab.addComponent(MenuUis.createMediumBtn("Continue", 6, false, UiEventActions.showScreen(screenManager, new QuestScreen(this.appManager, QuestScreenCinematicSequenceType.NONE))).setDisabled(!openQuest));
-    questTab.addComponent(MenuUis.createMediumBtn("New Quest", 7, false, (btn) => {
-  this.appManager.getStoryManager().startNewQuest();
-  screenManager.showScreen(new QuestScreen(this.appManager, QuestScreenCinematicSequenceType.NONE));
-}));
-    questTab.addComponent(MenuUis.createMediumBtn("Back", 9, false, (btn) => {
-  tabs.setActiveTabIdx(0);
-}));
-    this.ui.subscribe(drivers);
-  }
-
-  leave(drivers) {
-    this.ui.unsubscribe(drivers);
-  }
-
-}
-classRegistry.MenuScreen = MenuScreen;
-class MenuUis {
-  static SLOT_HEIGHT = 120;
-  static BUTTON_HEIGHT = 100;
-  static PADDING_LEFT_RIGHT = 50;
-  constructor() {
-  }
-
-  getClass() {
-    return "MenuUis";
-  }
-
-  static prepareScaledFonts(drivers) {
-    let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(50, 75, 100));
-  }
-
-  static createUiSizeFnc() {
-    return UiSizeFncs.constantHeight(1600);
-  }
-
-  static createDefaultStyler() {
-    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-mini-100")).setH1Color(Rgba.create(0.95, 0.93, 0.88, 1)).setH2Color(Rgba.create(0.95, 0.93, 0.88, 1)).setH3Color(Rgba.create(0.95, 0.93, 0.88, 1)).setLargeTextFont(FontId.of("kenny-mini-75")).setMediumTextFont(FontId.of("kenny-mini-50")).setSmallTextFont(FontId.of("kenny-mini-40")).setTextColor(Rgba.create(0.95, 0.93, 0.88, 1)).setButtonLabelFont(FontId.of("kenny-mini-50")).setButtonLabelColor(Rgba.create(0.95, 0.82, 1.00, 1)).setDisabledButtonLabelColor(Rgba.create(0.55, 0.55, 0.55, 1)).setPanelBackgroundColor(Rgba.create(0, 0, 0, 0.3)).setPanelBorderColor(Rgba.create(0, 0, 0, 0.7));
-  }
-
-  static createTiledBg() {
-    return TiledBackground.create().setTexture("bg-tile");
-  }
-
-  static createPanel916() {
-    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setInnerSizeFnc((size) => {
-  return Size2.create(900, 1600);
-}).setRegionFnc((t) => {
-  if (t.aspect()>9/16) {
-    return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
-  }
-  else {
-    return Rect2.create(0, 0, t.width(), t.height());
-  }
-});
-  }
-
-  static createTitleScreenBg() {
-    return ImageView.create().setTexture("title-narrow-2").setRegionFnc(UiRegionFncs.full());
-  }
-
-  static createOverlayPanel(startSlot, numSlots, padding) {
-    let pd = padding?0.5:0;
-    return Panel.create().setRegionFnc(UiRegionFncs.centerTop((startSlot-pd)*MenuUis.SLOT_HEIGHT, 850, (numSlots+2*pd)*MenuUis.SLOT_HEIGHT));
-  }
-
-  static createPreviousTabBtnRegionFnc(slot) {
-    return (size) => {
-      return Rect2.create(MenuUis.PADDING_LEFT_RIGHT, slot*MenuUis.SLOT_HEIGHT, MenuUis.BUTTON_HEIGHT, MenuUis.BUTTON_HEIGHT);
-    };
-  }
-
-  static createNextTabBtnRegionFnc(slot) {
-    return (size) => {
-      return Rect2.create(size.width()-MenuUis.BUTTON_HEIGHT-MenuUis.PADDING_LEFT_RIGHT, slot*MenuUis.SLOT_HEIGHT, MenuUis.BUTTON_HEIGHT, MenuUis.BUTTON_HEIGHT);
-    };
-  }
-
-  static createMediumBtn(label, slot, disabled, action) {
-    return Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.centerTop(slot*MenuUis.SLOT_HEIGHT, 600, 100)).setText(label).setDisabled(disabled).addOnClickAction(action);
-  }
-
-  static createLeftMediumBtn(label, slot, disabled, action) {
-    return Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(MenuUis.PADDING_LEFT_RIGHT, slot*MenuUis.SLOT_HEIGHT, 450-MenuUis.PADDING_LEFT_RIGHT*1.5, MenuUis.BUTTON_HEIGHT)).setText(label).setDisabled(disabled).addOnClickAction(action);
-  }
-
-  static createRightMediumBtn(label, slot, disabled, action) {
-    return Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(450+MenuUis.PADDING_LEFT_RIGHT*0.5, slot*MenuUis.SLOT_HEIGHT, 450-MenuUis.PADDING_LEFT_RIGHT*1.5, MenuUis.BUTTON_HEIGHT)).setText(label).setDisabled(disabled).addOnClickAction(action);
-  }
-
-  static createTitleLabel(text, slot) {
-    return Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.centerTop(slot*MenuUis.SLOT_HEIGHT)).setText(text).setAlignment(TextAlignment.CENTER_TOP);
-  }
-
-  slotRegionFnc(slot) {
-    return (size) => {
-      return Rect2.create(0, slot*MenuUis.SLOT_HEIGHT, size.width(), MenuUis.SLOT_HEIGHT);
-    };
-  }
-
-  squareImage(texture, startSlot, numSlots) {
-    let size = MenuUis.SLOT_HEIGHT*numSlots-20;
-    return ImageView.create().setTexture(texture).setRegionFnc(UiRegionFncs.centerTop(startSlot*MenuUis.SLOT_HEIGHT, size, size));
-  }
-
-  normalLabel(text, slot) {
-    return Label.create().addTrait(UiComponentTrait.M).setPosFnc(UiPosFncs.centerTop(slot*MenuUis.SLOT_HEIGHT)).setText(text).setAlignment(TextAlignment.CENTER_TOP);
-  }
-
-  pauseBtn(action) {
-    return Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(75, 0, 75, 75)).addOnClickAction(action);
-  }
-
-  exitBtn(action) {
-    return Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(75, 0, 75, 75)).addOnClickAction(action);
-  }
-
-}
-classRegistry.MenuUis = MenuUis;
 class PlayUis {
   static ARROW_UP = UiComponentTrait.of("ARROW_UP");
   static ARROW_DOWN = UiComponentTrait.of("ARROW_DOWN");
@@ -36644,10 +36663,6 @@ class PlayUis {
   static BRAKE = UiComponentTrait.of("BRAKE");
   static PUNCH = UiComponentTrait.of("PUNCH");
   static WALK_RUN = UiComponentTrait.of("WALK_RUN");
-  static CIRCLE_PUNCH = UiComponentTrait.of("CIRCLE_PUNCH");
-  static CIRCLE_KICK = UiComponentTrait.of("CIRCLE_KICK");
-  static CIRCLE_SPECIAL = UiComponentTrait.of("CIRCLE_SPECIAL");
-  static CIRCLE_BLOCK = UiComponentTrait.of("CIRCLE_BLOCK");
   constructor() {
   }
 
@@ -36664,7 +36679,7 @@ class PlayUis {
     let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
     let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
     let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
-    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-30")).setH2Font(FontId.of("kenny-thick-26")).setH3Font(FontId.of("kenny-thick-24")).setH1Color(Rgba.create(0.95, 0.93, 0.88, 1)).setH2Color(Rgba.create(0.95, 0.93, 0.88, 1)).setH3Color(Rgba.create(0.95, 0.93, 0.88, 1)).setExtraLargeTextFont(FontId.of("kenny-mini-22")).setLargeTextFont(FontId.of("kenny-mini-20")).setMediumTextFont(FontId.of("kenny-mini-18")).setSmallTextFont(FontId.of("kenny-mini-16")).setTextColor(Rgba.create(0.95, 0.93, 0.88, 1)).setButtonLabelFont(FontId.of("kenny-mini-18")).setFieldLabelFont(FontId.of("kenny-mini-16")).setFieldValueFont(FontId.of("kenny-mini-16")).setSelectItemTextFont(FontId.of("kenny-mini-18")).setButtonLabelColor(Rgba.create(0.95, 0.82, 1.00, 1)).setSelectItemHeight(20).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.CIRCLE_PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-circle-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-circle-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-circle-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.CIRCLE_KICK), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-kick-circle-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-kick-circle-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-kick-circle-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.CIRCLE_SPECIAL), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-special-circle-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-special-circle-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-special-circle-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.CIRCLE_BLOCK), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-block-circle-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-block-circle-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-block-circle-disabled")))));
+    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-30")).setH2Font(FontId.of("kenny-thick-26")).setH3Font(FontId.of("kenny-thick-24")).setExtraLargeTextFont(FontId.of("kenny-mini-22")).setLargeTextFont(FontId.of("kenny-mini-20")).setMediumTextFont(FontId.of("kenny-mini-18")).setSmallTextFont(FontId.of("kenny-mini-16")).setButtonLabelFont(FontId.of("kenny-mini-18")).setFieldLabelFont(FontId.of("kenny-mini-16")).setFieldValueFont(FontId.of("kenny-mini-16")).setSelectItemTextFont(FontId.of("kenny-mini-18")).setSelectItemHeight(20).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
   }
 
   static create916Panel() {
@@ -36688,1105 +36703,305 @@ class PlayUis {
 
 }
 classRegistry.PlayUis = PlayUis;
-class TiledBackground extends UiComponent {
-  texture;
-  tileSize;
-  velocity;
-  containerSize;
-  offset = Vec2.ZERO;
-  spriteStyle = SpriteStyle.PIXEL_EDGE.withTextureStyle(TextureStyle.SMOOTH_REPEAT);
+class GamePad extends UiComponent {
+  leftJoystick;
+  rightJoystick;
   constructor() {
     super();
   }
 
   getClass() {
-    return "TiledBackground";
+    return "GamePad";
   }
 
   guardInvariants() {
   }
 
+  getLeftDir() {
+    return this.leftJoystick.getDir();
+  }
+
+  getRightDir() {
+    return this.rightJoystick.getDir();
+  }
+
+  init(container) {
+    this.leftJoystick.init(container);
+    this.rightJoystick.init(container);
+  }
+
   move(dt) {
-    let nx = this.offset.x()+dt*this.velocity.x();
-    let ny = this.offset.y()+dt*this.velocity.y();
-    while (nx>0) {
-      nx = nx-this.tileSize.width();
-    }
-    while (nx+this.tileSize.width()<0) {
-      nx = nx+this.tileSize.width();
-    }
-    while (ny>0) {
-      ny = ny-this.tileSize.height();
-    }
-    while (ny+this.tileSize.height()<0) {
-      ny = ny+this.tileSize.height();
-    }
-    this.offset = Vec2.create(nx, ny);
+    this.leftJoystick.move(dt);
+    this.rightJoystick.move(dt);
   }
 
   draw(painter) {
-    for (let y = this.offset.y(); y<=this.containerSize.height(); y=y+this.tileSize.height()) {
-      for (let x = this.offset.x(); x<=this.containerSize.width(); x=x+this.tileSize.width()) {
-        painter.drawImage(this.texture, x, y, this.tileSize.width(), this.tileSize.height(), this.spriteStyle);
-      }
-    }
+    this.leftJoystick.draw(painter);
+    this.rightJoystick.draw(painter);
   }
 
   onContainerResize(size) {
-    this.containerSize = size;
+    this.leftJoystick.onContainerResize(size);
+    this.rightJoystick.onContainerResize(size);
   }
 
-  getTexture() {
-    return this.texture;
+  onTouchStart(id, pos, size) {
+    this.leftJoystick.onTouchStart(id, pos, size);
+    this.rightJoystick.onTouchStart(id, pos, size);
+    return false;
   }
 
-  setTexture() {
-    if (arguments.length===1&&arguments[0] instanceof TextureId) {
-      return this.setTexture_1_TextureId(arguments[0]);
+  onTouchMove(id, pos, size) {
+    this.leftJoystick.onTouchMove(id, pos, size);
+    this.rightJoystick.onTouchMove(id, pos, size);
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    this.leftJoystick.onTouchEnd(id, pos, size, cancel);
+    this.rightJoystick.onTouchEnd(id, pos, size, cancel);
+    return false;
+  }
+
+  onKeyPressed(key) {
+    this.leftJoystick.onKeyPressed(key);
+    this.rightJoystick.onKeyPressed(key);
+    return false;
+  }
+
+  onKeyReleased(key) {
+    this.leftJoystick.onKeyReleased(key);
+    this.rightJoystick.onKeyReleased(key);
+    return false;
+  }
+
+  toString() {
+  }
+
+  static create(drivers) {
+    let res = new GamePad();
+    res.leftJoystick = Joystick.create().setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h30 = s.height()*0.3;
+    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h5, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h2, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("W"), KeyCodeMatchers.upperCharacter("S"), KeyCodeMatchers.upperCharacter("A"), KeyCodeMatchers.upperCharacter("D"));
+    res.rightJoystick = Joystick.create().setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h30 = s.height()*0.3;
+    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(s.width()-h5-size, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(s.width()-h2-size, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("I"), KeyCodeMatchers.upperCharacter("K"), KeyCodeMatchers.upperCharacter("J"), KeyCodeMatchers.upperCharacter("L"));
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.GamePad = GamePad;
+class FreeCameraBehavior extends Behavior {
+  moveDirInput = "moveDir";
+  rotDirInput = "rotDir";
+  moveSpeed = 3;
+  rotSpeed = 1;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FreeCameraBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt, inputs) {
+    let moveDir = inputs.getVec2(this.moveDirInput, Vec2.ZERO);
+    let rotDir = inputs.getVec2(this.rotDirInput, Vec2.ZERO);
+    let tc = this.actor().getComponent("TransformComponent");
+    let rot = tc.getRot();
+    if (!moveDir.equals(Vec2.ZERO)) {
+      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize().scale(moveDir.y()*this.moveSpeed*dt);
+      let right = rot.rotate(Vec3.create(1, 0, 0)).normalize().scale(moveDir.x()*this.moveSpeed*dt);
+      tc.move(fwd.add(right));
     }
-    else if (arguments.length===1&& typeof arguments[0]==="string") {
-      return this.setTexture_1_string(arguments[0]);
+    if (!rotDir.equals(Vec2.ZERO)) {
+      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize();
+      let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
+      let rotX = FMath.asin(fwd.y())+rotDir.y()*this.rotSpeed*dt;
+      let rotY = (fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y()))-rotDir.x()*this.rotSpeed*dt;
+      let rx = Quaternion.rot(1, 0, 0, rotX);
+      let ry = Quaternion.rot(0, 1, 0, rotY);
+      tc.setRot(ry.mul(rx));
+    }
+  }
+
+  static create() {
+    if (arguments.length===1&&arguments[0] instanceof ComponentKey) {
+      return FreeCameraBehavior.create_1_ComponentKey(arguments[0]);
+    }
+    else if (arguments.length===5&&arguments[0] instanceof ComponentKey&& typeof arguments[1]==="string"&& typeof arguments[2]==="string"&& typeof arguments[3]==="number"&& typeof arguments[4]==="number") {
+      return FreeCameraBehavior.create_5_ComponentKey_string_string_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
     }
     else {
       throw new Error("ambiguous overload");
     }
   }
 
-  setTexture_1_TextureId(texture) {
-    Guard.notNull(texture, "texture cannot be null");
-    this.texture = texture;
-    return this;
+  static create_1_ComponentKey(key) {
+    let res = new FreeCameraBehavior(key);
+    res.guardInvariants();
+    return res;
   }
 
-  setTexture_1_string(texture) {
-    return this.setTexture(TextureId.of(texture));
-  }
-
-  toString() {
-  }
-
-  static create() {
-    let res = new TiledBackground();
-    res.texture = TextureId.of("image");
-    res.tileSize = Size2.create(256, 256);
-    res.velocity = Vec2.create(0, 60);
-    res.containerSize = Size2.create(1, 1);
+  static create_5_ComponentKey_string_string_number_number(key, moveDirInput, rotDirInput, moveSpeed, rotSpeed) {
+    let res = new FreeCameraBehavior(key);
+    res.moveDirInput = moveDirInput;
+    res.rotDirInput = rotDirInput;
+    res.moveSpeed = moveSpeed;
+    res.rotSpeed = rotSpeed;
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.TiledBackground = TiledBackground;
-class AudioBehavior extends Behavior {
-  musicVolume = 10;
-  soundVolume = 100;
-  musicPlaybackControl = null;
-  musicPlaybackMode = AudioPlaybackMode.PLAY;
-  musicVolumeChangeSpeed = 0;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "AudioBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  move(dt, inputs) {
-    let mpc = this.musicPlaybackControl;
-    if (mpc!=null) {
-      if (this.musicPlaybackMode.equals(AudioPlaybackMode.FADE_IN)) {
-        let targetVolume = this.musicVolume/100;
-        let volume = mpc.getVolume();
-        volume = FMath.min(volume+this.musicVolumeChangeSpeed*dt, targetVolume);
-        mpc.setVolume(volume);
-        if (volume==targetVolume) {
-          this.musicPlaybackMode = AudioPlaybackMode.PLAY;
-        }
-      }
-      else if (this.musicPlaybackMode.equals(AudioPlaybackMode.FADE_OUT)) {
-        let volume = mpc.getVolume();
-        volume = FMath.max(volume-this.musicVolumeChangeSpeed*dt, 0);
-        if (volume<=0.001) {
-          mpc.stop();
-          this.musicPlaybackControl = null;
-        }
-        else {
-          mpc.setVolume(volume);
-        }
-      }
-      else if (this.musicPlaybackMode.equals(AudioPlaybackMode.PLAY)) {
-        let targetVolume = this.musicVolume/100;
-        let volume = mpc.getVolume();
-        if (targetVolume!=volume) {
-          mpc.setVolume(targetVolume);
-        }
-      }
-    }
-  }
-
-  getMusicVolume() {
-    return this.musicVolume;
-  }
-
-  getSoundVolume() {
-    return this.soundVolume;
-  }
-
-  isMusicPlaying() {
-    return this.musicPlaybackControl!=null;
-  }
-
-  playSound(soundId) {
-    if (this.soundVolume>0) {
-      this.world().audio().prepare(PlaybackId.of(Randoms.nextAlphabetic(6)), soundId).setVolume(this.soundVolume/100).setLoop(false).play();
-    }
-    return this;
-  }
-
-  playRandomSound(soundIds) {
-    let idx = Randoms.nextInt(0, soundIds.size());
-    this.playSound(soundIds.get(idx));
-    return this;
-  }
-
-  fadeInAndPlayMusic(soundId, fadeInTime) {
-    if (this.musicPlaybackControl!=null) {
-      this.musicPlaybackControl.stop();
-      this.musicPlaybackControl = null;
-    }
-    this.musicVolumeChangeSpeed = this.musicVolume/fadeInTime;
-    this.musicPlaybackControl = this.world().audio().prepare(PlaybackId.of(Randoms.nextAlphabetic(6)), soundId).setVolume(0.001).setLoop(true).play();
-    this.musicPlaybackMode = AudioPlaybackMode.FADE_IN;
-    return this;
-  }
-
-  fadeOutAndStopMusic(fadeOutTime) {
-    if (this.musicPlaybackControl==null) {
-      return this;
-    }
-    if (fadeOutTime<=0) {
-      this.musicPlaybackControl.stop();
-      this.musicPlaybackControl = null;
-      return this;
-    }
-    this.musicVolumeChangeSpeed = this.musicPlaybackControl.getVolume()/fadeOutTime;
-    this.musicPlaybackMode = AudioPlaybackMode.FADE_OUT;
-    return this;
-  }
-
-  stopAll() {
-    this.world().audio().stop();
-    this.musicPlaybackControl = null;
-    return this;
-  }
-
-  static create(key) {
-    let res = new AudioBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.AudioBehavior = AudioBehavior;
-const createAudioPlaybackMode = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const AudioPlaybackMode = Object.freeze({
-  FADE_IN: createAudioPlaybackMode("FADE_IN"),
-  PLAY: createAudioPlaybackMode("PLAY"),
-  FADE_OUT: createAudioPlaybackMode("FADE_OUT"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class FighterCharacter {
-  type;
-  name;
-  attackTypes;
+classRegistry.FreeCameraBehavior = FreeCameraBehavior;
+class BoxMeshFactory {
   constructor() {
   }
 
   getClass() {
-    return "FighterCharacter";
+    return "BoxMeshFactory";
   }
 
-  guardInvariants() {
-  }
-
-  getType() {
-    return this.type;
-  }
-
-  getName() {
-    return this.name;
-  }
-
-  withName(name) {
-    let res = new FighterCharacter();
-    res.type = this.type;
-    res.name = name;
-    res.attackTypes = this.attackTypes;
-    res.guardInvariants();
-    return res;
-  }
-
-  getAttackTypes() {
-    return this.attackTypes;
-  }
-
-  withAttackTypes(attackTypes) {
-    let res = new FighterCharacter();
-    res.type = this.type;
-    res.name = this.name;
-    res.attackTypes = attackTypes;
-    res.guardInvariants();
-    return res;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(type) {
-    let res = new FighterCharacter();
-    res.type = type;
-    res.name = "";
-    res.attackTypes = WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.45).plusChoice(FighterAttackType.KICK, 0.45).plusChoice(FighterAttackType.SPELL, 0.1);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterCharacter = FighterCharacter;
-const createFighterCharacterType = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
+  static rgbBox() {
+    if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&&arguments[3] instanceof Rgb) {
+      return BoxMeshFactory.rgbBox_4_Rgb_Rgb_Rgb_Rgb(arguments[0], arguments[1], arguments[2], arguments[3]);
     }
-  };
-};
-const FighterCharacterType = Object.freeze({
-  RIVEN: createFighterCharacterType("RIVEN"),
-  MORDIK: createFighterCharacterType("MORDIK"),
-  NYX: createFighterCharacterType("NYX"),
-  UNGO: createFighterCharacterType("UNGO"),
-  RAZE: createFighterCharacterType("RAZE"),
-  CROW: createFighterCharacterType("CROW"),
-  ABYSS: createFighterCharacterType("ABYSS"),
-  VEYN: createFighterCharacterType("VEYN"),
-  DRAKKO: createFighterCharacterType("DRAKKO"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class FighterCharacters {
-  getClass() {
-    return "FighterCharacters";
-  }
-
-  static createRiven() {
-    return FighterCharacter.create(FighterCharacterType.RIVEN).withName("Riven").withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.8).plusChoice(FighterAttackType.KICK, 0.2));
-  }
-
-  static createMordik() {
-    return FighterCharacter.create(FighterCharacterType.MORDIK).withName("Mordik").withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.6).plusChoice(FighterAttackType.KICK, 0.4));
-  }
-
-  static createNyx() {
-    return FighterCharacter.create(FighterCharacterType.NYX).withName("Nyx").withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.5).plusChoice(FighterAttackType.KICK, 0.5));
-  }
-
-  static createUngo() {
-    return FighterCharacter.create(FighterCharacterType.UNGO).withName("Ungo").withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.2).plusChoice(FighterAttackType.KICK, 0.8));
-  }
-
-  static createRaze() {
-    return FighterCharacter.create(FighterCharacterType.RAZE).withName("Raze").withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.2).plusChoice(FighterAttackType.KICK, 0.8));
-  }
-
-  static createCrow() {
-    return FighterCharacter.create(FighterCharacterType.CROW).withName("Crow").withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.5).plusChoice(FighterAttackType.KICK, 0.4).plusChoice(FighterAttackType.SPELL, 0.1));
-  }
-
-  static createAbyss() {
-    return FighterCharacter.create(FighterCharacterType.ABYSS).withName("Abyss").withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.4).plusChoice(FighterAttackType.KICK, 0.4).plusChoice(FighterAttackType.SPELL, 0.2));
-  }
-
-  static createVeyn() {
-    return FighterCharacter.create(FighterCharacterType.VEYN).withName("Veyn").withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.3).plusChoice(FighterAttackType.KICK, 0.3).plusChoice(FighterAttackType.SPELL, 0.4));
-  }
-
-  static createDrakko() {
-    return FighterCharacter.create(FighterCharacterType.DRAKKO).withName("Drakko").withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.1).plusChoice(FighterAttackType.KICK, 0.1).plusChoice(FighterAttackType.SPELL, 0.8));
-  }
-
-  static pickRandomType() {
-    let types = Dut.list(FighterCharacterType.values());
-    return Randoms.pickOne(types);
-  }
-
-  static createCharacter(type) {
-    if (type.equals(FighterCharacterType.RIVEN)) {
-      return FighterCharacters.createRiven();
-    }
-    else if (type.equals(FighterCharacterType.MORDIK)) {
-      return FighterCharacters.createMordik();
-    }
-    else if (type.equals(FighterCharacterType.NYX)) {
-      return FighterCharacters.createNyx();
-    }
-    else if (type.equals(FighterCharacterType.UNGO)) {
-      return FighterCharacters.createUngo();
-    }
-    else if (type.equals(FighterCharacterType.RAZE)) {
-      return FighterCharacters.createRaze();
-    }
-    else if (type.equals(FighterCharacterType.CROW)) {
-      return FighterCharacters.createCrow();
-    }
-    else if (type.equals(FighterCharacterType.ABYSS)) {
-      return FighterCharacters.createAbyss();
-    }
-    else if (type.equals(FighterCharacterType.VEYN)) {
-      return FighterCharacters.createVeyn();
-    }
-    else if (type.equals(FighterCharacterType.DRAKKO)) {
-      return FighterCharacters.createDrakko();
+    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
     }
     else {
-      throw new Error("unable to find figher: "+type);
+      throw new Error("ambiguous overload");
     }
   }
 
-}
-classRegistry.FighterCharacters = FighterCharacters;
-class GirlCharacter {
-  type;
-  name;
-  constructor() {
-  }
-
-  getClass() {
-    return "GirlCharacter";
-  }
-
-  guardInvariants() {
-  }
-
-  getType() {
-    return this.type;
-  }
-
-  getName() {
-    return this.name;
-  }
-
-  withName(name) {
-    let res = new GirlCharacter();
-    res.type = this.type;
-    res.name = name;
-    res.guardInvariants();
+  static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
     return res;
   }
 
-  hashCode() {
-    return Reflections.hashCode(this);
+  static rgbBox_3_number_number_number(r, g, b) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  equals(obj) {
-    return Reflections.equals(this, obj);
+  static rgbaBox(c1, c2, c3, c4, a) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  toString() {
+  static fabricBox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.fabric(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  static create(type) {
-    let res = new GirlCharacter();
-    res.type = type;
-    res.name = "";
-    res.guardInvariants();
+  static modelBox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static modelSkybox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, -1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22))).toMesh();
+    return res;
+  }
+
+  static modelBoxDeformed1() {
+    let en = Vec2.create(1, -1).normalize();
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static modelBoxDeformed2() {
+    let en = Vec2.create(-1, -1).normalize();
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.floatValues(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
     return res;
   }
 
 }
-classRegistry.GirlCharacter = GirlCharacter;
-const createGirlCharacterType = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const GirlCharacterType = Object.freeze({
-  MARIKO: createGirlCharacterType("MARIKO"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class GirlCharacters {
-  getClass() {
-    return "GirlCharacters";
-  }
-
-  static pickRandomType() {
-    let girlTypes = Dut.list(GirlCharacterType.values());
-    return Randoms.pickOne(girlTypes);
-  }
-
-}
-classRegistry.GirlCharacters = GirlCharacters;
-class CinematicActorAnimationStart {
-  modelKey;
-  animationCollectionId;
-  animationKey;
-  constructor() {
-  }
-
-  getClass() {
-    return "CinematicActorAnimationStart";
-  }
-
-  guardInvariants() {
-  }
-
-  getModelKey() {
-    return this.modelKey;
-  }
-
-  getAnimationCollectionId() {
-    return this.animationCollectionId;
-  }
-
-  getAnimationKey() {
-    return this.animationKey;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(modelKey, animationCollectionId, animationKey) {
-    let res = new CinematicActorAnimationStart();
-    res.modelKey = modelKey;
-    res.animationCollectionId = animationCollectionId;
-    res.animationKey = animationKey;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.CinematicActorAnimationStart = CinematicActorAnimationStart;
-class CinematicActorAnimationStep {
-  modelKey;
-  animationKey;
-  playConfig;
-  constructor() {
-  }
-
-  getClass() {
-    return "CinematicActorAnimationStep";
-  }
-
-  guardInvariants() {
-  }
-
-  getModelKey() {
-    return this.modelKey;
-  }
-
-  getAnimationKey() {
-    return this.animationKey;
-  }
-
-  getPlayConfig() {
-    return this.playConfig;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(modelKey, animationKey, playConfig) {
-    let res = new CinematicActorAnimationStep();
-    res.modelKey = modelKey;
-    res.animationKey = animationKey;
-    res.playConfig = playConfig;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.CinematicActorAnimationStep = CinematicActorAnimationStep;
-class CinematicActorMessages {
-  static CONTROL_START_MESSAGE = ActorMessage.createPlain(ActorMessageType.create("CINEMATIC_CONTROL_START"));
-  static CONTROL_END_MESSAGE = ActorMessage.createPlain(ActorMessageType.create("CINEMATIC_CONTROL_END"));
-  constructor() {
-  }
-
-  getClass() {
-    return "CinematicActorMessages";
-  }
-
-}
-classRegistry.CinematicActorMessages = CinematicActorMessages;
-class CinematicActorSequence {
-  hash = Randoms.nextInt(0, 10000000);
-  constructor() {
-  }
-
-  getClass() {
-    return "CinematicActorSequence";
-  }
-
-  init(pos, rot) {
-  }
-
-  move(dt) {
-  }
-
-  hashCode() {
-    return this.hash;
-  }
-
-  equals(obj) {
-    return this==obj;
-  }
-
-}
-classRegistry.CinematicActorSequence = CinematicActorSequence;
-class CinematicActorSequenceStart {
-  pos;
-  rot;
-  animations;
-  constructor() {
-  }
-
-  getClass() {
-    return "CinematicActorSequenceStart";
-  }
-
-  guardInvariants() {
-  }
-
-  getPos() {
-    return this.pos;
-  }
-
-  getRot() {
-    return this.rot;
-  }
-
-  getAnimations() {
-    return this.animations;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(pos, rot, animations) {
-    let res = new CinematicActorSequenceStart();
-    res.pos = pos;
-    res.rot = rot;
-    res.animations = Dut.copyImmutableList(animations);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.CinematicActorSequenceStart = CinematicActorSequenceStart;
-class CinematicActorSequenceStep {
-  pos;
-  rot;
-  animations;
-  messages;
-  completed;
-  leftoverDt;
-  constructor() {
-  }
-
-  getClass() {
-    return "CinematicActorSequenceStep";
-  }
-
-  guardInvariants() {
-  }
-
-  getPos() {
-    return this.pos;
-  }
-
-  getRot() {
-    return this.rot;
-  }
-
-  getAnimations() {
-    return this.animations;
-  }
-
-  getMessages() {
-    return this.messages;
-  }
-
-  isCompleted() {
-    return this.completed;
-  }
-
-  getLeftoverDt() {
-    return this.leftoverDt;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(pos, rot, animations, messages, completed, leftoverDt) {
-    let res = new CinematicActorSequenceStep();
-    res.pos = pos;
-    res.rot = rot;
-    res.animations = Dut.copyImmutableList(animations);
-    res.messages = Dut.copyImmutableList(messages);
-    res.completed = completed;
-    res.leftoverDt = leftoverDt;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.CinematicActorSequenceStep = CinematicActorSequenceStep;
-class CinematicControllerComponent extends Behavior {
-  sequences = new ArrayList();
-  transform;
-  models = new HashMap();
-  animationPlayers = new HashMap();
-  initiated = false;
-  origRigidBodyKinematic = false;
-  cleanedUp = true;
-  lock = new Object();
+classRegistry.BoxMeshFactory = BoxMeshFactory;
+class PlayAnimationBehavior extends Behavior {
+  player;
+  model;
+  cooldown = 3;
   constructor(key) {
     super(key);
   }
 
   getClass() {
-    return "CinematicControllerComponent";
+    return "PlayAnimationBehavior";
   }
 
   guardInvariants() {
   }
 
   init() {
-    this.transform = this.actor().getComponent("TransformComponent");
+    this.model = this.actor().getComponent("ModelComponent");
   }
 
   move(dt, inputs) {
-    let remDt = dt;
-    while (remDt>0&&!this.sequences.isEmpty()) {
-      let sequence = this.sequences.get(0);
-      if (!this.initiated) {
-        let rb = this.actor().getComponentNonStrict("RigidBodyComponent");
-        if (rb!=null) {
-          this.origRigidBodyKinematic = rb.isKinematic();
-          rb.setKinematic(true);
-        }
-        let start = sequence.init(this.transform.getPos(), this.transform.getRot());
-        this.transform.setPos(start.getPos()).setRot(start.getRot());
-        for (let animation of start.getAnimations()) {
-          let modelKey = animation.getModelKey();
-          let mc = this.actor().getComponentByKey("ModelComponent", modelKey);
-          this.models.put(modelKey, mc);
-          let acol = this.world().assets().get("MeshAnimationCollection", animation.getAnimationCollectionId());
-          let ap = MeshAnimationPlayer.create(acol, animation.getAnimationKey());
-          this.animationPlayers.put(modelKey, ap);
-        }
-        this.actor().sendMessage(CinematicActorMessages.CONTROL_START_MESSAGE);
-        this.initiated = true;
-        this.cleanedUp = false;
+    let step = this.player.move(dt);
+    this.model.setInterpolation(step.getInterpolation()).setPose(step.getPose());
+    if (step.isEnd()) {
+      this.cooldown = this.cooldown-dt;
+      if (this.cooldown<0) {
+        this.player.play(step.getKey(), MeshAnimationPlayConfig.RESTART);
       }
-      let step = sequence.move(remDt);
-      this.transform.setPos(step.getPos()).setRot(step.getRot());
-      for (let msg of step.getMessages()) {
-        this.actor().sendMessage(msg);
-      }
-      for (let animation of step.getAnimations()) {
-        this.animationPlayers.get(animation.getModelKey()).play(animation.getAnimationKey(), animation.getPlayConfig());
-      }
-      for (let ck of this.animationPlayers.keySet()) {
-        let animStep = this.animationPlayers.get(ck).move(remDt);
-        this.models.get(ck).setInterpolation(animStep.getInterpolation()).setPose(animStep.getPose());
-      }
-      if (step.isCompleted()) {
-        remDt = step.getLeftoverDt();
-        this.sequences = this.minusFirst(this.sequences);
-        if (!this.sequences.isEmpty()) {
-          sequence = this.sequences.get(0);
-          let start = sequence.init(this.transform.getPos(), this.transform.getRot());
-          this.transform.setPos(start.getPos()).setRot(start.getRot());
-          for (let animation of start.getAnimations()) {
-            let modelKey = animation.getModelKey();
-            let mc = this.actor().getComponentByKey("ModelComponent", modelKey);
-            this.models.put(modelKey, mc);
-            let acol = this.world().assets().get("MeshAnimationCollection", animation.getAnimationCollectionId());
-            let ap = MeshAnimationPlayer.create(acol, animation.getAnimationKey());
-            this.animationPlayers.put(modelKey, ap);
-          }
-        }
-      }
-      else {
-        remDt = 0;
-      }
-    }
-    if (this.sequences.isEmpty()&&!this.cleanedUp) {
-      let rb = this.actor().getComponentNonStrict("RigidBodyComponent");
-      if (rb!=null) {
-        rb.setKinematic(this.origRigidBodyKinematic);
-      }
-      this.actor().sendMessage(CinematicActorMessages.CONTROL_END_MESSAGE);
-      this.cleanedUp = true;
-    }
-  }
-
-  addSequence(sequence) {
-    Guard.notNull(sequence, "sequence cannot be null");
-    if (this.sequences.isEmpty()) {
-      this.initiated = false;
-    }
-    this.sequences.add(sequence);
-    return this;
-  }
-
-  minusFirst(input) {
-    let res = new ArrayList();
-    for (let i = 1; i<input.size(); ++i) {
-      res.add(input.get(i));
-    }
-    return res;
-  }
-
-  toString() {
-  }
-
-  static create(key) {
-    let res = new CinematicControllerComponent(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.CinematicControllerComponent = CinematicControllerComponent;
-class JumpCinematicActorSequence {
-  height;
-  duration;
-  offset;
-  initialPos;
-  initialRot;
-  targetPos;
-  time;
-  constructor() {
-  }
-
-  getClass() {
-    return "JumpCinematicActorSequence";
-  }
-
-  guardInvariants() {
-  }
-
-  init(pos, rot) {
-    this.initialPos = pos;
-    this.initialRot = rot;
-    this.targetPos = this.initialPos.add(this.offset);
-    this.time = 0;
-    return CinematicActorSequenceStart.create(this.initialPos, this.initialRot, Collections.emptyList());
-  }
-
-  move(dt) {
-    if (this.time+dt>=this.duration) {
-      return CinematicActorSequenceStep.create(this.targetPos, this.initialRot, Collections.emptyList(), Collections.emptyList(), true, this.duration-this.time-dt);
     }
     else {
-      this.time = this.time+dt;
-      let h = this.height*FMath.sin(this.time/this.duration*FMath.PI);
-      let inter = this.initialPos.interpolate(this.targetPos, this.time/this.duration);
-      return CinematicActorSequenceStep.create(inter.withY(this.initialPos.y()+h), this.initialRot, Collections.emptyList(), Collections.emptyList(), false, 0);
+      this.cooldown = 3;
     }
   }
 
-  toString() {
-  }
-
-  static create(height, duration, offset) {
-    let res = new JumpCinematicActorSequence();
-    res.height = height;
-    res.duration = duration;
-    res.offset = offset;
+  static create(key, player) {
+    let res = new PlayAnimationBehavior(key);
+    res.player = player;
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.JumpCinematicActorSequence = JumpCinematicActorSequence;
-class MoveToCinematicActorSequence {
-  targetPos;
-  duration;
-  initialPos;
-  initialRot;
-  time;
-  constructor() {
-  }
-
-  getClass() {
-    return "MoveToCinematicActorSequence";
-  }
-
-  guardInvariants() {
-  }
-
-  init(pos, rot) {
-    this.initialPos = pos;
-    this.initialRot = rot;
-    this.time = 0;
-    return CinematicActorSequenceStart.create(this.initialPos, this.initialRot, Collections.emptyList());
-  }
-
-  move(dt) {
-    if (this.time+dt>=this.duration) {
-      return CinematicActorSequenceStep.create(this.targetPos, this.initialRot, Collections.emptyList(), Collections.emptyList(), true, this.duration-this.time-dt);
-    }
-    else {
-      this.time = this.time+dt;
-      let inter = this.initialPos.interpolate(this.targetPos, this.time/this.duration);
-      return CinematicActorSequenceStep.create(inter, this.initialRot, Collections.emptyList(), Collections.emptyList(), false, 0);
-    }
-  }
-
-  toString() {
-  }
-
-  static create(targetPos, duration) {
-    let res = new MoveToCinematicActorSequence();
-    res.targetPos = targetPos;
-    res.duration = duration;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.MoveToCinematicActorSequence = MoveToCinematicActorSequence;
-class SpinCinematicActorSequence {
-  duration;
-  initialPos;
-  initialRot;
-  time;
-  constructor() {
-  }
-
-  getClass() {
-    return "SpinCinematicActorSequence";
-  }
-
-  guardInvariants() {
-  }
-
-  init(pos, rot) {
-    this.initialPos = pos;
-    this.initialRot = rot;
-    this.time = 0;
-    return CinematicActorSequenceStart.create(this.initialPos, this.initialRot, Collections.emptyList());
-  }
-
-  move(dt) {
-    if (this.time+dt>=this.duration) {
-      return CinematicActorSequenceStep.create(this.initialPos, this.initialRot, Collections.emptyList(), Collections.emptyList(), true, this.duration-this.time-dt);
-    }
-    else {
-      this.time = this.time+dt;
-      let ratio = this.time/this.duration;
-      let spin = Quaternion.rotY(2*FMath.PI*ratio);
-      return CinematicActorSequenceStep.create(this.initialPos, this.initialRot.mul(spin), Collections.emptyList(), Collections.emptyList(), false, 0);
-    }
-  }
-
-  toString() {
-  }
-
-  static create(duration) {
-    let res = new SpinCinematicActorSequence();
-    res.duration = duration;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.SpinCinematicActorSequence = SpinCinematicActorSequence;
-class CombatScreen extends TyracornScreen {
-  appManager;
-  scenario;
-  gameMaster;
+classRegistry.PlayAnimationBehavior = PlayAnimationBehavior;
+class BasicApp16 extends TyracornScreen {
   time = 0;
   world;
   inputs = InputCache.create();
   ui;
-  controller;
+  gamePad;
   paused = false;
-  audio;
-  enemyStateIndicator;
-  continueBtn = null;
-  constructor(appManager, scenario) {
+  constructor() {
     super();
-    this.appManager = appManager;
-    this.scenario = scenario;
-    this.guardInvariants();
   }
 
   getClass() {
-    return "CombatScreen";
-  }
-
-  guardInvariants() {
+    return "BasicApp16";
   }
 
   move(drivers, screenManager, dt) {
@@ -37798,5749 +37013,18 @@ class CombatScreen extends TyracornScreen {
       let menuPanel = Panel.create().setRegionFnc(UiRegionFncs.center(250, 250));
       this.ui.addComponent(menuPanel);
       menuPanel.addComponent(Label.create().addTrait(UiComponentTrait.H1).setAlignment(TextAlignment.CENTER_TOP).setPosFnc(UiPosFncs.centerTop(40)).setText("Pause"));
-      menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(120, 150, 40)).setText("Resume").addOnClickAction((evtSource) => {
+      menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(100, 150, 30)).setText("Resume").addOnClickAction((evtSource) => {
   this.paused = false;
   this.ui.popLayer();
 }));
-      menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(170, 150, 40)).setText("Exit").addOnClickAction(UiEventActions.showScreen(screenManager, new MenuScreen(this.appManager))));
-    }
-    if (this.gameMaster.isFinishState()&&this.gameMaster.getStateTime()>1.5&&this.continueBtn==null) {
-      this.ui.pushLayer();
-      this.ui.addComponent(Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setRegionFnc(UiRegionFncs.full()));
-      let act = null;
-      if (this.gameMaster.isFinishPlayerWinState()) {
-        this.appManager.getStoryManager().completeCurrentNode();
-        this.appManager.getStoryManager().moveToNextNode();
-        act = UiEventActions.showScreen(screenManager, new QuestScreen(this.appManager, QuestScreenCinematicSequenceType.COMPLETE_PREVIOUS_NODE));
+      if (drivers.getPlatform().isExitable()) {
+        menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(150, 150, 30)).setText("Exit").addOnClickAction(UiEventActions.exitApp(screenManager)));
       }
-      else {
-        this.appManager.getStoryManager().failCurrentQuesst();
-        act = UiEventActions.showScreen(screenManager, new QuestScreen(this.appManager, QuestScreenCinematicSequenceType.FAIL_NODE));
-      }
-      this.continueBtn = Button.create().addTrait(UiComponentTrait.M).setText("Continue").setRegionFnc((size) => {
-  let w = FMath.min(200, size.width()*0.7);
-  let h = 50;
-  return Rect2.create(size.width()/2-w/2, size.height()*0.6, w, h);
-}).addOnClickAction(act).setKeyCodeMatcher((keyCode) => {
-  return keyCode.isConrol()||keyCode.getUpperCharacter().equals("J")||keyCode.getUpperCharacter().equals("I")||keyCode.getUpperCharacter().equals("O");
-});
-      this.ui.addComponent(this.continueBtn);
     }
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
     if (!this.paused) {
-      this.controller.pushToInputs(this.inputs);
-      this.world.move(dt, this.inputs);
-      this.enemyStateIndicator.setCharacter(this.gameMaster.getEnemyActor().getComponent("FighterCharacterBehavior"));
-    }
-    this.world.render(RenderRequest.NORMAL);
-    gDriver.clearBuffers(BufferId.DEPTH);
-    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
-    uiRenderer.render(this.ui);
-    uiRenderer.end();
-  }
-
-  load(drivers, screenManager, properties) {
-    let res = new ArrayList();
-    let assets = drivers.getDriver("AssetManager");
-    res.addAll(Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/music.tap")), assets.resolveAsync(Path.of("asset:packages/elements.tap")), assets.resolveAsync(Path.of("asset:packages/characters/base-fighter.tap")), assets.resolveAsync(Path.of("asset:packages/characters/audience.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/skybox.tap")), assets.resolveAsync(Path.of("asset:default.tap")), assets.resolveAsync(Path.of("asset:prefabs.tap")), assets.resolveAsync(Path.of("asset:scenes.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/medieval-village.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/nature.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/sci-fi.tap"))));
-    return res;
-  }
-
-  init(drivers, screenManager, properties) {
-    let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 30));
-    this.world = CombatWorlds.createWorld(drivers);
-    this.scenario.getArenaScene().emptyWorld(this.world).loadToWorld(this.world, assets);
-    this.audio = AudioBehavior.create(ComponentKey.random());
-    this.gameMaster = CombatGameMasterBehavior.create(ComponentKey.of("game-master"), this.scenario);
-    this.world.actors().get(GameActors.WORLD).addComponent(this.audio).addComponent(this.gameMaster);
-    this.gameMaster.spawnInitialActors();
-    this.world.actors().get(GameActors.CAMERA).addComponent(FighterCameraShiftBehavior.create(ComponentKey.random()));
-    this.world.actors().get(ActorId.of("dirlight")).getComponent("LightComponent").setDirShadowMapStrategy(DirShadowMapStrategy.createManual(130, 130, 0, 70));
-    this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
-    this.ui.addComponent(PlayUis.createPauseButton((evt) => {
-  this.paused = true;
-}));
-    this.controller = CombatCharacterController.create(drivers);
-    this.ui.addComponent(this.controller);
-    this.ui.addComponent(FighterStateIndicator.create().setCharacter(this.gameMaster.getPlayerActor().getComponent("FighterCharacterBehavior")).setRegionFnc((s) => {
-  let h2 = s.height()*0.02;
-  let h5 = s.height()*0.05;
-  let h30 = s.height()*0.3;
-  let w10 = s.width()*0.1;
-  let w30 = s.width()*0.3;
-  let offsetX = w10;
-  let offsetY = h2;
-  let width = FMath.min(h30, w30);
-  return Rect2.create(offsetX, offsetY, width, h5);
-}).setFlip(false));
-    this.enemyStateIndicator = FighterStateIndicator.create().setCharacter(this.gameMaster.getEnemyActor().getComponent("FighterCharacterBehavior")).setRegionFnc((s) => {
-  let h2 = s.height()*0.02;
-  let h5 = s.height()*0.05;
-  let h30 = s.height()*0.3;
-  let w10 = s.width()*0.1;
-  let w30 = s.width()*0.3;
-  let offsetX = w10;
-  let offsetY = h2;
-  let width = FMath.min(h30, w30);
-  return Rect2.create(s.width()-offsetX-width, offsetY, FMath.min(h30, w30), h5);
-}).setFlip(true);
-    this.ui.addComponent(this.enemyStateIndicator);
-    this.ui.addComponent(CombatGameStatePromoter.create(assets, this.gameMaster));
-    this.ui.subscribe(drivers);
-    let dlist = InputCacheDisplayListener.create(this.inputs);
-    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
-    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
-  }
-
-  pause(drivers) {
-    this.paused = true;
-  }
-
-  leave(drivers) {
-    this.audio.stopAll();
-    this.ui.unsubscribe(drivers);
-    this.world.destroy(drivers);
-  }
-
-}
-classRegistry.CombatScreen = CombatScreen;
-class CombatWorlds {
-  constructor() {
-  }
-
-  getClass() {
-    return "CombatWorlds";
-  }
-
-  static createWorld(drivers) {
-    return RigidBodyWorld.create(drivers).setCollisionLayerMatrix(CollisionLayerMatrix.standard().plusLayer(CollisionLayer.of("BLOOD"), false, Dut.set(CollisionLayer.WORLD)).plusLayer(CollisionLayer.of("LANDING_DUST"), false, Collections.emptySet()).plusLayer(CollisionLayer.of("FIREBALL"), true, Dut.set(CollisionLayer.WORLD, CollisionLayer.HURTBOX)));
-  }
-
-}
-classRegistry.CombatWorlds = CombatWorlds;
-class HitMessage {
-  pos;
-  dir;
-  damage;
-  impulse;
-  knockdownFactor;
-  zones;
-  constructor() {
-  }
-
-  getClass() {
-    return "HitMessage";
-  }
-
-  guardInvariants() {
-  }
-
-  getPos() {
-    return this.pos;
-  }
-
-  getDir() {
-    return this.dir;
-  }
-
-  getDamage() {
-    return this.damage;
-  }
-
-  getImpulse() {
-    return this.impulse;
-  }
-
-  getKnockdownFactor() {
-    return this.knockdownFactor;
-  }
-
-  getZones() {
-    return this.zones;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(pos, dir, damage, impulse, knockdownFactor, zones) {
-    let res = new HitMessage();
-    res.pos = pos;
-    res.dir = dir;
-    res.damage = damage;
-    res.impulse = impulse;
-    res.knockdownFactor = knockdownFactor;
-    res.zones = Dut.copyImmutableSet(zones);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.HitMessage = HitMessage;
-class CombatArenas {
-  constructor() {
-  }
-
-  getClass() {
-    return "CombatArenas";
-  }
-
-  static createMiniaturePrefab(assets, arena) {
-    if (arena.getGeneratorType().equals(QuestNodeArenaGeneratorType.MEDIEVAL_01)) {
-      let generator = MedievalArenaGenerator01.create();
-      return generator.generateMiniaturePrefab(assets, arena.getSeed());
-    }
-    else {
-      throw new Error("unknown generator type: "+arena.getGeneratorType());
-    }
-  }
-
-  static createQuestNodeArenaScene(arena) {
-    if (arena.getGeneratorType().equals(QuestNodeArenaGeneratorType.MEDIEVAL_01)) {
-      let generator = MedievalArenaGenerator01.create();
-      return generator.generateFullScene(arena.getSeed());
-    }
-    else {
-      throw new Error("unknown generator type: "+arena.getGeneratorType());
-    }
-  }
-
-  static createRandomArenaScene() {
-    let generator = MedievalArenaGenerator01.create();
-    return generator.generateFullScene(Randoms.nextInt(1, 100000));
-  }
-
-}
-classRegistry.CombatArenas = CombatArenas;
-class MedievalArenaGenerator01 {
-  villageLayouts = Dut.list("one-nature", "one-audience", "two-nature", "two-audience", "two-empty");
-  constructor() {
-  }
-
-  getClass() {
-    return "MedievalArenaGenerator01";
-  }
-
-  guardInvariants() {
-  }
-
-  generateMiniaturePrefab(assets, seed) {
-    let factor = 1/20;
-    let segmentRngs = this.generateSegmentSeeds(XorShift32RandomGenerator.create(seed));
-    let root = ActorPrefab.create(ActorPrefabLocalId.of("root"), "root").plusComponent(ComponentPrefab.transform(ComponentKey.TRANSFORM, Vec3.ZERO, Quaternion.ZERO_ROT));
-    let layoutRng = segmentRngs.get("layout");
-    layoutRng.nextFloat(5, 12);
-    let villageLayout = layoutRng.pickOne(this.villageLayouts);
-    let buildingRng = segmentRngs.get("building");
-    let scene = this.generateBuildings(Scene.create("scene"), buildingRng, villageLayout);
-    for (let obj of scene.getObjects()) {
-      let origPos = obj.getPos();
-      let pos = Vec3.create(origPos.x()*factor/2, origPos.y()*factor, origPos.z()*factor*2);
-      let bld = ActorPrefab.create(ActorPrefabLocalId.random(), "building").plusComponent(ComponentPrefab.transform(ComponentKey.TRANSFORM, pos, obj.getRotQuaternion()));
-      let template = assets.get("ActorPrefab", obj.getPrefabId());
-      for (let cmpPrefab of template.getComponents()) {
-        if (!cmpPrefab.getType().equals(ComponentPrefabType.MODEL)) {
-          continue;
-        }
-        bld = bld.plusComponent(cmpPrefab.withProperty("pos", cmpPrefab.getVec3("pos").scale(factor)).withProperty("scale", cmpPrefab.getVec3("scale").scale(factor)));
-      }
-      root = root.plusChild(bld);
-    }
-    return root;
-  }
-
-  generateFullScene(seed) {
-    let segmentRngs = this.generateSegmentSeeds(XorShift32RandomGenerator.create(seed));
-    let scene = Scene.create("medieval-generator-01."+seed);
-    let camera = segmentRngs.get("world");
-    scene = scene.plusObject(SceneObject.create("camera", ActorPrefabId.of("camera")).withActorId(GameActors.CAMERA).withPos(Vec3.create(0, 8, 19)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, -15, 0, 0)));
-    let worldRng = segmentRngs.get("world");
-    scene = scene.plusObject(SceneObject.create("world", ActorPrefabId.of("world")).withActorId(GameActors.WORLD));
-    let skyboxRng = segmentRngs.get("skybox");
-    scene = scene.plusObject(SceneObject.create("skybox", ActorPrefabId.of("skybox-1")));
-    let dirlightRng = segmentRngs.get("dirlight");
-    scene = scene.plusObject(SceneObject.create("dirlight", ActorPrefabId.of("dirlight-day")).withActorId(ActorId.of("dirlight")).withPos(Vec3.create(0, 20, 20)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, -40, -5, 0)));
-    let groundRng = segmentRngs.get("ground");
-    scene = scene.plusObject(SceneObject.create("ground", ActorPrefabId.of("med-ground-1")).withPos(Vec3.create(0, 0, -15)));
-    let layoutRng = segmentRngs.get("layout");
-    let spawnDistance = layoutRng.nextFloat(5, 12);
-    scene = scene.plusObject(SceneObject.create("spawn-player", ActorPrefabId.of("spawn-point")).withActorId(GameActors.SPAWN_PLAYER).withPos(Vec3.create(-spawnDistance/2, 3, 0)));
-    scene = scene.plusObject(SceneObject.create("spawn-enemy", ActorPrefabId.of("spawn-point")).withActorId(GameActors.SPAWN_ENEMY).withPos(Vec3.create(spawnDistance/2, 3, 0)));
-    let villageLayout = layoutRng.pickOne(this.villageLayouts);
-    let buildingRng = segmentRngs.get("building");
-    scene = this.generateBuildings(scene, buildingRng, villageLayout);
-    let natureRng = segmentRngs.get("nature");
-    scene = this.generateNature(scene, natureRng, Rect2.create(-40, -40, 80, 20));
-    let audienceRng = segmentRngs.get("audience");
-    scene = this.generateAudience(scene, audienceRng, Rect2.create(-15, -5, 30, 2));
-    return scene;
-  }
-
-  generateBuildings(scene, buildingRng, villageLayout) {
-    let leftBorders = Dut.list("backsmith-90", "sawmill-90", "mill-90", "bell-tower-90");
-    let rightBorders = Dut.list("backsmith-270", "sawmill-270", "mill-270", "bell-tower-270");
-    let leftBorder = buildingRng.pickOne(leftBorders);
-    if (leftBorder.equals("backsmith-90")) {
-      scene = scene.plusObject(SceneObject.create("", ActorPrefabId.of("med-blacksmith")).withPos(Vec3.create(-25, 0, 0)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 90, 0)));
-    }
-    else if (leftBorder.equals("sawmill-90")) {
-      scene = scene.plusObject(SceneObject.create("", ActorPrefabId.of("med-sawmill")).withPos(Vec3.create(-25, 0, 0)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 90, 0)));
-    }
-    else if (leftBorder.equals("mill-90")) {
-      scene = scene.plusObject(SceneObject.create("", ActorPrefabId.of("med-mill")).withPos(Vec3.create(-25, 0, 0)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 90, 0)));
-    }
-    else if (leftBorder.equals("bell-tower-90")) {
-      scene = scene.plusObject(SceneObject.create("", ActorPrefabId.of("med-bell-tower")).withPos(Vec3.create(-25, 0, 0)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 90, 0)));
-    }
-    else {
-      throw new Error("unknown left border: "+leftBorder);
-    }
-    let rightBorder = buildingRng.pickOne(rightBorders);
-    if (rightBorder.equals("backsmith-270")) {
-      scene = scene.plusObject(SceneObject.create("", ActorPrefabId.of("med-blacksmith")).withPos(Vec3.create(25, 0, 0)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 270, 0)));
-    }
-    else if (rightBorder.equals("sawmill-270")) {
-      scene = scene.plusObject(SceneObject.create("", ActorPrefabId.of("med-sawmill")).withPos(Vec3.create(25, 0, 0)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 270, 0)));
-    }
-    else if (rightBorder.equals("mill-270")) {
-      scene = scene.plusObject(SceneObject.create("", ActorPrefabId.of("med-mill")).withPos(Vec3.create(25, 0, 0)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 270, 0)));
-    }
-    else if (rightBorder.equals("bell-tower-270")) {
-      scene = scene.plusObject(SceneObject.create("", ActorPrefabId.of("med-bell-tower")).withPos(Vec3.create(25, 0, 0)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 270, 0)));
-    }
-    else {
-      throw new Error("unknown right border: "+rightBorder);
-    }
-    let houses = Dut.list(ActorPrefabId.of("med-house-1"), ActorPrefabId.of("med-house-2"), ActorPrefabId.of("med-house-3"), ActorPrefabId.of("med-house-4"));
-    if (villageLayout.startsWith("one-")) {
-      scene = scene.plusObject(SceneObject.create("", buildingRng.pickOne(houses)).withPos(Vec3.create(0, 0, -12)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 0, 0)));
-    }
-    else if (villageLayout.startsWith("two-")) {
-      scene = scene.plusObject(SceneObject.create("", buildingRng.pickOne(houses)).withPos(Vec3.create(-10, 0, -12)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 0, 0)));
-      scene = scene.plusObject(SceneObject.create("", buildingRng.pickOne(houses)).withPos(Vec3.create(10, 0, -12)).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, 0, 0)));
-    }
-    else {
-      throw new Error("unknown villageLayout:"+villageLayout);
-    }
-    return scene;
-  }
-
-  generateNature(scene, natureRng, rect) {
-    let rocks = Dut.list(ActorPrefabId.of("nature-rock-medium-1"), ActorPrefabId.of("nature-rock-medium-2"), ActorPrefabId.of("nature-rock-medium-3"));
-    let trees = Dut.list(ActorPrefabId.of("nature-tree-1"), ActorPrefabId.of("nature-tree-2"), ActorPrefabId.of("nature-tree-3"), ActorPrefabId.of("nature-tree-4"), ActorPrefabId.of("nature-tree-5"));
-    for (let x = rect.x(); x<rect.x()+rect.width(); x=x+5) {
-      for (let z = rect.y(); z<rect.y()+rect.height(); z=z+5) {
-        let typeP = natureRng.nextFloat(0, 1);
-        let pid = null;
-        if (typeP<0.3) {
-          pid = natureRng.pickOne(trees);
-        }
-        else if (typeP<0.35) {
-          pid = natureRng.pickOne(rocks);
-        }
-        else {
-          continue;
-        }
-        scene = scene.plusObject(SceneObject.create("", pid).withPos(Vec3.create(x+natureRng.nextFloat(-1, 1), 0, z+natureRng.nextFloat(-1, 1))).withRot(EulerAng.create(EulerAngUnit.DEGREE, EulerAngOrder.ROLL_PITCH_YAW, 0, natureRng.nextFloat(0, 360), 0)));
-      }
-    }
-    return scene;
-  }
-
-  generateAudience(scene, audienceRng, rect) {
-    for (let x = rect.x(); x<rect.x()+rect.width(); x=x+2) {
-      for (let z = rect.y(); z<rect.y()+rect.height(); z=z+1) {
-        let typeP = audienceRng.nextFloat(0, 1);
-        let pid = null;
-        if (typeP<0.1) {
-          pid = ActorPrefabId.of("audience-base");
-        }
-        else {
-          continue;
-        }
-        scene = scene.plusObject(SceneObject.create("", pid).withPos(Vec3.create(x, 0, z)));
-      }
-    }
-    return scene;
-  }
-
-  generateSegmentSeeds(rng) {
-    return Dut.map("camera", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "world", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "skybox", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "dirlight", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "ground", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "layout", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "building", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "nature", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "audience", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)));
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create() {
-    let res = new MedievalArenaGenerator01();
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.MedievalArenaGenerator01 = MedievalArenaGenerator01;
-class AudienceBaseBehavior extends Behavior {
-  supportSideTag;
-  animationPlayer;
-  model;
-  gameMaster;
-  audio;
-  animation = null;
-  animationLifetime = 0;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "AudienceBaseBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.model = this.actor().getComponent("ModelComponent");
-    let animCol = this.world().assets().get("MeshAnimationCollection", MeshAnimationCollectionId.of(this.model.getModelId().id()));
-    this.chooseNextAction();
-    this.animationPlayer = MeshAnimationPlayer.create(animCol, this.animation);
-  }
-
-  move(dt, inputs) {
-    this.animationLifetime = this.animationLifetime-dt;
-    if (this.animationLifetime<=0||this.animationPlayer.isEnd()) {
-      this.chooseNextAction();
-      this.animationPlayer.play(this.animation, MeshAnimationPlayConfig.RESTART);
-    }
-    let step = this.animationPlayer.move(dt);
-    this.model.setInterpolation(step.getInterpolation());
-    this.model.setPose(step.getPose());
-  }
-
-  setPrefabProperties(idMapping, properties) {
-  }
-
-  chooseNextAction() {
-    let rnd = Randoms.nextFloat(0, 0.9);
-    if (rnd>0.75) {
-      this.animation = MeshAnimationKey.of("idle-talking");
-    }
-    else if (rnd>0.5) {
-      this.animation = MeshAnimationKey.of("idle-look-around");
-    }
-    else if (rnd>0.25) {
-      this.animation = MeshAnimationKey.of("dance");
-    }
-    else {
-      this.animation = MeshAnimationKey.of("idle");
-    }
-    this.animationLifetime = Randoms.nextFloat(3, 5);
-  }
-
-  toString() {
-  }
-
-  static create(key) {
-    let res = new AudienceBaseBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.AudienceBaseBehavior = AudienceBaseBehavior;
-const createFighterAction = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const FighterAction = Object.freeze({
-  IDLE: createFighterAction("IDLE"),
-  CROUCH_IDLE: createFighterAction("CROUCH_IDLE"),
-  RUN: createFighterAction("RUN"),
-  CROUCH_WALK: createFighterAction("CROUCH_WALK"),
-  JUMP: createFighterAction("JUMP"),
-  FLY: createFighterAction("FLY"),
-  LAND: createFighterAction("LAND"),
-  ATTACK: createFighterAction("ATTACK"),
-  ATTACK_RECOVERY: createFighterAction("ATTACK_RECOVERY"),
-  BLOCK: createFighterAction("BLOCK"),
-  TIRED: createFighterAction("TIRED"),
-  HIT: createFighterAction("HIT"),
-  KNOCKDOWN_AIR: createFighterAction("KNOCKDOWN_AIR"),
-  KNOCKDOWN: createFighterAction("KNOCKDOWN"),
-  KIP_UP: createFighterAction("KIP_UP"),
-  DEATH: createFighterAction("DEATH"),
-  CELEBRATE: createFighterAction("CELEBRATE"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class FighterAttackConfig {
-  id;
-  type;
-  animationKey;
-  animationStartTime;
-  recoveryAnimationKey;
-  stamina;
-  damage;
-  impulse;
-  knockdownFactor;
-  singleHit = true;
-  hitTime;
-  hitBoxes;
-  distance;
-  spawnPoint;
-  spawnTime;
-  spawnVelocity;
-  moveSequence;
-  inputMatcher;
-  constructor(source) {
-    if (source!=null) {
-      this.id = source.id;
-      this.type = source.type;
-      this.animationKey = source.animationKey;
-      this.animationStartTime = source.animationStartTime;
-      this.recoveryAnimationKey = source.recoveryAnimationKey;
-      this.stamina = source.stamina;
-      this.damage = source.damage;
-      this.impulse = source.impulse;
-      this.knockdownFactor = source.knockdownFactor;
-      this.singleHit = source.singleHit;
-      this.hitTime = source.hitTime;
-      this.hitBoxes = source.hitBoxes;
-      this.distance = source.distance;
-      this.spawnPoint = source.spawnPoint;
-      this.spawnVelocity = source.spawnVelocity;
-      this.spawnTime = source.spawnTime;
-      this.moveSequence = source.moveSequence;
-      this.inputMatcher = source.inputMatcher;
-    }
-  }
-
-  getClass() {
-    return "FighterAttackConfig";
-  }
-
-  guardInvariants() {
-  }
-
-  getId() {
-    return this.id;
-  }
-
-  getType() {
-    return this.type;
-  }
-
-  withType(type) {
-    let res = new FighterAttackConfig(this);
-    res.type = type;
-    res.guardInvariants();
-    return res;
-  }
-
-  getAnimationKey() {
-    return this.animationKey;
-  }
-
-  withAnimationKey(animationKey) {
-    let res = new FighterAttackConfig(this);
-    res.animationKey = animationKey;
-    res.guardInvariants();
-    return res;
-  }
-
-  getAnimationStartTime() {
-    return this.animationStartTime;
-  }
-
-  withAnimationStartTime(animationStartTime) {
-    let res = new FighterAttackConfig(this);
-    res.animationStartTime = animationStartTime;
-    res.guardInvariants();
-    return res;
-  }
-
-  getRecoveryAnimationKey() {
-    return this.recoveryAnimationKey;
-  }
-
-  withRecoveryAnimationKey(recoveryAnimationKey) {
-    let res = new FighterAttackConfig(this);
-    res.recoveryAnimationKey = recoveryAnimationKey;
-    res.guardInvariants();
-    return res;
-  }
-
-  getStamina() {
-    return this.stamina;
-  }
-
-  withStamina(stamina) {
-    let res = new FighterAttackConfig(this);
-    res.stamina = stamina;
-    res.guardInvariants();
-    return res;
-  }
-
-  getDamage() {
-    return this.damage;
-  }
-
-  getRandomDamage() {
-    return Randoms.nextFloat(this.damage.min(), this.damage.max());
-  }
-
-  withDamange(damage) {
-    let res = new FighterAttackConfig(this);
-    res.damage = damage;
-    res.guardInvariants();
-    return res;
-  }
-
-  getImpulse() {
-    return this.impulse;
-  }
-
-  getRandomImpulse() {
-    return Randoms.nextFloat(this.impulse.min(), this.impulse.max());
-  }
-
-  withInpulse(impulse) {
-    let res = new FighterAttackConfig(this);
-    res.impulse = impulse;
-    res.guardInvariants();
-    return res;
-  }
-
-  getKnockdownFactor() {
-    return this.knockdownFactor;
-  }
-
-  withKnockdownFactor(knockdownFactor) {
-    let res = new FighterAttackConfig(this);
-    res.knockdownFactor = knockdownFactor;
-    res.guardInvariants();
-    return res;
-  }
-
-  isSingleHit() {
-    return this.singleHit;
-  }
-
-  withSingleHit(singleHit) {
-    let res = new FighterAttackConfig(this);
-    res.singleHit = singleHit;
-    res.guardInvariants();
-    return res;
-  }
-
-  getHitTime() {
-    return this.hitTime;
-  }
-
-  withHitTime(hitTime) {
-    let res = new FighterAttackConfig(this);
-    res.hitTime = hitTime;
-    res.guardInvariants();
-    return res;
-  }
-
-  isHitTime(start, end) {
-    return !(end<this.hitTime.min()||start>this.hitTime.max());
-  }
-
-  getHitBoxes() {
-    return this.hitBoxes;
-  }
-
-  withHitBoxes(hitBoxes) {
-    let res = new FighterAttackConfig(this);
-    res.hitBoxes = Dut.copyImmutableList(hitBoxes);
-    res.guardInvariants();
-    return res;
-  }
-
-  getDistance() {
-    return this.distance;
-  }
-
-  withDistance(distance) {
-    let res = new FighterAttackConfig(this);
-    res.distance = distance;
-    res.guardInvariants();
-    return res;
-  }
-
-  getSpawnPoint() {
-    return this.spawnPoint;
-  }
-
-  withSpawnPoint(spawnPoint) {
-    let res = new FighterAttackConfig(this);
-    res.spawnPoint = spawnPoint;
-    res.guardInvariants();
-    return res;
-  }
-
-  getSpawnTime() {
-    return this.spawnTime;
-  }
-
-  withSpawnTime(spawnTime) {
-    let res = new FighterAttackConfig(this);
-    res.spawnTime = spawnTime;
-    res.guardInvariants();
-    return res;
-  }
-
-  isSpawnTime(start, end) {
-    return start<=this.spawnTime&&end>=this.spawnTime;
-  }
-
-  getSpawnVelocity() {
-    return this.spawnVelocity;
-  }
-
-  withSpawnVelocity(spawnVelocity) {
-    let res = new FighterAttackConfig(this);
-    res.spawnVelocity = spawnVelocity;
-    res.guardInvariants();
-    return res;
-  }
-
-  getMoveSequence() {
-    return this.moveSequence;
-  }
-
-  withMoveSequence(moveSequence) {
-    let res = new FighterAttackConfig(this);
-    res.moveSequence = Dut.copyImmutableList(moveSequence);
-    res.guardInvariants();
-    return res;
-  }
-
-  getInputMatcher() {
-    return this.inputMatcher;
-  }
-
-  withInputMatcher(inputMatcher) {
-    let res = new FighterAttackConfig(this);
-    res.inputMatcher = inputMatcher;
-    res.guardInvariants();
-    return res;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(id) {
-    let res = new FighterAttackConfig(null);
-    res.id = id;
-    res.type = FighterAttackType.PUNCH;
-    res.animationKey = MeshAnimationKey.of("attack");
-    res.animationStartTime = 0;
-    res.recoveryAnimationKey = null;
-    res.stamina = 100;
-    res.damage = Interval2.create(10, 20);
-    res.impulse = Interval2.create(10, 20);
-    res.knockdownFactor = 0;
-    res.singleHit = true;
-    res.hitTime = Interval2.create(0, 1);
-    res.hitBoxes = Collections.emptyList();
-    res.distance = Interval2.create(0, 1);
-    res.spawnPoint = ComponentKey.of("spell-spawn");
-    res.spawnTime = 0.2;
-    res.spawnVelocity = Vec3.create(0, 0, 1);
-    res.moveSequence = Collections.emptyList();
-    res.inputMatcher = FighterAttackInputMatcher.create(FighterMoveCategory.ANY, true, false);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterAttackConfig = FighterAttackConfig;
-class FighterAttackId {
-  static JAB = FighterAttackId.of("jab");
-  static CROSS = FighterAttackId.of("cross");
-  static UPPER = FighterAttackId.of("upper");
-  static KICK = FighterAttackId.of("kick");
-  static KNEE = FighterAttackId.of("knee");
-  static BACKFLIP = FighterAttackId.of("backflip");
-  static FIREBALL = FighterAttackId.of("fireball");
-  mId;
-  constructor() {
-  }
-
-  getClass() {
-    return "FighterAttackId";
-  }
-
-  guardInvariants() {
-  }
-
-  id() {
-    return this.mId;
-  }
-
-  hashCode() {
-    return this.mId.hashCode();
-  }
-
-  equals(obj) {
-    if (this==obj) {
-      return true;
-    }
-    if (obj==null) {
-      return false;
-    }
-    if (!(obj instanceof FighterAttackId)) {
-      return false;
-    }
-    let other = obj;
-    return other.mId.equals(this.mId);
-  }
-
-  toString() {
-  }
-
-  static of(id) {
-    let res = new FighterAttackId();
-    res.mId = id;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterAttackId = FighterAttackId;
-class FighterAttackInputMatcher {
-  moveCategory;
-  punch;
-  kick;
-  constructor() {
-  }
-
-  getClass() {
-    return "FighterAttackInputMatcher";
-  }
-
-  guardInvariants() {
-  }
-
-  getMatchingScore(input, targetTurn) {
-    let res = 0;
-    let mcat = input.getMoveCategory(targetTurn);
-    if (!this.moveCategory.equals(FighterMoveCategory.ANY)) {
-      if (mcat.equals(FighterMoveCategory.OTHER)) {
-        return 0;
-      }
-      if (mcat.equals(this.moveCategory)) {
-        res = res+1;
-      }
-      else {
-        return 0;
-      }
-    }
-    if (this.punch) {
-      res = input.isPunch()?(res+1):0;
-    }
-    if (this.kick) {
-      res = input.isKick()?(res+1):0;
-    }
-    return res;
-  }
-
-  getBestInput(targetTurn) {
-    let dir = Vec2.ZERO;
-    if (this.moveCategory.equals(FighterMoveCategory.FORWARD)) {
-      dir = targetTurn==FMath.PI_HALF?Vec2.RIGHT:Vec2.LEFT;
-    }
-    else if (this.moveCategory.equals(FighterMoveCategory.BACKWARD)) {
-      dir = targetTurn==FMath.PI_HALF?Vec2.LEFT:Vec2.RIGHT;
-    }
-    else if (this.moveCategory.equals(FighterMoveCategory.DOWN)) {
-      dir = Vec2.DOWN;
-    }
-    return FighterInput.create(dir, this.punch, this.kick, false);
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(moveCategory, punch, kick) {
-    let res = new FighterAttackInputMatcher();
-    res.moveCategory = moveCategory;
-    res.punch = punch;
-    res.kick = kick;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterAttackInputMatcher = FighterAttackInputMatcher;
-const createFighterAttackType = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const FighterAttackType = Object.freeze({
-  PUNCH: createFighterAttackType("PUNCH"),
-  KICK: createFighterAttackType("KICK"),
-  SPELL: createFighterAttackType("SPELL"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class FighterBaseBehavior extends Behavior {
-  character;
-  animationPlayer;
-  transform;
-  model;
-  rigidBody;
-  vision;
-  inputBehavior;
-  gameMaster;
-  audio;
-  attackHitboxVolumeCollisionProfiles = null;
-  attackHiboxVolumes = new HashMap();
-  attackHitboxVolumeInterpolations = Dut.immutableList(0.33, 0.66, 1);
-  moveCategoryAccumulator = FighterMoveCategroyAccumulator.create(1);
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "FighterBaseBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.character = this.actor().getComponent("FighterCharacterBehavior");
-    this.transform = this.actor().getComponent("TransformComponent");
-    this.model = this.actor().getComponent("ModelComponent");
-    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-    this.vision = this.actor().getComponent("FighterVisionSensor");
-    this.inputBehavior = this.actor().getComponent("FighterBaseInputBehavior");
-    let animCol = this.world().assets().get("MeshAnimationCollection", MeshAnimationCollectionId.of(this.model.getModelId().id()));
-    this.animationPlayer = MeshAnimationPlayer.create(animCol, MeshAnimationKey.of("idle"));
-    this.gameMaster = this.world().actors().get(GameActors.WORLD).getComponent("CombatGameMasterBehavior");
-    this.audio = this.world().actors().get(GameActors.WORLD).getComponent("AudioBehavior");
-    this.attackHitboxVolumeCollisionProfiles = new HashMap();
-    for (let ac of this.character.getConfig().getAttacks()) {
-      for (let ck of ac.getHitBoxes()) {
-        if (this.attackHitboxVolumeCollisionProfiles.containsKey(ck)) {
-          continue;
-        }
-        let collider = this.actor().getComponentByKey("ColliderComponent", ck);
-        this.attackHitboxVolumeCollisionProfiles.put(ck, CollisionVolumeDetectionProfile.create().withLayer(collider.getLayer()).withActorMatcher(ActorMatchers.excludeSingle(this.actor().getId())));
-      }
-    }
-  }
-
-  move(dt, inputs) {
-    let chInput = this.inputBehavior.getInput();
-    if (!this.gameMaster.getState().equals(CombatGameState.COMBAT)) {
-      chInput = FighterInput.ZERO;
-    }
-    this.moveCategoryAccumulator.accumulate(dt, chInput.getMoveCategory(this.character.getTargetTurn()));
-    this.handleState(dt, chInput);
-    let config = this.character.getConfig();
-    let state = this.character.getState();
-    let enemyActors = this.vision.getEnemies();
-    for (let enemyAct of enemyActors) {
-      let tc = enemyAct.getComponent("TransformComponent");
-      let otherX = tc.getPos().x();
-      let x = this.transform.getPos().x();
-      if (otherX>=x) {
-        state.setTargetTurn(FMath.PI_HALF);
-      }
-      else {
-        state.setTargetTurn(-FMath.PI_HALF);
-      }
-    }
-    let vx = this.rigidBody.getVelocity().x();
-    let vz = this.rigidBody.getVelocity().z();
-    let friction = this.character.isGrounded()?config.getGroundFriction():config.getAirFriction();
-    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
-    let stepStartTime = this.animationPlayer.getTime();
-    let step = this.animationPlayer.move(dt);
-    if (!step.getTriggers().isEmpty()) {
-      for (let trigger of step.getTriggers()) {
-        if (trigger.equals("landing-dust")) {
-          this.createLandingDust();
-        }
-        else {
-          let soundIds = this.character.getConfig().getSounds(trigger);
-          if (soundIds.isEmpty()) {
-            continue;
-          }
-          this.audio.playRandomSound(soundIds);
-        }
-      }
-    }
-    if (state.actionEquals(FighterAction.ATTACK)) {
-      let ac = state.getAttack();
-      if (ac.getType().equals(FighterAttackType.PUNCH)||ac.getType().equals(FighterAttackType.KICK)) {
-        if ((!state.isAttackHit()||!ac.isSingleHit())&&ac.isHitTime(stepStartTime, step.getTime())) {
-          let actorHits = new HashMap();
-          let actorHitPos = new HashMap();
-          for (let hbKey of ac.getHitBoxes()) {
-            let cc = this.actor().getComponentByKey("ColliderComponent", hbKey);
-            let colVolprof = this.attackHitboxVolumeCollisionProfiles.get(hbKey);
-            let oldHbVol = this.attackHiboxVolumes.get(hbKey);
-            let newHbVol = cc.getVolume();
-            for (let hbt of this.attackHitboxVolumeInterpolations) {
-              let colVol = oldHbVol.interpolate(newHbVol, hbt);
-              let hits = this.world().collisions().getVolumeIntersections(colVol, colVolprof);
-              for (let hit of hits) {
-                if (!actorHits.containsKey(hit.getActor().getId())) {
-                  actorHits.put(hit.getActor().getId(), new HashSet());
-                }
-                actorHits.get(hit.getActor().getId()).add(hit.getZone());
-                actorHitPos.put(hit.getActor().getId(), cc.toGlobal(Vec3.ZERO));
-              }
-            }
-          }
-          if (!actorHits.isEmpty()) {
-            state.setAttackHit(true);
-            let hitDir = this.transform.toGlobalRot(Vec3.FORWARD);
-            for (let actorId of actorHits.keySet()) {
-              let hitPos = actorHitPos.get(actorId);
-              let damage = ac.getRandomDamage()*(ac.isSingleHit()?1:dt);
-              let hitMsgPayload = HitMessage.create(hitPos, hitDir, damage, ac.getRandomImpulse(), ac.getKnockdownFactor(), actorHits.get(actorId));
-              let hittedActor = this.world().actors().get(actorId);
-              hittedActor.sendMessage(ActorMessage.create(ActorMessageType.HIT_RECEIVED, hitMsgPayload));
-            }
-          }
-        }
-      }
-      if (ac.getType().equals(FighterAttackType.SPELL)) {
-        if (!state.isAttackSpawned()&&ac.isSpawnTime(stepStartTime, step.getTime())) {
-          let fireballPrefab = this.world().assets().get("ActorPrefab", ActorPrefabId.of("particle-fireball"));
-          let poi = this.actor().getComponentByKey("PoiComponent", ac.getSpawnPoint());
-          let pos = poi.getGlobalPos();
-          let rot = this.transform.getRot();
-          let vel = rot.rotate(ac.getSpawnVelocity());
-          let fireballActor = this.world().constructActor(CreateActorRequest.create(fireballPrefab, null, pos, rot)).addTag(GameActors.getTeamTag(this.actor()));
-          fireballActor.getComponent("FireballBehavior").setSourceId(this.actor().getId()).setVelocity(vel).setDamage(ac.getRandomDamage()).setImpulse(ac.getRandomImpulse());
-          state.setAttackSpawned(true);
-        }
-      }
-      for (let ck of state.getAttack().getHitBoxes()) {
-        this.attackHiboxVolumes.put(ck, this.actor().getComponentByKey("ColliderComponent", ck).getVolume());
-      }
-    }
-    this.model.setInterpolation(step.getInterpolation());
-    this.model.setPose(step.getPose());
-    this.transform.setRot(Quaternion.rotY(state.getTurn()));
-  }
-
-  lateMove(dt, inputs) {
-    if (this.transform.getPos().y()<-0.05) {
-      this.transform.setPos(this.transform.getPos().withY(-0.05));
-    }
-    this.transform.setPos(this.transform.getPos().withZ(0));
-  }
-
-  onMessage(message) {
-    if (message.typeEquals(ActorMessageType.HIT_RECEIVED)) {
-      let config = this.character.getConfig();
-      let state = this.character.getState();
-      if (state.actionEquals(FighterAction.DEATH)) {
-        return ;
-      }
-      let hitMsg = message.getPayload("HitMessage");
-      let damage = hitMsg.getDamage()*(state.actionNotEquals(FighterAction.BLOCK)?1:config.getBlockDamageRatio());
-      state.changeHealth(-damage);
-      this.rigidBody.applyImpulse(hitMsg.getPos(), hitMsg.getDir().scale(hitMsg.getImpulse()));
-      let knockdown = hitMsg.getKnockdownFactor()>=1||Randoms.nextFloat(0, 1)<hitMsg.getKnockdownFactor();
-      if (knockdown&&state.actionNotEquals(FighterAction.BLOCK)) {
-        this.animationPlayer.play(MeshAnimationKey.of("lift-air-fall"), MeshAnimationPlayConfig.PLAY.withSpeed(0));
-        state.setAction(FighterAction.KNOCKDOWN_AIR);
-      }
-      else if (state.actionNotEquals(FighterAction.HIT)&&state.actionNotEquals(FighterAction.BLOCK)&&state.actionNotEquals(FighterAction.KNOCKDOWN_AIR)&&state.actionNotEquals(FighterAction.KNOCKDOWN)&&state.actionNotEquals(FighterAction.KIP_UP)&&hitMsg.getDamage()>config.getShakeDamage()) {
-        if (hitMsg.getZones().contains(ColliderZone.HEAD)) {
-          this.animationPlayer.play(MeshAnimationKey.of("hit-head"), MeshAnimationPlayConfig.PLAY);
-          state.setAction(FighterAction.HIT);
-        }
-        else {
-          state.setAction(FighterAction.HIT);
-          this.animationPlayer.play(MeshAnimationKey.of("hit-stomach"), MeshAnimationPlayConfig.PLAY);
-        }
-      }
-      let shakeMsg = ActorMessage.create(ActorMessageType.CAMERA_SHAKE, CameraShake.create(state.actionEquals(FighterAction.BLOCK)?0.05:0.1, 0.2));
-      this.sendMessage(GameActors.CAMERA, shakeMsg);
-      let numBloodParticles = state.actionEquals(FighterAction.BLOCK)?0:20;
-      let prefab = this.world().assets().get("ActorPrefab", GameActors.PARTICLE_BLOOD_ACTOR_PREFAB_ID);
-      for (let i = 0; i<numBloodParticles; ++i) {
-        let velRand = Vec3.create(Randoms.nextFloat(0, 2*hitMsg.getImpulse())-hitMsg.getImpulse(), Randoms.nextFloat(0, 2*hitMsg.getImpulse())-hitMsg.getImpulse(), Randoms.nextFloat(0, 2*hitMsg.getImpulse())-hitMsg.getImpulse());
-        let bloodActor = this.world().constructActor(CreateActorRequest.create(prefab, null, hitMsg.getPos(), Quaternion.ZERO_ROT));
-        let rb = bloodActor.getComponent("RigidBodyComponent");
-        rb.setVelocity(hitMsg.getDir().scale(hitMsg.getImpulse()*0.1).addScaled(velRand, 0.1));
-      }
-    }
-  }
-
-  handleState(dt, input) {
-    let config = this.character.getConfig();
-    let state = this.character.getState();
-    if (this.character.isGrounded()&&state.getHealth()<=0&&state.actionNotEquals(FighterAction.DEATH)) {
-      state.setAction(FighterAction.DEATH);
-      this.animationPlayer.play(MeshAnimationKey.of(Randoms.nextFloat(0, 1)<0.5?"death-fall-backward":"death-fall-forward"), MeshAnimationPlayConfig.PLAY);
-      let collider = this.actor().getComponentByKey("ColliderComponent", ComponentKey.of("body-collider"));
-      collider.setLayer(CollisionLayer.BODY_DEAD);
-      this.actor().removeTag(GameActors.FIGHTER_TAG);
-      this.gameMaster.onFighterDied(this.actor());
-    }
-    if (this.gameMaster.isFinishState()&&state.getHealth()>0&&this.character.isGrounded()&&state.actionNotEquals(FighterAction.CELEBRATE)) {
-      state.setAction(FighterAction.CELEBRATE);
-      this.animationPlayer.play(MeshAnimationKey.of("celebration"), MeshAnimationPlayConfig.PLAY);
-    }
-    if (state.actionNotEquals(FighterAction.DEATH)) {
-      state.setStamina(FMath.min(config.getMaxStamina(), state.getStamina()+dt*config.getStaminaRecovery()));
-    }
-    let turnable = true;
-    let attack = false;
-    let block = false;
-    if (state.actionEquals(FighterAction.IDLE)) {
-      this.animationPlayer.play(MeshAnimationKey.of("idle"), MeshAnimationPlayConfig.PLAY);
-      if (!this.character.isGrounded()) {
-        state.setAction(FighterAction.FLY);
-      }
-      else if (this.isJumpDirection(input)) {
-        this.rigidBody.applyImpulse(Vec3.ZERO, Vec3.UP.scale(config.getJumpUpImpulse()));
-        state.setAction(FighterAction.JUMP);
-      }
-      else if (this.isCrouchDirection(input)) {
-        state.setAction(FighterAction.CROUCH_IDLE);
-      }
-      else if (this.isRunDirection(input)) {
-        state.setAction(FighterAction.RUN);
-      }
-      else if (input.isAttack()) {
-        attack = true;
-      }
-      else if (input.isBlock()) {
-        block = true;
-      }
-    }
-    else if (state.actionEquals(FighterAction.CROUCH_IDLE)) {
-      this.animationPlayer.play(MeshAnimationKey.of("crouch-idle"), MeshAnimationPlayConfig.PLAY);
-      if (!this.character.isGrounded()) {
-        state.setAction(FighterAction.FLY);
-      }
-      else if (!this.isCrouchDirection(input)) {
-        state.setAction(FighterAction.IDLE);
-      }
-      else if (this.isRunDirection(input)) {
-        state.setAction(FighterAction.CROUCH_WALK);
-      }
-      else if (input.isAttack()) {
-        attack = true;
-      }
-      else if (input.isBlock()) {
-        block = true;
-      }
-    }
-    else if (state.actionEquals(FighterAction.RUN)) {
-      this.animationPlayer.play(MeshAnimationKey.of(this.isForwardDirInput(input)?"jog-forward":"jog-backward"), MeshAnimationPlayConfig.PLAY);
-      if (!this.character.isGrounded()) {
-        state.setAction(FighterAction.FLY);
-      }
-      else if (!this.isRunDirection(input)) {
-        state.setAction(FighterAction.IDLE);
-      }
-      else if (this.isJumpDirection(input)) {
-        this.rigidBody.applyImpulse(Vec3.ZERO, Vec3.UP.scale(config.getJumpUpImpulse()));
-        state.setAction(FighterAction.FLY);
-      }
-      else if (this.isCrouchDirection(input)) {
-        state.setAction(FighterAction.CROUCH_WALK);
-      }
-      else if (input.isAttack()) {
-        attack = true;
-      }
-      else if (input.isBlock()) {
-        block = true;
-      }
-      else {
-        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*config.getRunForce(), 0, 0));
-      }
-    }
-    else if (state.actionEquals(FighterAction.CROUCH_WALK)) {
-      this.animationPlayer.play(MeshAnimationKey.of(this.isForwardDirInput(input)?"crouch-forward":"crouch-backward"), MeshAnimationPlayConfig.PLAY);
-      if (!this.character.isGrounded()) {
-        state.setAction(FighterAction.FLY);
-      }
-      else if (!this.isCrouchDirection(input)) {
-        state.setAction(FighterAction.RUN);
-      }
-      else if (!this.isRunDirection(input)) {
-        state.setAction(FighterAction.CROUCH_IDLE);
-      }
-      else if (this.isJumpDirection(input)) {
-        this.rigidBody.applyImpulse(Vec3.ZERO, Vec3.UP.scale(config.getJumpUpImpulse()));
-        state.setAction(FighterAction.FLY);
-      }
-      else if (input.isAttack()) {
-        attack = true;
-      }
-      else if (input.isBlock()) {
-        block = true;
-      }
-      else {
-        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*config.getCrouchWalkForce(), 0, 0));
-      }
-    }
-    else if (state.actionEquals(FighterAction.JUMP)) {
-      this.animationPlayer.play(MeshAnimationKey.of("jump-start"), MeshAnimationPlayConfig.PLAY);
-      if (this.animationPlayer.isEnd()) {
-        state.setAction(FighterAction.FLY);
-      }
-      else if (this.character.isGrounded()) {
-        state.setAction(-this.character.getFallVelocity().y()>config.getLandVelocity()?FighterAction.LAND:FighterAction.IDLE);
-        this.createLandingDust();
-      }
-      else if (input.getMoveDir().x()!=0) {
-        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*config.getAirForce(), 0, 0));
-      }
-    }
-    else if (state.actionEquals(FighterAction.FLY)) {
-      this.animationPlayer.play(MeshAnimationKey.of("jump-fly"), MeshAnimationPlayConfig.PLAY);
-      if (this.character.isGrounded()) {
-        this.audio.playRandomSound(this.character.getConfig().getSounds("sfx-land"));
-        state.setAction(-this.character.getFallVelocity().y()>config.getLandVelocity()?FighterAction.LAND:FighterAction.IDLE);
-        this.createLandingDust();
-      }
-      else if (input.getMoveDir().x()!=0) {
-        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(FMath.signum(input.getMoveDir().x())*config.getAirForce(), 0, 0));
-      }
-    }
-    else if (state.actionEquals(FighterAction.LAND)) {
-      this.animationPlayer.play(MeshAnimationKey.of("jump-land"), MeshAnimationPlayConfig.PLAY);
-      if (this.animationPlayer.isEnd()) {
-        state.setAction(this.isCrouchDirection(input)?FighterAction.CROUCH_IDLE:FighterAction.IDLE);
-      }
-    }
-    else if (state.actionEquals(FighterAction.ATTACK)) {
-      if (!this.character.isGrounded()) {
-        state.setAction(FighterAction.FLY);
-      }
-      if (this.animationPlayer.isEnd()) {
-        state.setAction(this.isCrouchDirection(input)?FighterAction.CROUCH_IDLE:FighterAction.IDLE);
-      }
-    }
-    else if (state.actionEquals(FighterAction.BLOCK)) {
-      this.animationPlayer.play(MeshAnimationKey.of("spell-double-idle"), MeshAnimationPlayConfig.PLAY);
-      state.reduceStamina(dt*config.getBlockStamina());
-      if (!this.character.isGrounded()) {
-        state.setAction(FighterAction.FLY);
-      }
-      if (!input.isBlock()) {
-        state.setAction(this.isCrouchDirection(input)?FighterAction.CROUCH_IDLE:FighterAction.IDLE);
-      }
-    }
-    else if (state.actionEquals(FighterAction.TIRED)) {
-      if (this.character.getStaminaRatio()>0.2) {
-        state.setAction(FighterAction.IDLE);
-      }
-      turnable = false;
-    }
-    else if (state.actionEquals(FighterAction.HIT)) {
-      if (this.animationPlayer.isEnd()) {
-        state.setAction(FighterAction.IDLE);
-      }
-      turnable = false;
-    }
-    else if (state.actionEquals(FighterAction.KNOCKDOWN_AIR)) {
-      if (this.character.isGrounded()) {
-        state.setAction(FighterAction.KNOCKDOWN);
-      }
-      let collider = this.actor().getComponentByKey("ColliderComponent", ComponentKey.of("body-collider"));
-      collider.setLayer(CollisionLayer.BODY_DEAD);
-      turnable = false;
-    }
-    else if (state.actionEquals(FighterAction.KNOCKDOWN)) {
-      this.animationPlayer.play(MeshAnimationKey.of("lift-air-fall"), MeshAnimationPlayConfig.PLAY);
-      let collider = this.actor().getComponentByKey("ColliderComponent", ComponentKey.of("body-collider"));
-      collider.setLayer(CollisionLayer.BODY_DEAD);
-      turnable = false;
-      if (input.isAttack()&&this.animationPlayer.getTime()>config.getKnockdownRecoveryTime()) {
-        state.setAction(FighterAction.KIP_UP);
-      }
-    }
-    else if (state.actionEquals(FighterAction.KIP_UP)) {
-      this.animationPlayer.play(MeshAnimationKey.of("kip-up"), MeshAnimationPlayConfig.PLAY);
-      if (this.animationPlayer.isEnd()) {
-        state.setAction(this.isCrouchDirection(input)?FighterAction.CROUCH_IDLE:FighterAction.IDLE);
-        let collider = this.actor().getComponentByKey("ColliderComponent", ComponentKey.of("body-collider"));
-        collider.setLayer(CollisionLayer.BODY);
-      }
-      turnable = false;
-    }
-    else if (state.actionEquals(FighterAction.DEATH)) {
-      turnable = false;
-    }
-    else if (state.actionEquals(FighterAction.CELEBRATE)) {
-      if (this.animationPlayer.isEnd()) {
-        state.setAction(FighterAction.IDLE);
-      }
-      turnable = false;
-    }
-    else {
-      throw new Error("unknown state: "+state.toString());
-    }
-    if (attack) {
-      let selectedAttackConf = null;
-      let maxMoveSequence = 0;
-      let maxAttInputScr = 0;
-      for (let attackConf of config.getAttacks()) {
-        let numMoveSteps = attackConf.getMoveSequence().size();
-        if (numMoveSteps>0) {
-          if (!this.moveCategoryAccumulator.matches(1, attackConf.getMoveSequence())) {
-            continue;
-          }
-        }
-        let score = attackConf.getInputMatcher().getMatchingScore(input, state.getTargetTurn());
-        if (numMoveSteps>=maxMoveSequence&&score>maxAttInputScr) {
-          selectedAttackConf = attackConf;
-          maxMoveSequence = numMoveSteps;
-          maxAttInputScr = score;
-        }
-      }
-      if (selectedAttackConf!=null) {
-        if (state.getStamina()>selectedAttackConf.getStamina()) {
-          this.attackHiboxVolumes = new HashMap();
-          for (let ck of selectedAttackConf.getHitBoxes()) {
-            this.attackHiboxVolumes.put(ck, this.actor().getComponentByKey("ColliderComponent", ck).getVolume());
-          }
-          state.reduceStamina(selectedAttackConf.getStamina()).setAction(FighterAction.ATTACK).setAttack(selectedAttackConf).setAttackHit(false).setAttackSpawned(false);
-          this.animationPlayer.play(selectedAttackConf.getAnimationKey(), MeshAnimationPlayConfig.RESTART.withStartTime(selectedAttackConf.getAnimationStartTime()));
-        }
-      }
-    }
-    if (block) {
-      if (input.isBlock()) {
-        state.setAction(FighterAction.BLOCK);
-        this.animationPlayer.play(MeshAnimationKey.of("spell-double-idle"), MeshAnimationPlayConfig.PLAY);
-      }
-    }
-    if (state.getStamina()<=0) {
-      if (config.getStaminaTiredRecovery()>0) {
-        state.setAction(FighterAction.TIRED);
-        this.animationPlayer.play(MeshAnimationKey.of("idle-tired"), MeshAnimationPlayConfig.PLAY);
-      }
-    }
-    if (turnable) {
-      let turnDiff = state.getTargetTurn()-state.getTurn();
-      let maxTurn = dt*config.getTurnSpeed();
-      state.setTurn(FMath.abs(turnDiff)<maxTurn?state.getTargetTurn():state.getTurn()+FMath.signum(turnDiff)*maxTurn);
-    }
-  }
-
-  isForwardDirInput(input) {
-    let targetTurn = this.character.getState().getTargetTurn();
-    if (targetTurn==FMath.PI_HALF) {
-      return input.getMoveDir().x()>0;
-    }
-    else if (targetTurn==-FMath.PI_HALF) {
-      return input.getMoveDir().x()<0;
-    }
-    else {
-      throw new Error("unknown target turn");
-    }
-  }
-
-  isRunDirection(input) {
-    return FMath.abs(input.getMoveDir().x())>=0.5;
-  }
-
-  isJumpDirection(input) {
-    return input.getMoveDir().y()>=0.9;
-  }
-
-  isCrouchDirection(input) {
-    return input.getMoveDir().y()<=-0.9;
-  }
-
-  createLandingDust() {
-    let numBloodParticles = 20;
-    let prefab = this.world().assets().get("ActorPrefab", GameActors.PARTICLE_WHITE_DUST_PREFAB_ID);
-    for (let i = 0; i<numBloodParticles; ++i) {
-      this.world().constructActor(CreateActorRequest.create(prefab, null, this.rigidBody.getPos(), Quaternion.ZERO_ROT));
-    }
-  }
-
-  toString() {
-  }
-
-  static create(key) {
-    let res = new FighterBaseBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterBaseBehavior = FighterBaseBehavior;
-class FighterBaseInputBehavior extends Behavior {
-  inputType = FighterInputType.NONE;
-  ai;
-  aiDifficulty = 0.3;
-  aiAttackTypes = FighterCharacters.createRiven().getAttackTypes();
-  input = FighterInput.ZERO;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "FighterBaseInputBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    if (this.inputType.equals(FighterInputType.TRAINING)) {
-      this.ai = FighterBaseTrainingAi.create(this.actor());
-    }
-    else {
-      this.ai = FighterBaseAi1.create(this.actor());
-      this.ai.setDifficulty(this.aiDifficulty);
-      this.ai.setAttackTypes(this.aiAttackTypes);
-    }
-  }
-
-  move(dt, inputs) {
-    if (this.inputType.equals(FighterInputType.CONTROLLER)) {
-      this.input = FighterInput.create(inputs.getVec2("moveDir", Vec2.ZERO), inputs.getBoolean("punch", false), inputs.getBoolean("kick", false), inputs.getBoolean("block", false));
-    }
-    else if (this.inputType.equals(FighterInputType.AI)) {
-      this.input = this.ai.solveInput(dt);
-    }
-    else if (this.inputType.equals(FighterInputType.TRAINING)) {
-      this.input = this.ai.solveInput(dt);
-    }
-    else if (this.inputType.equals(FighterInputType.NONE)) {
-      this.input = FighterInput.ZERO;
-    }
-    else {
-      throw new Error("unsupported input type, implement me: "+this.inputType);
-    }
-  }
-
-  setInputType(inputType) {
-    this.inputType = inputType;
-    return this;
-  }
-
-  setAiDifficuly(difficulty) {
-    this.aiDifficulty = difficulty;
-    if (this.ai!=null) {
-      this.ai.setDifficulty(difficulty);
-    }
-    return this;
-  }
-
-  setAiAttackTypes(attackTypes) {
-    this.aiAttackTypes = attackTypes;
-    if (this.ai!=null) {
-      this.ai.setAttackTypes(attackTypes);
-    }
-    return this;
-  }
-
-  getInput() {
-    return this.input;
-  }
-
-  toString() {
-  }
-
-  static create(key) {
-    let res = new FighterBaseInputBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterBaseInputBehavior = FighterBaseInputBehavior;
-class FighterCameraShiftBehavior extends Behavior {
-  cameraFovy;
-  cameraController;
-  targetTurn = -600;
-  aspect = -1;
-  basePosOffset = Vec3.BACKWARD;
-  baseLookAtOffset = Vec3.ZERO;
-  basePosK = -1;
-  baseLookAtK = -1;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "FighterCameraShiftBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.cameraFovy = this.actor().getComponent("CameraFovyComponent");
-    this.cameraController = this.actor().getComponent("CameraControllerComponent");
-    this.basePosOffset = this.cameraController.getPosOffset();
-    this.baseLookAtOffset = this.cameraController.getLookAtOffset();
-    this.basePosK = this.cameraController.getPosK();
-    this.baseLookAtK = this.cameraController.getLookAtK();
-  }
-
-  move(dt, inputs) {
-    let targetId = this.cameraController.getTargetId();
-    if (this.world().actors().exists(targetId)) {
-      let tracked = this.world().actors().get(targetId).getComponent("FighterCharacterBehavior");
-      let tt = tracked.getState().getTargetTurn();
-      let asc = this.cameraFovy.getDisplaySize().aspect();
-      if (tt!=this.targetTurn||this.aspect!=asc) {
-        let pk = this.basePosK;
-        let lak = this.baseLookAtK;
-        this.aspect = asc;
-        this.targetTurn = tt;
-        let xFact = 1;
-        let zFact = 1;
-        if (this.aspect>2) {
-          xFact = 3;
-          zFact = 1;
-          pk = this.basePosK;
-          lak = this.baseLookAtK;
-        }
-        else if (this.aspect>1) {
-          xFact = 2.2;
-          zFact = 1.1;
-          pk = FMath.min(1, 1.5*this.basePosK);
-          lak = FMath.min(1, 1.5*this.baseLookAtK);
-        }
-        else if (this.aspect>0.75) {
-          xFact = 1.8;
-          zFact = 1.2;
-          pk = FMath.min(1, 2*this.basePosK);
-          lak = FMath.min(1, 2*this.baseLookAtK);
-        }
-        else if (this.aspect>0.5) {
-          xFact = 1.5;
-          zFact = 1.3;
-          pk = FMath.min(1, 2.5*this.basePosK);
-          lak = FMath.min(1, 2.5*this.baseLookAtK);
-        }
-        else {
-          xFact = 1.2;
-          zFact = 1.4;
-          pk = FMath.min(1, 3*this.basePosK);
-          lak = FMath.min(1, 3*this.baseLookAtK);
-        }
-        let mx = xFact*FMath.sin(this.targetTurn);
-        let mz = zFact*this.basePosOffset.z();
-        this.cameraController.setPosOffset(this.basePosOffset.withX(mx).withZ(mz)).setLookAtOffset(this.baseLookAtOffset.withX(mx)).setPosK(pk).setLookAtK(lak);
-      }
-    }
-  }
-
-  toString() {
-  }
-
-  static create(key) {
-    let res = new FighterCameraShiftBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterCameraShiftBehavior = FighterCameraShiftBehavior;
-class FighterCharacterBehavior extends Behavior {
-  config = FighterConfig.create();
-  state = FighterState.create();
-  transform;
-  rigidBody;
-  grounded;
-  fallVelocity = Vec3.ZERO;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "FighterCharacterBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.transform = this.actor().getComponent("TransformComponent");
-    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-    this.grounded = this.actor().getComponent("GroundedComponent");
-    this.state.setAction(FighterAction.IDLE);
-  }
-
-  move(dt, inputs) {
-    if (!this.grounded.isGrounded()) {
-      this.fallVelocity = this.rigidBody.getVelocity();
-    }
-  }
-
-  lateMove(dt, inputs) {
-  }
-
-  getConfig() {
-    return this.config;
-  }
-
-  setConfig(config) {
-    Guard.notNull(config, "config cannot be null");
-    this.config = config;
-    return this;
-  }
-
-  getState() {
-    return this.state;
-  }
-
-  getPos() {
-    return this.transform.getPos();
-  }
-
-  getVelocity() {
-    return this.rigidBody.getVelocity();
-  }
-
-  isGrounded() {
-    return this.grounded.isGrounded();
-  }
-
-  getFallVelocity() {
-    return this.fallVelocity;
-  }
-
-  getTargetTurn() {
-    return this.state.getTargetTurn();
-  }
-
-  getHealthRatio() {
-    return this.state.getHealth()/this.config.getMaxHealth();
-  }
-
-  getStaminaRatio() {
-    return this.state.getStamina()/this.config.getMaxStamina();
-  }
-
-  setHealthAndStaminaToMax() {
-    this.state.setHealth(this.config.getMaxHealth());
-    this.state.setStamina(this.config.getMaxStamina());
-    return this;
-  }
-
-  toString() {
-  }
-
-  static create(key) {
-    let res = new FighterCharacterBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterCharacterBehavior = FighterCharacterBehavior;
-class FighterConfig {
-  maxHealth = 100;
-  maxStamina = 100;
-  staminaRecovery = 20;
-  staminaTiredRecovery = 0;
-  blockStamina = 18;
-  airFriction = 3;
-  groundFriction = 200;
-  walkForce = 300;
-  runForce = 1000;
-  crouchWalkForce = 150;
-  airForce = 15;
-  turnSpeed = 4*FMath.PI;
-  jumpUpImpulse = 100;
-  landVelocity = 15;
-  sounds = Dut.map("sfx-hit", Dut.list(SoundId.of("man-hit-1"), SoundId.of("man-hit-2"), SoundId.of("man-hit-3"), SoundId.of("man-hit-4"), SoundId.of("man-hit-5")), "sfx-death", Dut.list(SoundId.of("man-death-1"), SoundId.of("man-death-2"), SoundId.of("man-death-3")), "sfx-attack", Dut.list(SoundId.of("man-attack-1"), SoundId.of("man-attack-2"), SoundId.of("man-attack-3"), SoundId.of("man-attack-4"), SoundId.of("man-attack-5"), SoundId.of("man-attack-6"), SoundId.of("man-attack-7")), "sfx-land", Dut.list(SoundId.of("man-land-1")));
-  attacks = Dut.immutableList(FighterAttackConfig.create(FighterAttackId.JAB).withType(FighterAttackType.PUNCH).withAnimationKey(MeshAnimationKey.of("fight-jab")).withAnimationStartTime(0.11).withStamina(20).withDamange(Interval2.create(5, 10)).withInpulse(Interval2.create(10, 20)).withSingleHit(true).withHitTime(Interval2.create(0.15, 0.22)).withHitBoxes(Dut.list(ComponentKey.of("hand-left-hitbox"))).withDistance(Interval2.create(0.7, 0.87)).withInputMatcher(FighterAttackInputMatcher.create(FighterMoveCategory.ANY, true, false)), FighterAttackConfig.create(FighterAttackId.CROSS).withType(FighterAttackType.PUNCH).withAnimationKey(MeshAnimationKey.of("fight-cross")).withAnimationStartTime(0.13).withStamina(20).withDamange(Interval2.create(10, 20)).withInpulse(Interval2.create(20, 30)).withSingleHit(true).withHitTime(Interval2.create(0.2, 0.32)).withHitBoxes(Dut.list(ComponentKey.of("hand-right-hitbox"))).withDistance(Interval2.create(0.6, 0.83)).withInputMatcher(FighterAttackInputMatcher.create(FighterMoveCategory.FORWARD, true, false)), FighterAttackConfig.create(FighterAttackId.UPPER).withType(FighterAttackType.PUNCH).withAnimationKey(MeshAnimationKey.of("fight-upper")).withAnimationStartTime(0.10).withStamina(20).withDamange(Interval2.create(15, 25)).withInpulse(Interval2.create(10, 20)).withKnockdownFactor(1).withSingleHit(true).withHitTime(Interval2.create(0.24, 0.45)).withHitBoxes(Dut.list(ComponentKey.of("hand-left-hitbox"))).withDistance(Interval2.create(0.9, 1.05)).withInputMatcher(FighterAttackInputMatcher.create(FighterMoveCategory.DOWN, true, false)), FighterAttackConfig.create(FighterAttackId.KICK).withType(FighterAttackType.KICK).withAnimationKey(MeshAnimationKey.of("fight-kick")).withStamina(40).withDamange(Interval2.create(20, 30)).withInpulse(Interval2.create(40, 60)).withSingleHit(true).withHitTime(Interval2.create(0.27, 0.31)).withHitBoxes(Dut.list(ComponentKey.of("shin-right-hitbox"), ComponentKey.of("foot-right-hitbox"))).withDistance(Interval2.create(0.6, 1)).withInputMatcher(FighterAttackInputMatcher.create(FighterMoveCategory.ANY, false, true)), FighterAttackConfig.create(FighterAttackId.KNEE).withType(FighterAttackType.KICK).withAnimationKey(MeshAnimationKey.of("fight-knee")).withStamina(40).withDamange(Interval2.create(30, 40)).withInpulse(Interval2.create(60, 80)).withKnockdownFactor(1).withSingleHit(true).withHitTime(Interval2.create(0.29, 0.47)).withHitBoxes(Dut.list(ComponentKey.of("shin-right-hitbox"))).withDistance(Interval2.create(0.6, 1)).withInputMatcher(FighterAttackInputMatcher.create(FighterMoveCategory.BACKWARD, false, true)), FighterAttackConfig.create(FighterAttackId.BACKFLIP).withType(FighterAttackType.KICK).withAnimationKey(MeshAnimationKey.of("backflip")).withAnimationStartTime(0.24).withStamina(95).withDamange(Interval2.create(500, 1000)).withInpulse(Interval2.create(20, 50)).withSingleHit(false).withHitTime(Interval2.create(0.35, 0.6)).withHitBoxes(Dut.list(ComponentKey.of("shin-left-hitbox"), ComponentKey.of("shin-right-hitbox"), ComponentKey.of("foot-left-hitbox"), ComponentKey.of("foot-right-hitbox"))).withDistance(Interval2.create(0.6, 1.1)).withInputMatcher(FighterAttackInputMatcher.create(FighterMoveCategory.DOWN, false, true)), FighterAttackConfig.create(FighterAttackId.FIREBALL).withType(FighterAttackType.SPELL).withAnimationKey(MeshAnimationKey.of("spell-simple-shoot")).withStamina(50).withDamange(Interval2.create(15, 25)).withInpulse(Interval2.create(10, 20)).withSingleHit(true).withDistance(Interval2.create(2, 10)).withSpawnPoint(ComponentKey.of("fireball-spawn")).withSpawnTime(0.25).withSpawnVelocity(Vec3.create(0, 0, 8)).withMoveSequence(Dut.list(FighterMoveCategory.BACKWARD, FighterMoveCategory.BACKWARD)).withInputMatcher(FighterAttackInputMatcher.create(FighterMoveCategory.ZERO, true, false)));
-  blockDamageRatio = 0.1;
-  shakeDamage = 2;
-  knockdownRecoveryTime = 2;
-  jumpOverDistance = Interval2.create(1, 2);
-  jumpOverMinSpeed = 1.9;
-  constructor() {
-  }
-
-  getClass() {
-    return "FighterConfig";
-  }
-
-  guardInvariants() {
-  }
-
-  getMaxHealth() {
-    return this.maxHealth;
-  }
-
-  getMaxStamina() {
-    return this.maxStamina;
-  }
-
-  getStaminaRecovery() {
-    return this.staminaRecovery;
-  }
-
-  getStaminaTiredRecovery() {
-    return this.staminaTiredRecovery;
-  }
-
-  getBlockStamina() {
-    return this.blockStamina;
-  }
-
-  getAirFriction() {
-    return this.airFriction;
-  }
-
-  getGroundFriction() {
-    return this.groundFriction;
-  }
-
-  getWalkForce() {
-    return this.walkForce;
-  }
-
-  getRunForce() {
-    return this.runForce;
-  }
-
-  getCrouchWalkForce() {
-    return this.crouchWalkForce;
-  }
-
-  getAirForce() {
-    return this.airForce;
-  }
-
-  getTurnSpeed() {
-    return this.turnSpeed;
-  }
-
-  getJumpUpImpulse() {
-    return this.jumpUpImpulse;
-  }
-
-  getLandVelocity() {
-    return this.landVelocity;
-  }
-
-  getAttacks() {
-    return this.attacks;
-  }
-
-  getAttacksByType() {
-    let res = new HashMap();
-    for (let ac of this.attacks) {
-      if (!res.containsKey(ac.getType())) {
-        res.put(ac.getType(), new ArrayList());
-      }
-      res.get(ac.getType()).add(ac);
-    }
-    return res;
-  }
-
-  getAttackDistance(eppct) {
-    let min = 100000;
-    let max = -100000;
-    for (let attack of this.attacks) {
-      let dist = attack.getDistance();
-      min = FMath.min(min, dist.min());
-      max = FMath.max(max, dist.max());
-    }
-    let length = max-min;
-    let epsilon = length*(eppct-1)/2;
-    return Interval2.create(min-epsilon, max+epsilon);
-  }
-
-  getMeleeAttackDistance(eppct) {
-    let min = 100000;
-    let max = -100000;
-    for (let attack of this.attacks) {
-      if (attack.getType().equals(FighterAttackType.PUNCH)||attack.getType().equals(FighterAttackType.KICK)) {
-        let dist = attack.getDistance();
-        min = FMath.min(min, dist.min());
-        max = FMath.max(max, dist.max());
-      }
-    }
-    let length = max-min;
-    let epsilon = length*(eppct-1)/2;
-    return Interval2.create(min-epsilon, max+epsilon);
-  }
-
-  getBlockDamageRatio() {
-    return this.blockDamageRatio;
-  }
-
-  getShakeDamage() {
-    return this.shakeDamage;
-  }
-
-  getKnockdownRecoveryTime() {
-    return this.knockdownRecoveryTime;
-  }
-
-  getJumpOverDistance() {
-    return this.jumpOverDistance;
-  }
-
-  getJumpOverMinSpeed() {
-    return this.jumpOverMinSpeed;
-  }
-
-  getSounds(category) {
-    return this.sounds.getOrDefault(category, Collections.emptyList());
-  }
-
-  applyToughnessFactor(toughnessFactor) {
-    let res = new FighterConfig();
-    res.maxHealth = this.maxHealth*toughnessFactor;
-    res.maxStamina = this.maxStamina*toughnessFactor;
-    res.staminaRecovery = this.staminaRecovery*toughnessFactor;
-    res.staminaTiredRecovery = this.staminaTiredRecovery;
-    res.blockStamina = this.blockStamina;
-    res.airFriction = this.airFriction;
-    res.groundFriction = this.groundFriction;
-    res.walkForce = this.walkForce;
-    res.runForce = this.runForce;
-    res.crouchWalkForce = this.crouchWalkForce;
-    res.airForce = this.airForce;
-    res.turnSpeed = this.turnSpeed;
-    res.jumpUpImpulse = this.jumpUpImpulse;
-    res.landVelocity = this.landVelocity;
-    res.sounds = this.sounds;
-    res.attacks = this.attacks;
-    res.blockDamageRatio = this.blockDamageRatio;
-    res.shakeDamage = this.shakeDamage*toughnessFactor;
-    res.jumpOverDistance = this.jumpOverDistance;
-    res.jumpOverMinSpeed = this.jumpOverMinSpeed;
-    res.guardInvariants();
-    return res;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create() {
-    let res = new FighterConfig();
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterConfig = FighterConfig;
-class FighterInput {
-  static ZERO = FighterInput.create(Vec2.ZERO, false, false, false);
-  moveDir;
-  punch;
-  kick;
-  block;
-  constructor() {
-  }
-
-  getClass() {
-    return "FighterInput";
-  }
-
-  guardInvariants() {
-  }
-
-  getMoveDir() {
-    return this.moveDir;
-  }
-
-  isPunch() {
-    return this.punch;
-  }
-
-  isKick() {
-    return this.kick;
-  }
-
-  isAttack() {
-    return this.punch||this.kick;
-  }
-
-  isBlock() {
-    return this.block;
-  }
-
-  getMoveCategory(targetTurn) {
-    let absX = FMath.abs(this.moveDir.x());
-    let absY = FMath.abs(this.moveDir.y());
-    if (absX<0.5&&absY<0.5) {
-      return FighterMoveCategory.ZERO;
-    }
-    if (absY<0.5) {
-      let sgn = targetTurn==FMath.PI_HALF?1:-1;
-      if (sgn==1) {
-        if (this.moveDir.x()>0.5) {
-          return FighterMoveCategory.FORWARD;
-        }
-        else {
-          return FighterMoveCategory.BACKWARD;
-        }
-      }
-      else {
-        if (this.moveDir.x()>0.5) {
-          return FighterMoveCategory.BACKWARD;
-        }
-        else {
-          return FighterMoveCategory.FORWARD;
-        }
-      }
-    }
-    else if (absX<0.5) {
-      if (this.moveDir.y()<-0.5) {
-        return FighterMoveCategory.DOWN;
-      }
-    }
-    return FighterMoveCategory.OTHER;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(moveDir, punch, kick, block) {
-    let res = new FighterInput();
-    res.moveDir = moveDir;
-    res.punch = punch;
-    res.kick = kick;
-    res.block = block;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterInput = FighterInput;
-const createFighterInputType = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const FighterInputType = Object.freeze({
-  NONE: createFighterInputType("NONE"),
-  CONTROLLER: createFighterInputType("CONTROLLER"),
-  AI: createFighterInputType("AI"),
-  TRAINING: createFighterInputType("TRAINING"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-const createFighterMoveCategory = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const FighterMoveCategory = Object.freeze({
-  ZERO: createFighterMoveCategory("ZERO"),
-  FORWARD: createFighterMoveCategory("FORWARD"),
-  BACKWARD: createFighterMoveCategory("BACKWARD"),
-  DOWN: createFighterMoveCategory("DOWN"),
-  OTHER: createFighterMoveCategory("OTHER"),
-  ANY: createFighterMoveCategory("ANY"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class FighterMoveCategoryRecord {
-  time;
-  category;
-  constructor() {
-  }
-
-  getClass() {
-    return "FighterMoveCategoryRecord";
-  }
-
-  guardInvariants() {
-  }
-
-  getTime() {
-    return this.time;
-  }
-
-  getCategory() {
-    return this.category;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(time, category) {
-    let res = new FighterMoveCategoryRecord();
-    res.time = time;
-    res.category = category;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterMoveCategoryRecord = FighterMoveCategoryRecord;
-class FighterMoveCategroyAccumulator {
-  ttl;
-  time = 0;
-  lastCategory = FighterMoveCategory.ZERO;
-  accum = new ArrayList();
-  constructor() {
-  }
-
-  getClass() {
-    return "FighterMoveCategroyAccumulator";
-  }
-
-  guardInvariants() {
-  }
-
-  accumulate(dt, categtory) {
-    this.time = this.time+dt;
-    if (this.accum.isEmpty()) {
-      this.time = 0;
-    }
-    else if (this.accum.get(this.accum.size()-1).getTime()<this.time-this.ttl) {
-      this.accum.clear();
-      this.time = 0;
-    }
-    if (categtory.equals(FighterMoveCategory.ZERO)) {
-      this.lastCategory = categtory;
-    }
-    else if (this.isSimpleMoveCategory(categtory)) {
-      if (this.lastCategory.equals(FighterMoveCategory.ZERO)) {
-        this.accum.add(FighterMoveCategoryRecord.create(this.time, categtory));
-        this.lastCategory = categtory;
-      }
-      else if (!this.lastCategory.equals(categtory)) {
-        this.accum.clear();
-        this.time = 0;
-        this.lastCategory = categtory;
-      }
-    }
-    else {
-      this.accum.clear();
-      this.time = 0;
-      this.lastCategory = categtory;
-    }
-  }
-
-  matches(maxAge, sequence) {
-    if (this.accum.size()<sequence.size()) {
-      return false;
-    }
-    let minT = this.time-maxAge;
-    for (let i = 0; i<sequence.size(); ++i) {
-      let rec = this.accum.get(this.accum.size()-sequence.size()+i);
-      if (rec.getTime()<minT) {
-        return false;
-      }
-      if (!rec.getCategory().equals(sequence.get(i))) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  getAccumulated(maxAge) {
-    if (this.accum.isEmpty()) {
-      return Collections.emptyList();
-    }
-    let res = new ArrayList();
-    let minT = this.time-maxAge;
-    for (let rec of this.accum) {
-      if (rec.getTime()>=minT) {
-        res.add(rec.getCategory());
-      }
-    }
-    return res;
-  }
-
-  isSimpleMoveCategory(category) {
-    return category.equals(FighterMoveCategory.FORWARD)||category.equals(FighterMoveCategory.BACKWARD)||category.equals(FighterMoveCategory.DOWN);
-  }
-
-  toString() {
-  }
-
-  static create(ttl) {
-    let res = new FighterMoveCategroyAccumulator();
-    res.ttl = ttl;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterMoveCategroyAccumulator = FighterMoveCategroyAccumulator;
-class FighterRecoveryBehavior extends Behavior {
-  character;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "FighterRecoveryBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.character = this.actor().getComponent("FighterCharacterBehavior");
-  }
-
-  move(dt, inputs) {
-    if (this.character.getHealthRatio()<1) {
-      let state = this.character.getState();
-      let health = FMath.min(state.getHealth()+25*dt, this.character.getConfig().getMaxHealth());
-      state.setHealth(health);
-    }
-  }
-
-  toString() {
-  }
-
-  static create(key) {
-    let res = new FighterRecoveryBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterRecoveryBehavior = FighterRecoveryBehavior;
-class FighterState {
-  health = 100;
-  stamina = 100;
-  action = FighterAction.IDLE;
-  turn = FMath.PI_HALF;
-  targetTurn = FMath.PI_HALF;
-  attack = null;
-  attackHit = false;
-  attackSpawned = false;
-  constructor() {
-  }
-
-  getClass() {
-    return "FighterState";
-  }
-
-  guardInvariants() {
-  }
-
-  getHealth() {
-    return this.health;
-  }
-
-  setHealth(health) {
-    this.health = health;
-    return this;
-  }
-
-  changeHealth(dHealth) {
-    this.health = this.health+dHealth;
-    return this;
-  }
-
-  getStamina() {
-    return this.stamina;
-  }
-
-  setStamina(stamina) {
-    this.stamina = stamina;
-    return this;
-  }
-
-  reduceStamina(delta) {
-    this.stamina = FMath.max(0, this.stamina-delta);
-    return this;
-  }
-
-  actionEquals(act) {
-    return this.action.equals(act);
-  }
-
-  actionNotEquals(act) {
-    return !this.action.equals(act);
-  }
-
-  getAction() {
-    return this.action;
-  }
-
-  setAction(action) {
-    this.action = action;
-    return this;
-  }
-
-  getTurn() {
-    return this.turn;
-  }
-
-  setTurn(turn) {
-    this.turn = turn;
-    return this;
-  }
-
-  getTargetTurn() {
-    return this.targetTurn;
-  }
-
-  setTargetTurn(targetTurn) {
-    this.targetTurn = targetTurn;
-    return this;
-  }
-
-  getAttack() {
-    return this.attack;
-  }
-
-  setAttack(attack) {
-    this.attack = attack;
-    return this;
-  }
-
-  isAttackHit() {
-    return this.attackHit;
-  }
-
-  setAttackHit(attackHit) {
-    this.attackHit = attackHit;
-    return this;
-  }
-
-  isAttackSpawned() {
-    return this.attackSpawned;
-  }
-
-  setAttackSpawned(attackSpawned) {
-    this.attackSpawned = attackSpawned;
-    return this;
-  }
-
-  toString() {
-  }
-
-  static create() {
-    let res = new FighterState();
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterState = FighterState;
-const createFighterAiAction = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const FighterAiAction = Object.freeze({
-  WAIT: createFighterAiAction("WAIT"),
-  ENGAGE: createFighterAiAction("ENGAGE"),
-  DISENGAGE: createFighterAiAction("DISENGAGE"),
-  ATTACK: createFighterAiAction("ATTACK"),
-  DOUBLE_ATTACK: createFighterAiAction("DOUBLE_ATTACK"),
-  JUMP_OVER: createFighterAiAction("JUMP_OVER"),
-  JUMP_BACK: createFighterAiAction("JUMP_BACK"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class FighterAiStep {
-  action;
-  time;
-  goal;
-  distance;
-  direction;
-  speed;
-  attack;
-  constructor() {
-  }
-
-  getClass() {
-    return "FighterAiStep";
-  }
-
-  guardInvariants() {
-  }
-
-  getAction() {
-    return this.action;
-  }
-
-  actionEquals(act) {
-    return this.action.equals(act);
-  }
-
-  getTime() {
-    return this.time;
-  }
-
-  isGoal() {
-    return this.goal;
-  }
-
-  getDistance() {
-    return this.distance;
-  }
-
-  getDirection() {
-    return this.direction;
-  }
-
-  getSpeed() {
-    return this.speed;
-  }
-
-  getAttack() {
-    return this.attack;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(action, time, goal, distance, direction, speed, attack) {
-    let res = new FighterAiStep();
-    res.action = action;
-    res.time = time;
-    res.goal = goal;
-    res.distance = distance;
-    res.direction = direction;
-    res.speed = speed;
-    res.attack = attack;
-    res.guardInvariants();
-    return res;
-  }
-
-  static createWait(time) {
-    let res = new FighterAiStep();
-    res.action = FighterAiStepAction.WAIT;
-    res.time = time;
-    res.goal = false;
-    res.distance = null;
-    res.direction = 0;
-    res.speed = 0;
-    res.attack = null;
-    res.guardInvariants();
-    return res;
-  }
-
-  static createRunToDistance(time, goal, distance) {
-    let res = new FighterAiStep();
-    res.action = FighterAiStepAction.RUN_TO_DISTANCE;
-    res.time = time;
-    res.goal = goal;
-    res.distance = distance;
-    res.direction = 0;
-    res.speed = 0;
-    res.attack = null;
-    res.guardInvariants();
-    return res;
-  }
-
-  static createRun(time, direction) {
-    let res = new FighterAiStep();
-    res.action = FighterAiStepAction.RUN;
-    res.time = time;
-    res.goal = false;
-    res.distance = null;
-    res.direction = direction;
-    res.speed = 0;
-    res.attack = null;
-    res.guardInvariants();
-    return res;
-  }
-
-  static createAttack(time, goal, attack) {
-    let res = new FighterAiStep();
-    res.action = FighterAiStepAction.ATTACK;
-    res.time = time;
-    res.goal = goal;
-    res.distance = null;
-    res.direction = 0;
-    res.speed = 0;
-    res.attack = attack;
-    res.guardInvariants();
-    return res;
-  }
-
-  static createEnsureSpeed(time, direction, speed) {
-    let res = new FighterAiStep();
-    res.action = FighterAiStepAction.ENSURE_SPEED;
-    res.time = time;
-    res.goal = true;
-    res.distance = null;
-    res.direction = direction;
-    res.speed = speed;
-    res.attack = null;
-    res.guardInvariants();
-    return res;
-  }
-
-  static createJump(time, direction) {
-    let res = new FighterAiStep();
-    res.action = FighterAiStepAction.JUMP;
-    res.time = time;
-    res.goal = true;
-    res.distance = null;
-    res.direction = direction;
-    res.speed = 0;
-    res.attack = null;
-    res.guardInvariants();
-    return res;
-  }
-
-  static createFly(time, direction) {
-    let res = new FighterAiStep();
-    res.action = FighterAiStepAction.FLY;
-    res.time = time;
-    res.goal = true;
-    res.distance = null;
-    res.direction = direction;
-    res.speed = 0;
-    res.attack = null;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterAiStep = FighterAiStep;
-const createFighterAiStepAction = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const FighterAiStepAction = Object.freeze({
-  WAIT: createFighterAiStepAction("WAIT"),
-  RUN: createFighterAiStepAction("RUN"),
-  RUN_TO_DISTANCE: createFighterAiStepAction("RUN_TO_DISTANCE"),
-  ENSURE_SPEED: createFighterAiStepAction("ENSURE_SPEED"),
-  JUMP: createFighterAiStepAction("JUMP"),
-  FLY: createFighterAiStepAction("FLY"),
-  CROUCH: createFighterAiStepAction("CROUCH"),
-  ATTACK: createFighterAiStepAction("ATTACK"),
-  BLOCK: createFighterAiStepAction("BLOCK"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class FighterBaseAi1 {
-  character;
-  config = FighterBaseAi1Config.create();
-  vision;
-  plan = Collections.emptyList();
-  stepIdx = 0;
-  stepTime = 0;
-  defenseDecisionTimeout = 0;
-  knockdownRecoveryStarted = false;
-  knockdownRecoveryTimeout = 0;
-  constructor() {
-  }
-
-  getClass() {
-    return "FighterBaseAi1";
-  }
-
-  guardInvariants() {
-  }
-
-  solveInput(dt) {
-    let target = this.findClosestTarget();
-    if (target==null) {
-      this.plan = Collections.emptyList();
-      this.stepIdx = 0;
-      this.stepTime = 0;
-      this.defenseDecisionTimeout = 0;
-      return FighterInput.ZERO;
-    }
-    this.stepTime = this.stepTime+dt;
-    this.defenseDecisionTimeout = FMath.max(0, this.defenseDecisionTimeout-dt);
-    let characterConfig = this.character.getConfig();
-    let characterState = this.character.getState();
-    let enemyBehavior = target.getComponent("FighterCharacterBehavior");
-    let targetConfig = enemyBehavior.getConfig();
-    let targetState = enemyBehavior.getState();
-    let meleeDangerDst = targetConfig.getMeleeAttackDistance(1.1);
-    let targetPos = enemyBehavior.getPos();
-    let dst = targetPos.x()-this.character.getPos().x();
-    let absDst = FMath.abs(dst);
-    this.solveDefense(targetPos, targetState, meleeDangerDst);
-    if (characterState.actionEquals(FighterAction.KNOCKDOWN)) {
-      if (this.knockdownRecoveryStarted) {
-        this.knockdownRecoveryTimeout = this.knockdownRecoveryTimeout-dt;
-        if (this.knockdownRecoveryTimeout<=0) {
-          this.knockdownRecoveryStarted = false;
-          return FighterInput.create(Vec2.ZERO, true, false, false);
-        }
-      }
-      else {
-        this.knockdownRecoveryStarted = true;
-        this.knockdownRecoveryTimeout = FMath.max(characterConfig.getKnockdownRecoveryTime()+0.05, this.config.getRandomKnockdownRecoveryTime());
-      }
-    }
-    while (true) {
-      if (this.stepIdx<this.plan.size()&&this.stepTime>=this.plan.get(this.stepIdx).getTime()) {
-        if (this.plan.get(this.stepIdx).isGoal()) {
-          this.plan = Collections.emptyList();
-          this.stepIdx = 0;
-        }
-        else {
-          this.stepIdx = this.stepIdx+1;
-        }
-        this.stepTime = 0;
-      }
-      if (this.plan.isEmpty()||this.stepIdx>=this.plan.size()) {
-        this.createNewPlan(targetPos, meleeDangerDst);
-      }
-      let currentStep = this.plan.get(this.stepIdx);
-      if (currentStep.actionEquals(FighterAiStepAction.WAIT)) {
-        return FighterInput.ZERO;
-      }
-      else if (currentStep.actionEquals(FighterAiStepAction.CROUCH)) {
-        return FighterInput.create(Vec2.create(0, -1), false, false, false);
-      }
-      else if (currentStep.actionEquals(FighterAiStepAction.RUN)) {
-        return FighterInput.create(Vec2.create(currentStep.getDirection(), 0), false, false, false);
-      }
-      else if (currentStep.actionEquals(FighterAiStepAction.RUN_TO_DISTANCE)) {
-        let targetDst = currentStep.getDistance();
-        if (targetDst.isInside(absDst)) {
-          this.stepIdx = this.stepIdx+1;
-          this.stepTime = 0;
-        }
-        if (absDst<targetDst.min()) {
-          return FighterInput.create(Vec2.create(-FMath.signum(dst), 0), false, false, false);
-        }
-        else {
-          return FighterInput.create(Vec2.create(FMath.signum(dst), 0), false, false, false);
-        }
-      }
-      else if (currentStep.actionEquals(FighterAiStepAction.ENSURE_SPEED)) {
-        let vel = this.character.getVelocity();
-        if (FMath.trunc(FMath.signum(vel.x()))==currentStep.getDirection()&&FMath.abs(vel.x())>currentStep.getSpeed()) {
-          this.stepIdx = this.stepIdx+1;
-          this.stepTime = 0;
-        }
-        return FighterInput.create(Vec2.create(currentStep.getDirection(), 0), false, false, false);
-      }
-      else if (currentStep.actionEquals(FighterAiStepAction.JUMP)) {
-        this.stepIdx = this.stepIdx+1;
-        this.stepTime = 0;
-        return FighterInput.create(Vec2.create(currentStep.getDirection(), 1), false, false, false);
-      }
-      else if (currentStep.actionEquals(FighterAiStepAction.FLY)) {
-        if (this.character.isGrounded()) {
-          this.stepIdx = this.stepIdx+1;
-          this.stepTime = 0;
-        }
-        return FighterInput.create(Vec2.create(currentStep.getDirection(), 0), false, false, false);
-      }
-      else if (currentStep.actionEquals(FighterAiStepAction.ATTACK)) {
-        if (this.character.getState().actionEquals(FighterAction.ATTACK)) {
-          this.stepIdx = this.stepIdx+1;
-          this.stepTime = 0;
-        }
-        let attConf = currentStep.getAttack();
-        return attConf.getInputMatcher().getBestInput(this.character.getState().getTargetTurn());
-      }
-      else if (currentStep.actionEquals(FighterAiStepAction.BLOCK)) {
-        return FighterInput.create(Vec2.ZERO, false, false, true);
-      }
-      else {
-        throw new Error("unknown action: "+currentStep.getAction());
-      }
-    }
-  }
-
-  setDifficulty(level) {
-    this.config = this.config.withDifficulty(level);
-    return this;
-  }
-
-  setAttackTypes(attackTypes) {
-    this.config = this.config.withAttackTypes(attackTypes);
-    return this;
-  }
-
-  solveDefense(enemyPos, enemyState, enemyMeleeDst) {
-    if (this.defenseDecisionTimeout>0) {
-      return ;
-    }
-    let absDst = FMath.abs(enemyPos.x()-this.character.getPos().x());
-    if (enemyState.actionEquals(FighterAction.ATTACK)&&enemyMeleeDst.isInside(absDst)) {
-      if (this.character.getState().actionEquals(FighterAction.BLOCK)) {
-        return ;
-      }
-      this.defenseDecisionTimeout = this.config.getRandomDefenseDecisionCooldownTime();
-      if (this.config.getRandomDefenseDecision()) {
-        this.stepIdx = 0;
-        this.stepTime = 0;
-        this.plan = Dut.list(FighterAiStep.create(FighterAiStepAction.WAIT, this.config.getRandomDefenseReactionTime(), false, null, 0, 0, null), FighterAiStep.create(FighterAiStepAction.BLOCK, this.config.getRandomBlockTime(), false, null, 0, 0, null));
-      }
-    }
-    let enemySpellActors = this.vision.getEnemySpells();
-    let posX = this.character.getPos().x();
-    for (let spellActor of enemySpellActors) {
-      if (spellActor.hasTag(GameActors.FIREBALL_TAG)) {
-        let fireball = spellActor.getComponent("FireballBehavior");
-        let fbX = fireball.getPos().x();
-        let fbVx = fireball.getVelocity().x();
-        let dst = posX-fbX;
-        if (FMath.signum(dst)!=FMath.signum(fbVx)) {
-          continue;
-        }
-        let tti = FMath.abs(dst/fbVx);
-        if (tti>0.3) {
-          continue;
-        }
-        if (this.character.getState().actionEquals(FighterAction.CROUCH_IDLE)||this.character.getState().actionEquals(FighterAction.CROUCH_WALK)) {
-          return ;
-        }
-        this.defenseDecisionTimeout = this.config.getRandomDefenseDecisionCooldownTime();
-        if (this.config.getRandomDefenseDecision()) {
-          let fireballSafeDistance = 1.5;
-          let crouchTime = (FMath.abs(dst)+fireballSafeDistance)/FMath.abs(fbVx);
-          this.stepIdx = 0;
-          this.stepTime = 0;
-          this.plan = Dut.list(FighterAiStep.create(FighterAiStepAction.WAIT, this.config.getRandomDefenseReactionTime(), false, null, 0, 0, null), FighterAiStep.create(FighterAiStepAction.CROUCH, crouchTime, false, null, 0, 0, null));
-        }
-      }
-      else {
-        throw new Error("unsupported spell, implement me: "+spellActor.getName());
-      }
-    }
-  }
-
-  createNewPlan(enemyPos, enemyMeleeDst) {
-    let characterConfig = this.character.getConfig();
-    let dst = enemyPos.x()-this.character.getPos().x();
-    this.stepIdx = 0;
-    this.stepTime = 0;
-    this.plan = Collections.emptyList();
-    let action = this.config.getRandomAction();
-    if (action.equals(FighterAiAction.WAIT)) {
-      this.plan = Dut.list(FighterAiStep.createWait(this.config.getRandomWaitTime()));
-    }
-    else if (action.equals(FighterAiAction.ENGAGE)) {
-      this.plan = Dut.list(FighterAiStep.createRunToDistance(this.config.getRandomPatienceTime(), true, characterConfig.getMeleeAttackDistance(0.95)));
-    }
-    else if (action.equals(FighterAiAction.DISENGAGE)) {
-      let disengInt = Interval2.create(enemyMeleeDst.max()*3, enemyMeleeDst.max()*10);
-      this.plan = Dut.list(FighterAiStep.createRunToDistance(this.config.getRandomPatienceTime(), true, disengInt));
-    }
-    else if (action.equals(FighterAiAction.ATTACK)) {
-      let attack = this.config.getRandomAttack(characterConfig);
-      if (attack.getMoveSequence().isEmpty()) {
-        this.plan = Dut.list(FighterAiStep.createRunToDistance(this.config.getRandomPatienceTime(), true, attack.getDistance()), FighterAiStep.createAttack(this.config.getRandomPatienceTime(), true, attack));
-      }
-      else {
-        let forwardDir = FMath.trunc(FMath.signum(dst));
-        this.plan = new ArrayList();
-        this.plan.add(FighterAiStep.createRunToDistance(this.config.getRandomPatienceTime(), true, attack.getDistance()));
-        this.plan.add(FighterAiStep.createWait(this.config.getRandomTickTime()));
-        for (let moveCat of attack.getMoveSequence()) {
-          if (moveCat.equals(FighterMoveCategory.BACKWARD)) {
-            this.plan.add(FighterAiStep.createRun(this.config.getRandomTickTime(), -forwardDir));
-          }
-          else {
-            throw new Error("unsupported move category, implement me: "+moveCat);
-          }
-          this.plan.add(FighterAiStep.createWait(this.config.getRandomTickTime()));
-        }
-        this.plan.add(FighterAiStep.createAttack(this.config.getRandomPatienceTime(), true, attack));
-      }
-    }
-    else if (action.equals(FighterAiAction.JUMP_OVER)) {
-      let direction = FMath.trunc(FMath.signum(dst));
-      this.plan = Dut.list(FighterAiStep.createRunToDistance(this.config.getRandomPatienceTime(), true, characterConfig.getJumpOverDistance()), FighterAiStep.createEnsureSpeed(this.config.getRandomPatienceTime(), direction, characterConfig.getJumpOverMinSpeed()), FighterAiStep.createJump(this.config.getRandomPatienceTime(), direction), FighterAiStep.createFly(this.config.getRandomPatienceTime(), direction));
-    }
-    else if (action.equals(FighterAiAction.JUMP_BACK)) {
-      let direction = -FMath.trunc(FMath.signum(dst));
-      this.plan = Dut.list(FighterAiStep.createEnsureSpeed(this.config.getRandomPatienceTime(), direction, characterConfig.getJumpOverMinSpeed()), FighterAiStep.createJump(this.config.getRandomPatienceTime(), direction), FighterAiStep.createFly(this.config.getRandomPatienceTime(), direction));
-    }
-    else {
-      throw new Error("unsupported action, implement me: "+action);
-    }
-  }
-
-  findClosestTarget() {
-    if (this.vision==null) {
-      return null;
-    }
-    let enemyActors = this.vision.getEnemies();
-    let closest = null;
-    let minDist = Float.POSITIVE_INFINITY;
-    for (let enemyAct of enemyActors) {
-      let tc = enemyAct.getComponent("TransformComponent");
-      let dist = FMath.abs(tc.getPos().x()-this.character.getPos().x());
-      if (dist<minDist) {
-        minDist = dist;
-        closest = enemyAct;
-      }
-    }
-    return closest;
-  }
-
-  isBlockingPlan() {
-    for (let step of this.plan) {
-      if (step.getAction().equals(FighterAiStepAction.BLOCK)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  toString() {
-  }
-
-  static create(actor) {
-    let res = new FighterBaseAi1();
-    res.character = actor.getComponent("FighterCharacterBehavior");
-    res.vision = actor.getComponent("FighterVisionSensor");
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterBaseAi1 = FighterBaseAi1;
-class FighterBaseAi1Config {
-  waitTime = Interval2.create(1, 2);
-  tickTime = Interval2.create(0.1, 0.2);
-  patienceTime = Interval2.create(1, 3);
-  actions = WeightedRandomPicker.create().plusChoice(FighterAiAction.WAIT, 0.2).plusChoice(FighterAiAction.ENGAGE, 0.1).plusChoice(FighterAiAction.DISENGAGE, 0.1).plusChoice(FighterAiAction.ATTACK, 0.4).plusChoice(FighterAiAction.JUMP_OVER, 0.2).plusChoice(FighterAiAction.JUMP_BACK, 0.2);
-  attackTypes = WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.45).plusChoice(FighterAttackType.KICK, 0.45).plusChoice(FighterAttackType.SPELL, 0.1);
-  defenseChance = 0.3;
-  defenseReactionTime = Interval2.create(0.05, 0.1);
-  defensekDecisionCooldownTime = Interval2.create(0.2, 0.8);
-  blockTime = Interval2.create(0.4, 1.5);
-  knockdownRecoveryTime = Interval2.create(1, 2);
-  constructor() {
-  }
-
-  getClass() {
-    return "FighterBaseAi1Config";
-  }
-
-  guardInvariants() {
-  }
-
-  getRandomWaitTime() {
-    return Randoms.nextFloat(this.waitTime.min(), this.waitTime.max());
-  }
-
-  getRandomTickTime() {
-    return Randoms.nextFloat(this.tickTime.min(), this.tickTime.max());
-  }
-
-  getRandomPatienceTime() {
-    return Randoms.nextFloat(this.patienceTime.min(), this.patienceTime.max());
-  }
-
-  getRandomAction() {
-    return this.actions.pickOne();
-  }
-
-  withAttackTypes(attackTypes) {
-    let res = new FighterBaseAi1Config();
-    res.waitTime = this.waitTime;
-    res.tickTime = this.tickTime;
-    res.patienceTime = this.patienceTime;
-    res.actions = this.actions;
-    res.attackTypes = attackTypes;
-    res.defenseChance = this.defenseChance;
-    res.defenseReactionTime = this.defenseReactionTime;
-    res.defensekDecisionCooldownTime = this.defensekDecisionCooldownTime;
-    res.blockTime = this.blockTime;
-    res.knockdownRecoveryTime = this.knockdownRecoveryTime;
-    return res;
-  }
-
-  getRandomAttack(config) {
-    let attacksByType = config.getAttacksByType();
-    let attackType = this.attackTypes.pickOne();
-    while (!attacksByType.containsKey(attackType)) {
-      attackType = this.attackTypes.pickOne();
-    }
-    let acs = attacksByType.get(attackType);
-    return acs.get(Randoms.nextInt(0, acs.size()));
-  }
-
-  getDefenseChance() {
-    return this.defenseChance;
-  }
-
-  getRandomDefenseDecision() {
-    return Randoms.nextFloat(0, 1)<this.defenseChance;
-  }
-
-  getRandomDefenseReactionTime() {
-    return Randoms.nextFloat(this.defenseReactionTime.min(), this.defenseReactionTime.max());
-  }
-
-  getRandomDefenseDecisionCooldownTime() {
-    return Randoms.nextFloat(this.defensekDecisionCooldownTime.min(), this.defensekDecisionCooldownTime.max());
-  }
-
-  getRandomBlockTime() {
-    return Randoms.nextFloat(this.blockTime.min(), this.blockTime.max());
-  }
-
-  getRandomKnockdownRecoveryTime() {
-    return Randoms.nextFloat(this.knockdownRecoveryTime.min(), this.knockdownRecoveryTime.max());
-  }
-
-  withDifficulty(difficulty) {
-    let res = new FighterBaseAi1Config();
-    let clamped = FMath.clamp(difficulty, 0, 1);
-    res.waitTime = Interval2.create(this.lerp(1.5, 0.5, clamped), this.lerp(2.5, 1.5, clamped));
-    res.tickTime = this.tickTime;
-    res.patienceTime = this.patienceTime;
-    res.actions = WeightedRandomPicker.create().plusChoice(FighterAiAction.WAIT, this.lerp(0.8, 0.1, clamped)).plusChoice(FighterAiAction.ENGAGE, this.lerp(0.05, 0.3, clamped)).plusChoice(FighterAiAction.DISENGAGE, this.lerp(0.2, 0.05, clamped)).plusChoice(FighterAiAction.ATTACK, this.lerp(0.1, 0.6, clamped)).plusChoice(FighterAiAction.JUMP_OVER, this.lerp(0.1, 0.4, clamped)).plusChoice(FighterAiAction.JUMP_BACK, this.lerp(0.4, 0.1, clamped));
-    res.attackTypes = this.attackTypes;
-    res.defenseChance = this.lerp(0.05, 0.9, clamped);
-    res.defenseReactionTime = this.defenseReactionTime;
-    res.defensekDecisionCooldownTime = this.defensekDecisionCooldownTime;
-    res.blockTime = this.blockTime;
-    res.knockdownRecoveryTime = Interval2.create(this.lerp(1.5, 1, clamped), this.lerp(2, 1.5, clamped));
-    return res;
-  }
-
-  lerp(min, max, t) {
-    return min+(max-min)*t;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create() {
-    let res = new FighterBaseAi1Config();
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterBaseAi1Config = FighterBaseAi1Config;
-class FighterBaseTrainingAi {
-  character;
-  knockdownRecoveryStarted = false;
-  knockdownRecoveryTimeout = 0;
-  constructor() {
-  }
-
-  getClass() {
-    return "FighterBaseTrainingAi";
-  }
-
-  guardInvariants() {
-  }
-
-  solveInput(dt) {
-    let characterState = this.character.getState();
-    if (characterState.actionEquals(FighterAction.KNOCKDOWN)) {
-      if (this.knockdownRecoveryStarted) {
-        this.knockdownRecoveryTimeout = this.knockdownRecoveryTimeout-dt;
-        if (this.knockdownRecoveryTimeout<=0) {
-          this.knockdownRecoveryStarted = false;
-          return FighterInput.create(Vec2.ZERO, true, false, false);
-        }
-      }
-      else {
-        this.knockdownRecoveryStarted = true;
-        this.knockdownRecoveryTimeout = 2;
-      }
-    }
-    return FighterInput.ZERO;
-  }
-
-  setDifficulty(level) {
-    return this;
-  }
-
-  setAttackTypes(attackTypes) {
-    return this;
-  }
-
-  toString() {
-  }
-
-  static create(actor) {
-    let res = new FighterBaseTrainingAi();
-    res.character = actor.getComponent("FighterCharacterBehavior");
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterBaseTrainingAi = FighterBaseTrainingAi;
-class FighterVisionSensor extends Behavior {
-  enemies = Collections.emptyList();
-  enemySpells = Collections.emptyList();
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "FighterVisionSensor";
-  }
-
-  guardInvariants() {
-  }
-
-  move(dt, inputs) {
-    let selfActor = this.actor();
-    const newEnemies = new ArrayList();
-    const newEnemySpells = new ArrayList();
-    this.world().actors().forEach(ActorId.ROOT, (act) => {
-  if (act.hasTag(GameActors.FIGHTER_TAG)) {
-    if (GameActors.isEnemies(selfActor, act)) {
-      newEnemies.add(act);
-    }
-  }
-  if (act.hasTag(GameActors.SPELL_TAG)) {
-    if (GameActors.isEnemies(selfActor, act)) {
-      newEnemySpells.add(act);
-    }
-  }
-});
-    this.enemies = Collections.unmodifiableList(newEnemies);
-    this.enemySpells = Collections.unmodifiableList(newEnemySpells);
-  }
-
-  getEnemies() {
-    return this.enemies;
-  }
-
-  getEnemySpells() {
-    return this.enemySpells;
-  }
-
-  toString() {
-  }
-
-  static create(key) {
-    let res = new FighterVisionSensor(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterVisionSensor = FighterVisionSensor;
-class CombatGameMasterBehavior extends Behavior {
-  static MUSIC_IDS = Dut.list(SoundId.of("alexander-ehlers-flags"), SoundId.of("alexander-ehlers-waking-the-devil"));
-  scenario;
-  audio;
-  state = CombatGameState.PREPARATION;
-  stateTime = 0;
-  statePlan = null;
-  stateRemainingTime = 0;
-  enemyIdx = 0;
-  playerActor;
-  enemyActor;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "CombatGameMasterBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.audio = this.actor().getComponent("AudioBehavior");
-  }
-
-  move(dt, inputs) {
-    this.stateTime = this.stateTime+dt;
-    if (this.state.equals(CombatGameState.PREPARATION)) {
-      if (this.stateTime>1&&!this.audio.isMusicPlaying()) {
-        this.audio.fadeInAndPlayMusic(CombatGameMasterBehavior.MUSIC_IDS.get(Randoms.nextInt(0, CombatGameMasterBehavior.MUSIC_IDS.size())), 3);
-      }
-      if (this.stateTime>4) {
-        this.state = CombatGameState.COMBAT;
-        this.stateTime = 0;
-        let stateMsg = ActorMessage.create(GameActors.GAME_STATE_MESSAGE_TYPE, this.state);
-        this.broadcastMessage(ActorMatchers.hasTag(GameActors.FIGHTER_TAG), stateMsg);
-      }
-    }
-    else if (this.state.equals(CombatGameState.COMBAT)) {
-    }
-    else if (this.state.equals(CombatGameState.FINISH_PLAYER_WIN)) {
-    }
-    else if (this.state.equals(CombatGameState.FINISH_PLAYER_LOSE)) {
-    }
-    else {
-      throw new Error("unknown state, implement me"+this.state);
-    }
-    if (this.statePlan!=null) {
-      this.stateRemainingTime = this.stateRemainingTime-dt;
-      if (this.stateRemainingTime<=0) {
-        this.state = this.statePlan;
-        this.statePlan = null;
-        this.stateTime = 0;
-        this.stateRemainingTime = 0;
-        let stateMsg = ActorMessage.create(GameActors.GAME_STATE_MESSAGE_TYPE, this.state);
-        this.broadcastMessage(ActorMatchers.hasTag(GameActors.FIGHTER_TAG), stateMsg);
-      }
-    }
-  }
-
-  getState() {
-    return this.state;
-  }
-
-  isFinishState() {
-    return this.state.equals(CombatGameState.FINISH_PLAYER_WIN)|this.state.equals(CombatGameState.FINISH_PLAYER_LOSE);
-  }
-
-  isFinishPlayerWinState() {
-    return this.state.equals(CombatGameState.FINISH_PLAYER_WIN);
-  }
-
-  getStateTime() {
-    return this.stateTime;
-  }
-
-  getPlayerActor() {
-    return this.playerActor;
-  }
-
-  getEnemyActor() {
-    return this.enemyActor;
-  }
-
-  onFighterDied(deathActor) {
-    if (deathActor.equals(this.playerActor)) {
-      this.stateRemainingTime = 2;
-      this.statePlan = CombatGameState.FINISH_PLAYER_LOSE;
-      this.audio.fadeOutAndStopMusic(3);
-      return this;
-    }
-    else {
-      if (this.enemyIdx<this.scenario.getNumEnemies()) {
-        this.enemyActor = this.spawnNextEnemy();
-        return this;
-      }
-      else {
-        this.stateRemainingTime = 2;
-        this.statePlan = CombatGameState.FINISH_PLAYER_WIN;
-        this.audio.fadeOutAndStopMusic(3);
-        return this;
-      }
-    }
-  }
-
-  playSound(soundId) {
-    this.audio.playSound(soundId);
-    return this;
-  }
-
-  spawnInitialActors() {
-    this.playerActor = this.spawnPlayer();
-    this.enemyActor = this.spawnNextEnemy();
-    return this;
-  }
-
-  spawnPlayer() {
-    let spawnPoint = this.world().actors().get(GameActors.SPAWN_PLAYER);
-    let pos = spawnPoint.getComponent("TransformComponent").getPos();
-    let prefab = this.world().assets().get("ActorPrefab", ActorPrefabId.of("fighter-base"));
-    let req = CreateActorRequest.create(prefab, ActorId.of("player"), pos, Quaternion.ZERO_ROT);
-    return this.world().constructActor(req).addTag(GameActors.BLUE_TEAM_TAG).addComponent(FighterVisionSensor.create(ComponentKey.random())).addComponent(FighterCharacterBehavior.create(ComponentKey.random())).addComponent(FighterBaseInputBehavior.create(ComponentKey.random()).setInputType(FighterInputType.CONTROLLER)).addComponent(FighterBaseBehavior.create(ComponentKey.random()));
-  }
-
-  spawnNextEnemy() {
-    let spawnPoint = this.world().actors().get(GameActors.SPAWN_ENEMY);
-    let pos = spawnPoint.getComponent("TransformComponent").getPos();
-    if (this.enemyIdx>0) {
-      this.enemyActor.removeTag(GameActors.RED_TEAM_TAG);
-      let playerPos = this.playerActor.getComponent("TransformComponent").getPos();
-      pos = pos.withX(playerPos.x()-10*FMath.signum(playerPos.x()));
-    }
-    if (this.scenario.isTraining()) {
-      let prefab = this.world().assets().get("ActorPrefab", ActorPrefabId.of("fighter-base"));
-      let req = CreateActorRequest.create(prefab, null, pos, Quaternion.ZERO_ROT);
-      return this.world().constructActor(req).addTag(GameActors.RED_TEAM_TAG).addComponent(FighterVisionSensor.create(ComponentKey.random())).addComponent(FighterCharacterBehavior.create(ComponentKey.random()).setConfig(FighterConfig.create()).setHealthAndStaminaToMax()).addComponent(FighterBaseInputBehavior.create(ComponentKey.random()).setInputType(FighterInputType.TRAINING).setAiDifficuly(0.5)).addComponent(FighterBaseBehavior.create(ComponentKey.random())).addComponent(FighterRecoveryBehavior.create(ComponentKey.random()));
-    }
-    else {
-      let enemy = this.scenario.getEnemies().get(this.enemyIdx);
-      let enemyCaracter = FighterCharacters.createCharacter(enemy.getType());
-      this.enemyIdx = this.enemyIdx+1;
-      let prefab = this.world().assets().get("ActorPrefab", ActorPrefabId.of("fighter-base"));
-      let req = CreateActorRequest.create(prefab, null, pos, Quaternion.ZERO_ROT);
-      let enemyConfig = FighterConfig.create().applyToughnessFactor(enemy.getToughnessFactor());
-      return this.world().constructActor(req).addTag(GameActors.RED_TEAM_TAG).addComponent(FighterVisionSensor.create(ComponentKey.random())).addComponent(FighterCharacterBehavior.create(ComponentKey.random()).setConfig(enemyConfig).setHealthAndStaminaToMax()).addComponent(FighterBaseInputBehavior.create(ComponentKey.random()).setInputType(FighterInputType.AI).setAiAttackTypes(enemyCaracter.getAttackTypes()).setAiDifficuly(enemy.getAiDifficulty())).addComponent(FighterBaseBehavior.create(ComponentKey.random()));
-    }
-  }
-
-  toString() {
-  }
-
-  static create(key, scenario) {
-    let res = new CombatGameMasterBehavior(key);
-    res.scenario = scenario;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.CombatGameMasterBehavior = CombatGameMasterBehavior;
-const createCombatGameState = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const CombatGameState = Object.freeze({
-  PREPARATION: createCombatGameState("PREPARATION"),
-  COMBAT: createCombatGameState("COMBAT"),
-  FINISH_PLAYER_WIN: createCombatGameState("FINISH_PLAYER_WIN"),
-  FINISH_PLAYER_LOSE: createCombatGameState("FINISH_PLAYER_LOSE"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class CombatScenario {
-  arenaScene;
-  enemies;
-  training;
-  constructor() {
-  }
-
-  getClass() {
-    return "CombatScenario";
-  }
-
-  guardInvariants() {
-  }
-
-  getArenaScene() {
-    return this.arenaScene;
-  }
-
-  withArenaScene(arenaScene) {
-    let res = new CombatScenario();
-    res.arenaScene = arenaScene;
-    res.enemies = this.enemies;
-    res.training = this.training;
-    res.guardInvariants();
-    return res;
-  }
-
-  getEnemies() {
-    return this.enemies;
-  }
-
-  getNumEnemies() {
-    return this.enemies.size();
-  }
-
-  withEnemies(enemies) {
-    let res = new CombatScenario();
-    res.arenaScene = this.arenaScene;
-    res.enemies = Dut.copyImmutableList(enemies);
-    res.training = this.training;
-    res.guardInvariants();
-    return res;
-  }
-
-  plusEnemy(enemy) {
-    let res = new CombatScenario();
-    res.arenaScene = this.arenaScene;
-    res.enemies = Dut.immutableListPlusItem(this.enemies, enemy);
-    res.training = this.training;
-    res.guardInvariants();
-    return res;
-  }
-
-  isTraining() {
-    return this.training;
-  }
-
-  withTraining(training) {
-    let res = new CombatScenario();
-    res.arenaScene = this.arenaScene;
-    res.enemies = this.enemies;
-    res.training = training;
-    res.guardInvariants();
-    return res;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(arenaScene) {
-    let res = new CombatScenario();
-    res.arenaScene = arenaScene;
-    res.enemies = Collections.emptyList();
-    res.training = false;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.CombatScenario = CombatScenario;
-class CombatCharacterController extends UiComponent {
-  moveJoystick;
-  kickButton;
-  punchButton;
-  blockButton;
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "CombatCharacterController";
-  }
-
-  guardInvariants() {
-  }
-
-  init(container) {
-    this.moveJoystick.init(container);
-    this.kickButton.init(container);
-    this.punchButton.init(container);
-    this.blockButton.init(container);
-  }
-
-  move(dt) {
-    this.moveJoystick.move(dt);
-    this.kickButton.move(dt);
-    this.punchButton.move(dt);
-    this.blockButton.move(dt);
-  }
-
-  draw(painter) {
-    this.moveJoystick.draw(painter);
-    this.kickButton.draw(painter);
-    this.punchButton.draw(painter);
-    this.blockButton.draw(painter);
-  }
-
-  onContainerResize(size) {
-    this.moveJoystick.onContainerResize(size);
-    this.kickButton.onContainerResize(size);
-    this.punchButton.onContainerResize(size);
-    this.blockButton.onContainerResize(size);
-  }
-
-  onTouchStart(id, pos, size) {
-    this.moveJoystick.onTouchStart(id, pos, size);
-    this.kickButton.onTouchStart(id, pos, size);
-    this.punchButton.onTouchStart(id, pos, size);
-    this.blockButton.onTouchStart(id, pos, size);
-    return false;
-  }
-
-  onTouchMove(id, pos, size) {
-    this.moveJoystick.onTouchMove(id, pos, size);
-    this.kickButton.onTouchMove(id, pos, size);
-    this.punchButton.onTouchMove(id, pos, size);
-    this.blockButton.onTouchMove(id, pos, size);
-    return false;
-  }
-
-  onTouchEnd(id, pos, size, cancel) {
-    this.moveJoystick.onTouchEnd(id, pos, size, cancel);
-    this.kickButton.onTouchEnd(id, pos, size, cancel);
-    this.punchButton.onTouchEnd(id, pos, size, cancel);
-    this.blockButton.onTouchEnd(id, pos, size, cancel);
-    return false;
-  }
-
-  onKeyPressed(key) {
-    this.moveJoystick.onKeyPressed(key);
-    this.kickButton.onKeyPressed(key);
-    this.punchButton.onKeyPressed(key);
-    this.blockButton.onKeyPressed(key);
-    return false;
-  }
-
-  onKeyReleased(key) {
-    this.moveJoystick.onKeyReleased(key);
-    this.kickButton.onKeyReleased(key);
-    this.punchButton.onKeyReleased(key);
-    this.blockButton.onKeyReleased(key);
-    return false;
-  }
-
-  pushToInputs(inputs) {
-    inputs.put("moveDir", this.moveJoystick.getDir());
-    inputs.put("kick", this.kickButton.isDown());
-    inputs.put("punch", this.punchButton.isDown());
-    inputs.put("block", this.blockButton.isDown());
-  }
-
-  toString() {
-  }
-
-  static create(drivers) {
-    let res = new CombatCharacterController();
-    res.moveJoystick = Joystick.create().addTrait(UiComponentTrait.SQUARE).setCircle(false).setRegionFnc((s) => {
-  if (s.width()>s.height()) {
-    let h5 = s.height()*0.05;
-    let h30 = s.height()*0.3;
-    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(h5, s.height()-h5-size, size, size);
-  }
-  else {
-    let h2 = s.height()*0.02;
-    let h5 = s.height()*0.05;
-    let h20 = s.height()*0.2;
-    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(h2, s.height()-h5-size, size, size);
-  }
-}).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD());
-    res.kickButton = Button.create().addTrait(PlayUis.CIRCLE_KICK).setRegionFnc((s) => {
-  if (s.width()>s.height()) {
-    let h2 = s.height()*0.02;
-    let h5 = s.height()*0.05;
-    let h6 = s.height()*0.06;
-    let h12 = s.height()*0.12;
-    let h15 = s.height()*0.15;
-    let punchSize = FMath.clamp(h15, 1, s.width()*0.3-h5);
-    let size = FMath.clamp(h12, 1, s.width()*0.3-h5);
-    return Rect2.create(s.width()-h5-size, s.height()-h6-h2-size-punchSize, size, size);
-  }
-  else {
-    let h2 = s.height()*0.02;
-    let h5 = s.height()*0.05;
-    let h6 = s.height()*0.06;
-    let h12 = s.height()*0.12;
-    let h15 = s.height()*0.15;
-    let punchSize = FMath.clamp(h15, 1, s.width()*0.3-h5);
-    let size = FMath.clamp(h12, 1, s.width()*0.3-h5);
-    return Rect2.create(s.width()-h2-size, s.height()-h6-h2-size-punchSize, size, size);
-  }
-}).setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("O"));
-    res.punchButton = Button.create().addTrait(PlayUis.CIRCLE_PUNCH).setRegionFnc((s) => {
-  if (s.width()>s.height()) {
-    let h5 = s.height()*0.05;
-    let h6 = s.height()*0.06;
-    let h15 = s.height()*0.15;
-    let size = FMath.clamp(h15, 1, s.width()*0.3-h5);
-    return Rect2.create(s.width()-h5-size, s.height()-h6-size, size, size);
-  }
-  else {
-    let h2 = s.height()*0.02;
-    let h5 = s.height()*0.05;
-    let h6 = s.height()*0.06;
-    let h15 = s.height()*0.15;
-    let size = FMath.clamp(h15, 1, s.width()*0.3-h5);
-    return Rect2.create(s.width()-h2-size, s.height()-h6-size, size, size);
-  }
-}).setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("I"));
-    res.blockButton = Button.create().addTrait(PlayUis.CIRCLE_BLOCK).setRegionFnc((s) => {
-  if (s.width()>s.height()) {
-    let h2 = s.height()*0.02;
-    let h5 = s.height()*0.05;
-    let h6 = s.height()*0.06;
-    let h12 = s.height()*0.12;
-    let h15 = s.height()*0.15;
-    let punchSize = FMath.clamp(h15, 1, s.width()*0.3-h5);
-    let size = FMath.clamp(h12, 1, s.width()*0.3-h5);
-    return Rect2.create(s.width()-h5-h2-size-punchSize, s.height()-h6-1.0*size, size, size);
-  }
-  else {
-    let h2 = s.height()*0.02;
-    let h5 = s.height()*0.05;
-    let h6 = s.height()*0.06;
-    let h12 = s.height()*0.12;
-    let h15 = s.height()*0.15;
-    let punchSize = FMath.clamp(h15, 1, s.width()*0.3-h5);
-    let size = FMath.clamp(h12, 1, s.width()*0.3-h5);
-    return Rect2.create(s.width()-h2-h2-size-punchSize, s.height()-h6-1.0*size, size, size);
-  }
-}).setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("J"));
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.CombatCharacterController = CombatCharacterController;
-class CombatGameStatePromoter extends UiComponent {
-  static PLACEHOLDER_TID = TextureId.of("----");
-  static NUMBER_3_TID = TextureId.of("number-3");
-  static NUMBER_2_TID = TextureId.of("number-2");
-  static NUMBER_1_TID = TextureId.of("number-1");
-  static FIGHT_TID = TextureId.of("fight");
-  static YOU_WIN_TID = TextureId.of("you-win");
-  static YOU_LOSE_TID = TextureId.of("you-lose");
-  gameMaster;
-  textureAspects;
-  centerView;
-  containerSize = Size2.create(1, 1);
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "CombatGameStatePromoter";
-  }
-
-  guardInvariants() {
-  }
-
-  move(dt) {
-    let state = this.gameMaster.getState();
-    let stateTime = this.gameMaster.getStateTime();
-    if (state.equals(CombatGameState.PREPARATION)) {
-      if (stateTime<1) {
-        this.centerView = null;
-      }
-      else {
-        if (this.centerView==null) {
-          this.centerView = ImageView.create().setTexture(CombatGameStatePromoter.PLACEHOLDER_TID).setRegionFnc((s) => {
-  let h2 = s.height()*0.02;
-  let h5 = s.height()*0.05;
-  return Rect2.create(s.width()/2-h5/2, h2, h5, h5);
-});
-          this.centerView.onContainerResize(this.containerSize);
-        }
-        if (stateTime<2) {
-          if (!this.centerView.getTexture().equals(CombatGameStatePromoter.NUMBER_3_TID)) {
-            this.centerView.setTexture(CombatGameStatePromoter.NUMBER_3_TID);
-            this.gameMaster.playSound(SoundId.of("number-3"));
-          }
-        }
-        else if (stateTime<3) {
-          if (!this.centerView.getTexture().equals(CombatGameStatePromoter.NUMBER_2_TID)) {
-            this.centerView.setTexture(CombatGameStatePromoter.NUMBER_2_TID);
-            this.gameMaster.playSound(SoundId.of("number-2"));
-          }
-        }
-        else {
-          if (!this.centerView.getTexture().equals(CombatGameStatePromoter.NUMBER_1_TID)) {
-            this.centerView.setTexture(CombatGameStatePromoter.NUMBER_1_TID);
-            this.gameMaster.playSound(SoundId.of("number-1"));
-          }
-        }
-        let ttt = stateTime-FMath.trunc(stateTime);
-        let max = 0.4*(1-ttt)+0.3*ttt;
-        this.centerView.setRegionFnc(this.creteCenterRegionFnc(this.centerView.getTexture(), max, max));
-      }
-    }
-    else if (state.equals(CombatGameState.COMBAT)) {
-      if (stateTime<0.5) {
-        if (this.centerView==null||!this.centerView.getTexture().equals(CombatGameStatePromoter.FIGHT_TID)) {
-          this.centerView = ImageView.create().setTexture(CombatGameStatePromoter.FIGHT_TID).setRegionFnc((s) => {
-  let h2 = s.height()*0.02;
-  let h5 = s.height()*0.05;
-  return Rect2.create(s.width()/2-h5/2, h2, h5, h5);
-});
-          this.centerView.onContainerResize(this.containerSize);
-          this.gameMaster.playSound(SoundId.of("fight"));
-        }
-        let ttt = stateTime-FMath.trunc(stateTime);
-        let max = 0.3*(1-ttt)+0.1*ttt;
-        this.centerView.setRegionFnc(this.creteCenterRegionFnc(this.centerView.getTexture(), max, max));
-      }
-      else {
-        this.centerView = null;
-      }
-    }
-    else if (state.equals(CombatGameState.FINISH_PLAYER_WIN)) {
-      if (this.centerView==null) {
-        this.centerView = ImageView.create().setTexture(CombatGameStatePromoter.YOU_WIN_TID).setRegionFnc((s) => {
-  let h2 = s.height()*0.02;
-  let h5 = s.height()*0.05;
-  return Rect2.create(s.width()/2-h5/2, h2, h5, h5);
-});
-        this.centerView.onContainerResize(this.containerSize);
-        this.gameMaster.playSound(SoundId.of("you-win"));
-      }
-      let ttt = FMath.clamp(stateTime, 0, 1);
-      let max = 0.1*(1-ttt)+0.5*ttt;
-      this.centerView.setRegionFnc(this.creteCenterRegionFnc(this.centerView.getTexture(), max, max));
-    }
-    else if (state.equals(CombatGameState.FINISH_PLAYER_LOSE)) {
-      if (this.centerView==null) {
-        this.centerView = ImageView.create().setTexture(CombatGameStatePromoter.YOU_LOSE_TID).setRegionFnc((s) => {
-  let h2 = s.height()*0.02;
-  let h5 = s.height()*0.05;
-  return Rect2.create(s.width()/2-h5/2, h2, h5, h5);
-});
-        this.centerView.onContainerResize(this.containerSize);
-        this.gameMaster.playSound(SoundId.of("you-lose"));
-      }
-      let ttt = FMath.clamp(stateTime, 0, 1);
-      let max = 0.1*(1-ttt)+0.5*ttt;
-      this.centerView.setRegionFnc(this.creteCenterRegionFnc(this.centerView.getTexture(), max, max));
-    }
-    else {
-      this.centerView = null;
-    }
-    if (this.centerView!=null) {
-      this.centerView.move(dt);
-    }
-  }
-
-  draw(painter) {
-    if (this.centerView!=null) {
-      this.centerView.draw(painter);
-    }
-  }
-
-  onContainerResize(size) {
-    this.containerSize = size;
-    if (this.centerView!=null) {
-      this.centerView.onContainerResize(size);
-    }
-  }
-
-  creteCenterRegionFnc(textureId, maxWidthFactor, maxHeightFactor) {
-    let texAspect = this.textureAspects.get(textureId);
-    return (size) => {
-      let sizeAspect = (size.width()*maxWidthFactor)/(size.height()*maxHeightFactor);
-      if (texAspect>=sizeAspect) {
-        let w = size.width()*maxWidthFactor;
-        let h = w/texAspect;
-        return Rect2.create(size.width()/2-w/2, size.height()/2-h/2, w, h);
-      }
-      else {
-        let h = size.height()*maxHeightFactor;
-        let w = h*texAspect;
-        return Rect2.create(size.width()/2-w/2, size.height()/2-h/2, w, h);
-      }
-    };
-  }
-
-  toString() {
-  }
-
-  static create(assets, gameMaster) {
-    let res = new CombatGameStatePromoter();
-    res.gameMaster = gameMaster;
-    res.centerView = null;
-    res.textureAspects = Dut.immutableMap(CombatGameStatePromoter.NUMBER_3_TID, assets.get("Texture", CombatGameStatePromoter.NUMBER_3_TID).getAspect(), CombatGameStatePromoter.NUMBER_2_TID, assets.get("Texture", CombatGameStatePromoter.NUMBER_2_TID).getAspect(), CombatGameStatePromoter.NUMBER_1_TID, assets.get("Texture", CombatGameStatePromoter.NUMBER_1_TID).getAspect(), CombatGameStatePromoter.FIGHT_TID, assets.get("Texture", CombatGameStatePromoter.FIGHT_TID).getAspect(), CombatGameStatePromoter.YOU_WIN_TID, assets.get("Texture", CombatGameStatePromoter.YOU_WIN_TID).getAspect(), CombatGameStatePromoter.YOU_LOSE_TID, assets.get("Texture", CombatGameStatePromoter.YOU_LOSE_TID).getAspect());
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.CombatGameStatePromoter = CombatGameStatePromoter;
-class FighterStateIndicator extends UiComponent {
-  borderColor;
-  bgColor;
-  healthBarColor;
-  staminaBarColor;
-  flip = false;
-  character;
-  regionFnc;
-  containerSize;
-  region;
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "FighterStateIndicator";
-  }
-
-  guardInvariants() {
-  }
-
-  move(dt) {
-  }
-
-  draw(painter) {
-    if (this.character==null) {
-      return ;
-    }
-    let hbRect = Rect2.create(this.region.x(), this.region.y(), this.region.width(), this.region.height()*0.7);
-    let stRect = Rect2.create(this.flip?this.region.x()+this.region.width()*0.3:this.region.x(), this.region.y()+this.region.height()*0.7, this.region.width()*0.7, this.region.height()*0.3);
-    if (this.bgColor.a()>0) {
-      painter.fillRect(hbRect, this.bgColor);
-      painter.fillRect(stRect, this.bgColor);
-    }
-    if (this.flip) {
-      let healthRect = Rect2.create(this.region.x()+this.region.width()*(1-this.character.getHealthRatio()), this.region.y(), FMath.max(0, this.region.width()*this.character.getHealthRatio()), this.region.height()*0.7);
-      let staminaRect = Rect2.create(this.region.x()+this.region.width()*0.3+this.region.width()*0.7*(1-this.character.getStaminaRatio()), this.region.y()+this.region.height()*0.7, FMath.max(0, this.region.width()*0.7*this.character.getStaminaRatio()), this.region.height()*0.3);
-      painter.fillRect(healthRect, this.healthBarColor);
-      painter.fillRect(staminaRect, this.staminaBarColor);
-    }
-    else {
-      let healthRect = Rect2.create(this.region.x(), this.region.y(), FMath.max(0, this.region.width()*this.character.getHealthRatio()), this.region.height()*0.7);
-      let staminaRect = Rect2.create(this.region.x(), this.region.y()+this.region.height()*0.7, FMath.max(0, this.region.width()*0.7*this.character.getStaminaRatio()), this.region.height()*0.3);
-      painter.fillRect(healthRect, this.healthBarColor);
-      painter.fillRect(staminaRect, this.staminaBarColor);
-    }
-    if (this.borderColor.a()>0) {
-      let p1 = Vec2.create(hbRect.x(), hbRect.y());
-      let p2 = Vec2.create(hbRect.x()+hbRect.width(), hbRect.y());
-      let p3 = Vec2.create(hbRect.x()+hbRect.width(), hbRect.y()+hbRect.height());
-      let p4 = Vec2.create(hbRect.x(), hbRect.y()+hbRect.height());
-      let p5 = Vec2.create(stRect.x(), stRect.y());
-      let p6 = Vec2.create(stRect.x()+stRect.width(), stRect.y());
-      let p7 = Vec2.create(stRect.x()+stRect.width(), stRect.y()+stRect.height());
-      let p8 = Vec2.create(stRect.x(), stRect.y()+stRect.height());
-      painter.drawLine(p1, p2, this.borderColor);
-      painter.drawLine(p2, p3, this.borderColor);
-      painter.drawLine(p3, p4, this.borderColor);
-      painter.drawLine(p4, p1, this.borderColor);
-      painter.drawLine(p5, p6, this.borderColor);
-      painter.drawLine(p6, p7, this.borderColor);
-      painter.drawLine(p7, p8, this.borderColor);
-      painter.drawLine(p8, p5, this.borderColor);
-    }
-  }
-
-  onContainerResize(size) {
-    this.containerSize = size;
-    this.region = Functions.apply(this.regionFnc, size);
-  }
-
-  setBorderColor(borderColor) {
-    Guard.notNull(borderColor, "borderColor cannot be null");
-    this.borderColor = borderColor;
-    return this;
-  }
-
-  setBgColor(bgColor) {
-    Guard.notNull(bgColor, "bgColor cannot be null");
-    this.bgColor = bgColor;
-    return this;
-  }
-
-  setRegionFnc(regionFnc) {
-    Guard.notNull(regionFnc, "regionFnc cannot be null");
-    this.regionFnc = regionFnc;
-    this.onContainerResize(this.containerSize);
-    return this;
-  }
-
-  setCharacter(character) {
-    this.character = character;
-    return this;
-  }
-
-  setFlip(flip) {
-    this.flip = flip;
-    return this;
-  }
-
-  toString() {
-  }
-
-  static create() {
-    let res = new FighterStateIndicator();
-    res.borderColor = Rgba.create(0.8, 0.8, 0.8, 1);
-    res.bgColor = Rgba.create(0.2, 0.2, 0.2, 1);
-    res.healthBarColor = Rgba.create(0.9, 0.2, 0.2, 1);
-    res.staminaBarColor = Rgba.create(0.2, 0.2, 0.9, 1);
-    res.regionFnc = UiRegionFncs.center(100, 25);
-    res.containerSize = Size2.create(1, 1);
-    res.region = Functions.apply(res.regionFnc, res.containerSize);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FighterStateIndicator = FighterStateIndicator;
-class BloodBehavior extends Behavior {
-  rigidBody;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "BloodBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-  }
-
-  move(dt, inputs) {
-  }
-
-  lateMove(dt, inputs) {
-    if (this.rigidBody.isKinematic()) {
-      return ;
-    }
-    for (let cmp of this.actor().getComponents()) {
-      if (!(cmp instanceof ColliderComponent)) {
-        continue;
-      }
-      let collider = cmp;
-      let cols = this.world().collisions().getColliderIntersections(collider);
-      if (!cols.isEmpty()) {
-        this.rigidBody.setVelocity(Vec3.ZERO);
-        this.rigidBody.setAngularVelocity(Vec3.ZERO);
-        this.rigidBody.setKinematic(true);
-        return ;
-      }
-    }
-  }
-
-  setPrefabProperties(idMapping, properties) {
-  }
-
-  static create(key) {
-    let res = new BloodBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.BloodBehavior = BloodBehavior;
-class DustBehavior extends Behavior {
-  rigidBody;
-  force;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "DustBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-    this.force = Vec3.create(Randoms.nextFloat(-10, 10), Randoms.nextFloat(15, 20), Randoms.nextFloat(-10, 10)).scale(this.rigidBody.getMass());
-  }
-
-  move(dt, inputs) {
-    this.rigidBody.applyForce(this.rigidBody.getPos(), this.force);
-  }
-
-  lateMove(dt, inputs) {
-  }
-
-  setPrefabProperties(idMapping, properties) {
-  }
-
-  static create(key) {
-    let res = new DustBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.DustBehavior = DustBehavior;
-class FireballBehavior extends Behavior {
-  transform;
-  collider;
-  sourceId;
-  velocity;
-  damage;
-  impulse;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "FireballBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.transform = this.actor().getComponent("TransformComponent");
-    this.collider = this.actor().getComponent("ColliderComponent");
-  }
-
-  move(dt, inputs) {
-    this.transform.move(this.velocity.scale(dt));
-    let hits = this.world().collisions().getColliderIntersections(this.collider);
-    let actorHits = new HashMap();
-    let actorHitPos = new HashMap();
-    for (let hit of hits) {
-      if (hit.getActor().getId().equals(this.sourceId)) {
-        continue;
-      }
-      if (!actorHits.containsKey(hit.getActor().getId())) {
-        actorHits.put(hit.getActor().getId(), new HashSet());
-      }
-      actorHits.get(hit.getActor().getId()).add(hit.getZone());
-      actorHitPos.put(hit.getActor().getId(), this.collider.toGlobal(Vec3.ZERO));
-    }
-    if (!actorHits.isEmpty()) {
-      let hitDir = this.transform.toGlobalRot(Vec3.FORWARD);
-      for (let actorId of actorHits.keySet()) {
-        let hitPos = actorHitPos.get(actorId);
-        let hitMsgPayload = HitMessage.create(hitPos, hitDir, this.damage, this.impulse, 0, actorHits.get(actorId));
-        let hittedActor = this.world().actors().get(actorId);
-        hittedActor.sendMessage(ActorMessage.create(ActorMessageType.HIT_RECEIVED, hitMsgPayload));
-      }
-      this.world().actors().remove(this.actor().getId());
-    }
-  }
-
-  onMessage(message) {
-    if (message.typeEquals(ActorMessageType.HIT_RECEIVED)) {
-      this.world().actors().remove(this.actor().getId());
-    }
-  }
-
-  lateMove(dt, inputs) {
-  }
-
-  setPrefabProperties(idMapping, properties) {
-  }
-
-  setSourceId(sourceId) {
-    Guard.notNull(sourceId, "source id cannot be null");
-    this.sourceId = sourceId;
-    return this;
-  }
-
-  getPos() {
-    return this.transform.getPos();
-  }
-
-  getVelocity() {
-    return this.velocity;
-  }
-
-  setVelocity(velocity) {
-    Guard.notNull(velocity, "velocity cannot be null");
-    this.velocity = velocity;
-    return this;
-  }
-
-  setDamage(damage) {
-    this.damage = damage;
-    return this;
-  }
-
-  setImpulse(impulse) {
-    this.impulse = impulse;
-    return this;
-  }
-
-  static create(key) {
-    let res = new FireballBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FireballBehavior = FireballBehavior;
-class WeightedChoice {
-  choice;
-  weight;
-  constructor() {
-  }
-
-  getClass() {
-    return "WeightedChoice";
-  }
-
-  guardInvariants() {
-  }
-
-  getChoice() {
-    return this.choice;
-  }
-
-  getWeight() {
-    return this.weight;
-  }
-
-  hashCode() {
-    return this.choice.hashCode()+13*this.weight;
-  }
-
-  equals(obj) {
-    if (this==obj) {
-      return true;
-    }
-    if (obj==null) {
-      return false;
-    }
-    if (!(obj instanceof WeightedChoice)) {
-      return false;
-    }
-    let ob = obj;
-    return ob.choice.equals(this.choice)&&ob.weight==this.weight;
-  }
-
-  toString() {
-  }
-
-  static create(choice, weigh) {
-    let res = new WeightedChoice();
-    res.choice = choice;
-    res.weight = weigh;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.WeightedChoice = WeightedChoice;
-class WeightedRandomPicker {
-  choices;
-  weightSum;
-  constructor() {
-  }
-
-  getClass() {
-    return "WeightedRandomPicker";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.weightSum = 0;
-    for (let wc of this.choices) {
-      this.weightSum = this.weightSum+wc.getWeight();
-    }
-  }
-
-  pickOne() {
-    let rnd = Randoms.nextFloat(0, this.weightSum);
-    for (let wc of this.choices) {
-      if (rnd<wc.getWeight()) {
-        return wc.getChoice();
-      }
-      rnd = rnd-wc.getWeight();
-    }
-    if (this.choices.isEmpty()) {
-      throw new Error("no choice in this picker, add at least one choice first");
-    }
-    throw new Error("unable to pick choice, this exception means there is a bug in code");
-  }
-
-  plusChoice(choice, weight) {
-    let res = new WeightedRandomPicker();
-    res.choices = Dut.immutableListPlusItem(this.choices, WeightedChoice.create(choice, weight));
-    res.guardInvariants();
-    res.init();
-    return res;
-  }
-
-  hashCode() {
-    return this.choices.hashCode();
-  }
-
-  equals(obj) {
-    if (this==obj) {
-      return true;
-    }
-    if (obj==null) {
-      return false;
-    }
-    if (!(obj instanceof WeightedRandomPicker)) {
-      return false;
-    }
-    let ob = obj;
-    return ob.choices.equals(this.choices);
-  }
-
-  toString() {
-  }
-
-  static create() {
-    let res = new WeightedRandomPicker();
-    res.choices = Collections.emptyList();
-    res.guardInvariants();
-    res.init();
-    return res;
-  }
-
-}
-classRegistry.WeightedRandomPicker = WeightedRandomPicker;
-class Quest {
-  id;
-  name;
-  level;
-  nodes;
-  constructor() {
-  }
-
-  getClass() {
-    return "Quest";
-  }
-
-  guardInvariants() {
-  }
-
-  getId() {
-    return this.id;
-  }
-
-  getName() {
-    return this.name;
-  }
-
-  withName(name) {
-    let res = new Quest();
-    res.id = this.id;
-    res.name = name;
-    res.level = this.level;
-    res.nodes = this.nodes;
-    res.guardInvariants();
-    return res;
-  }
-
-  getLevel() {
-    return this.level;
-  }
-
-  withLevel(level) {
-    let res = new Quest();
-    res.id = this.id;
-    res.name = this.name;
-    res.level = level;
-    res.nodes = this.nodes;
-    res.guardInvariants();
-    return res;
-  }
-
-  getNodes() {
-    return this.nodes;
-  }
-
-  getNode(idx) {
-    return this.nodes.get(idx);
-  }
-
-  getNodeById(id) {
-    for (let i = 0; i<this.nodes.size(); ++i) {
-      if (this.nodes.get(i).getId().equals(id)) {
-        return this.nodes.get(i);
-      }
-    }
-    throw new Error("id not found: "+id);
-  }
-
-  getNumNodes() {
-    return this.nodes.size();
-  }
-
-  getNodeIdx(id) {
-    for (let i = 0; i<this.nodes.size(); ++i) {
-      if (this.nodes.get(i).getId().equals(id)) {
-        return i;
-      }
-    }
-    throw new Error("id not found: "+id);
-  }
-
-  getPrevNode(baseId) {
-    return this.nodes.get(this.getNodeIdx(baseId)-1);
-  }
-
-  getNextNode(baseId) {
-    return this.nodes.get(this.getNodeIdx(baseId)+1);
-  }
-
-  plusNode(node) {
-    let res = new Quest();
-    res.id = this.id;
-    res.name = this.name;
-    res.level = this.level;
-    res.nodes = Dut.immutableListPlusItem(this.nodes, node);
-    res.guardInvariants();
-    return res;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(id) {
-    let res = new Quest();
-    res.id = id;
-    res.name = "";
-    res.level = 0;
-    res.nodes = Collections.emptyList();
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.Quest = Quest;
-class QuestCameraShiftBehavior extends Behavior {
-  cameraFovy;
-  cameraController;
-  aspect = -1;
-  basePosOffset = Vec3.BACKWARD;
-  baseLookAtOffset = Vec3.ZERO;
-  basePosK = -1;
-  baseLookAtK = -1;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "QuestCameraShiftBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.cameraFovy = this.actor().getComponent("CameraFovyComponent");
-    this.cameraController = this.actor().getComponent("CameraControllerComponent");
-    this.basePosOffset = this.cameraController.getPosOffset();
-    this.baseLookAtOffset = this.cameraController.getLookAtOffset();
-    this.basePosK = this.cameraController.getPosK();
-    this.baseLookAtK = this.cameraController.getLookAtK();
-  }
-
-  move(dt, inputs) {
-    let targetId = this.cameraController.getTargetId();
-    if (this.world().actors().exists(targetId)) {
-      let asc = this.cameraFovy.getDisplaySize().aspect();
-      if (this.aspect!=asc) {
-        let pk = this.basePosK;
-        let lak = this.baseLookAtK;
-        this.aspect = asc;
-        let zFact = 1;
-        if (this.aspect>2) {
-          zFact = 1;
-          pk = this.basePosK;
-          lak = this.baseLookAtK;
-        }
-        else if (this.aspect>1) {
-          zFact = 1.5;
-          pk = FMath.min(1, 1.5*this.basePosK);
-          lak = FMath.min(1, 1.5*this.baseLookAtK);
-        }
-        else if (this.aspect>0.75) {
-          zFact = 2;
-          pk = FMath.min(1, 2*this.basePosK);
-          lak = FMath.min(1, 2*this.baseLookAtK);
-        }
-        else if (this.aspect>0.5) {
-          zFact = 2.5;
-          pk = FMath.min(1, 2.5*this.basePosK);
-          lak = FMath.min(1, 2.5*this.baseLookAtK);
-        }
-        else {
-          zFact = 3;
-          pk = FMath.min(1, 3*this.basePosK);
-          lak = FMath.min(1, 3*this.baseLookAtK);
-        }
-        let my = zFact*this.basePosOffset.y();
-        let mz = zFact*this.basePosOffset.z();
-        this.cameraController.setPosOffset(this.basePosOffset.withY(my).withZ(mz)).setLookAtOffset(this.baseLookAtOffset).setPosK(pk).setLookAtK(lak);
-      }
-    }
-  }
-
-  toString() {
-  }
-
-  static create(key) {
-    let res = new QuestCameraShiftBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.QuestCameraShiftBehavior = QuestCameraShiftBehavior;
-class QuestCharacterController extends UiComponent {
-  moveJoystick;
-  fightButton;
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "QuestCharacterController";
-  }
-
-  guardInvariants() {
-  }
-
-  init(container) {
-    this.moveJoystick.init(container);
-    this.fightButton.init(container);
-  }
-
-  move(dt) {
-    this.moveJoystick.move(dt);
-    this.fightButton.move(dt);
-  }
-
-  draw(painter) {
-    this.moveJoystick.draw(painter);
-    this.fightButton.draw(painter);
-  }
-
-  onContainerResize(size) {
-    this.moveJoystick.onContainerResize(size);
-    this.fightButton.onContainerResize(size);
-  }
-
-  onTouchStart(id, pos, size) {
-    this.moveJoystick.onTouchStart(id, pos, size);
-    this.fightButton.onTouchStart(id, pos, size);
-    return false;
-  }
-
-  onTouchMove(id, pos, size) {
-    this.moveJoystick.onTouchMove(id, pos, size);
-    this.fightButton.onTouchMove(id, pos, size);
-    return false;
-  }
-
-  onTouchEnd(id, pos, size, cancel) {
-    this.moveJoystick.onTouchEnd(id, pos, size, cancel);
-    this.fightButton.onTouchEnd(id, pos, size, cancel);
-    return false;
-  }
-
-  onKeyPressed(key) {
-    this.moveJoystick.onKeyPressed(key);
-    this.fightButton.onKeyPressed(key);
-    return false;
-  }
-
-  onKeyReleased(key) {
-    this.moveJoystick.onKeyReleased(key);
-    this.fightButton.onKeyReleased(key);
-    return false;
-  }
-
-  getMoveDir() {
-    return this.moveJoystick.getDir();
-  }
-
-  addFightButtonOnClickAction(action) {
-    this.fightButton.addOnClickAction(action);
-    return this;
-  }
-
-  toString() {
-  }
-
-  static create(drivers) {
-    let res = new QuestCharacterController();
-    res.moveJoystick = Joystick.create().addTrait(UiComponentTrait.SQUARE).setCircle(false).setRegionFnc((s) => {
-  if (s.width()>s.height()) {
-    let h5 = s.height()*0.05;
-    let h30 = s.height()*0.3;
-    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(h5, s.height()-h5-size, size, size);
-  }
-  else {
-    let h2 = s.height()*0.02;
-    let h5 = s.height()*0.05;
-    let h20 = s.height()*0.2;
-    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(h2, s.height()-h5-size, size, size);
-  }
-}).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD());
-    res.fightButton = Button.create().addTrait(UiComponentTrait.M).setRegionFnc((s) => {
-  if (s.width()>s.height()) {
-    let h5 = s.height()*0.05;
-    let h30 = s.height()*0.3;
-    let joystickSize = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(s.width()-joystickSize*2-h5, s.height()-joystickSize*0.75-h5, joystickSize*2, joystickSize/2);
-  }
-  else {
-    let h5 = s.height()*0.05;
-    let h20 = s.height()*0.2;
-    let joystickSize = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
-    let width = FMath.clamp(joystickSize*2, 1, s.width()-joystickSize-3*h5);
-    return Rect2.create(joystickSize+h5+h5, s.height()-joystickSize*0.75-h5, width, joystickSize/2);
-  }
-}).setText("Fight").setKeyCodeMatcher((keyCode) => {
-  return keyCode.isConrol()||keyCode.getUpperCharacter().equals("J")||keyCode.getUpperCharacter().equals("I")||keyCode.getUpperCharacter().equals("O");
-});
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.QuestCharacterController = QuestCharacterController;
-class QuestCharacterFailNodeSequence {
-  static BODY_MODEL_KEY = ComponentKey.of("body-model");
-  static ANIMATION_COLLECTION_ID = MeshAnimationCollectionId.of("base-fighter");
-  initialPos;
-  jumpPos;
-  time;
-  pos;
-  turn = 0;
-  delayTime = 0.5;
-  jumpTime = 0.75;
-  turnTime = 0.25;
-  jumpHeight = 1;
-  constructor() {
-  }
-
-  getClass() {
-    return "QuestCharacterFailNodeSequence";
-  }
-
-  guardInvariants() {
-  }
-
-  init(actorPos, actorRot) {
-    this.pos = this.initialPos;
-    this.turn = 0;
-    this.time = 0;
-    let anim = CinematicActorAnimationStart.create(QuestCharacterFailNodeSequence.BODY_MODEL_KEY, QuestCharacterFailNodeSequence.ANIMATION_COLLECTION_ID, MeshAnimationKey.of("jump-fly"));
-    return CinematicActorSequenceStart.create(this.pos, Quaternion.rotY(this.turn), Dut.list(anim));
-  }
-
-  move(dt) {
-    this.time = this.time+dt;
-    if (this.time<this.delayTime) {
-      let animation = CinematicActorAnimationStep.create(QuestCharacterFailNodeSequence.BODY_MODEL_KEY, MeshAnimationKey.of("idle"), MeshAnimationPlayConfig.PLAY);
-      return CinematicActorSequenceStep.create(this.initialPos, Quaternion.rotY(this.turn), Dut.list(animation), Dut.emptyList(), false, 0);
-    }
-    else if (this.time<this.delayTime+this.jumpTime) {
-      let t = this.time-this.delayTime;
-      let intt = t/this.jumpTime;
-      let h = this.jumpHeight*FMath.sin(intt*FMath.PI);
-      this.pos = this.initialPos.interpolate(this.jumpPos, intt).withY(h);
-      let animation = CinematicActorAnimationStep.create(QuestCharacterFailNodeSequence.BODY_MODEL_KEY, MeshAnimationKey.of("jump-fly"), MeshAnimationPlayConfig.PLAY);
-      return CinematicActorSequenceStep.create(this.pos, Quaternion.rotY(this.turn), Dut.list(animation), Dut.emptyList(), false, 0);
-    }
-    else {
-      let message = ActorMessage.createPlain(GameActors.DIE_MESSAGE_TYPE);
-      return CinematicActorSequenceStep.create(this.pos, Quaternion.ZERO_ROT, Dut.emptyList(), Dut.list(message), true, this.time-this.delayTime-this.jumpTime-this.turnTime);
-    }
-  }
-
-  toString() {
-  }
-
-  static create(initialPos, jumpPos) {
-    let res = new QuestCharacterFailNodeSequence();
-    res.initialPos = initialPos;
-    res.jumpPos = jumpPos;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.QuestCharacterFailNodeSequence = QuestCharacterFailNodeSequence;
-class QuestCharacterMoveActorSequence {
-  static BODY_MODEL_KEY = ComponentKey.of("body-model");
-  static ANIMATION_COLLECTION_ID = MeshAnimationCollectionId.of("base-fighter");
-  initialPos;
-  jumpPos;
-  walkPos;
-  time;
-  pos;
-  turn = 0;
-  delayTime = 0.5;
-  jumpTime = 0.75;
-  walkTime = 2;
-  turnTime = 0.25;
-  jumpHeight = 1;
-  constructor() {
-  }
-
-  getClass() {
-    return "QuestCharacterMoveActorSequence";
-  }
-
-  guardInvariants() {
-  }
-
-  init(actorPos, actorRot) {
-    this.pos = this.initialPos;
-    this.turn = 0;
-    this.time = 0;
-    let anim = CinematicActorAnimationStart.create(QuestCharacterMoveActorSequence.BODY_MODEL_KEY, QuestCharacterMoveActorSequence.ANIMATION_COLLECTION_ID, MeshAnimationKey.of("jump-fly"));
-    return CinematicActorSequenceStart.create(this.pos, Quaternion.rotY(this.turn), Dut.list(anim));
-  }
-
-  move(dt) {
-    this.time = this.time+dt;
-    if (this.time<this.delayTime) {
-      let animation = CinematicActorAnimationStep.create(QuestCharacterMoveActorSequence.BODY_MODEL_KEY, MeshAnimationKey.of("idle"), MeshAnimationPlayConfig.PLAY);
-      return CinematicActorSequenceStep.create(this.initialPos, Quaternion.rotY(this.turn), Dut.list(animation), Dut.emptyList(), false, 0);
-    }
-    else if (this.time<this.delayTime+this.jumpTime) {
-      let t = this.time-this.delayTime;
-      let intt = t/this.jumpTime;
-      let h = this.jumpHeight*FMath.sin(intt*FMath.PI);
-      this.pos = this.initialPos.interpolate(this.jumpPos, intt).withY(h);
-      let animation = CinematicActorAnimationStep.create(QuestCharacterMoveActorSequence.BODY_MODEL_KEY, MeshAnimationKey.of("jump-fly"), MeshAnimationPlayConfig.PLAY);
-      return CinematicActorSequenceStep.create(this.pos, Quaternion.rotY(this.turn), Dut.list(animation), Dut.emptyList(), false, 0);
-    }
-    else if (this.time<this.delayTime+this.jumpTime+this.walkTime) {
-      let t = this.time-this.delayTime-this.jumpTime;
-      let intt = t/this.walkTime;
-      this.pos = this.jumpPos.interpolate(this.walkPos, intt);
-      let turnt = FMath.min(t/this.turnTime, 1);
-      this.turn = turnt*FMath.PI_HALF;
-      let animation = CinematicActorAnimationStep.create(QuestCharacterMoveActorSequence.BODY_MODEL_KEY, MeshAnimationKey.of("walk"), MeshAnimationPlayConfig.PLAY);
-      return CinematicActorSequenceStep.create(this.pos, Quaternion.rotY(this.turn), Dut.list(animation), Dut.emptyList(), false, 0);
-    }
-    else if (this.time<this.delayTime+this.jumpTime+this.walkTime+this.turnTime) {
-      let t = this.time-this.delayTime-this.jumpTime-this.walkTime;
-      let turnt = FMath.min(t/this.turnTime, 1);
-      this.turn = (1-turnt)*FMath.PI_HALF;
-      let animation = CinematicActorAnimationStep.create(QuestCharacterMoveActorSequence.BODY_MODEL_KEY, MeshAnimationKey.of("idle"), MeshAnimationPlayConfig.PLAY);
-      return CinematicActorSequenceStep.create(this.pos, Quaternion.rotY(this.turn), Dut.list(animation), Dut.emptyList(), false, 0);
-    }
-    else {
-      return CinematicActorSequenceStep.create(this.pos, Quaternion.ZERO_ROT, Dut.emptyList(), Dut.emptyList(), true, this.time-this.delayTime-this.jumpTime-this.walkTime-this.turnTime);
-    }
-  }
-
-  toString() {
-  }
-
-  static create(initialPos, jumpPos, walkPos) {
-    let res = new QuestCharacterMoveActorSequence();
-    res.initialPos = initialPos;
-    res.jumpPos = jumpPos;
-    res.walkPos = walkPos;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.QuestCharacterMoveActorSequence = QuestCharacterMoveActorSequence;
-class QuestEnemy {
-  id;
-  type;
-  aiDifficulty;
-  toughnessFactor;
-  constructor() {
-  }
-
-  getClass() {
-    return "QuestEnemy";
-  }
-
-  guardInvariants() {
-  }
-
-  getId() {
-    return this.id;
-  }
-
-  getType() {
-    return this.type;
-  }
-
-  withType(type) {
-    let res = new QuestEnemy();
-    res.id = this.id;
-    res.type = type;
-    res.aiDifficulty = this.aiDifficulty;
-    res.toughnessFactor = this.toughnessFactor;
-    res.guardInvariants();
-    return res;
-  }
-
-  getAiDifficulty() {
-    return this.aiDifficulty;
-  }
-
-  withAiDifficulty(aiDifficulty) {
-    let res = new QuestEnemy();
-    res.id = this.id;
-    res.type = this.type;
-    res.aiDifficulty = aiDifficulty;
-    res.toughnessFactor = this.toughnessFactor;
-    res.guardInvariants();
-    return res;
-  }
-
-  getToughnessFactor() {
-    return this.toughnessFactor;
-  }
-
-  withToughnessFactor(toughnessFactor) {
-    let res = new QuestEnemy();
-    res.id = this.id;
-    res.type = this.type;
-    res.aiDifficulty = this.aiDifficulty;
-    res.toughnessFactor = toughnessFactor;
-    res.guardInvariants();
-    return res;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(id) {
-    let res = new QuestEnemy();
-    res.id = id;
-    res.type = FighterCharacterType.RIVEN;
-    res.aiDifficulty = 0.5;
-    res.toughnessFactor = 1;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.QuestEnemy = QuestEnemy;
-class QuestEnemyId {
-  id;
-  constructor() {
-  }
-
-  getClass() {
-    return "QuestEnemyId";
-  }
-
-  guardInvariants() {
-  }
-
-  getId() {
-    return this.id;
-  }
-
-  hashCode() {
-    return this.id.hashCode();
-  }
-
-  equals(obj) {
-    if (obj==null) {
-      return false;
-    }
-    if (!(obj instanceof QuestEnemyId)) {
-      return false;
-    }
-    let other = obj;
-    return other.id.equals(this.id);
-  }
-
-  toString() {
-  }
-
-  static of(id) {
-    let res = new QuestEnemyId();
-    res.id = id;
-    res.guardInvariants();
-    return res;
-  }
-
-  static random() {
-    let res = new QuestEnemyId();
-    res.id = Randoms.nextAlphabetic(6);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.QuestEnemyId = QuestEnemyId;
-class QuestId {
-  id;
-  constructor() {
-  }
-
-  getClass() {
-    return "QuestId";
-  }
-
-  guardInvariants() {
-  }
-
-  getId() {
-    return this.id;
-  }
-
-  hashCode() {
-    return this.id.hashCode();
-  }
-
-  equals(obj) {
-    if (obj==null) {
-      return false;
-    }
-    if (!(obj instanceof QuestId)) {
-      return false;
-    }
-    let other = obj;
-    return other.id.equals(this.id);
-  }
-
-  toString() {
-  }
-
-  static of(id) {
-    let res = new QuestId();
-    res.id = id;
-    res.guardInvariants();
-    return res;
-  }
-
-  static random() {
-    let res = new QuestId();
-    res.id = Randoms.nextAlphabetic(6);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.QuestId = QuestId;
-class QuestNode {
-  id;
-  type;
-  arena;
-  enemies;
-  constructor() {
-  }
-
-  getClass() {
-    return "QuestNode";
-  }
-
-  guardInvariants() {
-  }
-
-  getId() {
-    return this.id;
-  }
-
-  getType() {
-    return this.type;
-  }
-
-  typeEquals(tp) {
-    return this.type.equals(tp);
-  }
-
-  isCombat() {
-    return this.type.equals(QuestNodeType.COMBAT);
-  }
-
-  withType(type) {
-    let res = new QuestNode();
-    res.id = this.id;
-    res.type = type;
-    res.arena = this.arena;
-    res.enemies = this.enemies;
-    res.guardInvariants();
-    return res;
-  }
-
-  getArena() {
-    return this.arena;
-  }
-
-  withArena(arena) {
-    let res = new QuestNode();
-    res.id = this.id;
-    res.type = this.type;
-    res.arena = arena;
-    res.enemies = this.enemies;
-    res.guardInvariants();
-    return res;
-  }
-
-  getEnemies() {
-    return this.enemies;
-  }
-
-  plusEnemy(enemy) {
-    let res = new QuestNode();
-    res.id = this.id;
-    res.type = this.type;
-    res.arena = this.arena;
-    res.enemies = Dut.immutableListPlusItem(this.enemies, enemy);
-    res.guardInvariants();
-    return res;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(id) {
-    let res = new QuestNode();
-    res.id = id;
-    res.type = QuestNodeType.COMBAT;
-    res.arena = QuestNodeArena.create(QuestNodeArenaId.of("default"));
-    res.enemies = Collections.emptyList();
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.QuestNode = QuestNode;
-class QuestNodeArena {
-  id;
-  generatorType;
-  seed;
-  constructor() {
-  }
-
-  getClass() {
-    return "QuestNodeArena";
-  }
-
-  guardInvariants() {
-  }
-
-  getId() {
-    return this.id;
-  }
-
-  getGeneratorType() {
-    return this.generatorType;
-  }
-
-  withGeneratorType(generatorType) {
-    let res = new QuestNodeArena();
-    res.id = this.id;
-    res.generatorType = generatorType;
-    res.seed = this.seed;
-    res.guardInvariants();
-    return res;
-  }
-
-  getSeed() {
-    return this.seed;
-  }
-
-  withSeed(seed) {
-    let res = new QuestNodeArena();
-    res.id = this.id;
-    res.generatorType = this.generatorType;
-    res.seed = seed;
-    res.guardInvariants();
-    return res;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(id) {
-    let res = new QuestNodeArena();
-    res.id = id;
-    res.generatorType = QuestNodeArenaGeneratorType.MEDIEVAL_01;
-    res.seed = 1;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.QuestNodeArena = QuestNodeArena;
-const createQuestNodeArenaGeneratorType = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const QuestNodeArenaGeneratorType = Object.freeze({
-  MEDIEVAL_01: createQuestNodeArenaGeneratorType("MEDIEVAL_01"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class QuestNodeArenaId {
-  id;
-  constructor() {
-  }
-
-  getClass() {
-    return "QuestNodeArenaId";
-  }
-
-  guardInvariants() {
-  }
-
-  getId() {
-    return this.id;
-  }
-
-  hashCode() {
-    return this.id.hashCode();
-  }
-
-  equals(obj) {
-    if (obj==null) {
-      return false;
-    }
-    if (!(obj instanceof QuestNodeArenaId)) {
-      return false;
-    }
-    let other = obj;
-    return other.id.equals(this.id);
-  }
-
-  toString() {
-  }
-
-  static of(id) {
-    let res = new QuestNodeArenaId();
-    res.id = id;
-    res.guardInvariants();
-    return res;
-  }
-
-  static random() {
-    let res = new QuestNodeArenaId();
-    res.id = Randoms.nextAlphabetic(6);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.QuestNodeArenaId = QuestNodeArenaId;
-class QuestNodeBehavior extends Behavior {
-  statusType = null;
-  blockBoxActorId = null;
-  bannerActorId = null;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "QuestNodeBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-  }
-
-  move(dt, inputs) {
-    Guard.notNull(this.statusType, "status type must be set before first move");
-  }
-
-  lateMove(dt, inputs) {
-  }
-
-  setStatusType(statusType) {
-    Guard.notNull(statusType, "status type cannot be null");
-    if (this.statusType==null||this.statusType.equals(statusType)) {
-      this.applyStatusType(statusType);
-    }
-    else {
-      this.actor().getComponent("CinematicControllerComponent").addSequence(QuestNodeStatusCinematicActorSequence.create(statusType));
-    }
-    return this;
-  }
-
-  onMessage(message) {
-    if (message.typeEquals(GameActors.NODE_STATUS_TYPE_UPDATE)) {
-      let st = message.getPayload("QuestNodeStatusType");
-      this.applyStatusType(st);
-    }
-  }
-
-  applyStatusType(statusType) {
-    if (statusType.equals(QuestNodeStatusType.CLOSED)) {
-      this.statusType = statusType;
-      this.removeBannerActor();
-      this.blockBoxActorId = ActorId.random();
-      let blockBox = Actor.create(this.blockBoxActorId).addComponent(TransformComponent.create(ComponentKey.TRANSFORM)).addComponent(ModelComponent.create(ComponentKey.of("block-box")).setTransform(Mat44.trans(Vec3.create(0, 1, 0)).mul(Mat44.scale(3))).setModelId(ModelId.of("cube-ruby-transparent")).setCastShadows(false).setReceiveShadows(true));
-      this.world().actors().add(this.actor().getId(), blockBox);
-    }
-    else if (statusType.equals(QuestNodeStatusType.OPENED)) {
-      this.statusType = statusType;
-      this.removeBannerActor();
-      this.removeBlockBoxActor();
-    }
-    else if (statusType.equals(QuestNodeStatusType.COMPLETED)) {
-      this.statusType = statusType;
-      this.removeBlockBoxActor();
-      this.bannerActorId = ActorId.random();
-      let bannerActor = Actor.create(this.bannerActorId).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(Vec3.create(-1.2, 0, 1))).addComponent(ModelComponent.create(ComponentKey.of("banner")).setModelId(ModelId.of("banner-2")).setTransform(Mat44.trans(0, 1, 0).mul(Mat44.scale(0.6))));
-      this.world().actors().add(this.actor().getId(), bannerActor);
-    }
-  }
-
-  removeBlockBoxActor() {
-    if (this.blockBoxActorId!=null) {
-      this.world().actors().remove(this.blockBoxActorId);
-      this.blockBoxActorId = null;
-    }
-  }
-
-  removeBannerActor() {
-    if (this.bannerActorId!=null) {
-      this.world().actors().remove(this.bannerActorId);
-      this.bannerActorId = null;
-    }
-  }
-
-  toString() {
-  }
-
-  static create(key) {
-    let res = new QuestNodeBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.QuestNodeBehavior = QuestNodeBehavior;
-class QuestNodeId {
-  id;
-  constructor() {
-  }
-
-  getClass() {
-    return "QuestNodeId";
-  }
-
-  guardInvariants() {
-  }
-
-  getId() {
-    return this.id;
-  }
-
-  hashCode() {
-    return this.id.hashCode();
-  }
-
-  equals(obj) {
-    if (obj==null) {
-      return false;
-    }
-    if (!(obj instanceof QuestNodeId)) {
-      return false;
-    }
-    let other = obj;
-    return other.id.equals(this.id);
-  }
-
-  toString() {
-  }
-
-  static of(id) {
-    let res = new QuestNodeId();
-    res.id = id;
-    res.guardInvariants();
-    return res;
-  }
-
-  static random() {
-    let res = new QuestNodeId();
-    res.id = Randoms.nextAlphabetic(6);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.QuestNodeId = QuestNodeId;
-class QuestNodeStatus {
-  id;
-  type;
-  constructor() {
-  }
-
-  getClass() {
-    return "QuestNodeStatus";
-  }
-
-  guardInvariants() {
-  }
-
-  getId() {
-    return this.id;
-  }
-
-  getType() {
-    return this.type;
-  }
-
-  withType(type) {
-    let res = new QuestNodeStatus();
-    res.id = this.id;
-    res.type = type;
-    res.guardInvariants();
-    return res;
-  }
-
-  isAvailable() {
-    return this.type.equals(QuestNodeStatusType.OPENED)|this.type.equals(QuestNodeStatusType.COMPLETED);
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(id) {
-    let res = new QuestNodeStatus();
-    res.id = id;
-    res.type = QuestNodeStatusType.CLOSED;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.QuestNodeStatus = QuestNodeStatus;
-class QuestNodeStatusCinematicActorSequence {
-  statusType;
-  initialPos;
-  initialRot;
-  time;
-  pos;
-  constructor() {
-  }
-
-  getClass() {
-    return "QuestNodeStatusCinematicActorSequence";
-  }
-
-  guardInvariants() {
-  }
-
-  init(pos, rot) {
-    this.initialPos = pos;
-    this.initialRot = rot;
-    this.time = 0;
-    return CinematicActorSequenceStart.create(pos, rot, Dut.emptyList());
-  }
-
-  move(dt) {
-    this.time = this.time+dt;
-    if (this.time<0.5) {
-      let h = 0.5*FMath.sin(this.time/0.5*FMath.PI_HALF);
-      this.pos = this.initialPos.add(Vec3.create(0, h, 0));
-      return CinematicActorSequenceStep.create(this.pos, this.initialRot, Dut.emptyList(), Dut.emptyList(), false, 0);
-    }
-    else if (this.time<1.5) {
-      let ratio = (this.time-0.5)/1;
-      let spin = Quaternion.rotY(4*FMath.PI*ratio);
-      if (this.time>1&&this.statusType!=null) {
-        let st = this.statusType;
-        this.statusType = null;
-        let message = ActorMessage.create(GameActors.NODE_STATUS_TYPE_UPDATE, st);
-        return CinematicActorSequenceStep.create(this.pos, this.initialRot.mul(spin), Dut.emptyList(), Dut.list(message), false, 0);
-      }
-      else {
-        return CinematicActorSequenceStep.create(this.pos, this.initialRot.mul(spin), Dut.emptyList(), Dut.emptyList(), false, 0);
-      }
-    }
-    else if (this.time<2) {
-      let h = 0.5*FMath.sin((this.time-1.5)/0.5*FMath.PI_HALF+FMath.PI_HALF);
-      this.pos = this.initialPos.add(Vec3.create(0, h, 0));
-      return CinematicActorSequenceStep.create(this.pos, this.initialRot, Dut.emptyList(), Dut.emptyList(), false, 0);
-    }
-    else {
-      return CinematicActorSequenceStep.create(this.initialPos, this.initialRot, Dut.emptyList(), Dut.emptyList(), true, this.time-2);
-    }
-  }
-
-  toString() {
-  }
-
-  static create(statusType) {
-    let res = new QuestNodeStatusCinematicActorSequence();
-    res.statusType = statusType;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.QuestNodeStatusCinematicActorSequence = QuestNodeStatusCinematicActorSequence;
-const createQuestNodeStatusType = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const QuestNodeStatusType = Object.freeze({
-  CLOSED: createQuestNodeStatusType("CLOSED"),
-  OPENED: createQuestNodeStatusType("OPENED"),
-  COMPLETED: createQuestNodeStatusType("COMPLETED"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-const createQuestNodeType = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const QuestNodeType = Object.freeze({
-  COMBAT: createQuestNodeType("COMBAT"),
-  CELEBRATION: createQuestNodeType("CELEBRATION"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class QuestPlayerBehavior extends Behavior {
-  model;
-  animationPlayer;
-  controllable = true;
-  state = QuestPlayerState.IDLE;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "QuestPlayerBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.model = this.actor().getComponent("ModelComponent");
-    let animCol = this.world().assets().get("MeshAnimationCollection", GameActors.BASE_FIGHTER_ANIMATION_COLLECTION_ID);
-    this.animationPlayer = MeshAnimationPlayer.create(animCol, GameActors.IDLE_ANIMATION_KEY);
-  }
-
-  onMessage(message) {
-    if (message.typeEquals(CinematicActorMessages.CONTROL_START_MESSAGE.getType())) {
-      this.controllable = false;
-    }
-    else if (message.typeEquals(CinematicActorMessages.CONTROL_END_MESSAGE.getType())) {
-      this.controllable = true;
-    }
-    else if (message.typeEquals(GameActors.DIE_MESSAGE_TYPE)) {
-      this.state = QuestPlayerState.DEATH;
-    }
-  }
-
-  move(dt, inputs) {
-    if (!this.controllable) {
-      return ;
-    }
-    if (this.state.equals(QuestPlayerState.IDLE)) {
-      this.animationPlayer.play(GameActors.IDLE_ANIMATION_KEY, MeshAnimationPlayConfig.PLAY);
-    }
-    else if (this.state.equals(QuestPlayerState.COMMIT)) {
-      this.animationPlayer.play(GameActors.YES_ANIMATION_KEY, MeshAnimationPlayConfig.PLAY);
-    }
-    else if (this.state.equals(QuestPlayerState.CELEBRATE)) {
-      this.animationPlayer.play(GameActors.DANCE_ANIMATION_KEY, MeshAnimationPlayConfig.PLAY);
-    }
-    else if (this.state.equals(QuestPlayerState.DEATH)) {
-      if (this.animationPlayer.keyNotIn(GameActors.DEATH_ANIMATION_KEYS)) {
-        this.animationPlayer.play(Randoms.pickOne(GameActors.DEATH_ANIMATION_KEYS), MeshAnimationPlayConfig.PLAY);
-      }
-    }
-    let step = this.animationPlayer.move(dt);
-    this.model.setInterpolation(step.getInterpolation());
-    this.model.setPose(step.getPose());
-  }
-
-  lateMove(dt, inputs) {
-  }
-
-  getState() {
-    return this.state;
-  }
-
-  isControllable() {
-    return this.controllable;
-  }
-
-  canCommmitFight() {
-    return this.controllable&this.state.equals(QuestPlayerState.IDLE);
-  }
-
-  celebrate() {
-    Guard.equals(this.state, QuestPlayerState.IDLE, "player must be in idle state to be able to celebrate");
-    this.state = QuestPlayerState.CELEBRATE;
-    return this;
-  }
-
-  commitFight() {
-    Guard.equals(this.state, QuestPlayerState.IDLE, "player must be in idle state to be able commit fight");
-    this.state = QuestPlayerState.COMMIT;
-    return this;
-  }
-
-  isFightReady() {
-    return this.animationPlayer.keyEquals(GameActors.YES_ANIMATION_KEY)&&this.animationPlayer.isEnd();
-  }
-
-  toString() {
-  }
-
-  static create(key) {
-    let res = new QuestPlayerBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.QuestPlayerBehavior = QuestPlayerBehavior;
-const createQuestPlayerState = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const QuestPlayerState = Object.freeze({
-  IDLE: createQuestPlayerState("IDLE"),
-  COMMIT: createQuestPlayerState("COMMIT"),
-  DEATH: createQuestPlayerState("DEATH"),
-  CELEBRATE: createQuestPlayerState("CELEBRATE"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class QuestScreen extends TyracornScreen {
-  static NODE_DISTANCE = 4;
-  static NODE_Z = -1.5;
-  appManager;
-  cinematicSequenceType;
-  world;
-  inputs = InputCache.create();
-  ui;
-  paused = false;
-  audio;
-  questPlayerBehavior;
-  questNodeActors;
-  constructor(appManager, cinematicSequenceType) {
-    super();
-    this.appManager = appManager;
-    this.cinematicSequenceType = cinematicSequenceType;
-    this.guardInvariants();
-  }
-
-  getClass() {
-    return "QuestScreen";
-  }
-
-  guardInvariants() {
-  }
-
-  move(drivers, screenManager, dt) {
-    let gDriver = drivers.getDriver("GraphicsDriver");
-    if (this.paused&&this.ui.getNumLayers()==1) {
-      this.ui.pushLayer();
-      this.ui.addComponent(Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setRegionFnc(UiRegionFncs.full()));
-      let panel916 = MenuUis.createPanel916();
-      this.ui.addComponent(panel916);
-      panel916.addComponent(MenuUis.createOverlayPanel(1, 11, true));
-      panel916.addComponent(MenuUis.createTitleLabel("Pause", 3));
-      panel916.addComponent(MenuUis.createMediumBtn("Resume", 5, false, (btn) => {
-  this.paused = false;
-  this.ui.popLayer();
-}));
-      panel916.addComponent(MenuUis.createMediumBtn("Exit", 7, false, UiEventActions.showScreen(screenManager, new MenuScreen(this.appManager))));
-    }
-    if (this.questPlayerBehavior.isFightReady()) {
-      let node = this.appManager.getStoryManager().getCurrentQuestNode();
-      let arenaScene = CombatArenas.createQuestNodeArenaScene(node.getArena());
-      let scenario = CombatScenario.create(arenaScene).withEnemies(node.getEnemies());
-      let screen = new CombatScreen(this.appManager, scenario);
-      screenManager.showScreen(screen);
-    }
-    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    if (!this.paused) {
+      this.inputs.put("moveDir", this.gamePad.getLeftDir());
+      this.inputs.put("rotDir", this.gamePad.getRightDir());
       this.world.move(dt, this.inputs);
     }
     this.world.render(RenderRequest.NORMAL);
@@ -43552,82 +37036,51 @@ class QuestScreen extends TyracornScreen {
   }
 
   load(drivers, screenManager, properties) {
-    let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
-    res.addAll(Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/music.tap")), assets.resolveAsync(Path.of("asset:packages/elements.tap")), assets.resolveAsync(Path.of("asset:packages/characters/base-fighter.tap")), assets.resolveAsync(Path.of("asset:packages/characters/audience.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/skybox.tap")), assets.resolveAsync(Path.of("asset:default.tap")), assets.resolveAsync(Path.of("asset:prefabs.tap")), assets.resolveAsync(Path.of("asset:scenes.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/medieval-village.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/nature.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/sci-fi.tap"))));
-    return res;
+    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/primitives.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")), assets.resolveAsync(Path.of("asset:packages/characters/base-human.tap")));
   }
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
     Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 30));
+    assets.put(MaterialId.of("brass"), Material.BRASS);
+    assets.put(MaterialId.of("copper"), Material.COPPER);
+    assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
+    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
+    let groundModelId = ModelId.of("ground");
+    assets.put(groundModelId, groundModel);
+    const wallColMatId = PhysicalMaterialId.of("wall");
+    assets.put(wallColMatId, PhysicalMaterial.simple(0.6, 1.8, 1.8));
     this.world = RigidBodyWorld.create(drivers);
-    this.audio = AudioBehavior.create(ComponentKey.random());
-    let storyManager = this.appManager.getStoryManager();
-    let currentQuest = storyManager.getCurrentQuest();
-    let currentQuestStatus = storyManager.getCurrentQuestStatus();
-    let playerInitialPosOffset = Vec3.ZERO;
-    if (this.cinematicSequenceType.equals(QuestScreenCinematicSequenceType.COMPLETE_PREVIOUS_NODE)) {
-      playerInitialPosOffset = Vec3.create(-QuestScreen.NODE_DISTANCE, 0, -2);
+    let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create(ComponentKey.WORLD).setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-30, -30, -30, 30, 30, 30)));
+    this.world.actors().add(ActorId.ROOT, worldActor);
+    let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create(ComponentKey.TRANSFORM)).addComponent(SkyboxComponent.create(ComponentKey.SKYBOX).setModelId(ModelId.of("skybox-1")).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create(ComponentKey.AUTO_ROTATE).setAngularVelocity(Vec3.create(0, 0.1, 0)));
+    this.world.actors().add(ActorId.ROOT, skybox);
+    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(20, 1, 20)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 2, 22)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
+    this.world.actors().add(ActorId.ROOT, ground);
+    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(2, 5, 5), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE).setDirShadowMapStrategy(DirShadowMapStrategy.createManual(80, 80, 0, 60)));
+    this.world.actors().add(ActorId.ROOT, light);
+    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 4, 5), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create(ComponentKey.random(), "moveDir", "rotDir", 5, 1)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY));
+    this.world.actors().add(ActorId.ROOT, camera);
+    let animations = assets.get("MeshAnimationCollection", MeshAnimationCollectionId.of("base-human"));
+    let player = MeshAnimationPlayer.create(animations, animations.getAnimations().get(0).getKey());
+    let model = assets.get("Model", ModelId.of("base-human"));
+    let character = Actor.create("character").setName("character").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(ModelId.of("base-human")).setPose(model.getArmature().getBasePose())).addComponent(ColliderComponent.create(ComponentKey.random()).setShape(ColliderShape.SPHERE).setPoseNodeRef(ColliderPoseNodeRef.create(ComponentKey.MODEL_1, ArmatureNodeId.of("DEF-head"))).setPos(0, 0.1, 0).setRadius(0.15)).addComponent(ColliderComponent.create(ComponentKey.random()).setShape(ColliderShape.BOX).setPoseNodeRef(ColliderPoseNodeRef.create(ComponentKey.MODEL_1, ArmatureNodeId.of("DEF-spine.002"))).setPos(0, 0.1, 0).setSize(0.3, 0.7, 0.2)).addComponent(ColliderComponent.create(ComponentKey.random()).setShape(ColliderShape.CAPSULE).setPoseNodeRef(ColliderPoseNodeRef.create(ComponentKey.MODEL_1, ArmatureNodeId.of("DEF-shin.R"))).setPos(0, 0.25, 0).setRadius(0.075).setHeight(0.6)).addComponent(PlayAnimationBehavior.create(ComponentKey.random(), player));
+    this.world.actors().add(ActorId.ROOT, character);
+    this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
+    this.gamePad = GamePad.create(drivers);
+    this.ui.addComponent(this.gamePad);
+    let items = new ArrayList();
+    for (let anim of animations.getAnimations()) {
+      items.add(DropdownItem.create(anim.getKey().key(), anim.getKey().key()));
     }
-    else if (this.cinematicSequenceType.equals(QuestScreenCinematicSequenceType.FAIL_NODE)) {
-      playerInitialPosOffset = Vec3.create(0, 0, -2);
-    }
-    let playerInitialPos = Vec3.create(currentQuestStatus.getCurrentNodeIdx()*QuestScreen.NODE_DISTANCE, 0, 0).add(playerInitialPosOffset);
-    let nodeSpawnSize = currentQuest.getNumNodes()*QuestScreen.NODE_DISTANCE;
-    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(playerInitialPos.x()+10, 25, 20), Vec3.create(playerInitialPos.x(), 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setDirShadowMapStrategy(DirShadowMapStrategy.createManual(250, 160, 0, 100)).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE)).addComponent(FollowCameraXaxBehavior.create(ComponentKey.random()));
-    this.world.actors().add(light);
-    let camera = Actor.create(GameActors.CAMERA).setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(playerInitialPos.x(), 9, 15), Vec3.create(playerInitialPos.x(), 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY).setFovyLandscape(FMath.toRadians(60)).setFovyPortrait(FMath.toRadians(60))).addComponent(CameraControllerComponent.create(ComponentKey.random()).setMode(CameraControlMode.ISOMETRIC).setTargetId(ActorId.of("player")).setPosOffset(Vec3.create(0, 5, 7)).setLookAtOffset(Vec3.create(0, 1, 0)).setPosK(0.05).setLookAtK(0.15)).addComponent(QuestCameraShiftBehavior.create(ComponentKey.random())).addComponent(this.audio);
-    this.world.actors().add(camera);
-    let skyboxPrefab = assets.get("ActorPrefab", ActorPrefabId.of("skybox-1"));
-    this.world.constructActor(CreateActorRequest.create(skyboxPrefab, null, Vec3.ZERO, Quaternion.ZERO_ROT));
-    this.world.actors().add(Actor.create(ActorId.random()).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(Vec3.create(nodeSpawnSize/2, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(ModelId.of("nature-ground-tile")).setTransform(Mat44.scale(nodeSpawnSize*2, 1, 50))));
-    this.questNodeActors = new ArrayList();
-    for (let i = 0; i<currentQuest.getNodes().size(); ++i) {
-      let nodeStatus = currentQuestStatus.getNode(i);
-      let actor = this.spawnNode(assets, currentQuest.getNode(i).getArena(), Vec3.create(i*QuestScreen.NODE_DISTANCE, 0, QuestScreen.NODE_Z));
-      actor.getComponent("QuestNodeBehavior").setStatusType(nodeStatus.getType());
-      this.questNodeActors.add(actor);
-    }
-    let questPlayerActor = this.spawnPlayer(assets, playerInitialPos);
-    this.questPlayerBehavior = questPlayerActor.getComponent("QuestPlayerBehavior");
-    if (this.cinematicSequenceType.equals(QuestScreenCinematicSequenceType.COMPLETE_PREVIOUS_NODE)) {
-      let ccc = questPlayerActor.getComponent("CinematicControllerComponent");
-      let jumpPos = playerInitialPos.add(Vec3.create(0, 0, 2));
-      let walkPos = jumpPos.add(Vec3.create(QuestScreen.NODE_DISTANCE, 0, 0));
-      ccc.addSequence(QuestCharacterMoveActorSequence.create(playerInitialPos, jumpPos, walkPos));
-      if (currentQuest.getNode(currentQuestStatus.getCurrentNodeIdx()).typeEquals(QuestNodeType.CELEBRATION)) {
-        this.questPlayerBehavior.celebrate();
-      }
-    }
-    else if (this.cinematicSequenceType.equals(QuestScreenCinematicSequenceType.FAIL_NODE)) {
-      let ccc = questPlayerActor.getComponent("CinematicControllerComponent");
-      let jumpPos = playerInitialPos.add(Vec3.create(0, 0, 2));
-      ccc.addSequence(QuestCharacterFailNodeSequence.create(playerInitialPos, jumpPos));
-    }
-    this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(MenuUis.createDefaultStyler());
-    let panel916 = MenuUis.createPanel916();
-    this.ui.addComponent(panel916);
-    if (currentQuestStatus.isOpened()&&currentQuest.getNode(currentQuestStatus.getCurrentNodeIdx()).isCombat()) {
-      panel916.addComponent(MenuUis.createMediumBtn("Fight", 9, false, (btn) => {
-  if (!this.questPlayerBehavior.canCommmitFight()) {
-    return ;
-  }
-  camera.getComponent("CameraControllerComponent").setPosOffset(Vec3.create(-1, 2, 3));
-  this.questPlayerBehavior.commitFight();
-}).setKeyCodeMatcher((keyCode) => {
-  return keyCode.isConrol()||keyCode.getUpperCharacter().equals("J")||keyCode.getUpperCharacter().equals("I")||keyCode.getUpperCharacter().equals("O");
-}));
-      panel916.addComponent(MenuUis.createMediumBtn("Back", 11, false, (btn) => {
-  screenManager.showScreen(new MenuScreen(this.appManager));
-}));
-    }
-    else {
-      panel916.addComponent(MenuUis.createMediumBtn("Continue", 9, false, (btn) => {
-  screenManager.showScreen(new MenuScreen(this.appManager));
-}));
-    }
-    this.ui.addComponent(PlayUis.createPauseButton((evt) => {
+    let animationDropdown = Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(10, 10, 160, 40)).setLabelText("Animation").addItems(items).setSelected(items.get(0)).addOnChangeAction((dd) => {
+  let dropdown = dd;
+  let value = dropdown.getSelected().getValue();
+  player.play(MeshAnimationKey.of(value), MeshAnimationPlayConfig.RESTART);
+});
+    this.ui.addComponent(animationDropdown);
+    this.ui.addComponent(Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction((evt) => {
   this.paused = true;
 }));
     this.ui.subscribe(drivers);
@@ -43641,776 +37094,19 @@ class QuestScreen extends TyracornScreen {
   }
 
   leave(drivers) {
-    this.audio.stopAll();
     this.ui.unsubscribe(drivers);
     this.world.destroy(drivers);
   }
 
-  spawnPlayer(assets, pos) {
-    let prefab = assets.get("ActorPrefab", ActorPrefabId.of("quest-fighter-base"));
-    let req = CreateActorRequest.create(prefab, ActorId.of("player"), pos, Quaternion.ZERO_ROT);
-    return this.world.constructActor(req).addComponent(QuestPlayerBehavior.create(ComponentKey.random())).addComponent(CinematicControllerComponent.create(ComponentKey.random()));
-  }
-
-  spawnNode(assets, arena, pos) {
-    let prefab = CombatArenas.createMiniaturePrefab(assets, arena);
-    let req = CreateActorRequest.create(prefab, null, pos, Quaternion.ZERO_ROT);
-    return this.world.constructActor(req).addComponent(CinematicControllerComponent.create(ComponentKey.random())).addComponent(QuestNodeBehavior.create(ComponentKey.random()));
+  getRandomVelocity() {
+    let vx = Randoms.nextFloat(0, 2)-1;
+    let vy = Randoms.nextFloat(0, 2)-1;
+    let vz = Randoms.nextFloat(0, 2)-1;
+    return Vec3.create(vx, vy, vz);
   }
 
 }
-classRegistry.QuestScreen = QuestScreen;
-const createQuestScreenCinematicSequenceType = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const QuestScreenCinematicSequenceType = Object.freeze({
-  NONE: createQuestScreenCinematicSequenceType("NONE"),
-  COMPLETE_PREVIOUS_NODE: createQuestScreenCinematicSequenceType("COMPLETE_PREVIOUS_NODE"),
-  FAIL_NODE: createQuestScreenCinematicSequenceType("FAIL_NODE"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class QuestStatus {
-  id;
-  type;
-  nodes;
-  currentNodeIdx;
-  constructor() {
-  }
-
-  getClass() {
-    return "QuestStatus";
-  }
-
-  guardInvariants() {
-  }
-
-  getId() {
-    return this.id;
-  }
-
-  getType() {
-    return this.type;
-  }
-
-  withType(type) {
-    let res = new QuestStatus();
-    res.id = this.id;
-    res.type = type;
-    res.nodes = this.nodes;
-    res.currentNodeIdx = this.currentNodeIdx;
-    res.guardInvariants();
-    return res;
-  }
-
-  isOpened() {
-    return this.type.equals(QuestStatusType.OPENED);
-  }
-
-  getNodes() {
-    return this.nodes;
-  }
-
-  getNode(idx) {
-    return this.nodes.get(idx);
-  }
-
-  getNumNodes() {
-    return this.nodes.size();
-  }
-
-  plusNode(node) {
-    let res = new QuestStatus();
-    res.id = this.id;
-    res.type = this.type;
-    res.nodes = Dut.immutableListPlusItem(this.nodes, node);
-    res.currentNodeIdx = this.currentNodeIdx;
-    res.guardInvariants();
-    return res;
-  }
-
-  getCurrentNodeIdx() {
-    return this.currentNodeIdx;
-  }
-
-  withCurrentNodeIdx(currentNodeIdx) {
-    let res = new QuestStatus();
-    res.id = this.id;
-    res.type = this.type;
-    res.nodes = this.nodes;
-    res.currentNodeIdx = currentNodeIdx;
-    res.guardInvariants();
-    return res;
-  }
-
-  isPreviousNodeAvailable() {
-    if (this.currentNodeIdx<=0) {
-      return false;
-    }
-    return this.nodes.get(this.currentNodeIdx-1).isAvailable();
-  }
-
-  isNextNodeAvailable() {
-    if (this.currentNodeIdx>=this.nodes.size()-1) {
-      return false;
-    }
-    return this.nodes.get(this.currentNodeIdx+1).isAvailable();
-  }
-
-  withCompletedCurrentNode() {
-    Guard.beFalse(this.type.equals(QuestStatusType.FAILED), "unable to complete node for FAILED quest");
-    let res = new QuestStatus();
-    res.id = this.id;
-    res.type = QuestStatusType.OPENED;
-    if (this.currentNodeIdx==this.nodes.size()-1||(this.currentNodeIdx==this.nodes.size()-2&&this.nodes.get(this.nodes.size()-1).getType().equals(QuestNodeType.CELEBRATION))) {
-      res.type = QuestStatusType.COMPLETED;
-    }
-    let newNodes = new ArrayList();
-    for (let i = 0; i<this.nodes.size(); ++i) {
-      let node = this.nodes.get(i);
-      if (i==this.currentNodeIdx) {
-        newNodes.add(node.withType(QuestNodeStatusType.COMPLETED));
-      }
-      else if (i==this.currentNodeIdx+1) {
-        if (node.getType().equals(QuestNodeStatusType.CLOSED)) {
-          newNodes.add(node.withType(QuestNodeStatusType.OPENED));
-        }
-        else {
-          newNodes.add(node);
-        }
-      }
-      else {
-        newNodes.add(node);
-      }
-    }
-    res.nodes = Collections.unmodifiableList(newNodes);
-    res.currentNodeIdx = this.currentNodeIdx;
-    res.guardInvariants();
-    return res;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(id) {
-    let res = new QuestStatus();
-    res.id = id;
-    res.type = QuestStatusType.OPENED;
-    res.nodes = Collections.emptyList();
-    res.currentNodeIdx = 0;
-    res.guardInvariants();
-    return res;
-  }
-
-  static createInitial(quest) {
-    let res = new QuestStatus();
-    res.id = quest.getId();
-    res.type = QuestStatusType.OPENED;
-    let nodes = new ArrayList();
-    for (let node of quest.getNodes()) {
-      nodes.add(QuestNodeStatus.create(node.getId()).withType(nodes.isEmpty()?QuestNodeStatusType.OPENED:QuestNodeStatusType.CLOSED));
-    }
-    res.nodes = Collections.unmodifiableList(nodes);
-    res.currentNodeIdx = 0;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.QuestStatus = QuestStatus;
-const createQuestStatusType = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const QuestStatusType = Object.freeze({
-  OPENED: createQuestStatusType("OPENED"),
-  FAILED: createQuestStatusType("FAILED"),
-  COMPLETED: createQuestStatusType("COMPLETED"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class Quests {
-  constructor() {
-  }
-
-  getClass() {
-    return "Quests";
-  }
-
-  static generateStandard() {
-    let res = Quest.create(QuestId.random()).withName("Mariko").withLevel(1);
-    let firstEnemies = Randoms.shuffle(Dut.list(FighterCharacterType.RIVEN, FighterCharacterType.MORDIK, FighterCharacterType.NYX, FighterCharacterType.UNGO));
-    let secondEnemies = Randoms.shuffle(Dut.list(FighterCharacterType.RAZE, FighterCharacterType.CROW, FighterCharacterType.ABYSS, FighterCharacterType.VEYN));
-    res = res.plusNode(QuestNode.create(QuestNodeId.random()).withType(QuestNodeType.COMBAT).plusEnemy(QuestEnemy.create(QuestEnemyId.random()).withType(firstEnemies.get(0)).withAiDifficulty(0.7).withToughnessFactor(1)).withArena(QuestNodeArena.create(QuestNodeArenaId.random()).withGeneratorType(QuestNodeArenaGeneratorType.MEDIEVAL_01).withSeed(Randoms.nextInt(1, 100000))));
-    res = res.plusNode(QuestNode.create(QuestNodeId.random()).withType(QuestNodeType.COMBAT).plusEnemy(QuestEnemy.create(QuestEnemyId.random()).withType(firstEnemies.get(1)).withAiDifficulty(0.7).withToughnessFactor(1.2)).withArena(QuestNodeArena.create(QuestNodeArenaId.random()).withGeneratorType(QuestNodeArenaGeneratorType.MEDIEVAL_01).withSeed(Randoms.nextInt(1, 100000))));
-    res = res.plusNode(QuestNode.create(QuestNodeId.random()).withType(QuestNodeType.COMBAT).plusEnemy(QuestEnemy.create(QuestEnemyId.random()).withType(firstEnemies.get(2)).withAiDifficulty(0.8).withToughnessFactor(1.4)).withArena(QuestNodeArena.create(QuestNodeArenaId.random()).withGeneratorType(QuestNodeArenaGeneratorType.MEDIEVAL_01).withSeed(Randoms.nextInt(1, 100000))));
-    res = res.plusNode(QuestNode.create(QuestNodeId.random()).withType(QuestNodeType.COMBAT).plusEnemy(QuestEnemy.create(QuestEnemyId.random()).withType(firstEnemies.get(3)).withAiDifficulty(1).withToughnessFactor(1.6)).withArena(QuestNodeArena.create(QuestNodeArenaId.random()).withGeneratorType(QuestNodeArenaGeneratorType.MEDIEVAL_01).withSeed(Randoms.nextInt(1, 100000))));
-    res = res.plusNode(QuestNode.create(QuestNodeId.random()).withType(QuestNodeType.COMBAT).plusEnemy(QuestEnemy.create(QuestEnemyId.random()).withType(secondEnemies.get(0)).withAiDifficulty(0.7).withToughnessFactor(1)).plusEnemy(QuestEnemy.create(QuestEnemyId.random()).withType(secondEnemies.get(1)).withAiDifficulty(0.9).withToughnessFactor(1.2)).withArena(QuestNodeArena.create(QuestNodeArenaId.random()).withGeneratorType(QuestNodeArenaGeneratorType.MEDIEVAL_01).withSeed(Randoms.nextInt(1, 100000))));
-    res = res.plusNode(QuestNode.create(QuestNodeId.random()).withType(QuestNodeType.COMBAT).plusEnemy(QuestEnemy.create(QuestEnemyId.random()).withType(secondEnemies.get(2)).withAiDifficulty(0.75).withToughnessFactor(1.4)).plusEnemy(QuestEnemy.create(QuestEnemyId.random()).withType(secondEnemies.get(3)).withAiDifficulty(1).withToughnessFactor(1.8)).withArena(QuestNodeArena.create(QuestNodeArenaId.random()).withGeneratorType(QuestNodeArenaGeneratorType.MEDIEVAL_01).withSeed(Randoms.nextInt(1, 100000))));
-    res = res.plusNode(QuestNode.create(QuestNodeId.random()).withType(QuestNodeType.COMBAT).plusEnemy(QuestEnemy.create(QuestEnemyId.random()).withType(FighterCharacterType.DRAKKO).withAiDifficulty(1).withToughnessFactor(2)).withArena(QuestNodeArena.create(QuestNodeArenaId.random()).withGeneratorType(QuestNodeArenaGeneratorType.MEDIEVAL_01).withSeed(Randoms.nextInt(1, 100000))));
-    res = res.plusNode(QuestNode.create(QuestNodeId.random()).withType(QuestNodeType.CELEBRATION).withArena(QuestNodeArena.create(QuestNodeArenaId.random()).withGeneratorType(QuestNodeArenaGeneratorType.MEDIEVAL_01).withSeed(Randoms.nextInt(1, 100000))));
-    return res;
-  }
-
-  static generateRandom(level) {
-    let res = Quest.create(QuestId.random()).withName("Mariko").withLevel(level);
-    let numNodes = Randoms.nextInt(10+level*2, 30+level*3);
-    for (let i = 0; i<numNodes; ++i) {
-      let node = QuestNode.create(QuestNodeId.random()).withType(QuestNodeType.COMBAT);
-      let arena = QuestNodeArena.create(QuestNodeArenaId.random()).withGeneratorType(QuestNodeArenaGeneratorType.MEDIEVAL_01).withSeed(Randoms.nextInt(1, 100000));
-      node = node.withArena(arena);
-      let progress = numNodes<2?1:(i/(numNodes-1));
-      let curve = FMath.pow(progress, 1.4);
-      let numEnemyScore = curve*4.0+Randoms.nextFloat(0, 1.5);
-      let numEnemies = 1;
-      if (numEnemyScore<2.5) {
-        numEnemies = 1;
-      }
-      else if (numEnemyScore<3.5) {
-        numEnemies = 2;
-      }
-      else if (numEnemyScore<4.2) {
-        numEnemies = 3;
-      }
-      else if (numEnemyScore<4.8) {
-        numEnemies = 4;
-      }
-      else {
-        numEnemies = 5;
-      }
-      for (let j = 0; j<numEnemies; ++j) {
-        let aiDifficulty = FMath.clamp(0.3+curve*0.7+Randoms.nextFloat(-0.08, 0.08), 0.3, 1);
-        let baseTough = 0.7+level*0.15;
-        let progressionMultiplier = 1.0+curve*1.5;
-        let toughnessFactor = baseTough*progressionMultiplier*Randoms.nextFloat(0.9, 1.1);
-        let enemy = QuestEnemy.create(QuestEnemyId.random()).withAiDifficulty(aiDifficulty).withToughnessFactor(toughnessFactor);
-        node = node.plusEnemy(enemy);
-      }
-      res = res.plusNode(node);
-    }
-    res = res.plusNode(QuestNode.create(QuestNodeId.random()).withType(QuestNodeType.CELEBRATION).withArena(QuestNodeArena.create(QuestNodeArenaId.random()).withGeneratorType(QuestNodeArenaGeneratorType.MEDIEVAL_01).withSeed(Randoms.nextInt(1, 100000))));
-    return res;
-  }
-
-  static questToJson(quest) {
-    let res = JsonObject.empty().withInt("version", 1).withString("id", quest.getId().getId()).withString("name", quest.getName()).withInt("level", quest.getLevel());
-    let nodesJson = JsonArray.empty();
-    for (let node of quest.getNodes()) {
-      nodesJson = nodesJson.plusObject(Quests.questNodeToJson(node));
-    }
-    res = res.withArray("nodes", nodesJson);
-    return res;
-  }
-
-  static questToJsonString(quest) {
-    let json = Quests.questToJson(quest);
-    return JsonObjects.toJson(json);
-  }
-
-  static jsonToQuest(json) {
-    let version = json.getInt("version");
-    if (version==1) {
-      let res = Quest.create(QuestId.of(json.getString("id"))).withName(json.getString("name")).withLevel(json.getInt("level"));
-      let nodesJson = json.getJsonArray("nodes");
-      for (let i = 0; i<nodesJson.size(); ++i) {
-        let nodeJson = nodesJson.getJsonObject(i);
-        res = res.plusNode(Quests.jsonToQuestNode(nodeJson));
-      }
-      return res;
-    }
-    else {
-      throw new Error("versoin not implemented: "+version);
-    }
-  }
-
-  static jsonStringToQuest(jsonStr) {
-    let json = JsonObjects.parse(jsonStr);
-    return Quests.jsonToQuest(json);
-  }
-
-  static questNodeToJson(questNode) {
-    let res = JsonObject.empty().withInt("version", 1).withString("id", questNode.getId().getId()).withString("type", questNode.getType().name()).withObject("arena", Quests.questNodeArenaToJson(questNode.getArena()));
-    let enemiesJson = JsonArray.empty();
-    for (let enemy of questNode.getEnemies()) {
-      enemiesJson = enemiesJson.plusObject(Quests.questEnemyToJson(enemy));
-    }
-    res = res.withArray("enemies", enemiesJson);
-    return res;
-  }
-
-  static jsonToQuestNode(json) {
-    let version = json.getInt("version");
-    if (version==1) {
-      let res = QuestNode.create(QuestNodeId.of(json.getString("id"))).withType(QuestNodeType.valueOf(json.getString("type"))).withArena(Quests.jsonToQuestNodeArena(json.getJsonObject("arena")));
-      let enemiesJson = json.getJsonArray("enemies");
-      for (let i = 0; i<enemiesJson.size(); ++i) {
-        let enemyJson = enemiesJson.getJsonObject(i);
-        res = res.plusEnemy(Quests.jsonToQuestEnemy(enemyJson));
-      }
-      return res;
-    }
-    else {
-      throw new Error("versoin not implemented: "+version);
-    }
-  }
-
-  static questNodeArenaToJson(arena) {
-    let res = JsonObject.empty().withInt("version", 1).withString("id", arena.getId().getId()).withString("generatorType", arena.getGeneratorType().name()).withInt("seed", arena.getSeed());
-    return res;
-  }
-
-  static jsonToQuestNodeArena(json) {
-    let version = json.getInt("version");
-    if (version==1) {
-      let res = QuestNodeArena.create(QuestNodeArenaId.of(json.getString("id"))).withGeneratorType(QuestNodeArenaGeneratorType.valueOf(json.getString("generatorType"))).withSeed(json.getInt("seed"));
-      return res;
-    }
-    else {
-      throw new Error("versoin not implemented: "+version);
-    }
-  }
-
-  static questEnemyToJson(questEnemy) {
-    return JsonObject.empty().withInt("version", 1).withString("id", questEnemy.getId().getId()).withString("type", questEnemy.getType().name()).withFloat("aiDifficulty", questEnemy.getAiDifficulty()).withFloat("toughnessFactor", questEnemy.getToughnessFactor());
-  }
-
-  static jsonToQuestEnemy(json) {
-    let version = json.getInt("version");
-    if (version==1) {
-      return QuestEnemy.create(QuestEnemyId.of(json.getString("id"))).withType(FighterCharacterType.valueOf(json.getString("type"))).withAiDifficulty(json.getFloat("aiDifficulty")).withToughnessFactor(json.getFloat("toughnessFactor"));
-    }
-    else {
-      throw new Error("versoin not implemented: "+version);
-    }
-  }
-
-  static questStatusToJson(questStatus) {
-    let res = JsonObject.empty().withInt("version", 1).withString("id", questStatus.getId().getId()).withString("type", questStatus.getType().name()).withInt("currentNodeIdx", questStatus.getCurrentNodeIdx());
-    let nodesJson = JsonArray.empty();
-    for (let node of questStatus.getNodes()) {
-      nodesJson = nodesJson.plusObject(Quests.questNodeStatusToJson(node));
-    }
-    res = res.withArray("nodes", nodesJson);
-    return res;
-  }
-
-  static questStatusToJsonString(questStatus) {
-    let json = Quests.questStatusToJson(questStatus);
-    return JsonObjects.toJson(json);
-  }
-
-  static jsonToQuestStatus(json) {
-    let version = json.getInt("version");
-    if (version==1) {
-      let res = QuestStatus.create(QuestId.of(json.getString("id"))).withType(QuestStatusType.valueOf(json.getString("type"))).withCurrentNodeIdx(json.getInt("currentNodeIdx"));
-      let nodesJson = json.getJsonArray("nodes");
-      for (let i = 0; i<nodesJson.size(); ++i) {
-        let nodeJson = nodesJson.getJsonObject(i);
-        res = res.plusNode(Quests.jsonToQuestNodeStatus(nodeJson));
-      }
-      return res;
-    }
-    else {
-      throw new Error("versoin not implemented: "+version);
-    }
-  }
-
-  static jsonStringToQuestStatus(jsonStr) {
-    let json = JsonObjects.parse(jsonStr);
-    return Quests.jsonToQuestStatus(json);
-  }
-
-  static questNodeStatusToJson(questNodeStatus) {
-    let res = JsonObject.empty().withInt("version", 1).withString("id", questNodeStatus.getId().getId()).withString("type", questNodeStatus.getType().name());
-    return res;
-  }
-
-  static jsonToQuestNodeStatus(json) {
-    let version = json.getInt("version");
-    if (version==1) {
-      let res = QuestNodeStatus.create(QuestNodeId.of(json.getString("id"))).withType(QuestNodeStatusType.valueOf(json.getString("type")));
-      return res;
-    }
-    else {
-      throw new Error("versoin not implemented: "+version);
-    }
-  }
-
-}
-classRegistry.Quests = Quests;
-class Stories {
-  constructor() {
-  }
-
-  getClass() {
-    return "Stories";
-  }
-
-  static storyStatusToJson(storyStatus) {
-    let res = JsonObject.empty().withInt("version", 1).withInt("currentQuestIdx", storyStatus.getCurrentQuestIdx());
-    let questIdsJson = JsonArray.empty();
-    for (let qid of storyStatus.getQuestIds()) {
-      questIdsJson = questIdsJson.plusString(qid.getId());
-    }
-    res = res.withArray("questIds", questIdsJson);
-    return res;
-  }
-
-  static storyStatusToJsonString(storyStatus) {
-    let json = Stories.storyStatusToJson(storyStatus);
-    return JsonObjects.toJson(json);
-  }
-
-  static jsonToStoryStatus(json) {
-    let version = json.getInt("version");
-    if (version==1) {
-      let res = StoryStatus.create();
-      let questsIdsJson = json.getJsonArray("questIds");
-      for (let i = 0; i<questsIdsJson.size(); ++i) {
-        res = res.plusQuestId(QuestId.of(questsIdsJson.getString(i)));
-      }
-      res = res.withCurrentQuestIdx(json.getInt("currentQuestIdx"));
-      return res;
-    }
-    else {
-      throw new Error("versoin not implemented: "+version);
-    }
-  }
-
-  static jsonStringToStoryStatus(jsonStr) {
-    let json = JsonObjects.parse(jsonStr);
-    return Stories.jsonToStoryStatus(json);
-  }
-
-}
-classRegistry.Stories = Stories;
-class StoryManager {
-  static STORY_STAUS_KEY = LocalDataKey.of("story.status.json");
-  storage;
-  storyStatus;
-  currentQuest;
-  currentQuestStatus;
-  constructor() {
-  }
-
-  getClass() {
-    return "StoryManager";
-  }
-
-  guardInvariants() {
-  }
-
-  initialize() {
-    if (this.storage.exists(StoryManager.STORY_STAUS_KEY)) {
-      try {
-        this.storyStatus = Stories.jsonStringToStoryStatus(this.storage.loadString(StoryManager.STORY_STAUS_KEY));
-        let currentQuestId = this.storyStatus.getCurrentQuestId();
-        if (currentQuestId==null) {
-          this.currentQuest = null;
-          this.currentQuestStatus = null;
-        }
-        else {
-          this.currentQuest = Quests.jsonStringToQuest(this.storage.loadString(this.getQuestLocalDataKey(currentQuestId)));
-          this.currentQuestStatus = Quests.jsonStringToQuestStatus(this.storage.loadString(this.getQuestStatusLocalDataKey(currentQuestId)));
-        }
-      }
-      catch (e) {
-        this.storyStatus = null;
-        this.currentQuest = null;
-        this.currentQuestStatus = null;
-      }
-    }
-    if (this.storyStatus==null) {
-      this.currentQuest = null;
-      this.currentQuestStatus = null;
-      this.storyStatus = StoryStatus.create();
-      this.storage.saveString(StoryManager.STORY_STAUS_KEY, Stories.storyStatusToJsonString(this.storyStatus));
-    }
-  }
-
-  startNewQuest() {
-    if (this.currentQuest!=null) {
-      this.storage.delete(this.getQuestLocalDataKey(this.currentQuest.getId()));
-      this.storage.delete(this.getQuestStatusLocalDataKey(this.currentQuest.getId()));
-      this.storyStatus = this.storyStatus.minusQuestId(this.currentQuest.getId()).withCurrentQuestIdx(-1);
-    }
-    this.currentQuest = Quests.generateStandard();
-    this.currentQuestStatus = QuestStatus.createInitial(this.currentQuest);
-    this.storyStatus = this.storyStatus.plusQuestId(this.currentQuest.getId());
-    let idx = this.storyStatus.getQuestIds().indexOf(this.currentQuest.getId());
-    this.storyStatus = this.storyStatus.withCurrentQuestIdx(idx);
-    this.storage.saveString(this.getQuestLocalDataKey(this.currentQuest.getId()), Quests.questToJsonString(this.currentQuest));
-    this.storage.saveString(this.getQuestStatusLocalDataKey(this.currentQuest.getId()), Quests.questStatusToJsonString(this.currentQuestStatus));
-    this.storage.saveString(StoryManager.STORY_STAUS_KEY, Stories.storyStatusToJsonString(this.storyStatus));
-    this.storage.saveString(StoryManager.STORY_STAUS_KEY, Stories.storyStatusToJsonString(this.storyStatus));
-  }
-
-  isCurrentQuestOpened() {
-    return this.currentQuestStatus==null?false:this.currentQuestStatus.isOpened();
-  }
-
-  getCurrentQuest() {
-    return this.currentQuest;
-  }
-
-  getCurrentQuestNode() {
-    return this.currentQuest.getNode(this.currentQuestStatus.getCurrentNodeIdx());
-  }
-
-  getCurrentQuestStatus() {
-    return this.currentQuestStatus;
-  }
-
-  failCurrentQuesst() {
-    this.currentQuestStatus = this.currentQuestStatus.withType(QuestStatusType.FAILED);
-    this.storage.saveString(this.getQuestStatusLocalDataKey(this.currentQuestStatus.getId()), Quests.questStatusToJsonString(this.currentQuestStatus));
-    return this.currentQuestStatus;
-  }
-
-  completeCurrentNode() {
-    this.currentQuestStatus = this.currentQuestStatus.withCompletedCurrentNode();
-    this.storage.saveString(this.getQuestStatusLocalDataKey(this.currentQuestStatus.getId()), Quests.questStatusToJsonString(this.currentQuestStatus));
-    return this.currentQuestStatus;
-  }
-
-  moveToPreviousNode() {
-    Guard.beTrue(this.currentQuestStatus.isPreviousNodeAvailable(), "node must be available to move");
-    this.currentQuestStatus = this.currentQuestStatus.withCurrentNodeIdx(this.currentQuestStatus.getCurrentNodeIdx()-1);
-    this.storage.saveString(this.getQuestStatusLocalDataKey(this.currentQuestStatus.getId()), Quests.questStatusToJsonString(this.currentQuestStatus));
-    return this.currentQuestStatus.getCurrentNodeIdx();
-  }
-
-  moveToNextNode() {
-    Guard.beTrue(this.currentQuestStatus.isNextNodeAvailable(), "node must be available to move");
-    this.currentQuestStatus = this.currentQuestStatus.withCurrentNodeIdx(this.currentQuestStatus.getCurrentNodeIdx()+1);
-    this.storage.saveString(this.getQuestStatusLocalDataKey(this.currentQuestStatus.getId()), Quests.questStatusToJsonString(this.currentQuestStatus));
-    return this.currentQuestStatus.getCurrentNodeIdx();
-  }
-
-  moveToLatestOpendedNode() {
-    let nodes = this.currentQuestStatus.getNodes();
-    for (let i = nodes.size()-1; i<=0; --i) {
-      if (nodes.get(i).getType().equals(QuestNodeStatusType.OPENED)) {
-        this.currentQuestStatus = this.currentQuestStatus.withCurrentNodeIdx(i);
-        return i;
-      }
-    }
-    throw new Error("quest doesn't have any opened node");
-  }
-
-  getQuestLocalDataKey(questId) {
-    return LocalDataKey.of("quests."+questId.getId()+".definition.json");
-  }
-
-  getQuestStatusLocalDataKey(questId) {
-    return LocalDataKey.of("quests."+questId.getId()+".status.json");
-  }
-
-  toString() {
-  }
-
-  static create(storage) {
-    let res = new StoryManager();
-    res.storage = storage;
-    res.guardInvariants();
-    res.initialize();
-    return res;
-  }
-
-}
-classRegistry.StoryManager = StoryManager;
-class StoryStatus {
-  questIds;
-  currentQuestIdx;
-  constructor() {
-  }
-
-  getClass() {
-    return "StoryStatus";
-  }
-
-  guardInvariants() {
-  }
-
-  getQuestIds() {
-    return this.questIds;
-  }
-
-  plusQuestId(questId) {
-    let res = new StoryStatus();
-    res.questIds = Dut.immutableListPlusItem(this.questIds, questId);
-    res.currentQuestIdx = this.currentQuestIdx;
-    res.guardInvariants();
-    return res;
-  }
-
-  minusQuestId(questId) {
-    let res = new StoryStatus();
-    res.questIds = Dut.immutableListMinusItem(this.questIds, questId);
-    res.currentQuestIdx = this.currentQuestIdx;
-    res.guardInvariants();
-    return res;
-  }
-
-  getCurrentQuestIdx() {
-    return this.currentQuestIdx;
-  }
-
-  getCurrentQuestId() {
-    return this.currentQuestIdx==-1?null:this.questIds.get(this.currentQuestIdx);
-  }
-
-  withCurrentQuestIdx(currentQuestIdx) {
-    let res = new StoryStatus();
-    res.questIds = this.questIds;
-    res.currentQuestIdx = currentQuestIdx;
-    res.guardInvariants();
-    return res;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create() {
-    let res = new StoryStatus();
-    res.questIds = Collections.emptyList();
-    res.currentQuestIdx = -1;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.StoryStatus = StoryStatus;
-class FollowCameraXaxBehavior extends Behavior {
-  transform;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "FollowCameraXaxBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.transform = this.actor().getComponent("TransformComponent");
-  }
-
-  lateMove(dt, inputs) {
-    if (this.world().actors().exists(GameActors.CAMERA)) {
-      let camera = this.world().actors().get(GameActors.CAMERA);
-      let camTr = camera.getComponent("TransformComponent");
-      let x = FMath.trunc(camTr.getPos().x()/5)*5;
-      this.transform.setPos(this.transform.getPos().withX(x));
-    }
-  }
-
-  toString() {
-  }
-
-  static create(key) {
-    let res = new FollowCameraXaxBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.FollowCameraXaxBehavior = FollowCameraXaxBehavior;
+classRegistry.BasicApp16 = BasicApp16;
 
 
 // -------------------------------------
@@ -44793,7 +37489,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/loading.tap", "loading-screen-1").setRegionFnc((size) => {  if (size.width() / size.height() > 1.33) {    return Rect2.create(0, 0, size.width(), size.height());  }  else {    return Rect2.create(size.width() / 2 - size.height() * 0.665, 0, size.height() * 1.33, size.height());  }}), new MenuScreen());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp16());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

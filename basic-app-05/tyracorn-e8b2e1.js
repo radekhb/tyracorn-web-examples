@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/ui-test-app";
-const assetsDirName = "/assets-fba731";
+const basePath = "/tyracorn-web-examples/basic-app-05";
+const assetsDirName = "/null";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -5217,6 +5217,9 @@ class WebglSceneRenderer {
         Guard.notNull(this.defaultTexture, "defaultTexture shader cannot be null");
     }
 
+    /**
+     * Performs an initialization.
+     */
     init() {
         this.shader.use();
 
@@ -5268,7 +5271,6 @@ class WebglSceneRenderer {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         this.shader.setUniformInt("shadowTexture3", 7);
-
     }
 
     /**
@@ -8467,6 +8469,7 @@ class DriverProvider {
 // -------------------------------------
 
 class JsonObject {
+  static EMPTY = JsonObject.empty();
   entries;
   constructor() {
   }
@@ -8500,11 +8503,25 @@ class JsonObject {
     throw new Error("key doesn't exists: "+key);
   }
 
+  getBooleanOrDefault(key, def) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    return def;
+  }
+
   getString(key) {
     if (this.entries.containsKey(key)) {
       return this.entries.get(key);
     }
     throw new Error("key doesn't exists: "+key);
+  }
+
+  getStringOrDefault(key, def) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    return def;
   }
 
   getInt(key) {
@@ -8514,11 +8531,25 @@ class JsonObject {
     throw new Error("key doesn't exists: "+key);
   }
 
+  getIntOrDefault(key, def) {
+    if (this.entries.containsKey(key)) {
+      return FMath.trunc(this.entries.get(key));
+    }
+    return def;
+  }
+
   getFloat(key) {
     if (this.entries.containsKey(key)) {
       return this.entries.get(key);
     }
     throw new Error("key doesn't exists: "+key);
+  }
+
+  getFloatOrDefault(key, def) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    return def;
   }
 
   getJsonObject(key) {
@@ -8528,11 +8559,25 @@ class JsonObject {
     throw new Error("key doesn't exists: "+key);
   }
 
+  getJsonObjectOrEmpty(key) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    return JsonObject.EMPTY;
+  }
+
   getJsonArray(key) {
     if (this.entries.containsKey(key)) {
       return this.entries.get(key);
     }
     throw new Error("key doesn't exists: "+key);
+  }
+
+  getJsonArrayOrEmpty(key) {
+    if (this.entries.containsKey(key)) {
+      return this.entries.get(key);
+    }
+    return JsonArray.EMPTY;
   }
 
   withBoolean(key, val) {
@@ -8616,6 +8661,7 @@ class JsonObject {
 }
 classRegistry.JsonObject = JsonObject;
 class JsonArray {
+  static EMPTY = JsonArray.empty();
   items;
   constructor() {
   }
@@ -9712,6 +9758,62 @@ class Mat44 {
     return res;
   }
 
+  decompose() {
+    let tr = Vec3.create(this.mm03, this.mm13, this.mm23);
+    let sx = FMath.sqrt(this.mm00*this.mm00+this.mm10*this.mm10+this.mm20*this.mm20);
+    let sy = FMath.sqrt(this.mm01*this.mm01+this.mm11*this.mm11+this.mm21*this.mm21);
+    let sz = FMath.sqrt(this.mm02*this.mm02+this.mm12*this.mm12+this.mm22*this.mm22);
+    let sc = Vec3.create(sx, sy, sz);
+    let r00 = this.mm00/sx;
+    let r10 = this.mm10/sx;
+    let r20 = this.mm20/sx;
+    let r01 = this.mm01/sy;
+    let r11 = this.mm11/sy;
+    let r21 = this.mm21/sy;
+    let r02 = this.mm02/sz;
+    let r12 = this.mm12/sz;
+    let r22 = this.mm22/sz;
+    let rt = null;
+    let trace = r00+r11+r22;
+    if (trace>0.0) {
+      let s = Math.sqrt(trace+1.0)*2.0;
+      let qa = 0.25*s;
+      let qb = (r21-r12)/s;
+      let qc = (r02-r20)/s;
+      let qd = (r10-r01)/s;
+      let qlen = FMath.sqrt(qa*qa+qb*qb+qc*qc+qd*qd);
+      rt = Quaternion.create(qa/qlen, qb/qlen, qc/qlen, qd/qlen);
+    }
+    else if (r00>r11&&r00>r22) {
+      let s = Math.sqrt(1.0+r00-r11-r22)*2.0;
+      let qa = (r21-r12)/s;
+      let qb = 0.25*s;
+      let qc = (r01+r10)/s;
+      let qd = (r02+r20)/s;
+      let qlen = FMath.sqrt(qa*qa+qb*qb+qc*qc+qd*qd);
+      rt = Quaternion.create(qa/qlen, qb/qlen, qc/qlen, qd/qlen);
+    }
+    else if (r11>r22) {
+      let s = Math.sqrt(1.0+r11-r00-r22)*2.0;
+      let qa = (r02-r20)/s;
+      let qb = (r01+r10)/s;
+      let qc = 0.25*s;
+      let qd = (r12+r21)/s;
+      let qlen = FMath.sqrt(qa*qa+qb*qb+qc*qc+qd*qd);
+      rt = Quaternion.create(qa/qlen, qb/qlen, qc/qlen, qd/qlen);
+    }
+    else {
+      let s = Math.sqrt(1.0+r22-r00-r11)*2.0;
+      let qa = (r10-r01)/s;
+      let qb = (r02+r20)/s;
+      let qc = (r12+r21)/s;
+      let qd = 0.25*s;
+      let qlen = FMath.sqrt(qa*qa+qb*qb+qc*qc+qd*qd);
+      rt = Quaternion.create(qa/qlen, qb/qlen, qc/qlen, qd/qlen);
+    }
+    return Trs3.create(tr, rt, sc);
+  }
+
   toBufCol(buf) {
     buf[0] = this.mm00;
     buf[1] = this.mm10;
@@ -9969,7 +10071,7 @@ class Mat44 {
     return res;
   }
 
-  static transofm(pos, rot) {
+  static transofm(trans, rot) {
     let bb = rot.b()*rot.b();
     let cc = rot.c()*rot.c();
     let dd = rot.d()*rot.d();
@@ -9977,15 +10079,15 @@ class Mat44 {
     res.mm00 = 1-2*cc-2*dd;
     res.mm01 = 2*rot.b()*rot.c()-2*rot.d()*rot.a();
     res.mm02 = 2*rot.b()*rot.d()+2*rot.c()*rot.a();
-    res.mm03 = pos.x();
+    res.mm03 = trans.x();
     res.mm10 = 2*rot.b()*rot.c()+2*rot.d()*rot.a();
     res.mm11 = 1-2*bb-2*dd;
     res.mm12 = 2*rot.c()*rot.d()-2*rot.b()*rot.a();
-    res.mm13 = pos.y();
+    res.mm13 = trans.y();
     res.mm20 = 2*rot.b()*rot.d()-2*rot.c()*rot.a();
     res.mm21 = 2*rot.c()*rot.d()+2*rot.b()*rot.a();
     res.mm22 = 1-2*bb-2*cc;
-    res.mm23 = pos.z();
+    res.mm23 = trans.z();
     res.mm30 = 0;
     res.mm31 = 0;
     res.mm32 = 0;
@@ -9993,7 +10095,7 @@ class Mat44 {
     return res;
   }
 
-  static transofmScaled(pos, rot, scale) {
+  static transofmScaled(trans, rot, scale) {
     let bb = rot.b()*rot.b();
     let cc = rot.c()*rot.c();
     let dd = rot.d()*rot.d();
@@ -10001,15 +10103,15 @@ class Mat44 {
     res.mm00 = scale.x()*(1-2*cc-2*dd);
     res.mm01 = scale.y()*(2*rot.b()*rot.c()-2*rot.d()*rot.a());
     res.mm02 = scale.z()*(2*rot.b()*rot.d()+2*rot.c()*rot.a());
-    res.mm03 = pos.x();
+    res.mm03 = trans.x();
     res.mm10 = scale.x()*(2*rot.b()*rot.c()+2*rot.d()*rot.a());
     res.mm11 = scale.y()*(1-2*bb-2*dd);
     res.mm12 = scale.z()*(2*rot.c()*rot.d()-2*rot.b()*rot.a());
-    res.mm13 = pos.y();
+    res.mm13 = trans.y();
     res.mm20 = scale.x()*(2*rot.b()*rot.d()-2*rot.c()*rot.a());
     res.mm21 = scale.y()*(2*rot.c()*rot.d()+2*rot.b()*rot.a());
     res.mm22 = scale.z()*(1-2*bb-2*cc);
-    res.mm23 = pos.z();
+    res.mm23 = trans.z();
     res.mm30 = 0;
     res.mm31 = 0;
     res.mm32 = 0;
@@ -10113,6 +10215,7 @@ class Pos2 {
 }
 classRegistry.Pos2 = Pos2;
 class Size2 {
+  static ZERO = Size2.create(0, 0);
   mWidth;
   mHeight;
   constructor() {
@@ -12825,6 +12928,15 @@ class TextureAttachment {
     return this.texture;
   }
 
+  withTexture(texture) {
+    let res = new TextureAttachment();
+    res.type = this.type;
+    res.texture = texture;
+    res.style = this.style;
+    res.guardInvariants();
+    return res;
+  }
+
   getStyle() {
     return this.style;
   }
@@ -13521,6 +13633,15 @@ class Material {
 
   withShininess(shininess) {
     return Material.create(this.base.withShininess(shininess), this.alphaMode, this.textures);
+  }
+
+  withTextures(textures) {
+    let res = new Material();
+    res.base = this.base;
+    res.alphaMode = this.alphaMode;
+    res.textures = Dut.copyImmutableList(textures);
+    res.guardInvariants();
+    return res;
   }
 
   plusTexture(texture) {
@@ -14545,13 +14666,12 @@ class Armature {
   guardInvariants() {
   }
 
-  init() {
+  buildIndexesMap() {
     this.idsToIndexes = new HashMap();
     for (let i = 0; i<this.nodes.size(); ++i) {
       this.idsToIndexes.put(this.nodes.get(i).getId(), i);
     }
     this.idsToIndexes = Collections.unmodifiableMap(this.idsToIndexes);
-    Guard.beTrue(this.nodes.size()==this.idsToIndexes.size(), "nodes cannot have duplicated ids");
   }
 
   getNodes() {
@@ -14593,8 +14713,41 @@ class Armature {
   plusNode(node) {
     let res = new Armature();
     res.nodes = Dut.immutableListPlusItem(this.nodes, node);
+    res.buildIndexesMap();
     res.guardInvariants();
-    res.init();
+    return res;
+  }
+
+  minusNode(nodeId) {
+    let res = new Armature();
+    res.nodes = new ArrayList();
+    for (let node of this.nodes) {
+      if (node.getId().equals(nodeId)) {
+        continue;
+      }
+      res.nodes.add(node);
+    }
+    res.nodes = Collections.unmodifiableList(res.nodes);
+    res.buildIndexesMap();
+    res.guardInvariants();
+    return res;
+  }
+
+  mapNodeId(fromId, toId) {
+    let res = new Armature();
+    res.nodes = new ArrayList();
+    for (let node of this.nodes) {
+      if (node.getId().equals(fromId)) {
+        node = ArmatureNode.create(toId, node.getParentId(), node.getTransform(), node.getBoneOffset());
+      }
+      if (node.getParentId()!=null&&node.getParentId().equals(fromId)) {
+        node = ArmatureNode.create(node.getId(), toId, node.getTransform(), node.getBoneOffset());
+      }
+      res.nodes.add(node);
+    }
+    res.nodes = Collections.unmodifiableList(res.nodes);
+    res.buildIndexesMap();
+    res.guardInvariants();
     return res;
   }
 
@@ -14612,16 +14765,16 @@ class Armature {
   static create(nodes) {
     let res = new Armature();
     res.nodes = Dut.copyImmutableList(nodes);
+    res.buildIndexesMap();
     res.guardInvariants();
-    res.init();
     return res;
   }
 
   static empty() {
     let res = new Armature();
     res.nodes = Collections.emptyList();
+    res.buildIndexesMap();
     res.guardInvariants();
-    res.init();
     return res;
   }
 
@@ -17103,6 +17256,9 @@ class StretchUiPainter {
   }
 
   drawImage_6_TextureId_number_number_number_number_SpriteStyle(img, x, y, width, height, style) {
+    if (this.size.width()==0||this.size.height()==0) {
+      return ;
+    }
     let nx = x/this.size.width();
     let ny = y/this.size.height();
     let nw = width/this.size.width();
@@ -17119,17 +17275,27 @@ class StretchUiPainter {
   }
 
   fillRect(rect, color) {
+    if (this.size.width()==0||this.size.height()==0) {
+      return ;
+    }
     let normRect = Rect2.create(rect.x()/this.size.width(), rect.y()/this.size.height(), rect.width()/this.size.width(), rect.height()/this.size.height());
     this.target.fillRect(normRect, color);
   }
 
   drawLine(start, end, color) {
+    if (this.size.width()==0||this.size.height()==0) {
+      return ;
+    }
     let normStart = Vec2.create(start.x()/this.size.width(), start.y()/this.size.height());
     let normEnd = Vec2.create(end.x()/this.size.width(), end.y()/this.size.height());
     this.target.drawLine(normStart, normEnd, color);
   }
 
   setClipRect(rect) {
+    if (this.size.width()==0||this.size.height()==0) {
+      this.target.setClipRect(Rect2.create(Pos2.ZERO, Size2.ZERO));
+      return ;
+    }
     let normRect = Rect2.create(rect.x()/this.size.width(), rect.y()/this.size.height(), rect.width()/this.size.width(), rect.height()/this.size.height());
     this.target.setClipRect(normRect);
   }
@@ -18522,6 +18688,10 @@ class PanelPainter {
   }
 
   setClipRect(rect) {
+    if (this.innerSize.width()==0||this.innerSize.height()==0) {
+      this.fullyClipped = true;
+      return ;
+    }
     let normRect = Rect2.create(this.region.x()+rect.x()*this.region.width()/this.innerSize.width(), this.region.y()+rect.y()*this.region.height()/this.innerSize.height(), rect.width()*this.region.width()/this.innerSize.width(), rect.height()*this.region.height()/this.innerSize.height());
     if (this.clipRegion) {
       if (this.region.isIntersect(normRect)) {
@@ -19816,10 +19986,6 @@ class ListSelect extends UiComponent {
       this.addItem(item);
     }
     return this;
-  }
-
-  removeItem(index) {
-    throw new Error("TODO");
   }
 
   clearItems() {
@@ -21639,9 +21805,9 @@ class Fonts {
       let texId = TextureId.of(file.getPlainName()+"."+ch);
       let rch = Character.create(ch, texId, height, Vec2.create(Integer.valueOf(chconf.get("offsetX")), Integer.valueOf(chconf.get("offsetY"))), Size2.create(Integer.valueOf(chconf.get("width")), Integer.valueOf(chconf.get("height"))), Integer.valueOf(chconf.get("advance")), kernings.getOrDefault(ch, Collections.emptyMap()));
       font = font.addCharacter(rch);
-      res = res.put(texId, tex);
+      res = res.plus(texId, tex);
     }
-    res = res.put(FontId.of(file.getPlainName()), font);
+    res = res.plus(FontId.of(file.getPlainName()), font);
     return res;
   }
 
@@ -22554,6 +22720,18 @@ class MeshAnimationCollection {
     let res = new MeshAnimationCollection();
     res.animations = Dut.immutableListPlusItem(this.animations, animation);
     res.animationsByKey = Dut.immutableMapPlusEntry(this.animationsByKey, animation.getKey(), animation);
+    res.guardInvariants();
+    return res;
+  }
+
+  plusAnimations(anims) {
+    let res = new MeshAnimationCollection();
+    res.animations = Dut.immutableListPlusItems(this.animations, anims);
+    let animsByKey = new HashMap();
+    for (let anim of anims) {
+      animsByKey.put(anim.getKey(), anim);
+    }
+    res.animationsByKey = Dut.immutableMapPlusEntries(this.animationsByKey, animsByKey);
     res.guardInvariants();
     return res;
   }
@@ -23520,7 +23698,7 @@ class AssetGroup {
   guardInvariants() {
   }
 
-  put(key, asset) {
+  plus(key, asset) {
     Guard.notNull(key, "key cannot be null");
     Guard.notNull(asset, "asset cannot be null");
     let c = new HashMap();
@@ -23532,7 +23710,7 @@ class AssetGroup {
     return res;
   }
 
-  remove(key) {
+  minus(key) {
     Guard.notNull(key, "key cannot be null");
     let c = new HashMap();
     c.putAll(this.cache);
@@ -23607,7 +23785,7 @@ class AssetGroup {
     if (!this.cache.containsKey(key)) {
       throw new Error("no asset under "+key);
     }
-    return AssetGroup.empty().put(key, this.cache.get(key));
+    return AssetGroup.empty().plus(key, this.cache.get(key));
   }
 
   mergeStrict(other) {
@@ -23694,10 +23872,10 @@ class AssetGroup {
     for (let key of this.cache.keySet()) {
       let val = this.cache.get(key);
       if (val.getClass().equals(clazz)) {
-        res = res.put(key, fnc(val));
+        res = res.plus(key, fnc(val));
       }
       else {
-        res = res.put(key, val);
+        res = res.plus(key, val);
       }
     }
     return res;
@@ -23707,10 +23885,10 @@ class AssetGroup {
     let res = AssetGroup.empty();
     for (let key of this.cache.keySet()) {
       if (key.getClass().equals(clazz)) {
-        res = res.put(fnc(key), this.cache.get(key));
+        res = res.plus(fnc(key), this.cache.get(key));
       }
       else {
-        res = res.put(key, this.cache.get(key));
+        res = res.plus(key, this.cache.get(key));
       }
     }
     return res;
@@ -23761,7 +23939,7 @@ class AssetGroup {
   }
 
   static of(key, asset) {
-    return AssetGroup.empty().put(key, asset);
+    return AssetGroup.empty().plus(key, asset);
   }
 
 }
@@ -23852,55 +24030,30 @@ class Assets {
             }
             res = res.mergeStrict(Objs.loadAnimatedModel(modelId, loader, animFiles));
           }
-          else if (type.equals("LOAD_STATIC_MODEL")) {
-            let file = dir.getChild(taskJson.getString("file"));
-            let modelId = ModelId.of(taskJson.getString("modelId"));
-            let options = StaticModelImportOptions.create(modelId).withScale(taskJson.containsKey("scale")?Float.valueOf(taskJson.getString("scale")):1);
-            res = res.mergeStrict(loader.loadBundle(file, options));
-          }
           else if (type.equals("LOAD_RIGGED_MODEL")) {
             let file = dir.getChild(taskJson.getString("file"));
-            let modelId = ModelId.of(taskJson.getString("modelId"));
-            let options = RiggedModelImportOptions.create(modelId).withScale(taskJson.containsKey("scale")?Float.valueOf(taskJson.getString("scale")):1).withApproximateRigAllowed(taskJson.containsKey("approximateRigAllowed")?taskJson.getBoolean("approximateRigAllowed"):false);
-            let animationsJson = taskJson.getJsonArray("animations");
-            for (let j = 0; j<animationsJson.size(); ++j) {
-              let animJson = animationsJson.getJsonObject(j);
-              let animOpts = RiggedModelAnimationImportOptions.create(animJson.getString("sourceId"), MeshAnimationKey.of(animJson.getString("key")), animJson.getBoolean("loop"));
-              let triggers = animJson.containsKey("triggers")?Assets.parseMeshAnimationTriggers(animJson.getJsonArray("triggers")):Collections.emptyList();
-              animOpts = animOpts.plusTriggers(triggers);
-              options = options.plusAnimation(animOpts);
-            }
+            let options = Assets.parseModelImportOptions(taskJson, loader, dir);
             res = res.mergeStrict(loader.loadBundle(file, options));
           }
           else if (type.equals("LOAD_RIGGED_MODEL_EXTRA_ANIMATIONS")) {
             let file = dir.getChild(taskJson.getString("file"));
-            let targetCollectionId = MeshAnimationCollectionId.of(taskJson.getString("targetCollectionId"));
+            let targetCollectionId = MeshAnimationCollectionId.of(taskJson.getString("targetAnimationCollectionId"));
             let targetCollection = res.get("MeshAnimationCollection", targetCollectionId);
-            let options = RiggedModelExtraAnimationImportOptions.create(targetCollectionId, targetCollection).withScale(taskJson.containsKey("scale")?Float.parseFloat(taskJson.getString("scale")):1);
-            let armatureNodesJson = taskJson.getJsonObject("armatureNodes");
-            for (let sourceIdStr of armatureNodesJson.keySet()) {
-              let targetIdStr = armatureNodesJson.getString(sourceIdStr);
-              options = options.plusArmatureNode(ArmatureNodeId.of(sourceIdStr), ArmatureNodeId.of(targetIdStr));
-            }
-            let animationsJson = taskJson.getJsonArray("animations");
-            for (let j = 0; j<animationsJson.size(); ++j) {
-              let animJson = animationsJson.getJsonObject(j);
-              let animOpts = RiggedModelAnimationImportOptions.create(animJson.getString("sourceId"), MeshAnimationKey.of(animJson.getString("key")), animJson.getBoolean("loop"));
-              let triggers = animJson.containsKey("triggers")?Assets.parseMeshAnimationTriggers(animJson.getJsonArray("triggers")):Collections.emptyList();
-              animOpts = animOpts.plusTriggers(triggers);
-              options = options.plusAnimation(animOpts);
-            }
-            res = res.mergeOverride(loader.loadBundle(file, options));
+            let options = Assets.parseModelImportOptions(taskJson, loader, dir).withModelId(ModelId.of(taskJson.getString("targetAnimationCollectionId")));
+            let bundleGroup = loader.loadBundle(file, options);
+            let addedCollection = bundleGroup.get("MeshAnimationCollection", targetCollectionId);
+            let resCollection = targetCollection.plusAnimations(addedCollection.getAnimations());
+            res = res.plus(targetCollectionId, resCollection);
           }
           else if (type.equals("TEXTURE_FLIP_VERT")) {
             res = res.transform("Texture", TextureFncs.flipVert());
           }
           else if (type.equals("TEXTURE_GAMMA")) {
-            let gamma = Float.valueOf(taskJson.getString("gamma"));
+            let gamma = Float.parseFloat(taskJson.getString("gamma"));
             res = res.transform("Texture", TextureFncs.gamma(gamma));
           }
           else if (type.equals("TEXTURE_THRES_ALPHA")) {
-            let thres = Float.valueOf(taskJson.getString("thres"));
+            let thres = Float.parseFloat(taskJson.getString("thres"));
             res = res.transform("Texture", (t) => {
   return t.thresAlpha(thres);
 });
@@ -23916,9 +24069,9 @@ class Assets {
             res = res.transform("Material", Assets.materialAlphaModeBlendToMaskFnc());
           }
           else if (type.equals("MATERIAL_SPECULAR")) {
-            let red = Float.valueOf(taskJson.getString("red"));
-            let green = Float.valueOf(taskJson.getString("green"));
-            let blue = Float.valueOf(taskJson.getString("blue"));
+            let red = Float.parseFloat(taskJson.getString("red"));
+            let green = Float.parseFloat(taskJson.getString("green"));
+            let blue = Float.parseFloat(taskJson.getString("blue"));
             let rgb = Rgb.create(red, green, blue);
             res = res.transform("Material", (m) => {
   return m.withSpecular(rgb);
@@ -23941,6 +24094,79 @@ class Assets {
           }
           else if (type.equals("CREATE_SPRITES")) {
             res = Assets.createSprites(taskJson, res);
+          }
+          else if (type.equals("MODEL_RENAME")) {
+            let sourceModelId = ModelId.of(taskJson.getString("sourceId"));
+            let sourceModelIdStr = sourceModelId.id();
+            let sourceModel = res.get("Model", sourceModelId);
+            let destModelId = ModelId.of(taskJson.getString("destId"));
+            let renameMaterials = taskJson.getBooleanOrDefault("renameMaterials", false);
+            if (renameMaterials) {
+              let destModel = Model.empty().withArmature(sourceModel.getArmature());
+              let alreadyDoneIds = new HashMap();
+              let alreadyDoneMaterials = new HashMap();
+              for (let sourcePart of sourceModel.getParts()) {
+                let sourceMaterialId = sourcePart.getMaterial();
+                let destMaterialId = null;
+                let sourceMaterial = null;
+                if (alreadyDoneIds.containsKey(sourceMaterialId)) {
+                  destMaterialId = alreadyDoneIds.get(sourceMaterialId);
+                  sourceMaterial = alreadyDoneMaterials.get(sourceMaterialId);
+                }
+                else {
+                  sourceMaterial = res.get("Material", sourceMaterialId);
+                  destMaterialId = sourceMaterialId.id().startsWith(sourceModelIdStr)?MaterialId.of(destModelId.id()+sourceMaterialId.id().substring(sourceModelIdStr.length())):MaterialId.of(destModelId.id()+"."+sourceMaterialId.id());
+                  alreadyDoneIds.put(sourceMaterialId, destMaterialId);
+                  alreadyDoneMaterials.put(sourceMaterialId, sourceMaterial);
+                }
+                let destPart = sourcePart.withMaterial(destMaterialId);
+                res = res.minus(sourceMaterialId).plus(destMaterialId, sourceMaterial);
+                destModel = destModel.plusPart(destPart);
+              }
+              res = res.minus(sourceModelId).plus(destModelId, destModel);
+            }
+            else {
+              throw new Error("renaming model without clonning materials is not supported yet, implement me");
+            }
+          }
+          else if (type.equals("MODEL_MATERIAL_MAP_TEXTURES")) {
+            let model = res.get("Model", ModelId.of(taskJson.getString("id")));
+            let texIds = Assets.parseStringMap(taskJson.getJsonObject("textures"));
+            for (let part of model.getParts()) {
+              let material = res.get("Material", part.getMaterial());
+              let tatts = new ArrayList();
+              for (let ta of material.getTextures()) {
+                if (texIds.containsKey(ta.getTexture().id())) {
+                  tatts.add(ta.withTexture(TextureId.of(texIds.get(ta.getTexture().id()))));
+                }
+                else {
+                  tatts.add(ta);
+                }
+              }
+              res = res.plus(part.getMaterial(), material.withTextures(tatts));
+            }
+          }
+          else if (type.equals("MODEL_CLONE")) {
+            let sourceModelId = ModelId.of(taskJson.getString("sourceId"));
+            let sourceModelIdStr = sourceModelId.id();
+            let sourceModel = res.get("Model", sourceModelId);
+            let destModelId = ModelId.of(taskJson.getString("destId"));
+            let cloneMaterials = taskJson.getBooleanOrDefault("cloneMaterials", false);
+            if (cloneMaterials) {
+              let destModel = Model.empty().withArmature(sourceModel.getArmature());
+              for (let sourcePart of sourceModel.getParts()) {
+                let sourceMaterialId = sourcePart.getMaterial();
+                let sourceMaterial = res.get("Material", sourceMaterialId);
+                let destMaterialId = sourceMaterialId.id().startsWith(sourceModelIdStr)?MaterialId.of(destModelId.id()+sourceMaterialId.id().substring(sourceModelIdStr.length())):MaterialId.of(destModelId.id()+"."+sourceMaterialId.id());
+                let destPart = sourcePart.withMaterial(destMaterialId);
+                res = res.plus(destMaterialId, sourceMaterial);
+                destModel = destModel.plusPart(destPart);
+              }
+              res = res.plus(destModelId, destModel);
+            }
+            else {
+              throw new Error("cloning model without clonning materials is not supported yet, implement me");
+            }
           }
           else {
             throw new Error("unsupported task type, fix the file or implement: "+type);
@@ -24049,11 +24275,9 @@ class Assets {
       let key = animJson.getString("key");
       let clip = Assets.parseClip(animJson.getJsonArray("clip"));
       let ticksPerSecond = animJson.getInt("ticksPerSecond");
-      ;
       let numTicks = animJson.getInt("numTicks");
-      ;
       let loop = animJson.getBoolean("loop");
-      let triggers = animJson.containsKey("triggers")?Assets.parseMeshAnimationTriggers(animJson.getJsonArray("triggers")):Collections.emptyList();
+      let triggers = Assets.parseMeshAnimationTriggers(animJson.getJsonArrayOrEmpty("triggers"));
       animations.add(MeshAnimation.create(MeshAnimationKey.of(key), ticksPerSecond, numTicks, loop).withClip(clip).plusTriggers(triggers));
     }
     let res = MeshAnimationCollection.create(animations);
@@ -24087,7 +24311,7 @@ class Assets {
       let triggers = spriteJson.containsKey("triggers")?Assets.parseSpriteTriggers(spriteJson.getJsonArray("triggers")):Collections.emptyList();
       let sprite = sheet.createSprite(ticksPerSecond, numTicks, loop).plusTriggers(triggers);
       let id = SpriteId.of(key);
-      res = res.remove(tid).mergeStrict(sheet.getAssets()).put(id, sprite);
+      res = res.minus(tid).mergeStrict(sheet.getAssets()).plus(id, sprite);
     }
     return res;
   }
@@ -24147,6 +24371,69 @@ class Assets {
         triggers.add(trgsJson.getString(j));
       }
       res.add(SpriteTrigger.multiple(tick, triggers));
+    }
+    return res;
+  }
+
+  static parseModelImportOptions(taskJson, loader, dir) {
+    let excludedMeshIds = new HashSet();
+    if (taskJson.containsKey("excludedMeshIds")) {
+      let excludedMeshIdsJson = taskJson.getJsonArray("excludedMeshIds");
+      for (let i = 0; i<excludedMeshIdsJson.size(); ++i) {
+        excludedMeshIds.add(MeshId.of(excludedMeshIdsJson.getString(i)));
+      }
+    }
+    let materialOptions = ModelMaterialImportOptions.create();
+    if (taskJson.containsKey("material")) {
+      let materialJson = taskJson.getJsonObject("material");
+      materialOptions = materialOptions.withEnabled(materialJson.getBooleanOrDefault("enabled", false)).withDiffuseToAmbient(materialJson.getBooleanOrDefault("diffuseToAmbient", false));
+    }
+    let textureOptions = ModelTextureImportOptions.create();
+    if (taskJson.containsKey("texture")) {
+      let textureJson = taskJson.getJsonObject("texture");
+      textureOptions = textureOptions.withEnabled(textureJson.getBooleanOrDefault("enabled", false)).withFlipVert(textureJson.getBooleanOrDefault("flipVert", false)).withGamma(Float.parseFloat(textureJson.getStringOrDefault("gamma", "1")));
+    }
+    let armatureOptions = ModelArmatureImportOptions.create();
+    if (taskJson.containsKey("armature")) {
+      let armatureJson = taskJson.getJsonObject("armature");
+      armatureOptions = armatureOptions.withEnabled(armatureJson.getBooleanOrDefault("enabled", false)).withApproximateRigAllowed(armatureJson.getBooleanOrDefault("approximateRigAllowed", false));
+      let nodeReductionsJson = armatureJson.getJsonObjectOrEmpty("nodeReductions");
+      for (let key of nodeReductionsJson.keySet()) {
+        armatureOptions = armatureOptions.plusNodeReduction(ArmatureNodeId.of(key), ArmatureNodeId.of(nodeReductionsJson.getString(key)));
+      }
+      let nodeNamesJson = armatureJson.getJsonObjectOrEmpty("nodeNames");
+      for (let key of nodeNamesJson.keySet()) {
+        armatureOptions = armatureOptions.plusNodeName(ArmatureNodeId.of(key), ArmatureNodeId.of(nodeNamesJson.getString(key)));
+      }
+    }
+    let animationCollectionOptions = ModelAnimationCollectionImportOptions.create();
+    if (taskJson.containsKey("animationCollection")) {
+      let animationCollectionJson = taskJson.getJsonObject("animationCollection");
+      let animationsOptionsJson = animationCollectionJson.getJsonArrayOrEmpty("animations");
+      for (let i = 0; i<animationsOptionsJson.size(); ++i) {
+        let animationOptionsJson = animationsOptionsJson.getJsonObject(i);
+        let animationOptions = ModelAnimationImportOptions.create().withSourceId(animationOptionsJson.getString("sourceId")).withKey(MeshAnimationKey.of(animationOptionsJson.getString("key"))).withLoop(animationOptionsJson.getBooleanOrDefault("loop", false)).withNumFrames(animationOptionsJson.getIntOrDefault("numFrames", 2)).withLastFrameReplaced(animationOptionsJson.getBooleanOrDefault("lastFrameReplaced", false)).withTiggers(Assets.parseMeshAnimationTriggers(animationOptionsJson.getJsonArrayOrEmpty("triggers")));
+        animationCollectionOptions = animationCollectionOptions.plusAnimationOptions(animationOptions);
+      }
+      let repurposesOptionsJson = animationCollectionJson.getJsonArrayOrEmpty("repurposes");
+      for (let i = 0; i<repurposesOptionsJson.size(); ++i) {
+        let repurposeOptionsJson = repurposesOptionsJson.getJsonObject(i);
+        let sourceDirPathStr = repurposeOptionsJson.getString("sourceDirPath");
+        let sourceCollectionId = MeshAnimationCollectionId.of(repurposeOptionsJson.getString("sourceAnimationCollectionId"));
+        let sourceDir = dir.getChild(sourceDirPathStr);
+        let sourceGroup = Assets.loadDir(loader, sourceDir, true);
+        let repOptions = ModelAnimationRepurposeImportOptions.create().withSource(sourceGroup.get("MeshAnimationCollection", sourceCollectionId));
+        animationCollectionOptions = animationCollectionOptions.plusRepurposeOptions(repOptions);
+      }
+    }
+    let res = ModelImportOptions.create().withModelId(ModelId.of(taskJson.getStringOrDefault("modelId", "model"))).withExcludedMeshIds(excludedMeshIds).withScale(Float.parseFloat(taskJson.getStringOrDefault("scale", "1"))).withMaterialOptions(materialOptions).withTextureOptions(textureOptions).withArmatureOptions(armatureOptions).withAnimationCollectionOptions(animationCollectionOptions);
+    return res;
+  }
+
+  static parseStringMap(obj) {
+    let res = new HashMap();
+    for (let key of obj.keySet()) {
+      res.put(key, obj.getString(key));
     }
     return res;
   }
@@ -25634,6 +25921,7 @@ class MouseButton {
 }
 classRegistry.MouseButton = MouseButton;
 class KeyCode {
+  static UNKNOWN = KeyCode.create("UNKNOWN", "");
   static ENTER = KeyCode.create("ENTER", "");
   static ESCAPE = KeyCode.create("ESCAPE", "");
   static BACKSPACE = KeyCode.create("BACKSPACE", "");
@@ -36367,218 +36655,199 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class ObjectWrapper {
-  object;
+class BoxMeshFactory {
   constructor() {
   }
 
   getClass() {
-    return "ObjectWrapper";
+    return "BoxMeshFactory";
   }
 
-  getObject() {
-    return this.object;
+  static rgbBox() {
+    if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&&arguments[3] instanceof Rgb) {
+      return BoxMeshFactory.rgbBox_4_Rgb_Rgb_Rgb_Rgb(arguments[0], arguments[1], arguments[2], arguments[3]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
   }
 
-  setObject(object) {
-    this.object = object;
+  static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  toString() {
+  static rgbBox_3_number_number_number(r, g, b) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  static create(object) {
-    let res = new ObjectWrapper();
-    res.object = object;
+  static rgbaBox(c1, c2, c3, c4, a) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static fabricBox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.fabric(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static modelBox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static modelSkybox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, -1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22))).toMesh();
+    return res;
+  }
+
+  static modelBoxDeformed1() {
+    let en = Vec2.create(1, -1).normalize();
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static modelBoxDeformed2() {
+    let en = Vec2.create(-1, -1).normalize();
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.floatValues(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
     return res;
   }
 
 }
-classRegistry.ObjectWrapper = ObjectWrapper;
-class UiTestApp extends TyracornScreen {
-  ui;
+classRegistry.BoxMeshFactory = BoxMeshFactory;
+class BasicApp05 extends TyracornApp {
+  box = MeshId.of("box");
+  whiteBox = MeshId.of("white-box");
+  shadow1 = ShadowBufferId.of("shadow1");
+  shadow2 = ShadowBufferId.of("shadow2");
+  shadow3 = ShadowBufferId.of("shadow3");
+  time = 0;
   constructor() {
     super();
   }
 
   getClass() {
-    return "UiTestApp";
+    return "BasicApp05";
   }
 
-  move(drivers, screenManager, dt) {
+  move(drivers, dt) {
+    let dirLightEnabled = true;
+    let spotLight1Enabled = true;
+    let spotLight2Enabled = true;
+    this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
+    let aspect = gDriver.getScreenViewport().getAspect();
+    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
+    let m = 2*FMath.sin(this.time/3);
+    let cam = Camera.persp(fovy, aspect, 0.1, 1000.0).lookAt(Vec3.create(m, 2, 7), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0));
+    let dirLightColor = LightColor.create(Rgb.gray(0.4), Rgb.gray(0.6), Rgb.gray(0.6));
+    let dirLightDir = Vec3.create(0.2*FMath.cos(this.time/4), -1, 0.4).normalize();
+    let dirLightPos = Vec3.create(0, 5, 0);
+    let dirLightShadowMap = ShadowMap.createDirCircle(this.shadow1, dirLightPos, dirLightDir, 20, 10);
+    let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
+    let spotLight1Pos = Vec3.create(0, 2, 0);
+    let spotLight1Dir = Vec3.create(0.4+m, -1, -0.2).normalize();
+    let spotLight1Color = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
+    let spotLight1Cone = LightCone.create(FMath.PI/9, FMath.PI/6);
+    let spotLight1ShadowMap = ShadowMap.createSpot(this.shadow2, spotLight1Pos, spotLight1Dir, spotLight1Cone.getOutTheta(), 1, 8);
+    let spotLight1 = Light.spotQuadratic(spotLight1Color, spotLight1Pos, spotLight1Dir, 8, spotLight1Cone, spotLight1ShadowMap);
+    let spotLight2Pos = Vec3.create(0, 2, 0);
+    let spotLight2Dir = Vec3.create(0.4, -1, -0.2+m/2).normalize();
+    let spotLight2Color = LightColor.create(Rgb.BLACK, Rgb.WHITE, Rgb.WHITE);
+    let spotLight2Cone = LightCone.create(FMath.PI/9, FMath.PI/6);
+    let spotLight2ShadowMap = ShadowMap.createSpot(this.shadow3, spotLight2Pos, spotLight2Dir, spotLight2Cone.getOutTheta(), 1, 8);
+    let spotLight2 = Light.spotQuadratic(spotLight2Color, spotLight2Pos, spotLight2Dir, 8, spotLight2Cone, spotLight2ShadowMap);
+    let smapRndr = null;
+    if (dirLightEnabled) {
+      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3), Material.BLACK);
+      smapRndr.end();
+    }
+    if (spotLight1Enabled) {
+      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight1));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3), Material.BLACK);
+      smapRndr.end();
+    }
+    if (spotLight2Enabled) {
+      smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(spotLight2));
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3), Material.BLACK);
+      smapRndr.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3), Material.BLACK);
+      smapRndr.end();
+    }
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    this.ui.move(dt);
-    gDriver.clearBuffers(BufferId.DEPTH);
-    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    uiRenderer.render(this.ui);
-    uiRenderer.end();
+    let lights = new ArrayList();
+    if (dirLightEnabled) {
+      lights.add(dirLight);
+    }
+    if (spotLight1Enabled) {
+      lights.add(spotLight1);
+    }
+    if (spotLight2Enabled) {
+      lights.add(spotLight2);
+    }
+    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(cam, lights));
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)), Material.WHITE_PLASTIC.withAmbient(Rgb.gray(0.3)));
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 3), Material.GOLD);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 3), Material.SILVER);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 3), Material.COPPER);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, 0), Material.GOLD);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, 0), Material.SILVER);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, 0), Material.COPPER);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(-3, 0, -3), Material.GOLD);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, 0, -3), Material.SILVER);
+    objRnderer.render(this.box, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(3, 0, -3), Material.WHITE_PLASTIC);
+    objRnderer.end();
+    let crndr = gDriver.startRenderer("ColorRenderer", BasicEnvironment.create(cam));
+    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight1.getPos()).mul(Mat44.scale(0.05)));
+    crndr.render(this.whiteBox, Interpolation.ZERO, Mat44.trans(spotLight2.getPos()).mul(Mat44.scale(0.05)));
+    crndr.end();
   }
 
-  load(drivers, screenManager, properties) {
-    let res = new ArrayList();
+  init(drivers, properties) {
     let assets = drivers.getDriver("AssetManager");
-    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    return res;
+    assets.put(this.box, BoxMeshFactory.fabricBox());
+    assets.put(this.whiteBox, BoxMeshFactory.rgbBox(1, 1, 1));
+    assets.put(this.shadow1, ShadowBuffer.create(4096, 4096));
+    assets.put(this.shadow2, ShadowBuffer.create(4096, 4096));
+    assets.put(this.shadow3, ShadowBuffer.create(4096, 4096));
+    return Collections.emptyList();
   }
 
-  init(drivers, screenManager, properties) {
-    let platform = drivers.getPlatform();
-    let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 28));
-    this.ui = StretchUi.create(UiSizeFncs.scale(0.7));
-    let tabs = TabContainer.create().setRegionFnc(UiRegionFncs.fullFromTop(50));
-    this.ui.addComponent(tabs);
-    let navbar = TabNavbar.create().setTabContainer(tabs).setRegionFnc(UiRegionFncs.fullTop(50)).addTextTabLink("Labels").addTextTabLink("Buttons").addTextTabLink("Selects").addTextTabLink("Inputs").addTextTabLink("Randoms");
-    this.ui.addComponent(navbar);
-    let labelsTab = Tab.create();
-    tabs.addTab(labelsTab);
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Example of H1 text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.H2).setPosFnc(UiPosFncs.leftTop(10, 50)).setText("Example of H2 text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.H3).setPosFnc(UiPosFncs.leftTop(10, 90)).setText("Example of H3 text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.XL).setPosFnc(UiPosFncs.leftTop(10, 130)).setText("Example of extra-large regular text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.L).setPosFnc(UiPosFncs.leftTop(10, 160)).setText("Example of large regular text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 190)).setText("Example of regular text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.S).setPosFnc(UiPosFncs.leftTop(10, 220)).setText("Example of small regular text").setAlignment(TextAlignment.LEFT_TOP));
-    labelsTab.addComponent(Label.create().addTrait(UiComponentTrait.XS).setPosFnc(UiPosFncs.leftTop(10, 250)).setText("Example of extra-small regular text").setAlignment(TextAlignment.LEFT_TOP));
-    let butonsTab = Tab.create();
-    tabs.addTab(butonsTab);
-    butonsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Regular buttons").setAlignment(TextAlignment.LEFT_TOP));
-    butonsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 40)).setText("Press by Q, H, G or Ctrl + E").setAlignment(TextAlignment.LEFT_TOP));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 20, 20)).addTrait(UiComponentTrait.XS).setText("XS").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).addOnClickAction((evt) => {
-  platform.logInfo("XS button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(40, 70, 20, 20)).addTrait(UiComponentTrait.HAMBURGER).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("H")).addOnClickAction((evt) => {
-  platform.logInfo("Hamburger button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(70, 70, 20, 20)).addTrait(UiComponentTrait.CROSS).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("G")).addOnClickAction((evt) => {
-  platform.logInfo("Cross button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 100, 50, 20)).addTrait(UiComponentTrait.S).setText("Small").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).addOnClickAction((evt) => {
-  platform.logInfo("S button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 130, 100, 20)).setText("Medium").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).addOnClickAction((evt) => {
-  platform.logInfo("M button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 160, 150, 20)).addTrait(UiComponentTrait.L).setText("Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.control(), KeyCodeMatchers.upperCharacter("E"))).addOnClickAction((evt) => {
-  platform.logInfo("L button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 190, 200, 20)).addTrait(UiComponentTrait.XL).setText("Extra Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.control(), KeyCodeMatchers.upperCharacter("E"))).addOnClickAction((evt) => {
-  platform.logInfo("XL button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 220, 100, 20)).setText("Disabled").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Q")).setDisabled(true).addOnClickAction((evt) => {
-  platform.logInfo("Disabled button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(120, 220, 20, 20)).addTrait(UiComponentTrait.HAMBURGER).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("H")).setDisabled(true).addOnClickAction((evt) => {
-  platform.logInfo("Disabled hamburger button - click");
-}));
-    butonsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(150, 220, 20, 20)).addTrait(UiComponentTrait.CROSS).setText("").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("G")).setDisabled(true).addOnClickAction((evt) => {
-  platform.logInfo("Disabled cross button - click");
-}));
-    butonsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(230, 10)).setText("Toggle buttons").setAlignment(TextAlignment.LEFT_TOP));
-    butonsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(230, 40)).setText("Toggle by Z or Shift + X").setAlignment(TextAlignment.LEFT_TOP));
-    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 70, 20, 20)).addTrait(UiComponentTrait.XS).setText("XS").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Z")).addOnToggleAction((evt) => {
-  platform.logInfo("XS toggle button - toggled");
-}));
-    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 100, 50, 20)).addTrait(UiComponentTrait.S).setText("Small").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Z")).addOnToggleAction((evt) => {
-  platform.logInfo("S toggle button - toggled");
-}));
-    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 130, 100, 20)).setText("Medium").setKeyCodeMatcher(KeyCodeMatchers.upperCharacter("Z")).addOnToggleAction((evt) => {
-  platform.logInfo("M toggle button - toggled");
-}));
-    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 160, 150, 20)).addTrait(UiComponentTrait.L).setText("Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.shift(), KeyCodeMatchers.upperCharacter("X"))).addOnToggleAction((evt) => {
-  platform.logInfo("L toggle button - toggled");
-}));
-    butonsTab.addComponent(ToggleButton.create().setRegionFnc(UiRegionFncs.leftTop(230, 190, 200, 20)).addTrait(UiComponentTrait.XL).setText("Extra Large").setKeyCodeMatchers(Dut.list(KeyCodeMatchers.shift(), KeyCodeMatchers.upperCharacter("X"))).addOnToggleAction((evt) => {
-  platform.logInfo("XL toggle button - toggled");
-}));
-    butonsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(450, 10)).setText("Joystick").setAlignment(TextAlignment.LEFT_TOP));
-    butonsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(450, 40)).setText("Control by arrows or WSAD").setAlignment(TextAlignment.LEFT_TOP));
-    butonsTab.addComponent(Joystick.create().setRegionFnc(UiRegionFncs.leftTop(450, 70, 80, 80)).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD()));
-    butonsTab.addComponent(Joystick.create().addTrait(UiComponentTrait.SQUARE).setRegionFnc(UiRegionFncs.leftTop(450, 160, 80, 80)).setCircle(false).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD()));
-    let selectsTab = Tab.create();
-    tabs.addTab(selectsTab);
-    selectsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Few items").setAlignment(TextAlignment.LEFT_TOP));
-    selectsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 40)).setText("No srolling").setAlignment(TextAlignment.LEFT_TOP));
-    selectsTab.addComponent(ListSelect.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 200, 100)).addOnSelectAction((src) => {
-  platform.logInfo("Small list: "+(src).getSelectedIndexes().toString());
-}).addItem(ListSelectItem.create("item1", "Item 1")).addItem(ListSelectItem.create("item2", "Item 2")).addItem(ListSelectItem.create("item3", "Item 3 - string that is long enough to be clipped")));
-    selectsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(230, 10)).setText("Scrolling").setAlignment(TextAlignment.LEFT_TOP));
-    selectsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(230, 40)).setText("Necessary to scroll").setAlignment(TextAlignment.LEFT_TOP));
-    selectsTab.addComponent(ListSelect.create().setRegionFnc(UiRegionFncs.leftTop(230, 70, 200, 100)).addOnSelectAction((src) => {
-  platform.logInfo("Big list: "+(src).getSelectedIndexes().toString());
-}).addItem(ListSelectItem.create("item1", "Item 1")).addItem(ListSelectItem.create("item2", "Item 2")).addItem(ListSelectItem.create("item3", "Item 3")).addItem(ListSelectItem.create("item4", "Item 4")).addItem(ListSelectItem.create("item5", "Item 5")).addItem(ListSelectItem.create("item6", "Item 6")).addItem(ListSelectItem.create("item7", "Item 7")).addItem(ListSelectItem.create("item8", "Item 8")).addItem(ListSelectItem.create("item9", "Item 9")).addItem(ListSelectItem.create("item10", "Item 10")).addItem(ListSelectItem.create("item11", "Item 11")).addItem(ListSelectItem.create("item12", "Item 12")).addItem(ListSelectItem.create("item13", "Item 13")).addItem(ListSelectItem.create("item14", "Item 14")).addItem(ListSelectItem.create("item15", "Item 15")).addItem(ListSelectItem.create("item16", "Item 16")).addItem(ListSelectItem.create("item17", "Item 17")).addItem(ListSelectItem.create("item18", "Item 18")).addItem(ListSelectItem.create("item19", "Item 19")).addItem(ListSelectItem.create("item20", "Item 20")).addItem(ListSelectItem.create("item21", "Item 21")).addItem(ListSelectItem.create("item22", "Item 22")).addItem(ListSelectItem.create("item23", "Item 23")).addItem(ListSelectItem.create("item24", "Item 24")).addItem(ListSelectItem.create("item25", "Item 25")).addItem(ListSelectItem.create("item26", "Item 26")).addItem(ListSelectItem.create("item27", "Item 27")).addItem(ListSelectItem.create("item28", "Item 28")).addItem(ListSelectItem.create("item29", "Item 29")).addItem(ListSelectItem.create("item30", "Item 30")));
-    selectsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(450, 10)).setText("Dropdown").setAlignment(TextAlignment.LEFT_TOP));
-    selectsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(450, 40)).setText("Select item from dropdown").setAlignment(TextAlignment.LEFT_TOP));
-    selectsTab.addComponent(Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(450, 70, 100, 30)).setLabelText("Small tiems").setSelected(DropdownItem.create("", "")).addItem(DropdownItem.create("item1", "Item 1")).addItem(DropdownItem.create("item2", "Item 2")).addItem(DropdownItem.create("item3", "Item 3 - string that is long enough to be clipped")).addOnChangeAction((src) => {
-  platform.logInfo("Dropdown changed: "+(src).getSelected().getText());
-}));
-    selectsTab.addComponent(Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(450, 110, 100, 30)).setLabelText("Many tiems").setSelected(DropdownItem.create("", "")).addItem(DropdownItem.create("item1", "Item 1")).addItem(DropdownItem.create("item2", "Item 2")).addItem(DropdownItem.create("item3", "Item 3")).addItem(DropdownItem.create("item4", "Item 4")).addItem(DropdownItem.create("item5", "Item 5")).addItem(DropdownItem.create("item6", "Item 6")).addItem(DropdownItem.create("item7", "Item 7")).addItem(DropdownItem.create("item8", "Item 8")).addItem(DropdownItem.create("item9", "Item 9")).addItem(DropdownItem.create("item10", "Item 10")).addItem(DropdownItem.create("item11", "Item 11")).addItem(DropdownItem.create("item12", "Item 12")).addItem(DropdownItem.create("item13", "Item 13")).addItem(DropdownItem.create("item14", "Item 14")).addItem(DropdownItem.create("item15", "Item 15")).addItem(DropdownItem.create("item16", "Item 16")).addItem(DropdownItem.create("item17", "Item 17")).addItem(DropdownItem.create("item18", "Item 18")).addItem(DropdownItem.create("item19", "Item 19")).addItem(DropdownItem.create("item20", "Item 20")).addOnChangeAction((src) => {
-  platform.logInfo("Dropdown changed: "+(src).getSelected().getText());
-}));
-    selectsTab.addComponent(Panel.create().setRegionFnc(UiRegionFncs.leftTop(450, 150, 120, 50)).addComponent(Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(10, 10, 100, 30)).setLabelText("Dropdown in panel").setSelected(DropdownItem.create("", "")).addItem(DropdownItem.create("item1", "Item 1")).addItem(DropdownItem.create("item2", "Item 2")).addItem(DropdownItem.create("item3", "Item 3")).addItem(DropdownItem.create("item4", "Item 4")).addItem(DropdownItem.create("item5", "Item 5")).addItem(DropdownItem.create("item6", "Item 6")).addItem(DropdownItem.create("item7", "Item 7")).addItem(DropdownItem.create("item8", "Item 8")).addItem(DropdownItem.create("item9", "Item 9")).addItem(DropdownItem.create("item10", "Item 10")).addItem(DropdownItem.create("item11", "Item 11")).addItem(DropdownItem.create("item12", "Item 12")).addItem(DropdownItem.create("item13", "Item 13")).addItem(DropdownItem.create("item14", "Item 14")).addItem(DropdownItem.create("item15", "Item 15")).addItem(DropdownItem.create("item16", "Item 16")).addItem(DropdownItem.create("item17", "Item 17")).addItem(DropdownItem.create("item18", "Item 18")).addItem(DropdownItem.create("item19", "Item 19")).addItem(DropdownItem.create("item20", "Item 20")).addOnChangeAction((src) => {
-  platform.logInfo("Penel dropdown changed: "+(src).getSelected().getText());
-})));
-    selectsTab.addComponent(Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(450, 210, 100, 30)).setLabelText("Disabled").setDisabled(true).setSelected(DropdownItem.create("item1", "item1")).addItem(DropdownItem.create("item1", "Item 1")).addItem(DropdownItem.create("item2", "Item 2")).addItem(DropdownItem.create("item3", "Item 3 - string that is long enough to be clipped")));
-    let inputsTab = Tab.create();
-    tabs.addTab(inputsTab);
-    inputsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Text fields").setAlignment(TextAlignment.LEFT_TOP));
-    inputsTab.addComponent(Label.create().setPosFnc(UiPosFncs.leftTop(10, 40)).setText("Input text, integers, and floats").setAlignment(TextAlignment.LEFT_TOP));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 100, 30)).setLabelText("Text").setValue("Hello").setConstraint(TextFieldFreeConstraint.create(10)).addOnChangeAction((src) => {
-  platform.logInfo("Text field changed: "+(src).getValue());
-}));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 110, 100, 30)).setLabelText("Integer").setValue("0").setConstraint(TextFieldIntegerConstraint.create(true, 8)).addOnChangeAction((src) => {
-  platform.logInfo("Integer field changed: "+(src).getValue());
-}));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 150, 100, 30)).setLabelText("Not negative Integer").setValue("0").setConstraint(TextFieldIntegerConstraint.create(false, 8)).addOnChangeAction((src) => {
-  platform.logInfo("Not negative Integer field changed: "+(src).getValue());
-}));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 190, 100, 30)).setLabelText("Float").setValue("0.0").setConstraint(TextFieldFloatConstraint.create(true, 8)).addOnChangeAction((src) => {
-  platform.logInfo("Float field changed: "+(src).getValue());
-}));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 230, 100, 30)).setLabelText("Not negative Float").setValue("0.0").setConstraint(TextFieldFloatConstraint.create(false, 8)).addOnChangeAction((src) => {
-  platform.logInfo("Not negative Float field changed: "+(src).getValue());
-}));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(120, 70, 100, 30)).setLabelText("Read Only").setValue("Can't change").setReadOnly(true));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(120, 110, 100, 30)).setLabelText("Live Change").setValue("").setLiveChange(true).addOnChangeAction((src) => {
-  platform.logInfo("Live Change field changed: "+(src).getValue());
-}));
-    inputsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(120, 150, 100, 30)).setLabelText("Disabled").setValue("Disabled").setDisabled(true));
-    inputsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(230, 10)).setText("Sliders").setAlignment(TextAlignment.LEFT_TOP));
-    inputsTab.addComponent(Slider.create().setRegionFnc(UiRegionFncs.leftTop(230, 70, 200, 30)).setMin(0).setMax(100).setStep(1).setValue(20).addOnChangeAction((src) => {
-  platform.logInfo("Slider 1 changed: "+(src).getValue());
-}));
-    inputsTab.addComponent(Slider.create().setRegionFnc(UiRegionFncs.leftTop(230, 110, 200, 30)).setMin(-1).setMax(1).setStep(0.25).setValue(0).addOnChangeAction((src) => {
-  platform.logInfo("Slider 2 changed: "+(src).getValue());
-}));
-    inputsTab.addComponent(Slider.create().setRegionFnc(UiRegionFncs.leftTop(230, 150, 200, 30)).setDisabled(true).setMin(0).setMax(100).setStep(1).setValue(33).addOnChangeAction((src) => {
-  platform.logInfo("Slider 3 changed: "+(src).getValue());
-}));
-    let randomsTab = Tab.create();
-    tabs.addTab(randomsTab);
-    let gen = ObjectWrapper.create(XorShift32RandomGenerator.create(952045));
-    randomsTab.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(10, 10)).setText("Seeded").setAlignment(TextAlignment.LEFT_TOP));
-    randomsTab.addComponent(TextField.create().setRegionFnc(UiRegionFncs.leftTop(10, 70, 100, 30)).setLabelText("Seed").setConstraint(TextFieldIntegerConstraint.create(false, 8)).setValue("952045").addOnChangeAction((src) => {
-  let tf = src;
-  let seed = Integer.parseInt(tf.getValue());
-  gen.setObject(XorShift32RandomGenerator.create(seed));
-  platform.logInfo("Updated seed to: "+seed);
-}));
-    randomsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 110, 100, 20)).setText("Next Int").addOnClickAction((evt) => {
-  platform.logInfo("Random Int: "+gen.getObject().nextInt(0, 1000));
-}));
-    randomsTab.addComponent(Button.create().setRegionFnc(UiRegionFncs.leftTop(10, 140, 100, 20)).setText("Next Float").addOnClickAction((evt) => {
-  platform.logInfo("Random Float: "+gen.getObject().nextFloat(0, 1000));
-}));
-    this.ui.subscribe(drivers);
-  }
-
-  leave(drivers) {
-    this.ui.unsubscribe(drivers);
+  close(drivers) {
   }
 
 }
-classRegistry.UiTestApp = UiTestApp;
+classRegistry.BasicApp05 = BasicApp05;
 
 
 // -------------------------------------
@@ -36961,7 +37230,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new UiTestApp());
+    tyracornApp = new BasicApp05();
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
