@@ -7692,13 +7692,6 @@ class WebglGraphicsDriver {
  */
 class WebAudioPlayback {
     /**
-     * Playback id.
-     * 
-     * @type PlaybackId
-     */
-    playbackId;
-
-    /**
      * Audio mixer.
      * 
      * @type AudioMixer
@@ -7706,11 +7699,25 @@ class WebAudioPlayback {
     audioMixer;
 
     /**
-     * audio buffer.
+     * Playback id.
      * 
-     * @type AudioBuffer
+     * @type PlaybackId
      */
-    audioBuffer;
+    playbackId;
+
+    /**
+     * Audio track identifier.
+     * 
+     * @type AudioTrackId
+     */
+    audioTrackId;
+
+    /**
+     * Bus identifier.
+     * 
+     * @type AudioBusId
+     */
+    busId = AudioBusId.MASTER;
 
     /**
      * Gain value as float.
@@ -7727,18 +7734,16 @@ class WebAudioPlayback {
     loop = false;
 
     /**
-     * Whether this playback is playing.
+     * State.
+     * 0 - prepared
+     * 1 - started, but waiting for loading
+     * 2 - started
+     * 3 - stopped
+     * 4 - closed
      * 
-     * @type Boolean
+     * @type Number
      */
-    playing = false;
-
-    /**
-     * Whether this control is ended.
-     * 
-     * @type Boolean
-     */
-    ended = false;
+    state = 0;
 
     /**
      * Audio source.
@@ -7761,9 +7766,9 @@ class WebAudioPlayback {
      * Guards this object to be consistent.
      */
     guardInvariants() {
-        Guard.notNull(this.id, "id cannot be null");
         Guard.notNull(this.audioMixer, "audioMixer cannot be null");
-        Guard.notNull(this.audioBuffer, "audioBuffer cannot be null");
+        Guard.notNull(this.playbackId, "playbackId cannot be null");
+        Guard.notNull(this.audioTrackId, "audioTrackId cannot be null");
     }
 
     /**
@@ -7772,8 +7777,7 @@ class WebAudioPlayback {
      * @return {AudioBusId} bus identifier where this playback belongs to
      */
     getBusId() {
-        // TODO
-        return AudioBusId.MASTER;
+        return this.busId;
     }
 
     /**
@@ -7783,7 +7787,9 @@ class WebAudioPlayback {
      * @return {WebAudioPlayback} this instance
      */
     setBusId(id) {
-        // TODO
+        Guard.notNull(id, "id cannot be null");
+        this.busId = id;
+        this.setGain(this.gain); // reset gain so it's adjusted to bus
         return this;
     }
 
@@ -7813,7 +7819,7 @@ class WebAudioPlayback {
     setGain(gain) {
         this.gain = gain;
         if (this.gainNode !== null) {
-            this.gainNode.gain.value = gain;
+            this.gainNode.gain.value = this.getEffectiveGain();
         }
         return this;
     }
@@ -7909,23 +7915,33 @@ class WebAudioPlayback {
      * @return {WebAudioPlayback} this instance
      */
     play() {
-        if (this.ended) {
-            throw new Error("Playback already ended");
+        if (this.state > 2) {
+            //throw new Error("Playback already ended");
+            // already ended, just graceful return here
+            return;
         }
-        if (this.playing) {
+        if (this.state === 2) {
             // already playing, no need to do anything
             return;
         }
+        // Here stare is 0 or 1.
         // Create source node
+        const audioBuffer = this.audioMixer.audioDriver.getAudioBufferNonStrict(this.audioTrackId);
+        if (audioBuffer === null) {
+            // need to register to play later
+            this.audioMixer.audioDriver.putPlayOnLoad(this.audioTrackId, this);
+            this.state = 1;
+            return this;
+        }
         const audioContext = this.audioMixer.getAudioContext();
         const masterGain = this.audioMixer.getDriverMasterGain();
         const source = audioContext.createBufferSource();
-        source.buffer = this.audioBuffer;
+        source.buffer = audioBuffer;
         source.loop = this.loop;
 
         // Create gain node for individual gain control
         const gainNode = audioContext.createGain();
-        gainNode.gain.value = this.gain;
+        gainNode.gain.value = this.getEffectiveGain();
 
         // Connect nodes
         source.connect(gainNode);
@@ -7957,7 +7973,8 @@ class WebAudioPlayback {
         } catch (e) {
             // do nothing here
         }
-        this.cleanUp;
+        this.state = 3;
+        this.cleanUp();
     }
 
     /**
@@ -7967,36 +7984,52 @@ class WebAudioPlayback {
      * @return {Boolean} whether this playback is playing
      */
     isPlaying() {
-        return this.playing;
+        if (this.state === 2 || this.state === 1) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Returns effective gain.
+     *
+     * @return {Number} effective gain as float
+     */
+    getEffectiveGain() {
+        if (this.busId.equals(AudioBusId.MASTER)) {
+            // master gain is handled in driver, so no need to include here
+            return this.gain;
+        } else {
+            return this.gain * this.audioMixer.getBusGain(this.busId);
+        }
     }
 
     /**
      * Performs the clean up.
      */
     cleanUp() {
-        this.playing = false;
-        this.ended = true;
         if (this.gainNode !== null) {
             this.gainNode.disconnect(this.audioMixer.getDriverMasterGain());
             this.source = null;
             this.gainNode = null;
         }
         this.audioMixer.removePlayback(this.playbackId);
+        this.state = 4;
     }
 
     /**
      * Creates new instance.
      * 
-     * @param {PlaybackId} playbackId playback identifier
      * @param {AudioMixer} audioMixer mixer
-     * @param {AudioBuffer} audioBuffer audio buffer
+     * @param {PlaybackId} playbackId playback identifier
+     * @param {AudioTrackId} audioTrackId audio tracck identifier
      * @returns {WebPlayback} created playback
      */
-    static create(playbackId, audioMixer, audioBuffer) {
+    static create(audioMixer, playbackId, audioTrackId) {
         const res = new WebAudioPlayback();
-        res.playbackId = playbackId;
         res.audioMixer = audioMixer;
-        res.audioBuffer = audioBuffer;
+        res.playbackId = playbackId;
+        res.audioTrackId = audioTrackId;
         res.guardInvariants();
         return res;
     }
@@ -8011,6 +8044,14 @@ class WebAudioMixer {
      * @type WebAudioDriver
      */
     audioDriver;
+
+    /**
+     * Bus gains.
+     * 
+     * @type HashMap of AudioBusId to Float
+     */
+    busGains = new HashMap();
+
     /**
      * Playback map.
      * 
@@ -8065,8 +8106,10 @@ class WebAudioMixer {
      * @return {Number} gain value as float
      */
     getBusGain(id) {
-        // TODO
-        return 1;
+        if (id.equals(AudioBusId.MASTER)) {
+            return this.getMasterGain();
+        }
+        return this.busGains.getOrDefault(id, 1);
     }
 
     /**
@@ -8081,7 +8124,41 @@ class WebAudioMixer {
      * @return {WebAudioMixer} this instance
      */
     setBusGain(id, busGain) {
-        // TODO
+        Guard.notNull(id, "id cannot be null");
+        if (id.equals(AudioBusId.MASTER)) {
+            // master gain is handled as a listener gain in open al, so just push it there
+            this.setMasterGain(busGain);
+        } else {
+            this.busGains.put(id, busGain);
+            // reset the gains for all affected playbacks
+            for (let playback of this.playbacks.values()) {
+                if (playback.busId.equals(id)) {
+                    playback.setGain(playback.getGain());
+                }
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Sets scale factor applies to positions.
+     *
+     * @param {Number} posScale position scale factor
+     * @return {WebAudioMixer} this instance
+     */
+    setPosScale(posScale) {
+        // not supported in web
+        return this;
+    }
+
+    /**
+     * Sets scale factor applies to velocities.
+     *
+     * @param {Number} velocityScale velocity scale factor
+     * @return {WebAudioMixer} this instance
+     */
+    setVelocityScale(velocityScale) {
+        // not supported in web
         return this;
     }
 
@@ -8094,7 +8171,7 @@ class WebAudioMixer {
      * @return {WebAudioMixer} this instance
      */
     setListenerTransform(pos, forward, up) {
-        // TODO
+        // not supported in web
         return this;
     }
 
@@ -8105,7 +8182,7 @@ class WebAudioMixer {
      * @return {WebAudioMixer} this instance
      */
     setListenerVelocity(velocity) {
-        // TODO
+        // not supported in web
         return this;
     }
 
@@ -8120,7 +8197,7 @@ class WebAudioMixer {
         if (this.playbacks.containsKey(id)) {
             throw new Error("playback id is already taken: " + id.toString());
         }
-        const res = WebAudioPlayback.create(id, this, this.audioDriver.getAudioBuffer(trackId));
+        const res = WebAudioPlayback.create(this, id, trackId);
         this.playbacks.put(id, res);
         return res;
     }
@@ -8218,6 +8295,15 @@ class WebAudioDriver {
      * @type HashMap audio buffers (AudioTrackId -> AudioBuffer)
      */
     audioBuffers = new HashMap();
+
+    /**
+     * Map with audio tracks that are supposed to play on load.
+     * Since decoding is asynchronous, they can't be played immediately after calling the load method.
+     * 
+     * @type HashMap audio buffers (AudioTrackId -> List of WebAudioPlayback)
+     */
+    playOnLoads = new HashMap();
+
     constructor() {
     }
 
@@ -8269,20 +8355,27 @@ class WebAudioDriver {
                     throw new Error("unknown endian: " + endian);
                 }
             } else {
-                throw new Error("unsupported sound track type: channels = " + channels.toString() + ", sampleFormat = " + sampleFormat.toString());
+                throw new Error("unsupported track type: channels = " + channels.toString() + ", sampleFormat = " + sampleFormat.toString());
             }
         } else if (format.equals(AudioTrackFormat.OGG)) {
             const trackData = audioTrack.getData();
             const oggData = new Uint8Array(trackData.data);
             const encodedData = oggData.slice().buffer;
-            // TODO solve this as 
+            this.playOnLoads.put(id, new ArrayList());
             this.audioContext.decodeAudioData(encodedData)
                     .then(audioBuffer => {
                         this.audioBuffers.put(id, audioBuffer);
-                        console.log("audio track loaded: " + id.id());
+                        const playbackList = this.playOnLoads.get(id);
+                        this.playOnLoads.remove(id);
+                        if (playbackList !== null) {
+                            for (let playback of playbackList) {
+                                playback.play();
+                            }
+                        }
                     })
                     .catch(error => {
                         console.error("Failed to decode OGG audio:", error);
+                        this.playOnLoads.remove(id);
                     });
         } else {
             throw new Error("unsupported audio track format: " + format.toString());
@@ -8330,12 +8423,12 @@ class WebAudioDriver {
      * Returns audio buffer for a given audio track.
      * 
      * @param {AudioTrackId} audioTrackId autio track identifier
-     * @returns {AudioBuffer} audio buffer
+     * @returns {AudioBuffer|null} audio buffer or null if audio buffer is not available
      */
-    getAudioBuffer(audioTrackId) {
+    getAudioBufferNonStrict(audioTrackId) {
         const res = this.audioBuffers.get(audioTrackId);
         if (res === null || res === undefined) {
-            throw new Error("no sound for: " + audioTrackId.toString());
+            return null;
         }
         return res;
     }
@@ -8347,6 +8440,19 @@ class WebAudioDriver {
      */
     getMasterGain() {
         return this.masterGain;
+    }
+
+    /**
+     * 
+     * @param {type} audioTrackId
+     * @param {type} playback
+     * @returns {WebAudio
+     */
+    putPlayOnLoad(audioTrackId, playback) {
+        if (!this.playOnLoads.containsKey(audioTrackId)) {
+            this.playOnLoads.put(audioTrackId, new ArrayList());
+        }
+        this.playOnLoads.get(audioTrackId).add(playback);
     }
 
     /**
