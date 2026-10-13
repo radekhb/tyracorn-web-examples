@@ -8,7 +8,7 @@ let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
 const basePath = "/tyracorn-web-examples/audio-app-01";
-const assetsDirName = "/assets-a382d2";
+const assetsDirName = "/assets-1af9d1";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -3557,8 +3557,8 @@ class Taps {
             } else if (entry.getType().equals(TapEntryType.FONT)) {
                 const ag = TapFonts.toAssetGroup(entry);
                 res = res.mergeStrict(ag);
-            } else if (entry.getType().equals(TapEntryType.SOUND)) {
-                const ag = TapSounds.toAssetGroup(entry);
+            } else if (entry.getType().equals(TapEntryType.AUDIO_TRACK)) {
+                const ag = TapAudioTracks.toAssetGroup(entry);
                 res = res.mergeStrict(ag);
             } else if (entry.getType().equals(TapEntryType.PREFAB)) {
                 const ag = TapPrefabs.toAssetGroup(entry);
@@ -3943,7 +3943,7 @@ class WebAssetManager {
         } else if (path.getExtension().equals("png")) {
             let tid = TextureId.of(path.getPlainName());
             let texture = await this.loader.loadTexture(path);
-            ag = ag.put(tid, texture);
+            ag = ag.plus(tid, texture);
         } else {
             throw "unsupported type to load, implement me: " + path.path;
         }
@@ -4060,22 +4060,22 @@ class WebAssetManager {
                 gd.disposeShadowBuffer(sbid);
             }
         }
-        let adrivSounds = ad.getSounds();
-        let bankSounds = this.bank.getKeys(SoundId.TYPE);
-        for (let rid of bankSounds) {
+        let adrivTracks = ad.getAudioTracks();
+        let bankTracks = this.bank.getKeys(AudioTrackId.TYPE);
+        for (let rid of bankTracks) {
             let id = rid;
-            if (this.bank.isSynced(id) && adrivSounds.contains(id)) {
+            if (this.bank.isSynced(id) && adrivTracks.contains(id)) {
                 continue;
             }
-            if (adrivSounds.contains(id)) {
-                ad.disposeSound(id);
+            if (adrivTracks.contains(id)) {
+                ad.disposeAudioTrack(id);
             }
-            ad.loadSound(id, this.bank.get("Sound", id));
+            ad.loadAudioTrack(id, this.bank.get("AudioTrack", id));
             this.bank.markSynced(id);
         }
-        for (let id of adrivSounds) {
-            if (!bankSounds.contains(id)) {
-                ad.disposeSound(id);
+        for (let id of adrivTracks) {
+            if (!bankTracks.contains(id)) {
+                ad.disposeAudioTrack(id);
             }
         }
     }
@@ -7688,9 +7688,9 @@ class WebglGraphicsDriver {
     }
 }
 /**
- * Web playback control.
+ * Web audio platbacck.
  */
-class WebPlaybackControl {
+class WebAudioPlayback {
     /**
      * Playback id.
      * 
@@ -7713,11 +7713,11 @@ class WebPlaybackControl {
     audioBuffer;
 
     /**
-     * Volume as float [0..1].
+     * Gain value as float.
      * 
      * @type Number
      */
-    volume = 1.0;
+    gain = 1.0;
 
     /**
      * Whether this sound plays in the loop or not.
@@ -7767,25 +7767,53 @@ class WebPlaybackControl {
     }
 
     /**
-     * Returns the volume of this playback.
-     * This should be number in [0, 1] interval
+     * Returns the bus identifier where this playback belongs to.
      *
-     * @return {Number} volume of this playback inside [0, 1] interval
+     * @return {AudioBusId} bus identifier where this playback belongs to
      */
-    getVolume() {
-        return this.volume;
+    getBusId() {
+        // TODO
+        return AudioBusId.MASTER;
     }
 
     /**
-     * Sets volume of this playback.
+     * Sets the bus identifier where this playback belongs to.
      *
-     * @param {Number} volume volume in [0, 1] interval
-     * @return {WebPlaybackControl} this instance
+     * @param {AudioBusId }id the bus identifier where this playback belongs to
+     * @return {WebAudioPlayback} this instance
      */
-    setVolume(volume) {
-        this.volume = volume;
+    setBusId(id) {
+        // TODO
+        return this;
+    }
+
+    /**
+     * Returns gain value. This is similar to volume.
+     * Gain 0 means no sound is played.
+     * Gain 1 means sound volume is unchanged.
+     * Gain in (0, 1) interval means the sound volume is decreased.
+     * Gain over 1 means the sound volume is increased.
+     *
+     * @return {Number} gain value as float
+     */
+    getGain() {
+        return this.gain;
+    }
+
+    /**
+     * Sets gain value. This is similar to volume.
+     * Gain 0 means no sound is played.
+     * Gain 1 means sound volume is unchanged.
+     * Gain in (0, 1) interval means the sound volume is decreased.
+     * Gain over 1 means the sound volume is increased.
+     *
+     * @param {Numbeer} gain gain value as float
+     * @return {WebAudioPlayback} this instance
+     */
+    setGain(gain) {
+        this.gain = gain;
         if (this.gainNode !== null) {
-            this.gainNode.gain.value = volume;
+            this.gainNode.gain.value = gain;
         }
         return this;
     }
@@ -7803,7 +7831,7 @@ class WebPlaybackControl {
      * Sets whether this playback should play in loop or not.
      *
      * @param {boolean} loop whether this playback should play in loop or not
-     * @return {WebPlaybackControl} this instance
+     * @return {WebAudioPlayback} this instance
      */
     setLoop(loop) {
         this.loop = loop;
@@ -7814,9 +7842,71 @@ class WebPlaybackControl {
     }
 
     /**
+     * Returns whether coordinates of this playback are absolute, or relative to the listener.
+     * Relative coordinates are useful for example as a background music.
+     *
+     * @return {Boolean} whether coordinates of this playback are absolute, or relative to the listener
+     */
+    isAbsolute() {
+        return false;
+    }
+
+    /**
+     * Sets whether coordinates of this playback are absolute, or relative to the listener.
+     * Relative coordinates are useful for example as a background music.
+     *
+     * @param {Boolean} absolute whether coordinates of this playback are absolute, or relative to the listener
+     * @return {AudioPlayback} this instance
+     */
+    setAbsolute(absolute) {
+        // nothing to do here as it's not supported
+        return this;
+    }
+
+    /**
+     * Returns position.
+     *
+     * @return {Vec3} position
+     */
+    getPos() {
+        return Vec3.ZERO;
+    }
+
+    /**
+     * Sets position.
+     *
+     * @param {Vec3} pos position
+     * @return {AudioPlayback} this instance
+     */
+    setPos(pos) {
+        // nothing to do here as it's not supported
+        return this;
+    }
+
+    /**
+     * Returns velocity.
+     *
+     * @return {Vec3} velocity
+     */
+    getVelocity() {
+        return Vec3.ZERO;
+    }
+
+    /**
+     * Sets velocity.
+     *
+     * @param {Vec3} velocity velocity
+     * @return {AudioPlayback} this instance
+     */
+    setVelocity(velocity) {
+        // nothing to do here as it's not supported
+        return this;
+    }
+
+    /**
      * Starts playing this playback.
      *
-     * @return {WebPlaybackControl} this instance
+     * @return {WebAudioPlayback} this instance
      */
     play() {
         if (this.ended) {
@@ -7828,14 +7918,14 @@ class WebPlaybackControl {
         }
         // Create source node
         const audioContext = this.audioMixer.getAudioContext();
-        const masterGain = this.audioMixer.getMasterGain();
+        const masterGain = this.audioMixer.getDriverMasterGain();
         const source = audioContext.createBufferSource();
         source.buffer = this.audioBuffer;
         source.loop = this.loop;
 
-        // Create gain node for individual volume control
+        // Create gain node for individual gain control
         const gainNode = audioContext.createGain();
-        gainNode.gain.value = this.volume;
+        gainNode.gain.value = this.gain;
 
         // Connect nodes
         source.connect(gainNode);
@@ -7859,7 +7949,7 @@ class WebPlaybackControl {
      * Stops this playback. Call of this method moves playback to the ended state.
      * Ended state is final and playback can be removed from system at any time.
      *
-     * @return {WebPlaybackControl} this instance
+     * @return {WebAudioPlayback} this instance
      */
     stop() {
         try {
@@ -7868,16 +7958,6 @@ class WebPlaybackControl {
             // do nothing here
         }
         this.cleanUp;
-    }
-
-    /**
-     * Returns whether this playback is ended.
-     * Ended playbacks are done and can be removed from system.
-     *
-     * @return {Boolean} whether this playback is ended or not
-     */
-    isEnded() {
-        return this.ended;
     }
 
     /**
@@ -7897,7 +7977,7 @@ class WebPlaybackControl {
         this.playing = false;
         this.ended = true;
         if (this.gainNode !== null) {
-            this.gainNode.disconnect(this.audioMixer.getMasterGain());
+            this.gainNode.disconnect(this.audioMixer.getDriverMasterGain());
             this.source = null;
             this.gainNode = null;
         }
@@ -7913,7 +7993,7 @@ class WebPlaybackControl {
      * @returns {WebPlayback} created playback
      */
     static create(playbackId, audioMixer, audioBuffer) {
-        const res = new WebPlaybackControl();
+        const res = new WebAudioPlayback();
         res.playbackId = playbackId;
         res.audioMixer = audioMixer;
         res.audioBuffer = audioBuffer;
@@ -7934,7 +8014,7 @@ class WebAudioMixer {
     /**
      * Playback map.
      * 
-     * @type HashMap of PlaybackId to WebPlaybackControl
+     * @type {HashMap} of PlaybackId to WebAudioPlayback
      */
     playbacks = new HashMap();
     constructor() {
@@ -7948,44 +8028,129 @@ class WebAudioMixer {
     }
 
     /**
-     * Prepares playback to be played. Returns con
+     * Returns master gain value. This gain applies to all audio.
+     * Gain 0 means no sound is played.
+     * Gain 1 means sound volume is unchanged.
+     * Gain in (0, 1) interval means the sound volume is decreased.
+     * Gain over 1 means the sound volume is increased.
      *
-     * @param {PlaybackId} id playback identifier for later reference
-     * @param {SoundId} soundId identifier of the sound which will be played
-     * @return {PlaybackControl} control for further actions
+     * @return {Number} gain value as float
      */
-    prepare(id, soundId) {
+    getMasterGain() {
+        return this.getDriverMasterGain().gain.value;
+    }
+
+    /**
+     * Sets master gain value. This gain applies to all audio.
+     * Gain 0 means no sound is played.
+     * Gain 1 means sound volume is unchanged.
+     * Gain in (0, 1) interval means the sound volume is decreased.
+     * Gain over 1 means the sound volume is increased.
+     *
+     * @param {Number} masterGain gain value as float
+     * @return {WebAudioMixer} this instance
+     */
+    setMasterGain(masterGain) {
+        this.getDriverMasterGain().gain.value = masterGain;
+        return this;
+    }
+    /**
+     * Returns gain value of the specified bus. This gain applies to all audio under that bus.
+     * Gain 0 means no sound is played.
+     * Gain 1 means sound volume is unchanged.
+     * Gain in (0, 1) interval means the sound volume is decreased.
+     * Gain over 1 means the sound volume is increased.
+     *
+     * @param {AudioBusId} id bus identifier
+     * @return {Number} gain value as float
+     */
+    getBusGain(id) {
+        // TODO
+        return 1;
+    }
+
+    /**
+     * Sets gain value of the specified bus. This gain applies to all audio under that bus.
+     * Gain 0 means no sound is played.
+     * Gain 1 means sound volume is unchanged.
+     * Gain in (0, 1) interval means the sound volume is decreased.
+     * Gain over 1 means the sound volume is increased.
+     *
+     * @param {AudioBusId} id bus identifier
+     * @param {Number} busGain gain value as float
+     * @return {WebAudioMixer} this instance
+     */
+    setBusGain(id, busGain) {
+        // TODO
+        return this;
+    }
+
+    /**
+     * Sets listener transform.
+     *
+     * @param {Vec3} pos position
+     * @param {Vec3} forward forward vector
+     * @param {Vec3} up up vector
+     * @return {WebAudioMixer} this instance
+     */
+    setListenerTransform(pos, forward, up) {
+        // TODO
+        return this;
+    }
+
+    /**
+     * Sets listener velocity.
+     *
+     * @param {Vec3} velocity velocity
+     * @return {WebAudioMixer} this instance
+     */
+    setListenerVelocity(velocity) {
+        // TODO
+        return this;
+    }
+
+    /**
+     * Prepares playback to be played.
+     *
+     * @param {AudioPlaybackId} id playback identifier for later reference
+     * @param {AudioTrackId} trackId track identifier
+     * @return {WebAudioPlayback} playback object
+     */
+    preparePlayback(id, trackId) {
         if (this.playbacks.containsKey(id)) {
             throw new Error("playback id is already taken: " + id.toString());
         }
-        const res = WebPlaybackControl.create(id, this, this.audioDriver.getAudioBuffer(soundId));
+        const res = WebAudioPlayback.create(id, this, this.audioDriver.getAudioBuffer(trackId));
         this.playbacks.put(id, res);
         return res;
     }
 
     /**
-     * Returns control of the specified playback.
+     * Returns playback in a not strict manner.
      * Returns null if given playback is not found. For example, playback might be removed after it's done.
      *
-     * @param {PlaybackId} playbackId playback id
-     * @return {WebPlaybackControl} control of the specified playback, or null if playback doesn't exists
+     * @param {AudioPlaybackId} id playback id
+     * @return {AudioPlayback} control of the specified playback, or null if playback doesn't exists
      */
-    getControlNonStrict(playbackId) {
-        return this.playbacks.get(playbackId);
+    getPlaybackNonStrict(id) {
+        return this.playbacks.get(id);
     }
 
     /**
      * Stops all playbacks. This can put all the existing playbacks into an unusable state and possibly remove them.
      * Use case for this method is for example when user is leaving one screen so all the sounds should be stopped and existing playbacks
      * references are not going to be used anymore.
+     *
+     * @return {AudioMixer} this instance
      */
-    stop() {
+    stopAll() {
         const oldPlaybacks = this.playbacks;
         this.playbacks = new HashMap();
         for (const playbackId of oldPlaybacks.keySet()) {
             const pb = oldPlaybacks.get(playbackId);
             pb.stop();
         }
+        return this;
     }
 
     /**
@@ -8006,11 +8171,11 @@ class WebAudioMixer {
     }
 
     /**
-     * Returns master gain.
+     * Returns the master gain from driver.
      * 
-     * @returns {MasterGain} masrter gain
+     * @returns {MasterGain} master gain from driver
      */
-    getMasterGain() {
+    getDriverMasterGain() {
         return this.audioDriver.getMasterGain();
     }
 
@@ -8031,13 +8196,26 @@ class WebAudioMixer {
  * Web audio driver.
  */
 class WebAudioDriver {
+    /**
+     * Channels for mono.
+     * 
+     * @type {ArrayList} of PcmChannel
+     */
+    monoChannels = Dut.immutableList(PcmChannel.MONO);
+
+    /**
+     * Channels for stereo.
+     * 
+     * @type {ArrayList} of PcmChannel
+     */
+    stereoChannels = Dut.immutableList(PcmChannel.FRONT_LEFT, PcmChannel.FRONT_RIGHT);
+
     audioContext;
     masterGain;
-    soundIds;
     /**
-     * Map with audio buffer for each sound.
+     * Map with audio buffer for each audio track.
      * 
-     * @type HashMap audio buffers (SoundId -> AudioBuffer)
+     * @type HashMap audio buffers (AudioTrackId -> AudioBuffer)
      */
     audioBuffers = new HashMap();
     constructor() {
@@ -8049,58 +8227,85 @@ class WebAudioDriver {
     guardInvariants() {
         Guard.notNull(this.audioContext, "audioContext cannot be null");
         Guard.notNull(this.masterGain, "masterGain cannot be null");
-        Guard.notNull(this.soundIds, "soundIds cannot be null");
     }
 
     /**
-     * Loads sound into an audio memory.
+     * Loads audio track into an audio memory.
      *
-     * @param {SoundId} id sound identifier
-     * @param {Sound} sound sound
+     * @param {AudioTrackId} id identifier
+     * @param {AudioTrack} audioTrack audio track
      */
-    loadSound(id, sound) {
-        const track = sound.getTrack();
-        const format = track.getFormat();
-        const normalized = track.getRange().min() === -1 && track.getRange().max() === 1;
-        const endian = track.getEndian();
-        if (format.equals(SoundTrackFormat.FLOAT) && normalized) {
-            if (endian.equals(EndianType.BIG_ENDIAN)) {
-                // need to copy data one by one => slow way
-                const floatBuf = new Float32Array(track.getNumSamples());
-                for (let i = 0; i < track.getNumSamples(); ++i) {
-                    floatBuf[i] = track.getFloatSample(i);
+    loadAudioTrack(id, audioTrack) {
+        const format = audioTrack.getFormat();
+        if (format.equals(AudioTrackFormat.PCM)) {
+            const pcm = audioTrack.getPcmFormat();
+            const channels = pcm.getChannels();
+            const sampleFormat = pcm.getSampleFormat();
+            const endian = pcm.getEndian();
+            const trackData = audioTrack.getData();
+            const numSamples = trackData.size() / 4;
+            if (channels.equals(this.monoChannels) && sampleFormat.equals(PcmSampleFormat.FLOAT)) {
+                if (endian.equals(EndianType.BIG_ENDIAN)) {
+                    // need to copy data one by one => slow way
+                    const floatBuf = new Float32Array(numSamples);
+                    for (let i = 0; i < numSamples; ++i) {
+                        floatBuf[i] = audioTrack.getFloat(endian, i * 4);
+                    }
+                    const audioBuffer = this.audioContext.createBuffer(1, numSamples, pcm.getSampleRate());
+                    const channelData = audioBuffer.getChannelData(0);
+                    for (let i = 0; i < numSamples; i++) {
+                        channelData[i] = floatBuf[i];
+                    }
+                    this.audioBuffers.put(id, audioBuffer);
+                } else if (endian.equals(EndianType.LITTLE_ENDIAN)) {
+                    // can set directly without loop per element => fast
+                    const trData = new Uint8Array(trackData.data);
+                    const trDataD32 = new Float32Array(trData.buffer, trData.byteOffset, trData.byteLength / 4);
+                    const audioBuffer = this.audioContext.createBuffer(1, numSamples, pcm.getSampleRate());
+                    const channelData = audioBuffer.getChannelData(0);
+                    channelData.set(trDataD32);
+                    this.audioBuffers.put(id, audioBuffer);
+                } else {
+                    throw new Error("unknown endian: " + endian);
                 }
-                const audioBuffer = this.audioContext.createBuffer(1, track.getNumSamples(), track.getSampleRate());
-                const channelData = audioBuffer.getChannelData(0);
-                for (let i = 0; i < track.getNumSamples(); i++) {
-                    channelData[i] = floatBuf[i];
-                }
-                this.audioBuffers.put(id, audioBuffer);
-                this.soundIds.add(id);
-            } else if (endian.equals(EndianType.LITTLE_ENDIAN)) {
-                // can set directly without loop per element => fast
-                const trData = new Uint8Array(track.getData().data);
-                const trDataD32 = new Float32Array(trData.buffer, trData.byteOffset, trData.byteLength / 4);
-                const audioBuffer = this.audioContext.createBuffer(1, track.getNumSamples(), track.getSampleRate());
-                const channelData = audioBuffer.getChannelData(0);
-                channelData.set(trDataD32);
-                this.audioBuffers.put(id, audioBuffer);
-                this.soundIds.add(id);
             } else {
-                throw new Error("unknown endian: " + endian);
+                throw new Error("unsupported sound track type: channels = " + channels.toString() + ", sampleFormat = " + sampleFormat.toString());
             }
+        } else if (format.equals(AudioTrackFormat.OGG)) {
+            const trackData = audioTrack.getData();
+            const oggData = new Uint8Array(trackData.data);
+            const encodedData = oggData.slice().buffer;
+            // TODO solve this as 
+            this.audioContext.decodeAudioData(encodedData)
+                    .then(audioBuffer => {
+                        this.audioBuffers.put(id, audioBuffer);
+                        console.log("audio track loaded: " + id.id());
+                    })
+                    .catch(error => {
+                        console.error("Failed to decode OGG audio:", error);
+                    });
         } else {
-            throw new Error("unsupported sound track type: format = " + track.getFormat().toString() + ", range = " + track.getRange().toString());
+            throw new Error("unsupported audio track format: " + format.toString());
         }
     }
 
     /**
-     * Returns sound ids.
-     * 
-     * @returns {Set of SoundId} sound ids
+     * Disposes the audio track from an audio memory.
+     *
+     * @param {AudioTrackId} id audio track identifier
      */
-    getSounds() {
-        return Dut.copyImmutableSet(this.soundIds);
+    disposeAudioTrack(id) {
+        // removing from here will trigger the garbage collection
+        this.audioBuffers.remove(id);
+    }
+
+    /**
+     * Returns loaded audio tracks.
+     *
+     * @return {HashSet} loaded audio tracks as a set of AudioTrackId
+     */
+    getAudioTracks() {
+        return Dut.copySet(this.audioBuffers.keySet());
     }
 
     /**
@@ -8122,15 +8327,15 @@ class WebAudioDriver {
     }
 
     /**
-     * Returns audio buffer for a given sound.
+     * Returns audio buffer for a given audio track.
      * 
-     * @param {SoundId} soundId sound identifier
+     * @param {AudioTrackId} audioTrackId autio track identifier
      * @returns {AudioBuffer} audio buffer
      */
-    getAudioBuffer(soundId) {
-        const res = this.audioBuffers.get(soundId);
+    getAudioBuffer(audioTrackId) {
+        const res = this.audioBuffers.get(audioTrackId);
         if (res === null || res === undefined) {
-            throw new Error("no sound for: " + soundId.toString());
+            throw new Error("no sound for: " + audioTrackId.toString());
         }
         return res;
     }
@@ -8156,7 +8361,6 @@ class WebAudioDriver {
         res.masterGain = res.audioContext.createGain();
         res.masterGain.connect(res.audioContext.destination);
         res.masterGain.gain.value = 1.0;
-        res.soundIds = new HashSet();
         res.guardInvariants();
         return res;
     }
@@ -16866,6 +17070,7 @@ class DefaultUiStyler {
   dropdownOverlayBorderColor = Rgba.create(0.365, 0.341, 0.314, 0.5);
   dropdownOverlayBackgroundColor = Rgba.create(0.482, 0.451, 0.420, 1);
   dropdownOverlayHighlightedBackgroundColor = Rgba.create(0.573, 0.537, 0.415, 0.3);
+  sliderUnitSize = 10;
   sliderTextureIds = Dut.map("handle-default", TextureId.of("slider-handle-default"), "track-default", TextureId.of("slider-track-default"), "handle-disabled", TextureId.of("slider-handle-disabled"), "track-disabled", TextureId.of("slider-track-disabled"));
   customStyles = Collections.emptyList();
   styles = null;
@@ -17098,6 +17303,12 @@ class DefaultUiStyler {
     return this;
   }
 
+  setSliderUnitSize(sliderUnitSize) {
+    this.sliderUnitSize = sliderUnitSize;
+    this.styles = null;
+    return this;
+  }
+
   setSliderTextureIdPattern(pattern) {
     Guard.notEmpty(pattern, "pattern cannot be empty");
     this.sliderTextureIds = Dut.map("handle-default", TextureId.of(pattern.replace("${part}", "handle").replace("${state}", "default")), "track-default", TextureId.of(pattern.replace("${part}", "track").replace("${state}", "default")), "handle-disabled", TextureId.of(pattern.replace("${part}", "handle").replace("${state}", "disabled")), "track-disabled", TextureId.of(pattern.replace("${part}", "track").replace("${state}", "disabled")));
@@ -17149,7 +17360,7 @@ class DefaultUiStyler {
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.LIST_SELECT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.selectBorderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.selectBackgroundColor, UiComponentStylePropertyKey.HIGHLIGHTED_BACKGROUND_COLOR, this.selectHighlightedBackgroundColor, UiComponentStylePropertyKey.SELECTED_BACKGROUND_COLOR, this.selectSelectedBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.SELECTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.SELECTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.ITEM_HEIGHT, this.selectItemHeight)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.TEXT_FIELD), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.fieldBorderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.fieldBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledFieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor, UiComponentStylePropertyKey.DISABLED_LABEL_TEXT_COLOR, this.disabledFieldLabelColor)));
     this.styles.put(UiComponentStyleKey.plain(UiComponentType.DROPDOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BORDER_COLOR, this.fieldBorderColor, UiComponentStylePropertyKey.BACKGROUND_COLOR, this.fieldBackgroundColor, UiComponentStylePropertyKey.TEXT_FONT, this.fieldValueFont, UiComponentStylePropertyKey.TEXT_COLOR, this.fieldValueColor, UiComponentStylePropertyKey.DISABLED_TEXT_COLOR, this.disabledFieldValueColor, UiComponentStylePropertyKey.LABEL_TEXT_FONT, this.fieldLabelFont, UiComponentStylePropertyKey.LABEL_TEXT_COLOR, this.fieldLabelColor, UiComponentStylePropertyKey.DISABLED_LABEL_TEXT_COLOR, this.disabledFieldLabelColor, UiComponentStylePropertyKey.OVERLAY_BORDER_COLOR, this.dropdownOverlayBorderColor, UiComponentStylePropertyKey.OVERLAY_BACKGROUND_COLOR, this.dropdownOverlayBackgroundColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_BACKGROUND_COLOR, this.dropdownOverlayHighlightedBackgroundColor, UiComponentStylePropertyKey.OVERLAY_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_FONT, this.selectItemTextFont, UiComponentStylePropertyKey.OVERLAY_HIGHLIGHTED_TEXT_COLOR, this.selectItemTextColor, UiComponentStylePropertyKey.OVERLAY_ITEM_HEIGHT, this.selectItemHeight)));
-    this.styles.put(UiComponentStyleKey.plain(UiComponentType.SLIDER), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UNIT_SIZE, 10, UiComponentStylePropertyKey.HANDLE_TEXTURE, this.sliderTextureIds.get("handle-default"), UiComponentStylePropertyKey.TRACK_TEXTURE, this.sliderTextureIds.get("track-default"), UiComponentStylePropertyKey.DISABLED_HANDLE_TEXTURE, this.sliderTextureIds.get("handle-disabled"), UiComponentStylePropertyKey.DISABLED_TRACK_TEXTURE, this.sliderTextureIds.get("track-disabled"))));
+    this.styles.put(UiComponentStyleKey.plain(UiComponentType.SLIDER), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UNIT_SIZE, this.sliderUnitSize, UiComponentStylePropertyKey.HANDLE_TEXTURE, this.sliderTextureIds.get("handle-default"), UiComponentStylePropertyKey.TRACK_TEXTURE, this.sliderTextureIds.get("track-default"), UiComponentStylePropertyKey.DISABLED_HANDLE_TEXTURE, this.sliderTextureIds.get("handle-disabled"), UiComponentStylePropertyKey.DISABLED_TRACK_TEXTURE, this.sliderTextureIds.get("track-disabled"))));
     for (let customStyle of this.customStyles) {
       let newStyle = customStyle.getStyle();
       if (customStyle.getBaseKey()!=null) {
@@ -23310,7 +23521,58 @@ class UiEnvironment {
 
 }
 classRegistry.UiEnvironment = UiEnvironment;
-class PlaybackId extends RefId {
+class AudioBusId {
+  static MASTER = AudioBusId.create("MASTER");
+  static MUSIC = AudioBusId.create("MUSIC");
+  static SFX = AudioBusId.create("SFX");
+  static DIALOGUE = AudioBusId.create("DIALOGUE");
+  static AMBIENT = AudioBusId.create("AMBIENT");
+  id;
+  constructor() {
+  }
+
+  getClass() {
+    return "AudioBusId";
+  }
+
+  guardInvariants() {
+  }
+
+  getId() {
+    return this.id;
+  }
+
+  hashCode() {
+    return this.id.hashCode();
+  }
+
+  equals(obj) {
+    if (this==obj) {
+      return true;
+    }
+    if (obj==null) {
+      return false;
+    }
+    if (!(obj instanceof AudioBusId)) {
+      return false;
+    }
+    let other = obj;
+    return other.id.equals(this.id);
+  }
+
+  toString() {
+  }
+
+  static create(id) {
+    let res = new AudioBusId();
+    res.id = id;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.AudioBusId = AudioBusId;
+class AudioPlaybackId extends RefId {
   static TYPE = RefIdType.of("PLAYBACK_ID");
   mId;
   constructor() {
@@ -23318,14 +23580,14 @@ class PlaybackId extends RefId {
   }
 
   getClass() {
-    return "PlaybackId";
+    return "AudioPlaybackId";
   }
 
   guardInvariants() {
   }
 
   type() {
-    return PlaybackId.TYPE;
+    return AudioPlaybackId.TYPE;
   }
 
   id() {
@@ -23340,7 +23602,7 @@ class PlaybackId extends RefId {
     if (obj==null) {
       return false;
     }
-    if (!(obj instanceof PlaybackId)) {
+    if (!(obj instanceof AudioPlaybackId)) {
       return false;
     }
     let other = obj;
@@ -23351,30 +23613,37 @@ class PlaybackId extends RefId {
   }
 
   static of(id) {
-    let res = new PlaybackId();
+    let res = new AudioPlaybackId();
     res.mId = id;
     res.guardInvariants();
     return res;
   }
 
+  static random() {
+    let res = new AudioPlaybackId();
+    res.mId = Randoms.nextAlphabetic(4);
+    res.guardInvariants();
+    return res;
+  }
+
 }
-classRegistry.PlaybackId = PlaybackId;
-class SoundId extends RefId {
-  static TYPE = RefIdType.of("SOUND_ID");
+classRegistry.AudioPlaybackId = AudioPlaybackId;
+class AudioTrackId extends RefId {
+  static TYPE = RefIdType.of("AUDIO_TRACK_ID");
   mId;
   constructor() {
     super();
   }
 
   getClass() {
-    return "SoundId";
+    return "AudioTrackId";
   }
 
   guardInvariants() {
   }
 
   type() {
-    return SoundId.TYPE;
+    return AudioTrackId.TYPE;
   }
 
   id() {
@@ -23389,7 +23658,7 @@ class SoundId extends RefId {
     if (obj==null) {
       return false;
     }
-    if (!(obj instanceof SoundId)) {
+    if (!(obj instanceof AudioTrackId)) {
       return false;
     }
     let other = obj;
@@ -23400,15 +23669,15 @@ class SoundId extends RefId {
   }
 
   static of(id) {
-    let res = new SoundId();
+    let res = new AudioTrackId();
     res.mId = id;
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.SoundId = SoundId;
-const createSoundTrackFormat = (description) => {
+classRegistry.AudioTrackId = AudioTrackId;
+const createAudioTrackFormat = (description) => {
   const symbol = Symbol(description);
   return {
     symbol: symbol,
@@ -23436,8 +23705,9 @@ const createSoundTrackFormat = (description) => {
     }
   };
 };
-const SoundTrackFormat = Object.freeze({
-  FLOAT: createSoundTrackFormat("FLOAT"),
+const AudioTrackFormat = Object.freeze({
+  PCM: createAudioTrackFormat("PCM"),
+  OGG: createAudioTrackFormat("OGG"),
 
   valueOf(description) {
     if (typeof description !== 'string') {
@@ -23455,17 +23725,15 @@ const SoundTrackFormat = Object.freeze({
     return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
   }
 });
-class SoundTrack {
+class AudioTrack {
   format;
-  sampleRate;
-  range;
-  endian;
+  pcmFormat;
   data;
   constructor() {
   }
 
   getClass() {
-    return "SoundTrack";
+    return "AudioTrack";
   }
 
   guardInvariants() {
@@ -23475,48 +23743,20 @@ class SoundTrack {
     return this.format;
   }
 
-  getSampleRate() {
-    return this.sampleRate;
+  isPcm() {
+    return this.format.equals(AudioTrackFormat.PCM);
   }
 
-  getRange() {
-    return this.range;
+  isOgg() {
+    return this.format.equals(AudioTrackFormat.OGG);
   }
 
-  getEndian() {
-    return this.endian;
+  getPcmFormat() {
+    return this.pcmFormat;
   }
 
   getData() {
     return this.data;
-  }
-
-  getNumSamples() {
-    if (this.format.equals(SoundTrackFormat.FLOAT)) {
-      return this.data.size()/4;
-    }
-    else {
-      throw new Error("unsupported format, implement me: "+this.format);
-    }
-  }
-
-  getFloatSample(idx) {
-    if (this.format.equals(SoundTrackFormat.FLOAT)) {
-      return this.data.getFloat(this.endian, idx*4);
-    }
-    else {
-      throw new Error("unsupported format, implement me: "+this.format);
-    }
-  }
-
-  getDuration() {
-    if (this.format.equals(SoundTrackFormat.FLOAT)) {
-      let numSamples = this.data.size()/4;
-      return numSamples/this.sampleRate;
-    }
-    else {
-      throw new Error("unsupported format, implement me: "+this.format);
-    }
   }
 
   hashCode() {
@@ -23530,63 +23770,25 @@ class SoundTrack {
   toString() {
   }
 
-  static create(format, sampleRate, range, endian, data) {
-    let res = new SoundTrack();
+  static create(format, pcmFormat, data) {
+    let res = new AudioTrack();
     res.format = format;
-    res.sampleRate = sampleRate;
-    res.range = range;
-    res.endian = endian;
+    res.pcmFormat = pcmFormat;
     res.data = data;
     res.guardInvariants();
     return res;
   }
 
-  static rangedFloatValues(sampleRate, range, ...samples) {
-    if (Array.isArray(samples)&&samples.length===1&&Array.isArray(samples[0])) {
-      samples = samples[0];
+  static pcmMonoFloatList(sampleRate, samples) {
+    let res = new AudioTrack();
+    res.format = AudioTrackFormat.PCM;
+    res.pcmFormat = PcmFormat.create(Dut.list(PcmChannel.MONO), sampleRate, PcmSampleFormat.FLOAT, EndianType.LITTLE_ENDIAN);
+    let writer = DataBlockStreamWriter.create(EndianType.LITTLE_ENDIAN, samples.size()*4);
+    for (let smp of samples) {
+      Guard.beTrue(smp>=-1&&smp<=1, "samples must be in [-1, 1] interval");
+      writer.writeFloat(smp);
     }
-    let res = new SoundTrack();
-    res.format = SoundTrackFormat.FLOAT;
-    res.sampleRate = sampleRate;
-    res.range = range;
-    res.endian = EndianType.LITTLE_ENDIAN;
-    res.data = DataBlock.fromFloatValues(EndianType.LITTLE_ENDIAN, samples);
-    res.guardInvariants();
-    return res;
-  }
-
-  static rangedFloatList(sampleRate, range, samples) {
-    let res = new SoundTrack();
-    res.format = SoundTrackFormat.FLOAT;
-    res.sampleRate = sampleRate;
-    res.range = range;
-    res.endian = EndianType.LITTLE_ENDIAN;
-    res.data = DataBlock.fromFloatList(EndianType.LITTLE_ENDIAN, samples);
-    res.guardInvariants();
-    return res;
-  }
-
-  static normalizedFloatValues(sampleRate, ...samples) {
-    if (Array.isArray(samples)&&samples.length===1&&Array.isArray(samples[0])) {
-      samples = samples[0];
-    }
-    let res = new SoundTrack();
-    res.format = SoundTrackFormat.FLOAT;
-    res.sampleRate = sampleRate;
-    res.range = Interval2.create(-1, 1);
-    res.endian = EndianType.LITTLE_ENDIAN;
-    res.data = DataBlock.fromFloatValues(EndianType.LITTLE_ENDIAN, samples);
-    res.guardInvariants();
-    return res;
-  }
-
-  static normalizedFloatList(sampleRate, samples) {
-    let res = new SoundTrack();
-    res.format = SoundTrackFormat.FLOAT;
-    res.sampleRate = sampleRate;
-    res.range = Interval2.create(-1, 1);
-    res.endian = EndianType.LITTLE_ENDIAN;
-    res.data = DataBlock.fromFloatList(EndianType.LITTLE_ENDIAN, samples);
+    res.data = writer.toDataBlock();
     res.guardInvariants();
     return res;
   }
@@ -23596,26 +23798,28 @@ class SoundTrack {
     if (tracks.size()==1) {
       return tracks.get(0);
     }
+    let pcm0 = tracks.get(0).getPcmFormat();
     for (let track of tracks) {
-      Guard.equals(SoundTrackFormat.FLOAT, track.getFormat(), "only FLOAT tracks are supported");
-      Guard.equals(tracks.get(0).getSampleRate(), track.getSampleRate(), "all tracks must have same sampleRate");
-      Guard.equals(tracks.get(0).getNumSamples(), track.getNumSamples(), "all tracks must have same number of samples");
-      Guard.equals(tracks.get(0).getRange(), track.getRange(), "all tracks must have same range");
-      Guard.equals(tracks.get(0).getEndian(), track.getEndian(), "all tracks must have same endian");
+      Guard.equals(AudioTrackFormat.PCM, track.getFormat(), "only PCM formats are supported");
+      let pcm = track.getPcmFormat();
+      Guard.equals(Dut.list(PcmChannel.MONO), pcm.getChannels(), "only MONO tracks are supported");
+      Guard.equals(pcm0.getSampleRate(), pcm.getSampleRate(), "all tracks must have same sampleRate");
+      Guard.equals(PcmSampleFormat.FLOAT, pcm.getSampleFormat(), "all samples must be FLOAT format");
+      Guard.equals(pcm0.getEndian(), pcm.getEndian(), "all tracks must have same endian");
+      Guard.equals(tracks.get(0).getData().size(), track.getData().size(), "all tracks must have same number of samples");
     }
-    let res = new SoundTrack();
-    res.format = SoundTrackFormat.FLOAT;
-    res.sampleRate = tracks.get(0).sampleRate;
-    res.range = tracks.get(0).range;
-    res.endian = tracks.get(0).endian;
-    let writer = DataBlockStreamWriter.create(res.endian, tracks.get(0).getNumSamples()*4);
-    for (let i = 0; i<tracks.get(0).getNumSamples(); ++i) {
+    let res = new AudioTrack();
+    res.format = AudioTrackFormat.PCM;
+    res.pcmFormat = pcm0;
+    let writer = DataBlockStreamWriter.create(pcm0.getEndian(), tracks.get(0).getData().size());
+    let numSamples = tracks.get(0).getData().size()/4;
+    for (let i = 0; i<numSamples; ++i) {
       let d = 0;
       for (let track of tracks) {
-        d = d+track.getFloatSample(i);
+        d = d+track.getData().getFloat(pcm0.getEndian(), i*4);
       }
-      d = d/tracks.size();
-      writer.writeFloat(FMath.clamp(d, res.range.min(), res.range.max()));
+      d = FMath.clamp(d/tracks.size(), -1, 1);
+      writer.writeFloat(d);
     }
     res.data = writer.toDataBlock();
     res.guardInvariants();
@@ -23623,26 +23827,144 @@ class SoundTrack {
   }
 
 }
-classRegistry.SoundTrack = SoundTrack;
-class Sound {
-  priority;
-  track;
+classRegistry.AudioTrack = AudioTrack;
+const createPcmChannel = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const PcmChannel = Object.freeze({
+  MONO: createPcmChannel("MONO"),
+  FRONT_LEFT: createPcmChannel("FRONT_LEFT"),
+  FRONT_RIGHT: createPcmChannel("FRONT_RIGHT"),
+  FRONT_CENTER: createPcmChannel("FRONT_CENTER"),
+  LOW_FREQUENCY: createPcmChannel("LOW_FREQUENCY"),
+  BACK_LEFT: createPcmChannel("BACK_LEFT"),
+  BACK_RIGHT: createPcmChannel("BACK_RIGHT"),
+  BACK_CENTER: createPcmChannel("BACK_CENTER"),
+  SIDE_LEFT: createPcmChannel("SIDE_LEFT"),
+  SIDE_RIGHT: createPcmChannel("SIDE_RIGHT"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+const createPcmSampleFormat = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const PcmSampleFormat = Object.freeze({
+  FLOAT: createPcmSampleFormat("FLOAT"),
+  UNSIGNED_SHORT: createPcmSampleFormat("UNSIGNED_SHORT"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class PcmFormat {
+  channels;
+  sampleRate;
+  sampleFormat;
+  endian;
   constructor() {
   }
 
   getClass() {
-    return "Sound";
+    return "PcmFormat";
   }
 
   guardInvariants() {
   }
 
-  getPriority() {
-    return this.priority;
+  getChannels() {
+    return this.channels;
   }
 
-  getTrack() {
-    return this.track;
+  getNumChannels() {
+    return this.channels.size();
+  }
+
+  getSampleRate() {
+    return this.sampleRate;
+  }
+
+  getSampleFormat() {
+    return this.sampleFormat;
+  }
+
+  getEndian() {
+    return this.endian;
   }
 
   hashCode() {
@@ -23656,36 +23978,18 @@ class Sound {
   toString() {
   }
 
-  static create() {
-    if (arguments.length===1&&arguments[0] instanceof SoundTrack) {
-      return Sound.create_1_SoundTrack(arguments[0]);
-    }
-    else if (arguments.length===2&& typeof arguments[0]==="number"&&arguments[1] instanceof SoundTrack) {
-      return Sound.create_2_number_SoundTrack(arguments[0], arguments[1]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  static create_1_SoundTrack(track) {
-    let res = new Sound();
-    res.track = track;
-    res.priority = 0;
-    res.guardInvariants();
-    return res;
-  }
-
-  static create_2_number_SoundTrack(priority, track) {
-    let res = new Sound();
-    res.priority = priority;
-    res.track = track;
+  static create(channels, sampleRate, sampleFormat, endian) {
+    let res = new PcmFormat();
+    res.channels = Dut.copyImmutableList(channels);
+    res.sampleRate = sampleRate;
+    res.sampleFormat = sampleFormat;
+    res.endian = endian;
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.Sound = Sound;
+classRegistry.PcmFormat = PcmFormat;
 class AssetGroup {
   cache;
   constructor() {
@@ -24210,8 +24514,8 @@ class Assets {
       }
     }
     for (let file of files) {
-      if (file.getExtension().equals("wav")) {
-        res = res.mergeStrict(Assets.loadSound(loader, file));
+      if (file.getExtension().equals("wav")||file.getExtension().equals("ogg")) {
+        res = res.mergeStrict(Assets.loadAudioTrack(loader, file));
       }
     }
     for (let file of files) {
@@ -24231,10 +24535,10 @@ class Assets {
     return AssetGroup.of(tid, texture);
   }
 
-  static loadSound(loader, file) {
-    let sid = SoundId.of(file.getPlainName());
-    let sound = loader.loadSound(file);
-    return AssetGroup.of(sid, sound);
+  static loadAudioTrack(loader, file) {
+    let atId = AudioTrackId.of(file.getPlainName());
+    let at = loader.loadAudioTrack(file);
+    return AssetGroup.of(atId, at);
   }
 
   static jsonArrayToStringArray(jsonArray) {
@@ -24538,7 +24842,7 @@ const TapEntryType = Object.freeze({
   MODEL: createTapEntryType("MODEL"),
   CLIP_ANIMATION_COLLECTION: createTapEntryType("CLIP_ANIMATION_COLLECTION"),
   MESH_ANIMATION_COLLECTION: createTapEntryType("MESH_ANIMATION_COLLECTION"),
-  SOUND: createTapEntryType("SOUND"),
+  AUDIO_TRACK: createTapEntryType("AUDIO_TRACK"),
   FONT: createTapEntryType("FONT"),
   PHYSICAL_MATERIAL: createTapEntryType("PHYSICAL_MATERIAL"),
   PREFAB: createTapEntryType("PREFAB"),
@@ -25529,27 +25833,31 @@ class TapFonts {
 
 }
 classRegistry.TapFonts = TapFonts;
-class TapSounds {
+class TapAudioTracks {
   constructor() {
   }
 
   getClass() {
-    return "TapSounds";
+    return "TapAudioTracks";
   }
 
-  static toEntry(id, sound) {
-    let track = sound.getTrack();
+  static toEntry(id, audioTrack) {
     let buf = null;
     let bos = new ByteArrayOutputStream();
     try {
-      bos.write(TapBytes.intToBytesBigEndian(sound.getPriority()));
-      bos.write(TapBytes.stringToBytesBigEndian(track.getFormat().name()));
-      bos.write(TapBytes.intToBytesBigEndian(track.getSampleRate()));
-      bos.write(TapBytes.floatToBytesBigEndian(track.getRange().min()));
-      bos.write(TapBytes.floatToBytesBigEndian(track.getRange().max()));
-      bos.write(TapBytes.stringToBytesBigEndian(track.getEndian().name()));
-      bos.write(TapBytes.intToBytesBigEndian(track.getData().size()));
-      bos.write(track.getData().toByteArray());
+      bos.write(TapBytes.stringToBytesBigEndian(audioTrack.getFormat().name()));
+      if (audioTrack.isPcm()) {
+        let pcmFormat = audioTrack.getPcmFormat();
+        bos.write(TapBytes.intToBytesBigEndian(pcmFormat.getNumChannels()));
+        for (let channel of pcmFormat.getChannels()) {
+          bos.write(TapBytes.stringToBytesBigEndian(channel.name()));
+        }
+        bos.write(TapBytes.intToBytesBigEndian(pcmFormat.getSampleRate()));
+        bos.write(TapBytes.stringToBytesBigEndian(pcmFormat.getSampleFormat().name()));
+        bos.write(TapBytes.stringToBytesBigEndian(pcmFormat.getEndian().name()));
+      }
+      bos.write(TapBytes.intToBytesBigEndian(audioTrack.getData().size()));
+      bos.write(audioTrack.getData().toByteArray());
       buf = bos.toByteArray();
     }
     catch (e) {
@@ -25564,46 +25872,37 @@ class TapSounds {
         }
       }
     }
-    return TapEntry.create(TapEntryType.SOUND, id.id(), 2, DataBlock.fromByteArray(buf));
+    return TapEntry.create(TapEntryType.AUDIO_TRACK, id.id(), 1, DataBlock.fromByteArray(buf));
   }
 
   static toAssetGroup(entry) {
-    Guard.equals(entry.getType(), TapEntryType.SOUND, "entry must be a SOUND type");
+    Guard.equals(entry.getType(), TapEntryType.AUDIO_TRACK, "entry must be a AUDIO_TRACK type");
     if (entry.getVersion()==1) {
-      let sound = null;
+      let audioTrack = null;
       let reader = TapBufferReader.create(entry);
       try {
-        let priority = reader.readInt();
-        let sampleRate = reader.readInt();
-        let min = reader.readFloat();
-        let max = reader.readFloat();
-        let numSamples = reader.readInt();
-        let data = reader.readDataBlock(numSamples*4);
-        sound = Sound.create(priority, SoundTrack.create(SoundTrackFormat.FLOAT, sampleRate, Interval2.create(min, max), EndianType.BIG_ENDIAN, data));
-      }
-      finally {
-        reader.close();
-      }
-      return AssetGroup.of(SoundId.of(entry.getId()), sound);
-    }
-    else if (entry.getVersion()==2) {
-      let sound = null;
-      let reader = TapBufferReader.create(entry);
-      try {
-        let priority = reader.readInt();
-        let format = SoundTrackFormat.valueOf(reader.readString());
-        let sampleRate = reader.readInt();
-        let min = reader.readFloat();
-        let max = reader.readFloat();
-        let endian = EndianType.valueOf(reader.readString());
+        let format = AudioTrackFormat.valueOf(reader.readString());
+        let pcmFormat = null;
+        if (format.equals(AudioTrackFormat.PCM)) {
+          let numChannels = reader.readInt();
+          let channels = new ArrayList();
+          for (let i = 0; i<numChannels; ++i) {
+            let ch = PcmChannel.valueOf(reader.readString());
+            channels.add(ch);
+          }
+          let sampleRate = reader.readInt();
+          let sampleFormat = PcmSampleFormat.valueOf(reader.readString());
+          let endian = EndianType.valueOf(reader.readString());
+          pcmFormat = PcmFormat.create(channels, sampleRate, sampleFormat, endian);
+        }
         let dataSize = reader.readInt();
         let data = reader.readDataBlock(dataSize);
-        sound = Sound.create(priority, SoundTrack.create(format, sampleRate, Interval2.create(min, max), endian, data));
+        audioTrack = AudioTrack.create(format, pcmFormat, data);
       }
       finally {
         reader.close();
       }
-      return AssetGroup.of(SoundId.of(entry.getId()), sound);
+      return AssetGroup.of(AudioTrackId.of(entry.getId()), audioTrack);
     }
     else {
       throw new Error("unsupported version, implement me: "+entry.getVersion());
@@ -25611,7 +25910,7 @@ class TapSounds {
   }
 
 }
-classRegistry.TapSounds = TapSounds;
+classRegistry.TapAudioTracks = TapAudioTracks;
 class TapPrefabs {
   constructor() {
   }
@@ -36655,8 +36954,332 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
+class SlotUis {
+  static SLOT_HEIGHT = 120;
+  static BUTTON_HEIGHT = 100;
+  static PADDING_LEFT_RIGHT = 50;
+  constructor() {
+  }
+
+  getClass() {
+    return "SlotUis";
+  }
+
+  static prepareScaledFonts(drivers) {
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(50, 75, 100));
+  }
+
+  static createUiSizeFnc() {
+    return UiSizeFncs.identity();
+  }
+
+  static createDefaultStyler() {
+    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-mini-100")).setLargeTextFont(FontId.of("kenny-mini-75")).setMediumTextFont(FontId.of("kenny-mini-50")).setSmallTextFont(FontId.of("kenny-mini-40")).setButtonLabelFont(FontId.of("kenny-mini-50")).setPanelBackgroundColor(Rgba.create(0, 0, 0, 0.3)).setPanelBorderColor(Rgba.create(0, 0, 0, 0.7)).setSliderUnitSize(40);
+  }
+
+  static createTitleLabel(text) {
+    return Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.centerTop(SlotUis.SLOT_HEIGHT/2)).setText(text).setAlignment(TextAlignment.CENTER);
+  }
+
+  static createPanel916() {
+    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setInnerSizeFnc((size) => {
+  return Size2.create(900, 1600);
+}).setRegionFnc((t) => {
+  let n16 = 9/16;
+  if (t.aspect()>n16) {
+    return Rect2.create(t.width()/2-(t.height()*n16)/2, 0, t.height()*n16, t.height());
+  }
+  else {
+    return Rect2.create(0, 0, t.width(), t.height());
+  }
+});
+  }
+
+  static createFormLabel(text) {
+    return Label.create().addTrait(UiComponentTrait.M).setText(text).setAlignment(TextAlignment.RIGHT_CENTER);
+  }
+
+  static createTitleScreenBg() {
+    return ImageView.create().setTexture("title-screen").setRegionFnc(UiRegionFncs.full());
+  }
+
+  static createOverlayPanel(startSlot, numSlots, padding) {
+    let pd = padding?0.5:0;
+    return Panel.create().setRegionFnc(UiRegionFncs.centerTop((startSlot-pd)*SlotUis.SLOT_HEIGHT, 850, (numSlots+2*pd)*SlotUis.SLOT_HEIGHT));
+  }
+
+  static createPreviousTabBtnRegionFnc(slot) {
+    return (size) => {
+      return Rect2.create(SlotUis.PADDING_LEFT_RIGHT, slot*SlotUis.SLOT_HEIGHT, SlotUis.BUTTON_HEIGHT, SlotUis.BUTTON_HEIGHT);
+    };
+  }
+
+  static createNextTabBtnRegionFnc(slot) {
+    return (size) => {
+      return Rect2.create(size.width()-SlotUis.BUTTON_HEIGHT-SlotUis.PADDING_LEFT_RIGHT, slot*SlotUis.SLOT_HEIGHT, SlotUis.BUTTON_HEIGHT, SlotUis.BUTTON_HEIGHT);
+    };
+  }
+
+  static createMediumBtn(label, slot, disabled, action) {
+    return Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.centerTop(slot*SlotUis.SLOT_HEIGHT, 600, 100)).setText(label).setDisabled(disabled).addOnClickAction(action);
+  }
+
+  static createLeftMediumBtn(label, slot, disabled, action) {
+    return Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(SlotUis.PADDING_LEFT_RIGHT, slot*SlotUis.SLOT_HEIGHT, 450-SlotUis.PADDING_LEFT_RIGHT*1.5, SlotUis.BUTTON_HEIGHT)).setText(label).setDisabled(disabled).addOnClickAction(action);
+  }
+
+  static createRightMediumBtn(label, slot, disabled, action) {
+    return Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(450+SlotUis.PADDING_LEFT_RIGHT*0.5, slot*SlotUis.SLOT_HEIGHT, 450-SlotUis.PADDING_LEFT_RIGHT*1.5, SlotUis.BUTTON_HEIGHT)).setText(label).setDisabled(disabled).addOnClickAction(action);
+  }
+
+  slotRegionFnc(slot) {
+    return (size) => {
+      return Rect2.create(0, slot*SlotUis.SLOT_HEIGHT, size.width(), SlotUis.SLOT_HEIGHT);
+    };
+  }
+
+  squareImage(texture, startSlot, numSlots) {
+    let size = SlotUis.SLOT_HEIGHT*numSlots-20;
+    return ImageView.create().setTexture(texture).setRegionFnc(UiRegionFncs.centerTop(startSlot*SlotUis.SLOT_HEIGHT, size, size));
+  }
+
+  pauseBtn(action) {
+    return Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(75, 0, 75, 75)).addOnClickAction(action);
+  }
+
+  exitBtn(action) {
+    return Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(75, 0, 75, 75)).addOnClickAction(action);
+  }
+
+}
+classRegistry.SlotUis = SlotUis;
+class EarPosControl extends UiComponent {
+  static EAR_TEXTURE_ID = TextureId.of("joystick-square-ear-top");
+  container;
+  styleKey;
+  regionFnc;
+  circle = true;
+  containerSize;
+  region;
+  radius;
+  trackedTouch = null;
+  dirTouch = Vec2.ZERO;
+  upKeyCodeMatcher = null;
+  downKeyCodeMatcher = null;
+  leftKeyCodeMatcher = null;
+  rightKeyCodeMatcher = null;
+  dirKey = Vec2.ZERO;
+  pressedKeys = new HashSet();
+  onDirChangeActions = new HashSet();
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "EarPosControl";
+  }
+
+  guardInvariants() {
+  }
+
+  init(container) {
+    this.container = container;
+  }
+
+  move(dt) {
+  }
+
+  draw(painter) {
+    let style = this.container.getComponentStyle(this.styleKey);
+    let dir = this.getDir();
+    painter.drawImage(style.getTextureId(UiComponentStylePropertyKey.BASE_TEXTURE), this.region, SpriteStyle.PIXEL_EDGE);
+    let inreg = Rect2.create(this.region.x()+this.region.width()*0.35+dir.x()*this.radius.x(), this.region.y()+this.region.height()*0.35-dir.y()*this.radius.y(), this.region.width()*0.3, this.region.height()*0.3);
+    painter.drawImage(EarPosControl.EAR_TEXTURE_ID, inreg, SpriteStyle.PIXEL_EDGE);
+  }
+
+  onTouchStart(id, pos, size) {
+    if (this.trackedTouch!=null) {
+      return false;
+    }
+    if (!this.region.isInside(pos)) {
+      return false;
+    }
+    this.trackedTouch = id;
+    this.dirTouch = this.calculateDirectionTouch(pos);
+    for (let act of this.onDirChangeActions) {
+      Functions.runUiEventAction(act, this);
+    }
+    return true;
+  }
+
+  onTouchMove(id, pos, size) {
+    if (this.trackedTouch==null||!id.equals(this.trackedTouch)) {
+      return false;
+    }
+    this.dirTouch = this.calculateDirectionTouch(pos);
+    for (let act of this.onDirChangeActions) {
+      Functions.runUiEventAction(act, this);
+    }
+    return true;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    if (this.trackedTouch==null||!id.equals(this.trackedTouch)) {
+      return false;
+    }
+    this.trackedTouch = null;
+    return true;
+  }
+
+  onKeyPressed(key) {
+    key = key.withUpperCharacter();
+    if (this.pressedKeys.contains(key)) {
+      return false;
+    }
+    this.pressedKeys.add(key);
+    this.dirKey = this.calculateDirectionKeys(this.pressedKeys);
+    for (let act of this.onDirChangeActions) {
+      Functions.runUiEventAction(act, this);
+    }
+    return false;
+  }
+
+  onKeyReleased(key) {
+    key = key.withUpperCharacter();
+    this.pressedKeys.remove(key);
+    this.dirKey = this.calculateDirectionKeys(this.pressedKeys);
+    for (let act of this.onDirChangeActions) {
+      Functions.runUiEventAction(act, this);
+    }
+    return false;
+  }
+
+  getDir() {
+    return this.dirKey.equals(Vec2.ZERO)?this.dirTouch:this.dirKey;
+  }
+
+  onContainerResize(size) {
+    this.containerSize = size;
+    this.region = Functions.apply(this.regionFnc, size);
+    this.radius = Vec2.create(this.region.width()*0.45, this.region.height()*0.45);
+  }
+
+  addTrait(trait) {
+    Guard.notNull(trait, "trait cannot be null");
+    this.styleKey = this.styleKey.plusTrait(trait);
+    return this;
+  }
+
+  setRegionFnc(regionFnc) {
+    Guard.notNull(regionFnc, "regionFnc cannot be null");
+    this.regionFnc = regionFnc;
+    this.onContainerResize(this.containerSize);
+    return this;
+  }
+
+  setCircle(circle) {
+    this.circle = circle;
+    return this;
+  }
+
+  setKeyCodeMatchers(upKeyCodeMatcher, downKeyCodeMatcher, leftKeyCodeMatcher, rightKeyCodeMatcher) {
+    if (upKeyCodeMatcher==null) {
+      Guard.beNull(upKeyCodeMatcher, "all or no matchers have to be null");
+      Guard.beNull(downKeyCodeMatcher, "all or no matchers have to be null");
+      Guard.beNull(leftKeyCodeMatcher, "all or no matchers have to be null");
+      Guard.beNull(rightKeyCodeMatcher, "all or no matchers have to be null");
+    }
+    else {
+      Guard.notNull(upKeyCodeMatcher, "all or no matchers have to be null");
+      Guard.notNull(downKeyCodeMatcher, "all or no matchers have to be null");
+      Guard.notNull(leftKeyCodeMatcher, "all or no matchers have to be null");
+      Guard.notNull(rightKeyCodeMatcher, "all or no matchers have to be null");
+    }
+    this.upKeyCodeMatcher = upKeyCodeMatcher;
+    this.downKeyCodeMatcher = downKeyCodeMatcher;
+    this.leftKeyCodeMatcher = leftKeyCodeMatcher;
+    this.rightKeyCodeMatcher = rightKeyCodeMatcher;
+    return this;
+  }
+
+  addOnDirChangeAction(action) {
+    Guard.notNull(action, "action cannot be null");
+    this.onDirChangeActions.add(action);
+    return this;
+  }
+
+  calculateDirectionTouch(pos) {
+    let cx = this.region.centerX();
+    let cy = this.region.centerY();
+    if (this.circle) {
+      let res = Vec2.create((pos.x()-cx)/this.radius.x(), (cy-pos.y())/this.radius.y());
+      if (res.mag()>1) {
+        res = res.normalize();
+      }
+      return res;
+    }
+    else {
+      let res = Vec2.create(FMath.clamp((pos.x()-cx)/this.radius.x(), -1, 1), FMath.clamp((cy-pos.y())/this.radius.y(), -1, 1));
+      return res;
+    }
+  }
+
+  calculateDirectionKeys(keys) {
+    if (keys.isEmpty()||this.upKeyCodeMatcher==null) {
+      return Vec2.ZERO;
+    }
+    let res = Vec2.ZERO;
+    for (let key of keys) {
+      if (Functions.keyCodeMatches(this.upKeyCodeMatcher, key)) {
+        res = res.add(Vec2.create(0, 1));
+        break;
+      }
+    }
+    for (let key of keys) {
+      if (Functions.keyCodeMatches(this.downKeyCodeMatcher, key)) {
+        res = res.add(Vec2.create(0, -1));
+        break;
+      }
+    }
+    for (let key of keys) {
+      if (Functions.keyCodeMatches(this.leftKeyCodeMatcher, key)) {
+        res = res.add(Vec2.create(-1, 0));
+        break;
+      }
+    }
+    for (let key of keys) {
+      if (Functions.keyCodeMatches(this.rightKeyCodeMatcher, key)) {
+        res = res.add(Vec2.create(1, 0));
+        break;
+      }
+    }
+    if (this.circle&&res.mag()>1) {
+      res = res.normalize();
+    }
+    return res;
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new EarPosControl();
+    res.styleKey = UiComponentStyleKey.plain(UiComponentType.JOYSTICK);
+    res.regionFnc = UiRegionFncs.center(100, 25);
+    res.circle = true;
+    res.containerSize = Size2.create(1, 1);
+    res.region = Functions.apply(res.regionFnc, res.containerSize);
+    res.radius = Vec2.create(res.region.width()*0.25, res.region.height()*0.25);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.EarPosControl = EarPosControl;
 class AudioApp01 extends TyracornScreen {
-  static MUSIC_PLAYBACK_ID = PlaybackId.of("music");
+  static MUSIC_1_PLAYBACK_ID = AudioPlaybackId.of("music-1");
+  static MUSIC_2_PLAYBACK_ID = AudioPlaybackId.of("music-2");
   ui;
   constructor() {
     super();
@@ -36681,103 +37304,109 @@ class AudioApp01 extends TyracornScreen {
     let assets = drivers.getDriver("AssetManager");
     res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
     res.add(assets.resolveAsync(Path.of("asset:packages/sounds.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/music.tap")));
     return res;
   }
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(12, 14, 20, 24, 26, 28));
+    SlotUis.prepareScaledFonts(drivers);
     let audio = drivers.getDriver("AudioDriver");
-    let mixer = audio.getMixer();
-    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(300)));
-    let uiTop = -100;
-    this.ui.addComponent(Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.center(0, uiTop)).setText("Audio").setAlignment(TextAlignment.CENTER_TOP));
-    let musicVol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+65)).setText("0.3").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(musicVol);
-    let musicVolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+50, 30, 30)).setText("-").addOnClickAction(this.getChangeMusicVolumeAction(mixer, musicVol, -0.1));
-    this.ui.addComponent(musicVolDownBtn);
-    let musicVolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+50, 30, 30)).setText("+").addOnClickAction(this.getChangeMusicVolumeAction(mixer, musicVol, 0.1));
-    this.ui.addComponent(musicVolUpBtn);
-    let musicBtn = ToggleButton.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+50, 120, 30)).setText("Music");
-    musicBtn.addOnToggleAction(this.getToggleMusicAction(mixer, musicBtn, musicVol));
-    this.ui.addComponent(musicBtn);
-    let sound1Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+105)).setText("1.0").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(sound1Vol);
-    let sound1VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+90, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound1Vol, -0.1));
-    this.ui.addComponent(sound1VolDownBtn);
-    let sound1VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+90, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound1Vol, 0.1));
-    this.ui.addComponent(sound1VolUpBtn);
-    let sound1Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+90, 120, 30)).setText("Spell").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("spell1"), sound1Vol));
-    this.ui.addComponent(sound1Btn);
-    let sound2Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+145)).setText("1.0").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(sound2Vol);
-    let sound2VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+130, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound2Vol, -0.1));
-    this.ui.addComponent(sound2VolDownBtn);
-    let sound2VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+130, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound2Vol, 0.1));
-    this.ui.addComponent(sound2VolUpBtn);
-    let sound2Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+130, 120, 30)).setText("Magic").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("magic1"), sound2Vol));
-    this.ui.addComponent(sound2Btn);
-    let sound3Vol = Label.create().setPosFnc(UiPosFncs.center(65, uiTop+185)).setText("1.0").setAlignment(TextAlignment.CENTER);
-    this.ui.addComponent(sound3Vol);
-    let sound3VolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(10, uiTop+170, 30, 30)).setText("-").addOnClickAction(this.getChangeSoundVolumeAction(sound3Vol, -0.1));
-    this.ui.addComponent(sound3VolDownBtn);
-    let sound3VolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.center(90, uiTop+170, 30, 30)).setText("+").addOnClickAction(this.getChangeSoundVolumeAction(sound3Vol, 0.1));
-    this.ui.addComponent(sound3VolUpBtn);
-    let sound3Btn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.center(-120, uiTop+170, 120, 30)).setText("Swing").addOnClickAction(this.getPlaySoundAction(mixer, SoundId.of("swing1"), sound3Vol));
-    this.ui.addComponent(sound3Btn);
+    let mixer = audio.getMixer().setPosScale(5);
+    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(420)));
+    this.ui = StretchUi.create(SlotUis.createUiSizeFnc()).setStyler(SlotUis.createDefaultStyler());
+    let panel916 = SlotUis.createPanel916();
+    this.ui.addComponent(panel916);
+    panel916.addComponent(SlotUis.createTitleLabel("Audio"));
+    panel916.addComponent(SlotUis.createFormLabel("Music Volume").setPosFnc(UiPosFncs.leftTop(350, 250)));
+    panel916.addComponent(Slider.create().setRegionFnc(UiRegionFncs.leftTop(400, 210, 450, 80)).setMin(0).setMax(1).setStep(0.01).setValue(1).addOnChangeAction((cmp) => {
+  let slider = cmp;
+  mixer.setBusGain(AudioBusId.MUSIC, slider.getValue());
+}));
+    panel916.addComponent(SlotUis.createFormLabel("Sound Volume").setPosFnc(UiPosFncs.leftTop(350, 350)));
+    panel916.addComponent(Slider.create().setRegionFnc(UiRegionFncs.leftTop(400, 310, 450, 80)).setMin(0).setMax(1).setStep(0.01).setValue(1).addOnChangeAction((cmp) => {
+  let slider = cmp;
+  mixer.setBusGain(AudioBusId.SFX, slider.getValue());
+}));
+    panel916.addComponent(EarPosControl.create().setCircle(false).addTrait(UiComponentTrait.SQUARE).setRegionFnc(UiRegionFncs.leftTop(350, 450, 200, 200)).addOnDirChangeAction((cmp) => {
+  let posCmp = cmp;
+  let p = posCmp.getDir();
+  mixer.setListenerTransform(Vec3.create(p.x(), 0, -p.y()), Vec3.BACKWARD, Vec3.UP);
+}));
+    let musis1VolSlider = Slider.create().setRegionFnc(UiRegionFncs.leftTop(400, 760, 450, 80)).setMin(0).setMax(1).setStep(0.01).setValue(1).addOnChangeAction((cmp) => {
+  let playback = mixer.getPlaybackNonStrict(AudioApp01.MUSIC_1_PLAYBACK_ID);
+  if (playback!=null) {
+    let slider = cmp;
+    playback.setGain(slider.getValue());
+  }
+});
+    panel916.addComponent(musis1VolSlider);
+    let music1Btn = ToggleButton.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.leftTop(50, 760, 300, 80)).setText("Music 1");
+    music1Btn.addOnToggleAction(this.getToggleMusic1Action(mixer, music1Btn, musis1VolSlider));
+    panel916.addComponent(music1Btn);
+    let musis2VolSlider = Slider.create().setRegionFnc(UiRegionFncs.leftTop(400, 860, 450, 80)).setMin(0).setMax(1).setStep(0.01).setValue(1).addOnChangeAction((cmp) => {
+  let playback = mixer.getPlaybackNonStrict(AudioApp01.MUSIC_2_PLAYBACK_ID);
+  if (playback!=null) {
+    let slider = cmp;
+    playback.setGain(slider.getValue());
+  }
+});
+    panel916.addComponent(musis2VolSlider);
+    let music2Btn = ToggleButton.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.leftTop(50, 860, 300, 80)).setText("Music 2");
+    music2Btn.addOnToggleAction(this.getToggleMusic2Action(mixer, music2Btn, musis2VolSlider));
+    panel916.addComponent(music2Btn);
+    let sound1VolSlider = Slider.create().setRegionFnc(UiRegionFncs.leftTop(400, 1010, 450, 80)).setMin(0).setMax(1).setStep(0.01).setValue(1);
+    panel916.addComponent(sound1VolSlider);
+    panel916.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.leftTop(50, 1010, 300, 80)).setText("Spell").addOnClickAction(this.getPlaySoundAction(mixer, AudioTrackId.of("spell1"), sound1VolSlider)));
+    let sound2VolSlider = Slider.create().setRegionFnc(UiRegionFncs.leftTop(400, 1110, 450, 80)).setMin(0).setMax(1).setStep(0.01).setValue(1);
+    panel916.addComponent(sound2VolSlider);
+    panel916.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.leftTop(50, 1110, 300, 80)).setText("Magic").addOnClickAction(this.getPlaySoundAction(mixer, AudioTrackId.of("magic1"), sound2VolSlider)));
+    let sound3VolSlider = Slider.create().setRegionFnc(UiRegionFncs.leftTop(400, 1210, 450, 80)).setMin(0).setMax(1).setStep(0.01).setValue(1);
+    panel916.addComponent(sound3VolSlider);
+    panel916.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.leftTop(50, 1210, 300, 80)).setText("Swing").addOnClickAction(this.getPlaySoundAction(mixer, AudioTrackId.of("swing1"), sound3VolSlider)));
     if (drivers.getPlatform().isExitable()) {
-      this.ui.addComponent(PlayUis.createExitButton(UiEventActions.exitApp(screenManager)));
+      panel916.addComponent(Button.create().addTrait(UiComponentTrait.XL).setRegionFnc(UiRegionFncs.leftTop(200, 1360, 500, 80)).setText("Exit").addOnClickAction(UiEventActions.exitApp(screenManager)));
     }
     this.ui.subscribe(drivers);
   }
 
   leave(drivers) {
-    drivers.getDriver("AudioDriver").getMixer().stop();
+    drivers.getDriver("AudioDriver").getMixer().stopAll();
     this.ui.unsubscribe(drivers);
   }
 
-  getPlaySoundAction(mixer, soundId, volLabel) {
+  getPlaySoundAction(mixer, trackId, gainSlider) {
     let res = (evtSource) => {
-      mixer.prepare(PlaybackId.of(Randoms.nextAlphabetic(10)), soundId).setVolume(Float.valueOf(volLabel.getText())).play();
+      mixer.preparePlayback(AudioPlaybackId.of(Randoms.nextAlphabetic(10)), trackId).setBusId(AudioBusId.SFX).setAbsolute(true).setGain(gainSlider.getValue()).play();
     };
     return res;
   }
 
-  getChangeSoundVolumeAction(label, delta) {
+  getToggleMusic1Action(mixer, button, gainSlider) {
     let res = (evtSource) => {
-      let vol = Float.valueOf(label.getText());
-      vol = FMath.clamp(vol+delta, 0, 1);
-      label.setText(Formats.floatToFixedDecimals(vol, 1));
-    };
-    return res;
-  }
-
-  getChangeMusicVolumeAction(mixer, label, delta) {
-    let res = (evtSource) => {
-      let vol = Float.valueOf(label.getText());
-      vol = FMath.clamp(vol+delta, 0, 1);
-      label.setText(Formats.floatToFixedDecimals(vol, 1));
-      let control = mixer.getControlNonStrict(AudioApp01.MUSIC_PLAYBACK_ID);
-      if (control!=null) {
-        control.setVolume(vol);
+      if (button.isToggledOn()) {
+        mixer.preparePlayback(AudioApp01.MUSIC_1_PLAYBACK_ID, AudioTrackId.of("alexander-ehlers-flags")).setBusId(AudioBusId.MUSIC).setLoop(true).setAbsolute(false).setGain(gainSlider.getValue()).play();
       }
-    };
-    return res;
-  }
-
-  getToggleMusicAction(mixer, button, volLabel) {
-    let res = (evtSource) => {
-      let control = mixer.getControlNonStrict(AudioApp01.MUSIC_PLAYBACK_ID);
-      if (control!=null) {
-        if (button.isToggledOn()) {
-          control.play();
-        }
-        else {
+      else {
+        let control = mixer.getPlaybackNonStrict(AudioApp01.MUSIC_1_PLAYBACK_ID);
+        if (control!=null) {
           control.stop();
         }
       }
-      else if (button.isToggledOn()) {
-        mixer.prepare(AudioApp01.MUSIC_PLAYBACK_ID, SoundId.of("space-cadet")).setLoop(true).setVolume(Float.valueOf(volLabel.getText())).play();
+    };
+    return res;
+  }
+
+  getToggleMusic2Action(mixer, button, gainSlider) {
+    let res = (evtSource) => {
+      if (button.isToggledOn()) {
+        mixer.preparePlayback(AudioApp01.MUSIC_2_PLAYBACK_ID, AudioTrackId.of("alexander-ehlers-waking-the-devil")).setBusId(AudioBusId.MUSIC).setLoop(true).setAbsolute(false).setGain(gainSlider.getValue()).play();
+      }
+      else {
+        let control = mixer.getPlaybackNonStrict(AudioApp01.MUSIC_2_PLAYBACK_ID);
+        if (control!=null) {
+          control.stop();
+        }
       }
     };
     return res;
