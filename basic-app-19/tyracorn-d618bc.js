@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/rigid-body-app-06";
-const assetsDirName = "/assets-4748d7";
+const basePath = "/tyracorn-web-examples/basic-app-19";
+const assetsDirName = "/assets-4a04e4";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -2620,6 +2620,25 @@ class DataBlock {
     }
 
     /**
+     * Creates new data block from base64 encoded string.
+     * 
+     * @param {String} base64Str base64 encoded string
+     * @returns {DataBlock} created block
+     */
+    static fromBase64String(base64Str) {
+        const binaryString = atob(base64Str);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        let res = new DataBlock();
+        res.data = bytes.buffer;
+        res.view = new DataView(res.data);
+        res.guardInvaritants();
+        return res;
+    }
+
+    /**
      * Creates new data block from stream writer. This causes the writer to be closed.
      * This is to prevent extra data copying.
      * This is internal method only, do not call from outside.
@@ -2651,24 +2670,6 @@ class DataBlock {
         return res;
     }
 
-    /**
-     * Creates new data block from base64 encoded string.
-     * 
-     * @param {String} base64Str base64 encoded string
-     * @returns {DataBlock} created block
-     */
-    static fromBase64String(base64Str) {
-        const binaryString = atob(base64Str);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-        let res = new DataBlock();
-        res.data = bytes.buffer;
-        res.view = new DataView(res.data);
-        res.guardInvaritants();
-        return res;
-    }
 }
 /**
  * Data block stream writer.
@@ -3528,6 +3529,16 @@ class Taps {
         } else {
             throw new Error("unsupported version " + version + ", implement me");
         }
+    }
+
+    /**
+     * Decodes TAP from data block.
+     *
+     * @param {DataBlock} dataBlock data block
+     * @return {Tap} decoded package
+     */
+    static fromDataBlock(dataBlock) {
+        return Taps.fromBytes(dataBlock.data);
     }
 
     /**
@@ -26683,6 +26694,96 @@ class BasicLoadingScreen extends TyracornScreen {
 
 }
 classRegistry.BasicLoadingScreen = BasicLoadingScreen;
+class TyracornLoadingScreen extends TyracornScreen {
+  static TAP_DATA = "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";
+  texture = TextureId.of("tyracorn-loading");
+  ui;
+  image;
+  regionFnc = null;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "TyracornLoadingScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    if (this.image==null) {
+      let assets = drivers.getDriver("AssetManager");
+      if (this.regionFnc==null) {
+        let tex = assets.get("Texture", this.texture);
+        let texW = tex.getWidth();
+        let texH = tex.getHeight();
+        this.regionFnc = this.safeRegionFnc(0.25, texW/texH, 0.8);
+      }
+      this.image = ImageView.create().setTexture(this.texture).setRegionFnc(this.regionFnc);
+      this.ui.addComponent(ImageView.create().setRegionFnc(UiRegionFncs.fullMargin(-10, -10, -10, -10)).setTexture(TextureId.of("tyracorn-white-pixel")));
+      this.ui.addComponent(this.image);
+    }
+    this.ui.move(dt);
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  init(drivers, screenManager, properties) {
+    this.ui = StretchUi.create(UiSizeFncs.identity());
+    this.ui.subscribe(drivers);
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    if (!assets.containsKey(this.texture)) {
+      let block = DataBlock.fromBase64String(TyracornLoadingScreen.TAP_DATA);
+      let tap = Taps.fromDataBlock(block);
+      let ag = Taps.toAssetGroup(tap).plus(TextureId.of("tyracorn-white-pixel"), Texture.rgbFloatConstant(2, 2, Rgb.WHITE));
+      ag.toManagerStrict(assets);
+    }
+    return res;
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+  }
+
+  setRegionFnc(regionFnc) {
+    Guard.notNull(regionFnc, "regionFnc cannot be null");
+    this.regionFnc = regionFnc;
+    return this;
+  }
+
+  safeRegionFnc(heightRatio, aspect, maxWidthRatio) {
+    return (size) => {
+      let maxW = FMath.max(1, size.width()*maxWidthRatio);
+      let h = FMath.max(1, size.height()*heightRatio);
+      let w = h*aspect;
+      if (w>maxW) {
+        w = maxW;
+        h = w/aspect;
+      }
+      return Rect2.create(size.width()/2-w/2, size.height()/2-h/2, w, h);
+    };
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new TyracornLoadingScreen();
+    res.texture = TextureId.of("tyracorn-loading");
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.TyracornLoadingScreen = TyracornLoadingScreen;
 class TyracornScreenAppScreenManager {
   nextScreen = null;
   leaveActions = new ArrayList();
@@ -37060,6 +37161,234 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
+class PlayUis {
+  static ARROW_UP = UiComponentTrait.of("ARROW_UP");
+  static ARROW_DOWN = UiComponentTrait.of("ARROW_DOWN");
+  static ARROW_LEFT = UiComponentTrait.of("ARROW_LEFT");
+  static ARROW_RIGHT = UiComponentTrait.of("ARROW_RIGHT");
+  static BRAKE = UiComponentTrait.of("BRAKE");
+  static PUNCH = UiComponentTrait.of("PUNCH");
+  static WALK_RUN = UiComponentTrait.of("WALK_RUN");
+  constructor() {
+  }
+
+  getClass() {
+    return "PlayUis";
+  }
+
+  static createUiSizeFnc() {
+    return UiSizeFncs.identity();
+  }
+
+  static createDefaultStyler() {
+    let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
+    let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
+    let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
+    let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
+    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-30")).setH2Font(FontId.of("kenny-thick-26")).setH3Font(FontId.of("kenny-thick-24")).setExtraLargeTextFont(FontId.of("kenny-mini-22")).setLargeTextFont(FontId.of("kenny-mini-20")).setMediumTextFont(FontId.of("kenny-mini-18")).setSmallTextFont(FontId.of("kenny-mini-16")).setButtonLabelFont(FontId.of("kenny-mini-18")).setFieldLabelFont(FontId.of("kenny-mini-16")).setFieldValueFont(FontId.of("kenny-mini-16")).setSelectItemTextFont(FontId.of("kenny-mini-18")).setSelectItemHeight(20).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
+  }
+
+  static create916Panel() {
+    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setRegionFnc((t) => {
+  if (t.aspect()>9/16) {
+    return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
+  }
+  else {
+    return Rect2.create(0, 0, t.width(), t.height());
+  }
+});
+  }
+
+  static createExitButton(action) {
+    return Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
+  }
+
+  static createPauseButton(action) {
+    return Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
+  }
+
+}
+classRegistry.PlayUis = PlayUis;
+class GamePad extends UiComponent {
+  leftJoystick;
+  rightJoystick;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "GamePad";
+  }
+
+  guardInvariants() {
+  }
+
+  getLeftDir() {
+    return this.leftJoystick.getDir();
+  }
+
+  getRightDir() {
+    return this.rightJoystick.getDir();
+  }
+
+  init(container) {
+    this.leftJoystick.init(container);
+    this.rightJoystick.init(container);
+  }
+
+  move(dt) {
+    this.leftJoystick.move(dt);
+    this.rightJoystick.move(dt);
+  }
+
+  draw(painter) {
+    this.leftJoystick.draw(painter);
+    this.rightJoystick.draw(painter);
+  }
+
+  onContainerResize(size) {
+    this.leftJoystick.onContainerResize(size);
+    this.rightJoystick.onContainerResize(size);
+  }
+
+  onTouchStart(id, pos, size) {
+    this.leftJoystick.onTouchStart(id, pos, size);
+    this.rightJoystick.onTouchStart(id, pos, size);
+    return false;
+  }
+
+  onTouchMove(id, pos, size) {
+    this.leftJoystick.onTouchMove(id, pos, size);
+    this.rightJoystick.onTouchMove(id, pos, size);
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    this.leftJoystick.onTouchEnd(id, pos, size, cancel);
+    this.rightJoystick.onTouchEnd(id, pos, size, cancel);
+    return false;
+  }
+
+  onKeyPressed(key) {
+    this.leftJoystick.onKeyPressed(key);
+    this.rightJoystick.onKeyPressed(key);
+    return false;
+  }
+
+  onKeyReleased(key) {
+    this.leftJoystick.onKeyReleased(key);
+    this.rightJoystick.onKeyReleased(key);
+    return false;
+  }
+
+  toString() {
+  }
+
+  static create(drivers) {
+    let res = new GamePad();
+    res.leftJoystick = Joystick.create().setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h30 = s.height()*0.3;
+    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h5, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h2, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("W"), KeyCodeMatchers.upperCharacter("S"), KeyCodeMatchers.upperCharacter("A"), KeyCodeMatchers.upperCharacter("D"));
+    res.rightJoystick = Joystick.create().setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h30 = s.height()*0.3;
+    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(s.width()-h5-size, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(s.width()-h2-size, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("I"), KeyCodeMatchers.upperCharacter("K"), KeyCodeMatchers.upperCharacter("J"), KeyCodeMatchers.upperCharacter("L"));
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.GamePad = GamePad;
+class FreeCameraBehavior extends Behavior {
+  moveDirInput = "moveDir";
+  rotDirInput = "rotDir";
+  moveSpeed = 3;
+  rotSpeed = 1;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FreeCameraBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt, inputs) {
+    let moveDir = inputs.getVec2(this.moveDirInput, Vec2.ZERO);
+    let rotDir = inputs.getVec2(this.rotDirInput, Vec2.ZERO);
+    let tc = this.actor().getComponent("TransformComponent");
+    let rot = tc.getRot();
+    if (!moveDir.equals(Vec2.ZERO)) {
+      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize().scale(moveDir.y()*this.moveSpeed*dt);
+      let right = rot.rotate(Vec3.create(1, 0, 0)).normalize().scale(moveDir.x()*this.moveSpeed*dt);
+      tc.move(fwd.add(right));
+    }
+    if (!rotDir.equals(Vec2.ZERO)) {
+      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize();
+      let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
+      let rotX = FMath.asin(fwd.y())+rotDir.y()*this.rotSpeed*dt;
+      let rotY = (fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y()))-rotDir.x()*this.rotSpeed*dt;
+      let rx = Quaternion.rot(1, 0, 0, rotX);
+      let ry = Quaternion.rot(0, 1, 0, rotY);
+      tc.setRot(ry.mul(rx));
+    }
+  }
+
+  static create() {
+    if (arguments.length===1&&arguments[0] instanceof ComponentKey) {
+      return FreeCameraBehavior.create_1_ComponentKey(arguments[0]);
+    }
+    else if (arguments.length===5&&arguments[0] instanceof ComponentKey&& typeof arguments[1]==="string"&& typeof arguments[2]==="string"&& typeof arguments[3]==="number"&& typeof arguments[4]==="number") {
+      return FreeCameraBehavior.create_5_ComponentKey_string_string_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  static create_1_ComponentKey(key) {
+    let res = new FreeCameraBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_5_ComponentKey_string_string_number_number(key, moveDirInput, rotDirInput, moveSpeed, rotSpeed) {
+    let res = new FreeCameraBehavior(key);
+    res.moveDirInput = moveDirInput;
+    res.rotDirInput = rotDirInput;
+    res.moveSpeed = moveSpeed;
+    res.rotSpeed = rotSpeed;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FreeCameraBehavior = FreeCameraBehavior;
 class BoxMeshFactory {
   constructor() {
   }
@@ -37124,433 +37453,65 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class PlayUis {
-  static ARROW_UP = UiComponentTrait.of("ARROW_UP");
-  static ARROW_DOWN = UiComponentTrait.of("ARROW_DOWN");
-  static ARROW_LEFT = UiComponentTrait.of("ARROW_LEFT");
-  static ARROW_RIGHT = UiComponentTrait.of("ARROW_RIGHT");
-  static BRAKE = UiComponentTrait.of("BRAKE");
-  static PUNCH = UiComponentTrait.of("PUNCH");
-  static WALK_RUN = UiComponentTrait.of("WALK_RUN");
-  constructor() {
-  }
+const createBillboardOrientation = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const BillboardOrientation = Object.freeze({
+  CAMERA_FACING: createBillboardOrientation("CAMERA_FACING"),
+  CAMERA_FACING_VERTICAL: createBillboardOrientation("CAMERA_FACING_VERTICAL"),
 
-  getClass() {
-    return "PlayUis";
-  }
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
 
-  static createUiSizeFnc() {
-    return UiSizeFncs.identity();
-  }
-
-  static createDefaultStyler() {
-    let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
-    let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
-    let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
-    let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
-    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-30")).setH2Font(FontId.of("kenny-thick-26")).setH3Font(FontId.of("kenny-thick-24")).setExtraLargeTextFont(FontId.of("kenny-mini-22")).setLargeTextFont(FontId.of("kenny-mini-20")).setMediumTextFont(FontId.of("kenny-mini-18")).setSmallTextFont(FontId.of("kenny-mini-16")).setButtonLabelFont(FontId.of("kenny-mini-18")).setFieldLabelFont(FontId.of("kenny-mini-16")).setFieldValueFont(FontId.of("kenny-mini-16")).setSelectItemTextFont(FontId.of("kenny-mini-18")).setSelectItemHeight(20).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
-  }
-
-  static create916Panel() {
-    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setRegionFnc((t) => {
-  if (t.aspect()>9/16) {
-    return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
-  }
-  else {
-    return Rect2.create(0, 0, t.width(), t.height());
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
   }
 });
-  }
-
-  static createExitButton(action) {
-    return Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
-  }
-
-  static createPauseButton(action) {
-    return Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
-  }
-
-}
-classRegistry.PlayUis = PlayUis;
-class CharacterController extends UiComponent {
-  joystick;
-  runButton;
-  punchButton;
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "CharacterController";
-  }
-
-  guardInvariants() {
-  }
-
-  getDir() {
-    return this.joystick.getDir();
-  }
-
-  isRun() {
-    return this.runButton.isToggledOn();
-  }
-
-  isPunch() {
-    return this.punchButton.isDown();
-  }
-
-  init(container) {
-    this.joystick.init(container);
-    this.runButton.init(container);
-    this.punchButton.init(container);
-  }
-
-  move(dt) {
-    this.joystick.move(dt);
-    this.runButton.move(dt);
-    this.punchButton.move(dt);
-  }
-
-  draw(painter) {
-    this.joystick.draw(painter);
-    this.runButton.draw(painter);
-    this.punchButton.draw(painter);
-  }
-
-  onContainerResize(size) {
-    this.joystick.onContainerResize(size);
-    this.runButton.onContainerResize(size);
-    this.punchButton.onContainerResize(size);
-  }
-
-  onTouchStart(id, pos, size) {
-    this.joystick.onTouchStart(id, pos, size);
-    this.runButton.onTouchStart(id, pos, size);
-    this.punchButton.onTouchStart(id, pos, size);
-    return false;
-  }
-
-  onTouchMove(id, pos, size) {
-    this.joystick.onTouchMove(id, pos, size);
-    this.runButton.onTouchMove(id, pos, size);
-    this.punchButton.onTouchMove(id, pos, size);
-    return false;
-  }
-
-  onKeyPressed(key) {
-    this.joystick.onKeyPressed(key);
-    this.runButton.onKeyPressed(key);
-    this.punchButton.onKeyPressed(key);
-    return false;
-  }
-
-  onKeyReleased(key) {
-    this.joystick.onKeyReleased(key);
-    this.runButton.onKeyReleased(key);
-    this.punchButton.onKeyReleased(key);
-    return false;
-  }
-
-  onTouchEnd(id, pos, size, cancel) {
-    this.joystick.onTouchEnd(id, pos, size, cancel);
-    this.runButton.onTouchEnd(id, pos, size, cancel);
-    this.punchButton.onTouchEnd(id, pos, size, cancel);
-    return false;
-  }
-
-  toString() {
-  }
-
-  static create(drivers) {
-    Guard.beTrue(drivers.isDriverAvailable("TouchDriver"), "touch driver is not available");
-    let res = new CharacterController();
-    res.joystick = Joystick.create().setRegionFnc((s) => {
-  if (s.width()>s.height()) {
-    let h5 = s.height()*0.05;
-    let h30 = s.height()*0.3;
-    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(h5, s.height()-h5-size, size, size);
-  }
-  else {
-    let h2 = s.height()*0.02;
-    let h5 = s.height()*0.05;
-    let h20 = s.height()*0.2;
-    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
-    return Rect2.create(h2, s.height()-h5-size, size, size);
-  }
-}).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD());
-    res.runButton = ToggleButton.create().addTrait(PlayUis.WALK_RUN).setRegionFnc((s) => {
-  if (s.width()>s.height()) {
-    let h5 = s.height()*0.05;
-    let h7 = s.height()*0.07;
-    let h15 = s.height()*0.15;
-    let h20 = s.height()*0.2;
-    let punchSize = FMath.clamp(h20, 1, s.width()*0.25-h5);
-    let size = FMath.clamp(h15, 1, s.width()*0.25-h7);
-    return Rect2.create(s.width()-punchSize-2*h5-size, s.height()-h5-size, size, size);
-  }
-  else {
-    let h2 = s.height()*0.02;
-    let h5 = s.height()*0.05;
-    let h7 = s.height()*0.07;
-    let h15 = s.height()*0.15;
-    let h20 = s.height()*0.2;
-    let punchSize = FMath.clamp(h20, 1, s.width()*0.25-h5);
-    let size = FMath.clamp(h15, 1, s.width()*0.25-h7);
-    return Rect2.create(s.width()-punchSize-2*h2-size, s.height()-h5-size, size, size);
-  }
-}).setKeyCodeMatcher(KeyCodeMatchers.shift());
-    res.punchButton = Button.create().addTrait(PlayUis.PUNCH).setRegionFnc(UiRegionFncs.rightBottom(200, 220, 150, 150)).setRegionFnc((s) => {
-  if (s.width()>s.height()) {
-    let h5 = s.height()*0.05;
-    let h20 = s.height()*0.2;
-    let size = FMath.clamp(h20, 1, s.width()*0.25-h5);
-    return Rect2.create(s.width()-h5-size, s.height()-h5-size, size, size);
-  }
-  else {
-    let h2 = s.height()*0.02;
-    let h5 = s.height()*0.05;
-    let h20 = s.height()*0.2;
-    let size = FMath.clamp(h20, 1, s.width()*0.25-h5);
-    return Rect2.create(s.width()-h2-size, s.height()-h5-size, size, size);
-  }
-}).setKeyCodeMatcher(KeyCodeMatchers.control());
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.CharacterController = CharacterController;
-class DemoHitMessage {
-  pos;
-  dir;
-  impulse;
-  constructor() {
-  }
-
-  getClass() {
-    return "DemoHitMessage";
-  }
-
-  guardInvariants() {
-  }
-
-  getPos() {
-    return this.pos;
-  }
-
-  getDir() {
-    return this.dir;
-  }
-
-  getImpulse() {
-    return this.impulse;
-  }
-
-  static create(pos, dir, impulse) {
-    let res = new DemoHitMessage();
-    res.pos = pos;
-    res.dir = dir;
-    res.impulse = impulse;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.DemoHitMessage = DemoHitMessage;
-class PlayerCharacterInput {
-  dt;
-  dir;
-  punch;
-  run;
-  constructor() {
-  }
-
-  getClass() {
-    return "PlayerCharacterInput";
-  }
-
-  guardInvariants() {
-  }
-
-  getDt() {
-    return this.dt;
-  }
-
-  getDir() {
-    return this.dir;
-  }
-
-  isPunch() {
-    return this.punch;
-  }
-
-  isRun() {
-    return this.run;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(dt, dir, punch, run) {
-    let res = new PlayerCharacterInput();
-    res.dt = dt;
-    res.dir = dir;
-    res.punch = punch;
-    res.run = run;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.PlayerCharacterInput = PlayerCharacterInput;
-class PunchableBehavior extends Behavior {
-  hit = false;
-  hitPos;
-  hitDir;
-  hitImpact;
-  impactMultiplier = 5;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "PunchableBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  move(dt, inputs) {
-    if (!this.hit) {
-      return ;
-    }
-    this.hit = false;
-    let rb = this.actor().getComponent("RigidBodyComponent");
-    rb.applyForce(this.hitPos, this.hitDir.scale(this.hitImpact*this.impactMultiplier));
-  }
-
-  onMessage(message) {
-    if (message.typeEquals(ActorMessageType.HIT_RECEIVED)) {
-      let hitMessage = message.getPayload("DemoHitMessage");
-      this.hitPos = hitMessage.getPos();
-      this.hitDir = hitMessage.getDir();
-      this.hitImpact = hitMessage.getImpulse();
-      this.hit = true;
-    }
-  }
-
-  static create(key) {
-    let res = new PunchableBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.PunchableBehavior = PunchableBehavior;
-class BreakableSphereBehavior extends Behavior {
-  numPieces = 10;
-  radiusFactor = 0.3;
-  sphereModelId;
-  hit = false;
-  hitDir;
-  hitImpact;
-  childMaterialId = PhysicalMaterialId.of("object");
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "BreakableSphereBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  move(dt, inputs) {
-    if (!this.hit) {
-      return ;
-    }
-    this.world().actors().remove(this.actor().getId());
-    let tc = this.actor().getComponent("TransformComponent");
-    let rb = this.actor().getComponent("RigidBodyComponent");
-    let collider = this.actor().getComponent("ColliderComponent");
-    let r = this.radiusFactor*collider.getRadius();
-    let m = Math.max(0.2, rb.getMass()/this.numPieces);
-    for (let i = 0; i<this.numPieces; ++i) {
-      let posRandom = Vec3.create(Randoms.nextFloat(0, r)-r/2, Randoms.nextFloat(0, r)-r/2, Randoms.nextFloat(0, r)-r/2);
-      let velRand = Vec3.create(Randoms.nextFloat(0, this.hitImpact)-this.hitImpact/2, Randoms.nextFloat(0, this.hitImpact)-this.hitImpact/2, Randoms.nextFloat(0, this.hitImpact)-this.hitImpact/2);
-      let sphere = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(tc.getPos().add(posRandom))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(this.sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(m).setVelocity(this.hitDir.scale(this.hitImpact).add(velRand))).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(this.childMaterialId)).addComponent(LifetimeComponent.create(ComponentKey.LIFETIME).setRemaining(10, 3));
-      this.world().actors().add(ActorId.ROOT, sphere);
-    }
-  }
-
-  onMessage(message) {
-    if (message.typeEquals(ActorMessageType.HIT_RECEIVED)) {
-      let hitMessage = message.getPayload("DemoHitMessage");
-      this.hitDir = hitMessage.getDir();
-      this.hitImpact = hitMessage.getImpulse();
-      this.hit = true;
-    }
-  }
-
-  setSphereModelId(sphereModelId) {
-    this.sphereModelId = sphereModelId;
-    return this;
-  }
-
-  static create(key) {
-    let res = new BreakableSphereBehavior(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.BreakableSphereBehavior = BreakableSphereBehavior;
-class PlayerCharacterBehavior extends Behavior {
-  static JOYSTICK_SENSITIVITY = 1e-5;
-  static FWD = Vec3.create(0, 0, -1);
+class BillboardComponent extends Behavior {
+  orientation = BillboardOrientation.CAMERA_FACING;
   transform;
-  model;
-  rigidBody;
-  groundedColliderKey = ComponentKey.BODY_COLLIDER;
-  groundedCollider;
-  punchColliderKey = ComponentKey.PUNCH_1_COLLIDER;
-  punchCollider;
-  animationPlayer;
-  state;
-  grounded = false;
-  groundedBefore = false;
-  walkForce = 40;
-  runForce = 80;
-  airForce = 10;
-  groundedMaxYDiff = 0.5;
-  groundFriction = 10;
-  airFriction = 5;
-  turnSpeed = 4*FMath.PI;
-  punchImpact = 7;
-  turn = 0;
+  cameraTransform;
+  camera;
   constructor(key) {
     super(key);
-    let idle = MeshAnimation.create(MeshAnimationKey.of("idle"), 30, 60, true).withClip(Clip.simple(0, 1, 0));
-    let walk = MeshAnimation.create(MeshAnimationKey.of("walk"), 30, 30, true).withClip(Clip.simple(2, 3, 4, 5, 6, 2));
-    let run = MeshAnimation.create(MeshAnimationKey.of("run"), 30, 30, true).withClip(Clip.simple(7, 8, 9, 10, 11, 12, 13, 7));
-    let punch = MeshAnimation.create(MeshAnimationKey.of("punch"), 30, 15, false).withClip(Clip.simple(14, 15, 16, 17, 18)).plusTrigger(13, "punch");
-    let hit = MeshAnimation.create(MeshAnimationKey.of("hit"), 30, 10, false).withClip(Clip.simple(19, 20, 19));
-    this.animationPlayer = MeshAnimationPlayer.create(MeshAnimationCollection.empty().plusAnimation(idle).plusAnimation(walk).plusAnimation(run).plusAnimation(punch).plusAnimation(hit), MeshAnimationKey.of("idle"));
-    this.state = this.stateIdle.bind(this);
   }
 
   getClass() {
-    return "PlayerCharacterBehavior";
+    return "BillboardComponent";
   }
 
   guardInvariants() {
@@ -37558,219 +37519,177 @@ class PlayerCharacterBehavior extends Behavior {
 
   init() {
     this.transform = this.actor().getComponent("TransformComponent");
-    this.model = this.actor().getComponent("ModelComponent");
-    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-    this.groundedCollider = this.actor().getComponentByKey("ColliderComponent", this.groundedColliderKey);
-    this.punchCollider = this.actor().getComponentByKey("ColliderComponent", this.punchColliderKey);
+    this.world().actors().forEach(ActorId.ROOT, (a) => {
+  let cc = a.getComponentNonStrict("CameraComponent");
+  if (cc!=null) {
+    Guard.beNull(this.camera, "only single camera is supported at the moment");
+    this.camera = cc;
+    this.cameraTransform = a.getComponent("TransformComponent");
+  }
+});
   }
 
-  move(dt, inputs) {
-    this.updateGrounded();
-    let friction = this.grounded?this.groundFriction:this.airFriction;
-    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*this.rigidBody.getMass()*this.rigidBody.getVelocity().x(), 0, -friction*this.rigidBody.getMass()*this.rigidBody.getVelocity().z()));
-    let dir = inputs.getVec2("dir", Vec2.ZERO);
-    let run = inputs.getBoolean("run", false);
-    let punch = inputs.getBoolean("punch", false);
-    let input = PlayerCharacterInput.create(dt, dir, punch, run);
-    this.state(input);
-    let step = this.animationPlayer.move(dt);
-    if (step.getTriggers().contains("punch")) {
-      for (let cmp of this.actor().getComponents()) {
-        let punchWorld = this.punchCollider.toGlobal(Vec3.ZERO);
-        let punchDir = this.punchCollider.toGlobal(PlayerCharacterBehavior.FWD).subAndNormalize(punchWorld);
-        let hits = this.world().collisions().getColliderIntersections(this.punchCollider);
-        for (let hitCollider of hits) {
-          let hitAct = hitCollider.getActor();
-          hitAct.sendMessage(ActorMessage.create(ActorMessageType.HIT_RECEIVED, DemoHitMessage.create(punchWorld, punchDir, this.punchImpact)));
-        }
-      }
+  lateMove(dt, inputs) {
+    if (this.orientation.equals(BillboardOrientation.CAMERA_FACING)) {
+      let cameraPos = this.cameraTransform.getPos();
+      let rot = this.getLookAtRotation(cameraPos, Vec3.UP);
+      this.transform.setRot(rot);
     }
-    this.model.setInterpolation(step.getInterpolation());
-    this.transform.setRot(Quaternion.rotY(this.turn));
-    if (!this.grounded&&this.groundedBefore&&this.rigidBody.getVelocity().y()>0) {
-      this.rigidBody.setVelocity(Vec3.create(this.rigidBody.getVelocity().x(), 0, this.rigidBody.getVelocity().y()));
-    }
-    if (this.grounded&&step.getKey().equals(MeshAnimationKey.of("idle"))) {
-      this.rigidBody.clearAccums();
-      this.rigidBody.setVelocity(Vec3.ZERO);
-      this.rigidBody.setAngularVelocity(Vec3.ZERO);
-    }
-  }
-
-  updateGrounded() {
-    this.groundedBefore = this.grounded;
-    let pos = this.transform.getPos();
-    let bestGroundPoint = Vec3.create(pos.x(), pos.y()+2, pos.z());
-    let contacts = this.world().collisions().getColliderContacts(this.groundedCollider);
-    for (let cont of contacts) {
-      if (cont.getColliderB().getLayer().equals(CollisionLayer.WORLD)) {
-        for (let cp of cont.getContactPoints()) {
-          if (cp.getPosA().y()<bestGroundPoint.y()) {
-            bestGroundPoint = cp.getPosA();
-          }
-        }
-      }
-    }
-    if (bestGroundPoint.y()<pos.y()+this.groundedMaxYDiff) {
-      this.grounded = true;
+    else if (this.orientation.equals(BillboardOrientation.CAMERA_FACING_VERTICAL)) {
+      let cameraPos = this.cameraTransform.getPos().withY(this.transform.getPos().y());
+      let rot = this.getLookAtRotation(cameraPos, Vec3.UP);
+      this.transform.setRot(rot);
     }
     else {
-      this.grounded = false;
+      throw new Error("unsupported billboard orientation: "+this.orientation);
     }
   }
 
-  stateIdle(input) {
-    this.animationPlayer.play(MeshAnimationKey.of("idle"), MeshAnimationPlayConfig.PLAY);
-    if (input.isPunch()) {
-      this.state = this.statePunch.bind(this);
-    }
-    else if (input.getDir().mag()>=PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
-      this.state = input.isRun()?this.stateRun.bind(this):this.stateWalk.bind(this);
-    }
-    return null;
+  setOrientation(orientation) {
+    Guard.notNull(orientation, "orientation cannot be null");
+    this.orientation = orientation;
+    return this;
   }
 
-  stateWalk(input) {
-    this.animationPlayer.play(MeshAnimationKey.of("walk"), MeshAnimationPlayConfig.PLAY);
-    if (input.isPunch()) {
-      this.state = this.statePunch.bind(this);
-    }
-    else if (input.getDir().mag()<PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
-      this.state = this.stateIdle.bind(this);
-    }
-    else if (input.isRun()) {
-      this.state = this.stateRun.bind(this);
-    }
-    else {
-      let dir = input.getDir().normalize();
-      let moveMag = this.grounded?this.walkForce:this.airForce;
-      this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x(), 0, -dir.y()).scale(moveMag*this.rigidBody.getMass()));
-      let targetTurn = -FMath.atan2(dir.x(), dir.y());
-      let maxdTurn = input.getDt()*this.turnSpeed;
-      if (FMath.abs(this.turn-targetTurn)<=maxdTurn) {
-        this.turn = targetTurn;
-      }
-      else if (targetTurn>this.turn) {
-        if (targetTurn-this.turn<this.turn-targetTurn+FMath.PI*2) {
-          this.turn = this.turn+maxdTurn;
-          if (this.turn>FMath.PI) {
-            this.turn = this.turn-2*FMath.PI;
-          }
-        }
-        else {
-          this.turn = this.turn-maxdTurn;
-          if (this.turn<-FMath.PI) {
-            this.turn = this.turn+2*FMath.PI;
-          }
-        }
-      }
-      else {
-        if (this.turn-targetTurn<targetTurn-this.turn+FMath.PI*2) {
-          this.turn = this.turn-maxdTurn;
-          if (this.turn<-FMath.PI) {
-            this.turn = this.turn+2*FMath.PI;
-          }
-        }
-        else {
-          this.turn = this.turn+maxdTurn;
-          if (this.turn>FMath.PI) {
-            this.turn = this.turn-2*FMath.PI;
-          }
-        }
-      }
-    }
-    return null;
-  }
-
-  stateRun(input) {
-    this.animationPlayer.play(MeshAnimationKey.of("run"), MeshAnimationPlayConfig.PLAY);
-    if (input.isPunch()) {
-      this.state = this.statePunch.bind(this);
-    }
-    else if (input.getDir().mag()<PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
-      this.state = this.stateIdle.bind(this);
-    }
-    else if (!input.isRun()) {
-      this.state = this.stateWalk.bind(this);
-    }
-    else {
-      let dir = input.getDir().normalize();
-      let moveMag = this.grounded?this.runForce:this.airForce;
-      this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x(), 0, -dir.y()).scale(moveMag*this.rigidBody.getMass()));
-      let targetTurn = -FMath.atan2(dir.x(), dir.y());
-      let maxdTurn = input.getDt()*this.turnSpeed;
-      if (FMath.abs(this.turn-targetTurn)<=maxdTurn) {
-        this.turn = targetTurn;
-      }
-      else if (targetTurn>this.turn) {
-        if (targetTurn-this.turn<this.turn-targetTurn+FMath.PI*2) {
-          this.turn = this.turn+maxdTurn;
-          if (this.turn>FMath.PI) {
-            this.turn = this.turn-2*FMath.PI;
-          }
-        }
-        else {
-          this.turn = this.turn-maxdTurn;
-          if (this.turn<-FMath.PI) {
-            this.turn = this.turn+2*FMath.PI;
-          }
-        }
-      }
-      else {
-        if (this.turn-targetTurn<targetTurn-this.turn+FMath.PI*2) {
-          this.turn = this.turn-maxdTurn;
-          if (this.turn<-FMath.PI) {
-            this.turn = this.turn+2*FMath.PI;
-          }
-        }
-        else {
-          this.turn = this.turn+maxdTurn;
-          if (this.turn>FMath.PI) {
-            this.turn = this.turn-2*FMath.PI;
-          }
-        }
-      }
-    }
-    return null;
-  }
-
-  statePunch(input) {
-    this.animationPlayer.play(MeshAnimationKey.of("punch"), MeshAnimationPlayConfig.PLAY);
-    if (this.animationPlayer.isEnd()) {
-      if (input.isPunch()) {
-        this.animationPlayer.play(MeshAnimationKey.of("punch"), MeshAnimationPlayConfig.RESTART);
-      }
-      else if (input.getDir().mag()>=PlayerCharacterBehavior.JOYSTICK_SENSITIVITY) {
-        this.state = input.isRun()?this.stateRun.bind(this):this.stateWalk.bind(this);
-      }
-      else {
-        this.state = this.stateIdle.bind(this);
-      }
-    }
-    return null;
+  getLookAtRotation(target, upDir) {
+    let fwd = target.subAndNormalize(this.transform.getPos());
+    let rotX = -FMath.asin(fwd.y());
+    let rotY = FMath.atan2(fwd.x(), fwd.z());
+    return Quaternion.rotY(rotY).mul(Quaternion.rotX(rotX));
   }
 
   static create(key) {
-    let res = new PlayerCharacterBehavior(key);
+    let res = new BillboardComponent(key);
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.PlayerCharacterBehavior = PlayerCharacterBehavior;
-class RigidBodyApp06 extends TyracornScreen {
+classRegistry.BillboardComponent = BillboardComponent;
+class FireParticleComponent extends Behavior {
+  transform;
+  cameraTransform;
+  camera;
+  time = 0;
+  lifetime = 1;
+  velocity = Vec3.ZERO;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FireParticleComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.world().actors().forEach(ActorId.ROOT, (a) => {
+  let cc = a.getComponentNonStrict("CameraComponent");
+  if (cc!=null) {
+    Guard.beNull(this.camera, "only single camera is supported at the moment");
+    this.camera = cc;
+    this.cameraTransform = a.getComponent("TransformComponent");
+  }
+});
+  }
+
+  move(dt, inputs) {
+    this.lifetime = this.lifetime-dt;
+    this.time = this.time+dt;
+    if (this.lifetime<=0) {
+      this.world().actors().remove(this.actor().getId());
+    }
+    this.transform.move(this.velocity.scale(dt));
+    if (this.time>0.8) {
+      this.actor().getComponent("ModelComponent").setModelId(ModelId.of("fire2"));
+    }
+  }
+
+  lateMove(dt, inputs) {
+    let cameraPos = this.cameraTransform.getPos();
+    this.transform.setRot(this.getLookAtRotation(cameraPos, Vec3.UP));
+  }
+
+  setLifetime(lifetime) {
+    this.lifetime = lifetime;
+    return this;
+  }
+
+  setVelocity(velocity) {
+    Guard.notNull(velocity, "velocity cannot be null");
+    this.velocity = velocity;
+    return this;
+  }
+
+  getLookAtRotation(target, upDir) {
+    let fwd = target.subAndNormalize(this.transform.getPos());
+    let rotX = -FMath.asin(fwd.y());
+    let rotY = FMath.atan2(fwd.x(), fwd.z());
+    return Quaternion.rotY(rotY).mul(Quaternion.rotX(rotX));
+  }
+
+  static create(key) {
+    let res = new FireParticleComponent(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FireParticleComponent = FireParticleComponent;
+class FireEmitterComponent extends Behavior {
+  transform;
+  rpGenerator;
+  pps = 100;
+  tReminder = 0;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FireEmitterComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.rpGenerator = this.actor().getComponent("RpGeneratorComponent");
+  }
+
+  move(dt, inputs) {
+    let emitTime = dt+this.tReminder;
+    let numEmit = FMath.trunc(emitTime*this.pps);
+    this.tReminder = emitTime-(numEmit/this.pps);
+    for (let i = 0; i<numEmit; ++i) {
+      this.world().actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("tyracorn-billboard").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(this.rpGenerator.nextPoint())).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(ModelId.of("fire1")).setTransform(Mat44.scale(0.05))).addComponent(FireParticleComponent.create(ComponentKey.random()).setLifetime(Randoms.nextFloat(0.5, 1)).setVelocity(Vec3.create(Randoms.nextFloat(-0.15, 0.15), Randoms.nextFloat(0.3, 1), Randoms.nextFloat(-0.15, 0.15)))));
+    }
+  }
+
+  static create(key) {
+    let res = new FireEmitterComponent(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FireEmitterComponent = FireEmitterComponent;
+class BasicApp19 extends TyracornScreen {
   time = 0;
   world;
   inputs = InputCache.create();
   ui;
-  controller;
+  gamePad;
   paused = false;
   constructor() {
     super();
   }
 
   getClass() {
-    return "RigidBodyApp06";
+    return "BasicApp19";
   }
 
   move(drivers, screenManager, dt) {
@@ -37792,9 +37711,8 @@ class RigidBodyApp06 extends TyracornScreen {
     }
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
     if (!this.paused) {
-      this.inputs.put("dir", this.controller.getDir());
-      this.inputs.put("run", this.controller.isRun());
-      this.inputs.put("punch", this.controller.isPunch());
+      this.inputs.put("moveDir", this.gamePad.getLeftDir());
+      this.inputs.put("rotDir", this.gamePad.getRightDir());
       this.world.move(dt, this.inputs);
     }
     this.world.render(RenderRequest.NORMAL);
@@ -37807,98 +37725,65 @@ class RigidBodyApp06 extends TyracornScreen {
 
   load(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/primitives.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")), assets.resolveAsync(Path.of("asset:packages/characters/tyracorn.tap")));
+    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/primitives.tap")), assets.resolveAsync(Path.of("asset:packages/particles.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")));
   }
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
     Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 30));
+    let tyracornTextureId = TextureId.of("tyracorn");
+    let transparentTex1Id = TextureId.of("transparent-texture-1");
+    let transparentTex1 = Texture.rgbaFloatValues(4, 4, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5);
+    let transparentTex2Id = TextureId.of("transparent-texture-2");
+    let transparentTex2 = Texture.rgbaFloatValues(4, 4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 0, 0.4);
+    assets.put(transparentTex1Id, transparentTex1);
+    assets.put(transparentTex2Id, transparentTex2);
     assets.put(MaterialId.of("brass"), Material.BRASS);
     assets.put(MaterialId.of("copper"), Material.COPPER);
-    const sphereModelId = ModelId.of("sphere");
-    const skyboxModelId = ModelId.of("skybox-1");
+    assets.put(MaterialId.of("gold"), Material.GOLD);
     assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
-    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("brass"));
-    const groundModelId = ModelId.of("ground");
+    assets.put(MeshId.of("billboard"), this.createBillboardMesh());
+    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
+    let groundModelId = ModelId.of("ground");
     assets.put(groundModelId, groundModel);
-    let sphereModel = assets.get("Model", ModelId.of("sphere"));
-    let boxModel = Model.simple(MeshId.of("modelBox"), sphereModel.getParts().get(0).getMaterial());
-    const boxModelId = ModelId.of("box");
-    assets.put(boxModelId, boxModel);
-    const characterModelId = ModelId.of("tyracorn");
-    const wallColMatId = PhysicalMaterialId.of("wall");
-    assets.put(wallColMatId, PhysicalMaterial.simple(0.6, 1.8, 1.8));
-    const objectColMatId = PhysicalMaterialId.of("object");
-    assets.put(objectColMatId, PhysicalMaterial.create(0.6, PhysicalMaterialCombineType.AVG, 18, 18, PhysicalMaterialCombineType.MAX));
-    const charColMatId = PhysicalMaterialId.of("character");
-    assets.put(charColMatId, PhysicalMaterial.create(0, PhysicalMaterialCombineType.MIN, 0, 0, PhysicalMaterialCombineType.MIN));
+    assets.put(MaterialId.of("tyracorn-mask"), Material.BLACK.withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.diffuse(TextureId.of("stone-1-diff"))).plusTexture(TextureAttachment.diffuse(tyracornTextureId)));
+    let tyracornBillboard = Model.simple(MeshId.of("billboard"), MaterialId.of("tyracorn-mask"));
+    let tyracornBillboarModelId = ModelId.of("tyracorn-billboard");
+    assets.put(tyracornBillboarModelId, tyracornBillboard);
+    assets.put(MaterialId.of("fire1"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-1"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-1"))));
+    let fire1Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire1"));
+    let fire1ModelId = ModelId.of("fire1");
+    assets.put(fire1ModelId, fire1Model);
+    assets.put(MaterialId.of("fire2"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-2"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-2"))));
+    let fire2Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire2"));
+    let fire2ModelId = ModelId.of("fire2");
+    assets.put(fire2ModelId, fire2Model);
+    assets.put(MaterialId.of("fire3"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-3"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-3"))));
+    let fire3Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire3"));
+    let fire3ModelId = ModelId.of("fire3");
+    assets.put(fire3ModelId, fire3Model);
+    assets.put(MaterialId.of("fire4"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-4"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-4"))));
+    let fire4Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire4"));
+    let fire4ModelId = ModelId.of("fire4");
+    assets.put(fire4ModelId, fire4Model);
     this.world = RigidBodyWorld.create(drivers);
-    let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create(ComponentKey.WORLD).setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-300, -30, -300, 300, 30, 300)));
+    let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create(ComponentKey.WORLD).setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-30, -30, -30, 30, 30, 30)));
     this.world.actors().add(ActorId.ROOT, worldActor);
-    let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create(ComponentKey.TRANSFORM)).addComponent(SkyboxComponent.create(ComponentKey.SKYBOX).setModelId(skyboxModelId).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create(ComponentKey.AUTO_ROTATE).setAngularVelocity(Vec3.create(0, 0.1, 0)));
+    let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create(ComponentKey.TRANSFORM)).addComponent(SkyboxComponent.create(ComponentKey.SKYBOX).setModelId(ModelId.of("skybox-1")).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create(ComponentKey.AUTO_ROTATE).setAngularVelocity(Vec3.create(0, 0.1, 0)));
     this.world.actors().add(ActorId.ROOT, skybox);
-    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(10, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(40, 1, 30)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 2, 32)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
+    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(20, 1, 20))));
     this.world.actors().add(ActorId.ROOT, ground);
-    let back = Actor.create("back").setName("back").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(10, 0, -15))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(42, 1, 7)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 7, 1)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, back);
-    let front = Actor.create("front").setName("front").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(10, 0, 15))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(42, 1, 3)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 3, 1)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, front);
-    let left = Actor.create("left").setName("left").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-10, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 32, 7)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 32)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, left);
-    let right = Actor.create("right").setName("right").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(30, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 32, 7)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 32)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, right);
-    let slope1 = Actor.create("slope-1").setName("slope-1").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(8, 2, 5)).rotate(FMath.PI/4, Vec3.create(0, 0, 1))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.scale(7, 1, 6))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(7, 1, 6)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, slope1);
-    let slope2 = Actor.create("slope-2").setName("slope-2").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(20, 2, 5)).rotate(-FMath.PI/4, Vec3.create(0, 0, 1))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.scale(7, 1, 6))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(7, 1, 6)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, slope2);
-    let bridge = Actor.create("bridge").setName("bridge").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(14, 4.25, 5))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.scale(7.5, 1, 6))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(7.5, 1, 6)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, bridge);
-    let stair = Actor.create("stair").setName("stair").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-2, -0.1, 3)).rotate(-FMath.PI/3, Vec3.create(0, 1, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.scale(3, 1, 3))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(3, 1, 3)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, stair);
-    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(10, 25, 20), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
+    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(4, 10, 10), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE).setDirShadowMapStrategy(DirShadowMapStrategy.createManual(80, 80, 0, 20)));
     this.world.actors().add(ActorId.ROOT, light);
-    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY)).addComponent(CameraControllerComponent.create(ComponentKey.random()).setMode(CameraControlMode.ISOMETRIC).setTargetId(ActorId.of("character")).setPosOffset(Vec3.create(0, 10, 8)));
+    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 4, 5), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create(ComponentKey.random(), "moveDir", "rotDir", 5, 1)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY));
     this.world.actors().add(ActorId.ROOT, camera);
-    let character = Actor.create("character").setName("character").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 5, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(characterModelId).setTransform(Mat44.rotY(FMath.PI))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setMass(20).setRotationLock(true).setKinematic(false)).addComponent(ColliderComponent.create(ComponentKey.BODY_COLLIDER).setLayer(CollisionLayer.OBJECT).setPos(Vec3.create(0, 1.5, 0)).setShape(ColliderShape.CAPSULE).setRadius(0.7).setHeight(3).setMaterialId(charColMatId)).addComponent(ColliderComponent.create(ComponentKey.PUNCH_1_COLLIDER).setTrigger(true).setActive(false).setLayer(CollisionLayer.OBJECT).setPos(Vec3.create(0.3, 1.7, -1.6)).setShape(ColliderShape.SPHERE).setRadius(0.1)).addComponent(PlayerCharacterBehavior.create(ComponentKey.random()));
-    this.world.actors().add(ActorId.ROOT, character);
-    let sphere1 = Actor.create("sphere-1").setName("sphere-1").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-3, 4, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(0.5).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, sphere1);
-    let sphere2 = Actor.create("sphere-2").setName("sphere-2").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-3, 3.2, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(1)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setRadius(0.5).setSize(Vec3.create(1, 1, 1)).setMaterialId(objectColMatId)).addComponent(PunchableBehavior.create(ComponentKey.random())).addComponent(BallSocketJointComponent.create(ComponentKey.random()).setJoint("sphere-1", "sphere-2", Vec3.create(-3, 3.6, 0)));
-    this.world.actors().add(ActorId.ROOT, sphere2);
-    let sphere3 = Actor.create("sphere-3").setName("sphere-3").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-3, 2.4, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(1)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setRadius(0.5).setSize(Vec3.create(1, 1, 1)).setMaterialId(objectColMatId)).addComponent(PunchableBehavior.create(ComponentKey.random())).addComponent(BallSocketJointComponent.create(ComponentKey.random()).setJoint("sphere-2", "sphere-3", Vec3.create(-3, 2.7, 0)));
-    this.world.actors().add(ActorId.ROOT, sphere3);
-    let sphere4 = Actor.create("sphere-4").setName("sphere-4").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-3, 1.6, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(sphereModelId).setTransform(Mat44.scale(0.5))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(1)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setRadius(0.5).setSize(Vec3.create(1, 1, 1)).setMaterialId(objectColMatId)).addComponent(PunchableBehavior.create(ComponentKey.random())).addComponent(BallSocketJointComponent.create(ComponentKey.random()).setJoint("sphere-3", "sphere-4", Vec3.create(-3, 1.8, 0)));
-    this.world.actors().add(ActorId.ROOT, sphere4);
-    let fixedBase = Actor.create("fixed-base").setName("fixed-base").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-1, 2, -8))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(boxModelId).setTransform(Mat44.scale(1, 4, 1))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 4, 1)).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, fixedBase);
-    let fixedBlock = Actor.create("fixed-block").setName("fixed-block").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-3, 3, -8))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(boxModelId).setTransform(Mat44.scale(4, 2, 0.5))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setMass(1)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(4, 2, 0.5)).setMaterialId(objectColMatId)).addComponent(FixedJointComponent.create(ComponentKey.random()).setJoint("fixed-base", "fixed-block"));
-    this.world.actors().add(ActorId.ROOT, fixedBlock);
-    let hingeBase = Actor.create("hinge-base").setName("hinge-base").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(9, 2, -8))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(boxModelId).setTransform(Mat44.scale(1, 4, 1))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 4, 1)).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, hingeBase);
-    let hingeBlock = Actor.create("hinge-block").setName("hinge-block").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(9, 3, -8))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(boxModelId).setTransform(Mat44.trans(-2, 0, 0).mul(Mat44.scale(4, 2, 0.5)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(10)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(4, 2, 0.5)).setPos(Vec3.create(-2, 0, 0)).setMaterialId(objectColMatId)).addComponent(HingeJointComponent.create(ComponentKey.random()).setJoint("hinge-base", "hinge-block", Vec3.create(9, 3, -8), Vec3.UP));
-    this.world.actors().add(ActorId.ROOT, hingeBlock);
-    let prismaticBase = Actor.create("prismatic-base").setName("prismatic-base").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(20, 4, -8))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(boxModelId).setTransform(Mat44.scale(10, 0.5, 0.5))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(10, 0.5, 0.5)).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, prismaticBase);
-    let prismaticEnds = Actor.create("prismatic-ends").setName("prismatic-ends").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(20, 4, -8))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setPos(Vec3.create(-5.125, 0, 0)).setSize(Vec3.create(0.25, 0.5, 0.5)).setMaterialId(objectColMatId)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_2).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setPos(Vec3.create(5.125, 0, 0)).setSize(Vec3.create(0.25, 0.5, 0.5)).setMaterialId(objectColMatId));
-    this.world.actors().add(ActorId.ROOT, prismaticEnds);
-    let prismaticBlock = Actor.create("prismatic-block").setName("prismatic-block").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(20, 3, -8))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(boxModelId).setTransform(Mat44.scale(2, 2, 2))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(10)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setSize(Vec3.create(2, 2, 2)).setMaterialId(objectColMatId)).addComponent(PrismaticJointComponent.create(ComponentKey.random()).setJoint("prismatic-base", "prismatic-block", Vec3.create(20, 4, -8), Vec3.RIGHT));
-    this.world.actors().add(ActorId.ROOT, prismaticBlock);
+    this.world.actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("tyracorn-billboard").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-3, 0.5, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(tyracornBillboarModelId).setTransform(Mat44.trans(0, 0, 0))).addComponent(BillboardComponent.create(ComponentKey.random()).setOrientation(BillboardOrientation.CAMERA_FACING)));
+    this.world.actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("tyracorn-billboard").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0.5, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(tyracornBillboarModelId).setTransform(Mat44.trans(0, 0, 0))).addComponent(BillboardComponent.create(ComponentKey.random()).setOrientation(BillboardOrientation.CAMERA_FACING_VERTICAL)));
+    this.world.actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("fire").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(3, 0, 0))).addComponent(RpGeneratorComponent.create(ComponentKey.random()).setShape(RpGeneratorShape.BOX).setSize(0.25, 0.01, 0.05)).addComponent(FireEmitterComponent.create(ComponentKey.random())));
     this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
-    let addObjectAct = (evetSource) => {
-      let r = Randoms.nextFloat(1, 3);
-      let m = Randoms.nextFloat(1, 2);
-      let id1 = Randoms.nextAlphabetic(32);
-      let id2 = Randoms.nextAlphabetic(32);
-      let sphereObj1 = Actor.create(id1).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create(ComponentKey.REMOVE_ON_OUTSPACE)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(m).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(objectColMatId)).addComponent(BreakableSphereBehavior.create(ComponentKey.random()).setSphereModelId(sphereModelId));
-      this.world.actors().add(ActorId.ROOT, sphereObj1);
-      let sphereObj2 = Actor.create(id2).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 8, r))).addComponent(RemoveOnOutspaceComponent.create(ComponentKey.REMOVE_ON_OUTSPACE)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(sphereModelId).setTransform(Mat44.scale(r/2))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(m/10)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r/2).setMaterialId(objectColMatId)).addComponent(BreakableSphereBehavior.create(ComponentKey.random()).setSphereModelId(sphereModelId)).addComponent(FixedJointComponent.create(ComponentKey.random()).setJoint(id1, id2));
-      this.world.actors().add(sphereObj1.getId(), sphereObj2);
-    };
-    let objectBtn = Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(10, 10, 120, 30)).setText("Object").addOnClickAction(addObjectAct);
-    this.ui.addComponent(objectBtn);
-    this.controller = CharacterController.create(drivers);
-    this.ui.addComponent(this.controller);
-    this.ui.addComponent(PlayUis.createPauseButton((evt) => {
+    this.gamePad = GamePad.create(drivers);
+    this.ui.addComponent(this.gamePad);
+    this.ui.addComponent(Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction((evt) => {
   this.paused = true;
 }));
     this.ui.subscribe(drivers);
@@ -37916,15 +37801,13 @@ class RigidBodyApp06 extends TyracornScreen {
     this.world.destroy(drivers);
   }
 
-  getRandomVelocity() {
-    let vx = Randoms.nextFloat(0, 2)-1;
-    let vy = Randoms.nextFloat(0, 2)-1;
-    let vz = Randoms.nextFloat(0, 2)-1;
-    return Vec3.create(vx, vy, vz);
+  createBillboardMesh() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, 0, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, 0, 0, 0, -1, 1, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7))).toMesh();
+    return res;
   }
 
 }
-classRegistry.RigidBodyApp06 = RigidBodyApp06;
+classRegistry.BasicApp19 = BasicApp19;
 
 
 // -------------------------------------
@@ -38307,7 +38190,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new RigidBodyApp06());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp19());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

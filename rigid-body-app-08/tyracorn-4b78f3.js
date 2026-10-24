@@ -7,9 +7,9 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/onthebox";
-const assetsDirName = "/assets-6156a3";
-const localStoragePrefix = "onthebox.";
+const basePath = "/tyracorn-web-examples/rigid-body-app-08";
+const assetsDirName = "/assets-74efb8";
+const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
 let mouseLastDragY = 0;
@@ -2620,6 +2620,25 @@ class DataBlock {
     }
 
     /**
+     * Creates new data block from base64 encoded string.
+     * 
+     * @param {String} base64Str base64 encoded string
+     * @returns {DataBlock} created block
+     */
+    static fromBase64String(base64Str) {
+        const binaryString = atob(base64Str);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        let res = new DataBlock();
+        res.data = bytes.buffer;
+        res.view = new DataView(res.data);
+        res.guardInvaritants();
+        return res;
+    }
+
+    /**
      * Creates new data block from stream writer. This causes the writer to be closed.
      * This is to prevent extra data copying.
      * This is internal method only, do not call from outside.
@@ -2651,24 +2670,6 @@ class DataBlock {
         return res;
     }
 
-    /**
-     * Creates new data block from base64 encoded string.
-     * 
-     * @param {String} base64Str base64 encoded string
-     * @returns {DataBlock} created block
-     */
-    static fromBase64String(base64Str) {
-        const binaryString = atob(base64Str);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-        let res = new DataBlock();
-        res.data = bytes.buffer;
-        res.view = new DataView(res.data);
-        res.guardInvaritants();
-        return res;
-    }
 }
 /**
  * Data block stream writer.
@@ -3528,6 +3529,16 @@ class Taps {
         } else {
             throw new Error("unsupported version " + version + ", implement me");
         }
+    }
+
+    /**
+     * Decodes TAP from data block.
+     *
+     * @param {DataBlock} dataBlock data block
+     * @return {Tap} decoded package
+     */
+    static fromDataBlock(dataBlock) {
+        return Taps.fromBytes(dataBlock.data);
     }
 
     /**
@@ -26683,6 +26694,96 @@ class BasicLoadingScreen extends TyracornScreen {
 
 }
 classRegistry.BasicLoadingScreen = BasicLoadingScreen;
+class TyracornLoadingScreen extends TyracornScreen {
+  static TAP_DATA = "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";
+  texture = TextureId.of("tyracorn-loading");
+  ui;
+  image;
+  regionFnc = null;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "TyracornLoadingScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    if (this.image==null) {
+      let assets = drivers.getDriver("AssetManager");
+      if (this.regionFnc==null) {
+        let tex = assets.get("Texture", this.texture);
+        let texW = tex.getWidth();
+        let texH = tex.getHeight();
+        this.regionFnc = this.safeRegionFnc(0.25, texW/texH, 0.8);
+      }
+      this.image = ImageView.create().setTexture(this.texture).setRegionFnc(this.regionFnc);
+      this.ui.addComponent(ImageView.create().setRegionFnc(UiRegionFncs.fullMargin(-10, -10, -10, -10)).setTexture(TextureId.of("tyracorn-white-pixel")));
+      this.ui.addComponent(this.image);
+    }
+    this.ui.move(dt);
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  init(drivers, screenManager, properties) {
+    this.ui = StretchUi.create(UiSizeFncs.identity());
+    this.ui.subscribe(drivers);
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    if (!assets.containsKey(this.texture)) {
+      let block = DataBlock.fromBase64String(TyracornLoadingScreen.TAP_DATA);
+      let tap = Taps.fromDataBlock(block);
+      let ag = Taps.toAssetGroup(tap).plus(TextureId.of("tyracorn-white-pixel"), Texture.rgbFloatConstant(2, 2, Rgb.WHITE));
+      ag.toManagerStrict(assets);
+    }
+    return res;
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+  }
+
+  setRegionFnc(regionFnc) {
+    Guard.notNull(regionFnc, "regionFnc cannot be null");
+    this.regionFnc = regionFnc;
+    return this;
+  }
+
+  safeRegionFnc(heightRatio, aspect, maxWidthRatio) {
+    return (size) => {
+      let maxW = FMath.max(1, size.width()*maxWidthRatio);
+      let h = FMath.max(1, size.height()*heightRatio);
+      let w = h*aspect;
+      if (w>maxW) {
+        w = maxW;
+        h = w/aspect;
+      }
+      return Rect2.create(size.width()/2-w/2, size.height()/2-h/2, w, h);
+    };
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new TyracornLoadingScreen();
+    res.texture = TextureId.of("tyracorn-loading");
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.TyracornLoadingScreen = TyracornLoadingScreen;
 class TyracornScreenAppScreenManager {
   nextScreen = null;
   leaveActions = new ArrayList();
@@ -37060,4631 +37161,99 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class AboutScreen extends TyracornScreen {
-  appProperties;
-  ui;
-  constructor(appProperties) {
-    super();
-    this.appProperties = appProperties;
-    this.guardInvariants();
-  }
-
-  getClass() {
-    return "AboutScreen";
-  }
-
-  guardInvariants() {
-  }
-
-  move(drivers, screenManager, dt) {
-    let gDriver = drivers.getDriver("GraphicsDriver");
-    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    gDriver.clearBuffers(BufferId.DEPTH);
-    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
-    uiRenderer.render(this.ui);
-    uiRenderer.end();
-  }
-
-  load(drivers, screenManager, properties) {
-    let res = new ArrayList();
-    let assets = drivers.getDriver("AssetManager");
-    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/sprites.tap")));
-    return res;
-  }
-
-  init(drivers, screenManager, properties) {
-    let uis = this.appProperties.uis();
-    this.ui = StretchUi.create(uis.uiSizeFnc()).setStyler(uis.styler());
-    this.ui.addComponent(uis.tiledBg());
-    let panel916 = uis.panel916();
-    this.ui.addComponent(panel916);
-    panel916.addComponent(uis.baseScreenBg());
-    panel916.addComponent(uis.squareImage("tyracorn", 3, 2));
-    panel916.addComponent(uis.titleLabel("Credits", 5));
-    panel916.addComponent(uis.normalLabel("https://quaternius.com", 6));
-    panel916.addComponent(uis.normalLabel("https://www.kenney.nl", 7));
-    panel916.addComponent(uis.normalLabel("Juhani Junkala", 8));
-    panel916.addComponent(uis.mediumBtn("Back", 9, false, UiEventActions.showScreen(screenManager, new MenuScreen(this.appProperties))));
-    this.ui.subscribe(drivers);
-  }
-
-  leave(drivers) {
-    drivers.getDriver("AudioDriver").getMixer().stopAll();
-    this.ui.unsubscribe(drivers);
-  }
-
-}
-classRegistry.AboutScreen = AboutScreen;
-class AppProperties {
-  mSettings;
-  mUis;
-  mGameSlots;
-  mRankingManager;
+class BoxMeshFactory {
   constructor() {
   }
 
   getClass() {
-    return "AppProperties";
+    return "BoxMeshFactory";
   }
 
-  guardInvariants() {
-  }
-
-  settings() {
-    return this.mSettings;
-  }
-
-  uis() {
-    return this.mUis;
-  }
-
-  gameSlots() {
-    return this.mGameSlots;
-  }
-
-  rankingManager() {
-    return this.mRankingManager;
-  }
-
-  toString() {
-  }
-
-  static create(settings, uis, gameSlots, rankingManager) {
-    let res = new AppProperties();
-    res.mSettings = settings;
-    res.mUis = uis;
-    res.mGameSlots = Dut.copyImmutableList(gameSlots);
-    res.mRankingManager = rankingManager;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.AppProperties = AppProperties;
-class GameScreen extends TyracornScreen {
-  static BOX_ACTOR_ID = ActorId.of("box");
-  static CAMERA_ACTOR_ID = ActorId.of("camera");
-  static PLAYER_ACTOR_ID = ActorId.of("player");
-  static GAME_STATE_ACTOR_ID = ActorId.of("game-state");
-  static BLOOD_ACTOR_PREFAB_ID = ActorPrefabId.of("blood");
-  static COIN_ACTOR_PREFAB_ID = ActorPrefabId.of("item-coin");
-  static HEART_ACTOR_PREFAB_ID = ActorPrefabId.of("item-heart");
-  appProperties;
-  gameSlot;
-  world;
-  controller;
-  gameState;
-  inputs = InputCache.create();
-  ui;
-  levelLabel;
-  scoreLabel;
-  healthPanel;
-  playerHealth;
-  gameEndPanel;
-  paused = false;
-  constructor(appProperties, gameSlot) {
-    super();
-    this.appProperties = appProperties;
-    this.gameSlot = gameSlot;
-    this.guardInvariants();
-  }
-
-  getClass() {
-    return "GameScreen";
-  }
-
-  guardInvariants() {
-  }
-
-  move(drivers, screenManager, dt) {
-    let gDriver = drivers.getDriver("GraphicsDriver");
-    if (this.paused&&this.ui.getNumLayers()==1) {
-      let uis = this.appProperties.uis();
-      this.ui.pushLayer();
-      this.ui.addComponent(Panel.create().addTrait(Uis.LAYER_SEPARATOR_TRAIT).setRegionFnc(UiRegionFncs.full()));
-      let panel916 = uis.panel916();
-      this.ui.addComponent(panel916);
-      panel916.addComponent(uis.bgBlockPanel(5, 3, false, true));
-      panel916.addComponent(uis.titleLabel("Game Paused", 5));
-      panel916.addComponent(uis.mediumBtn("Resume", 6, false, (evtSource) => {
-  this.paused = false;
-  this.ui.popLayer();
-}));
-      panel916.addComponent(uis.mediumBtn("Main Menu", 7, false, UiEventActions.showScreen(screenManager, new MenuScreen(this.appProperties))));
+  static rgbBox() {
+    if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&&arguments[3] instanceof Rgb) {
+      return BoxMeshFactory.rgbBox_4_Rgb_Rgb_Rgb_Rgb(arguments[0], arguments[1], arguments[2], arguments[3]);
     }
-    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    if (!this.paused) {
-      this.world.move(dt, this.inputs);
-    }
-    this.world.render(RenderRequest.NORMAL);
-    if (this.gameState.isFinished()&&this.gameEndPanel==null) {
-      let ranking = this.gameState.getRanking();
-      let uis = this.appProperties.uis();
-      this.appProperties.rankingManager().putRanking(ranking);
-      if (this.gameState.isGameOver()) {
-        this.gameEndPanel = uis.panel916();
-        let gameOverSprite = ScallingImageView.create(drivers.getDriver("AssetProvider")).setRegionFnc(uis.slotRegionFnc(6)).show(TextureId.of("game-over"), 0.3, 1.5, 1);
-        this.gameEndPanel.addComponent(gameOverSprite);
-        let continueAct = UiEventActions.showScreen(screenManager, new RankingsScreen(this.appProperties));
-        this.gameEndPanel.addComponent(DelayedComponent.create(uis.mediumBtn("Continue", 8, false, continueAct), 1));
-      }
-      else if (this.gameState.isVictory()) {
-        this.gameEndPanel = uis.panel916();
-        let heartSprite = ScallingImageView.create(drivers.getDriver("AssetProvider")).setRegionFnc(uis.slotRegionFnc(5)).show(TextureId.of("heart"), 0.3, 5, 1);
-        this.gameEndPanel.addComponent(heartSprite);
-        let victorySprite = ScallingImageView.create(drivers.getDriver("AssetProvider")).setRegionFnc(uis.slotRegionFnc(6)).show(TextureId.of("victory"), 0.3, 1.5, 1);
-        this.gameEndPanel.addComponent(DelayedComponent.create(victorySprite, 1));
-        let continueAct = UiEventActions.showScreen(screenManager, new RankingsScreen(this.appProperties));
-        this.gameEndPanel.addComponent(DelayedComponent.create(uis.mediumBtn("Let's call it a day", 8, false, continueAct), 2));
-      }
-      else {
-        throw new Error("unknown game state: "+this.gameState.getState());
-      }
-      this.ui.addComponent(this.gameEndPanel);
-    }
-    this.levelLabel.setText(this.gameState.getLevelName());
-    this.scoreLabel.setText("Score: "+this.gameState.getScore());
-    this.healthPanel.setHealth(this.playerHealth.getMaxHealth(), this.playerHealth.getHealth());
-    gDriver.clearBuffers(BufferId.DEPTH);
-    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
-    uiRenderer.render(this.ui);
-    uiRenderer.end();
-  }
-
-  load(drivers, screenManager, properties) {
-    let res = new ArrayList();
-    let assets = drivers.getDriver("AssetManager");
-    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/sprites.tap")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/physical-materials.tap")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/box-basic.tap")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/skybox.tap")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/characters")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/items.tap")));
-    res.add(assets.resolveAsync(Path.of("asset:default.tap")));
-    res.add(assets.resolveAsync(Path.of("asset:prefabs.tap")));
-    res.add(assets.resolveAsync(Path.of("asset:scenes.tap")));
-    return res;
-  }
-
-  init(drivers, screenManager, properties) {
-    const assets = drivers.getDriver("AssetManager");
-    this.world = RigidBodyWorld.create(drivers).setCollisionLayerMatrix(CollisionLayers.getMatrix());
-    assets.get("Scene", SceneId.of("scene-1")).emptyWorld(this.world).loadToWorld(this.world, assets);
-    let tyracornPrefab = assets.get("ActorPrefab", ActorPrefabId.of("tyracorn"));
-    let tyracorn = this.world.constructActor(CreateActorRequest.create(tyracornPrefab, GameScreen.PLAYER_ACTOR_ID, Vec3.ZERO, Quaternion.ZERO_ROT));
-    this.playerHealth = tyracorn.getComponent("HealthScript");
-    this.gameState = GameStateBehavior.create(ComponentKey.random(), this.gameSlot);
-    let gameStateActor = Actor.create(GameScreen.GAME_STATE_ACTOR_ID).addComponent(this.gameState).addComponent(AudioBehavior.create(ComponentKey.random(), this.appProperties.settings()));
-    this.world.actors().add(ActorId.ROOT, gameStateActor);
-    let uis = this.appProperties.uis();
-    this.ui = StretchUi.create(uis.uiSizeFnc()).setStyler(uis.styler());
-    let panel916 = uis.panel916();
-    this.ui.addComponent(panel916);
-    this.levelLabel = Label.create().setAlignment(TextAlignment.LEFT_TOP).setPosFnc(UiPosFncs.leftTop(30, 10));
-    panel916.addComponent(this.levelLabel);
-    this.healthPanel = HealthPanel.create().setRegionFnc(UiRegionFncs.leftTop(30, 70, 150, 40));
-    panel916.addComponent(this.healthPanel);
-    panel916.addComponent(ImageView.create().setTexture("healthbar").setRegionFnc(UiRegionFncs.leftTop(25, 65, 160, 50)));
-    this.scoreLabel = Label.create().setAlignment(TextAlignment.CENTER_TOP).setPosFnc(UiPosFncs.centerTop(10));
-    panel916.addComponent(this.scoreLabel);
-    this.controller = GameController.create(this.inputs);
-    this.ui.addComponent(this.controller);
-    this.ui.addComponent(uis.pauseBtn((evtSource) => {
-  this.paused = true;
-}));
-    this.ui.subscribe(drivers);
-    let dlist = InputCacheDisplayListener.create(this.inputs);
-    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
-    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
-  }
-
-  leave(drivers) {
-    this.ui.unsubscribe(drivers);
-    this.world.destroy(drivers);
-  }
-
-  pause(drivers) {
-    this.paused = true;
-  }
-
-}
-classRegistry.GameScreen = GameScreen;
-class GameSelectScreen extends TyracornScreen {
-  appProperties;
-  ui = null;
-  constructor(appProperties) {
-    super();
-    this.appProperties = appProperties;
-    this.guardInvariants();
-  }
-
-  getClass() {
-    return "GameSelectScreen";
-  }
-
-  guardInvariants() {
-  }
-
-  move(drivers, screenManager, dt) {
-    let gDriver = drivers.getDriver("GraphicsDriver");
-    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
-    uiRenderer.render(this.ui);
-    uiRenderer.end();
-  }
-
-  load(drivers, screenManager, properties) {
-    let res = new ArrayList();
-    let assets = drivers.getDriver("AssetManager");
-    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/sprites.tap")));
-    return res;
-  }
-
-  init(drivers, screenManager, properties) {
-    const sm = screenManager;
-    const gameSlot = this.appProperties.gameSlots().get(0);
-    const gsd = gameSlot.isGameSaved()?gameSlot.loadGame():GameStatusData.of(0, 0, 100, 100, 5);
-    let uis = this.appProperties.uis();
-    this.ui = StretchUi.create(uis.uiSizeFnc()).setStyler(uis.styler());
-    this.ui.addComponent(uis.tiledBg());
-    let panel916 = uis.panel916();
-    this.ui.addComponent(panel916);
-    panel916.addComponent(uis.baseScreenBg());
-    panel916.addComponent(uis.titleLabel("Start Game", 5));
-    let loadGameAction = (evtSource) => {
-      gameSlot.saveGame(gsd.decreaseAvailableLoads());
-      sm.showScreen(new GameScreen(this.appProperties, gameSlot));
-    };
-    let loadDisabled = gsd.getLevel()==0||gsd.getAvailableLoads()==0;
-    let remLoads = loadDisabled?"-":(""+gsd.getAvailableLoads());
-    panel916.addComponent(uis.mediumBtn("Load Game ("+remLoads+")", 6, loadDisabled, loadGameAction));
-    let newGameAction = (evtSource) => {
-      let gslot = this.appProperties.gameSlots().get(0);
-      gslot.saveGame(GameStatusData.of(0, 0, 100, 100, 5));
-      sm.showScreen(new GameScreen(this.appProperties, gslot));
-    };
-    panel916.addComponent(uis.mediumBtn("New Game", 7, false, newGameAction));
-    panel916.addComponent(uis.mediumBtn("Back", 9, false, UiEventActions.showScreen(screenManager, new MenuScreen(this.appProperties))));
-    this.ui.subscribe(drivers);
-  }
-
-  leave(drivers) {
-    this.ui.unsubscribe(drivers);
-  }
-
-}
-classRegistry.GameSelectScreen = GameSelectScreen;
-class MenuScreen extends TyracornScreen {
-  appProperties;
-  ui = null;
-  constructor(appProperties) {
-    super();
-    this.appProperties = appProperties;
-  }
-
-  getClass() {
-    return "MenuScreen";
-  }
-
-  move(drivers, screenManager, dt) {
-    let gDriver = drivers.getDriver("GraphicsDriver");
-    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
-    uiRenderer.render(this.ui);
-    uiRenderer.end();
-  }
-
-  load(drivers, screenManager, properties) {
-    let res = new ArrayList();
-    let assets = drivers.getDriver("AssetManager");
-    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/sprites.tap")));
-    return res;
-  }
-
-  init(drivers, screenManager, properties) {
-    Uis.prepareScaledFonts(drivers);
-    if (this.appProperties==null) {
-      let storage = drivers.getDriver("LocalDataStorage");
-      let settingsProps = LocalDataConfigProperties.create(storage, LocalDataKey.of("settings.properties")).withDefaults(Dut.map(PropertyKey.of("audio.sound.enabled"), "true", PropertyKey.of("audio.sound.volume"), "1"));
-      let settings = ConfigPropertiesSettings.create(settingsProps);
-      let gameSlot1 = LocalDataGameSlot.create(storage, LocalDataKey.of("gameSlot1.json"));
-      let rankingMan = LocalDataRankingManager.create(storage, LocalDataKey.of("rankings.json"), 6);
-      let uis = Uis.create(settings, rankingMan);
-      this.appProperties = AppProperties.create(settings, uis, Dut.list(gameSlot1), rankingMan);
-    }
-    let uis = this.appProperties.uis();
-    this.ui = StretchUi.create(uis.uiSizeFnc()).setStyler(uis.styler());
-    this.ui.addComponent(uis.tiledBg());
-    let panel916 = uis.panel916();
-    this.ui.addComponent(panel916);
-    panel916.addComponent(uis.titleScreenBg());
-    panel916.addComponent(uis.mediumBtn("Play", 6, false, UiEventActions.showScreen(screenManager, new GameSelectScreen(this.appProperties))));
-    panel916.addComponent(uis.mediumBtn("Rankings", 7, false, UiEventActions.showScreen(screenManager, new RankingsScreen(this.appProperties))));
-    panel916.addComponent(uis.mediumBtn("Settings", 8, false, UiEventActions.showScreen(screenManager, new SettingsScreen(this.appProperties))));
-    panel916.addComponent(uis.mediumBtn("About", 9, false, UiEventActions.showScreen(screenManager, new AboutScreen(this.appProperties))));
-    if (drivers.getPlatform().isExitable()) {
-      panel916.addComponent(uis.mediumBtn("Exit", 11, false, UiEventActions.exitApp(screenManager)));
-    }
-    this.ui.subscribe(drivers);
-  }
-
-  leave(drivers) {
-    this.ui.unsubscribe(drivers);
-  }
-
-}
-classRegistry.MenuScreen = MenuScreen;
-class RankingsScreen extends TyracornScreen {
-  appProperties;
-  ui;
-  constructor(appProperties) {
-    super();
-    this.appProperties = appProperties;
-    this.guardInvariants();
-  }
-
-  getClass() {
-    return "RankingsScreen";
-  }
-
-  guardInvariants() {
-  }
-
-  move(drivers, screenManager, dt) {
-    let gDriver = drivers.getDriver("GraphicsDriver");
-    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
-    uiRenderer.render(this.ui);
-    uiRenderer.end();
-  }
-
-  load(drivers, screenManager, properties) {
-    let res = new ArrayList();
-    let assets = drivers.getDriver("AssetManager");
-    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/sprites.tap")));
-    return res;
-  }
-
-  init(drivers, screenManager, properties) {
-    let rankingManager = this.appProperties.rankingManager();
-    let uis = this.appProperties.uis();
-    this.ui = StretchUi.create(uis.uiSizeFnc()).setStyler(uis.styler());
-    this.ui.addComponent(uis.tiledBg());
-    let panel916 = uis.panel916();
-    this.ui.addComponent(panel916);
-    panel916.addComponent(uis.baseScreenBg());
-    panel916.addComponent(uis.titleLabel("Rankings", 1));
-    panel916.addComponent(uis.titleLabel("Games Played: "+rankingManager.getNumGamesPlayed(), 2));
-    panel916.addComponent(uis.rankings(3));
-    panel916.addComponent(uis.mediumBtn("Back", 10, false, UiEventActions.showScreen(screenManager, new MenuScreen(this.appProperties))));
-    this.ui.subscribe(drivers);
-  }
-
-  leave(drivers) {
-    drivers.getDriver("AudioDriver").getMixer().stopAll();
-    this.ui.unsubscribe(drivers);
-  }
-
-}
-classRegistry.RankingsScreen = RankingsScreen;
-class SettingsScreen extends TyracornScreen {
-  appProperties;
-  ui;
-  constructor(appProperties) {
-    super();
-    this.appProperties = appProperties;
-    this.guardInvariants();
-  }
-
-  getClass() {
-    return "SettingsScreen";
-  }
-
-  guardInvariants() {
-  }
-
-  move(drivers, screenManager, dt) {
-    let gDriver = drivers.getDriver("GraphicsDriver");
-    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    gDriver.clearBuffers(BufferId.DEPTH);
-    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
-    uiRenderer.render(this.ui);
-    uiRenderer.end();
-  }
-
-  load(drivers, screenManager, properties) {
-    let res = new ArrayList();
-    let assets = drivers.getDriver("AssetManager");
-    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/sprites.tap")));
-    return res;
-  }
-
-  init(drivers, screenManager, properties) {
-    let uis = this.appProperties.uis();
-    this.ui = StretchUi.create(uis.uiSizeFnc()).setStyler(uis.styler());
-    this.ui.addComponent(uis.tiledBg());
-    let panel916 = uis.panel916();
-    this.ui.addComponent(panel916);
-    panel916.addComponent(uis.baseScreenBg());
-    panel916.addComponent(uis.titleLabel("Settings", 5));
-    panel916.addComponent(uis.soundControl("Sound", 7));
-    panel916.addComponent(uis.mediumBtn("Back", 9, false, UiEventActions.showScreen(screenManager, new MenuScreen(this.appProperties))));
-    this.ui.subscribe(drivers);
-  }
-
-  leave(drivers) {
-    drivers.getDriver("AudioDriver").getMixer().stopAll();
-    this.ui.unsubscribe(drivers);
-  }
-
-}
-classRegistry.SettingsScreen = SettingsScreen;
-class CameraTrackBehavior extends Behavior {
-  targetId;
-  offset;
-  up;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "CameraTrackBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  lateMove(dt, inputs) {
-    let tc = this.actor().getComponent("TransformComponent");
-    let target = this.world().actors().get(this.targetId);
-    let targetTc = target.getComponent("TransformComponent");
-    tc.lookAt(targetTc.getPos().add(this.offset), targetTc.getPos(), this.up);
-  }
-
-  static create() {
-    if (arguments.length===1&&arguments[0] instanceof ComponentKey) {
-      return CameraTrackBehavior.create_1_ComponentKey(arguments[0]);
-    }
-    else if (arguments.length===4&&arguments[0] instanceof ComponentKey&&arguments[1] instanceof ActorId&&arguments[2] instanceof Vec3&&arguments[3] instanceof Vec3) {
-      return CameraTrackBehavior.create_4_ComponentKey_ActorId_Vec3_Vec3(arguments[0], arguments[1], arguments[2], arguments[3]);
+    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
     }
     else {
       throw new Error("ambiguous overload");
     }
   }
 
-  static create_1_ComponentKey(key) {
-    let res = new CameraTrackBehavior(key);
-    res.guardInvariants();
+  static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
     return res;
   }
 
-  static create_4_ComponentKey_ActorId_Vec3_Vec3(key, targetId, offset, up) {
-    let res = new CameraTrackBehavior(key);
-    res.targetId = targetId;
-    res.offset = offset;
-    res.up = up;
-    res.guardInvariants();
+  static rgbBox_3_number_number_number(r, g, b) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
     return res;
   }
 
-}
-classRegistry.CameraTrackBehavior = CameraTrackBehavior;
-class GameController extends UiComponent {
-  inputs;
-  joystick;
-  punchBtn;
-  constructor() {
-    super();
+  static rgbaBox(c1, c2, c3, c4, a) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  getClass() {
-    return "GameController";
+  static fabricBox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.fabric(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  guardInvariants() {
+  static modelBox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  init(container) {
-    this.joystick.init(container);
-    this.punchBtn.init(container);
+  static modelSkybox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, -1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22))).toMesh();
+    return res;
   }
 
-  move(dt) {
-    this.joystick.move(dt);
-    this.punchBtn.move(dt);
-    this.inputs.put("dir", this.joystick.getDir());
-    this.inputs.put("punch", this.punchBtn.isDown());
+  static modelBoxDeformed1() {
+    let en = Vec2.create(1, -1).normalize();
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
   }
 
-  draw(painter) {
-    this.joystick.draw(painter);
-    this.punchBtn.draw(painter);
-  }
-
-  onContainerResize(size) {
-    this.joystick.onContainerResize(size);
-    this.punchBtn.onContainerResize(size);
-  }
-
-  onTouchStart(id, pos, size) {
-    if (this.joystick.onTouchStart(id, pos, size)) {
-      return true;
-    }
-    return this.punchBtn.onTouchStart(id, pos, size);
-  }
-
-  onTouchMove(id, pos, size) {
-    if (this.joystick.onTouchMove(id, pos, size)) {
-      return true;
-    }
-    return this.punchBtn.onTouchMove(id, pos, size);
-  }
-
-  onTouchEnd(id, pos, size, cancel) {
-    if (this.joystick.onTouchEnd(id, pos, size, cancel)) {
-      return true;
-    }
-    return this.punchBtn.onTouchEnd(id, pos, size, cancel);
-  }
-
-  onKeyPressed(key) {
-    this.joystick.onKeyPressed(key);
-    this.punchBtn.onKeyPressed(key);
-    return false;
-  }
-
-  onKeyReleased(key) {
-    this.joystick.onKeyReleased(key);
-    this.punchBtn.onKeyReleased(key);
-    return false;
-  }
-
-  toString() {
-  }
-
-  static create(inputs) {
-    let res = new GameController();
-    res.inputs = inputs;
-    res.joystick = Joystick.create().setRegionFnc(UiRegionFncs.leftBottom(70, 320, 250, 250)).setKeyCodeMatchers(KeyCodeMatchers.arrowUpOrW(), KeyCodeMatchers.arrowDownOrS(), KeyCodeMatchers.arrowLeftOrA(), KeyCodeMatchers.arrowRightOrD());
-    res.punchBtn = Button.create().addTrait(Uis.PUNCH_TRAIT).setRegionFnc(UiRegionFncs.rightBottom(200, 200, 130, 130)).setKeyCodeMatcher(KeyCodeMatchers.control());
-    res.guardInvariants();
+  static modelBoxDeformed2() {
+    let en = Vec2.create(-1, -1).normalize();
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.floatValues(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
     return res;
   }
 
 }
-classRegistry.GameController = GameController;
-class AudioBehavior extends Behavior {
-  settings;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "AudioBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  isSoundEnabled() {
-    return this.settings.isSoundEnabled();
-  }
-
-  getVolume() {
-    return this.settings.getSoundVolume();
-  }
-
-  playSound(trackId) {
-    if (this.settings.isSoundEnabled()) {
-      this.world().audio().preparePlayback(AudioPlaybackId.random(), trackId).setGain(this.settings.getSoundVolume()).setLoop(false).play();
-    }
-    return this;
-  }
-
-  static create(key, settings) {
-    let res = new AudioBehavior(key);
-    res.settings = settings;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.AudioBehavior = AudioBehavior;
-class CollisionLayers {
-  static WALL = CollisionLayer.of("WALL");
-  static PLAYER_BODY = CollisionLayer.of("PLAYER_BODY");
-  static PLAYER_PUNCH = CollisionLayer.of("PLAYER_PUNCH");
-  static ENEMY_BODY = CollisionLayer.of("ENEMY_BODY");
-  static ENEMY_PUNCH = CollisionLayer.of("ENEMY_PUNCH");
-  static ENEMY_BULLET = CollisionLayer.of("ENEMY_BULLET");
-  static PRINCESS_BODY = CollisionLayer.of("PRINCESS_BODY");
-  static PRINCESS_ENVELOPE = CollisionLayer.of("PRINCESS_ENVELOPE");
-  static BLOOD_BODY = CollisionLayer.of("BLOOD_BODY");
-  static ITEM_BODY = CollisionLayer.of("ITEM_BODY");
-  static ITEM_PICKUP = CollisionLayer.of("ITEM_PICKUP");
+classRegistry.BoxMeshFactory = BoxMeshFactory;
+class PlayUis {
+  static ARROW_UP = UiComponentTrait.of("ARROW_UP");
+  static ARROW_DOWN = UiComponentTrait.of("ARROW_DOWN");
+  static ARROW_LEFT = UiComponentTrait.of("ARROW_LEFT");
+  static ARROW_RIGHT = UiComponentTrait.of("ARROW_RIGHT");
+  static BRAKE = UiComponentTrait.of("BRAKE");
+  static PUNCH = UiComponentTrait.of("PUNCH");
+  static WALK_RUN = UiComponentTrait.of("WALK_RUN");
   constructor() {
   }
 
   getClass() {
-    return "CollisionLayers";
+    return "PlayUis";
   }
 
-  static getMatrix() {
-    return CollisionLayerMatrix.empty().plusLayer(CollisionLayers.WALL, false, Collections.emptySet()).plusLayer(CollisionLayers.PLAYER_BODY, true, Dut.set(CollisionLayers.WALL)).plusLayer(CollisionLayers.PLAYER_PUNCH, false, Collections.emptySet()).plusLayer(CollisionLayers.ENEMY_BODY, true, Dut.set(CollisionLayers.WALL, CollisionLayers.PLAYER_BODY, CollisionLayers.PLAYER_PUNCH)).plusLayer(CollisionLayers.ENEMY_PUNCH, false, Dut.set(CollisionLayers.PLAYER_BODY)).plusLayer(CollisionLayers.ENEMY_BULLET, false, Dut.set(CollisionLayers.PLAYER_BODY)).plusLayer(CollisionLayers.PRINCESS_BODY, true, Dut.set(CollisionLayers.PLAYER_BODY, CollisionLayers.PLAYER_PUNCH, CollisionLayers.ENEMY_BODY)).plusLayer(CollisionLayers.PRINCESS_ENVELOPE, false, Dut.set(CollisionLayers.PLAYER_BODY)).plusLayer(CollisionLayers.BLOOD_BODY, false, Dut.set(CollisionLayers.WALL)).plusLayer(CollisionLayers.ITEM_BODY, false, Dut.set(CollisionLayers.WALL)).plusLayer(CollisionLayers.ITEM_PICKUP, false, Dut.set(CollisionLayers.PLAYER_BODY));
+  static createUiSizeFnc() {
+    return UiSizeFncs.identity();
   }
 
-}
-classRegistry.CollisionLayers = CollisionLayers;
-class EnemyWave {
-  enemies;
-  constructor() {
+  static createDefaultStyler() {
+    let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
+    let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
+    let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
+    let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
+    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-30")).setH2Font(FontId.of("kenny-thick-26")).setH3Font(FontId.of("kenny-thick-24")).setExtraLargeTextFont(FontId.of("kenny-mini-22")).setLargeTextFont(FontId.of("kenny-mini-20")).setMediumTextFont(FontId.of("kenny-mini-18")).setSmallTextFont(FontId.of("kenny-mini-16")).setButtonLabelFont(FontId.of("kenny-mini-18")).setFieldLabelFont(FontId.of("kenny-mini-16")).setFieldValueFont(FontId.of("kenny-mini-16")).setSelectItemTextFont(FontId.of("kenny-mini-18")).setSelectItemHeight(20).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
   }
 
-  getClass() {
-    return "EnemyWave";
-  }
-
-  guardInvariants() {
-  }
-
-  getEnemies() {
-    return this.enemies;
-  }
-
-  getToSpawn(tStart, tEnd) {
-    let res = null;
-    for (let t of this.enemies.keySet()) {
-      if (t>=tStart&&t<tEnd) {
-        if (res==null) {
-          res = new ArrayList();
-        }
-        res.addAll(this.enemies.get(t));
-      }
-    }
-    if (res==null) {
-      res = Collections.emptyList();
-    }
-    return res;
-  }
-
-  isAfterSpawnAll(t) {
-    let lastKey = 0;
-    for (let kt of this.enemies.keySet()) {
-      lastKey = FMath.max(kt, lastKey);
-    }
-    return t>lastKey;
-  }
-
-  putLine(t, ...enemies) {
-    if (Array.isArray(enemies)&&enemies.length===1&&Array.isArray(enemies[0])) {
-      enemies = enemies[0];
-    }
-    let enms = Dut.copyMap(this.enemies);
-    let elist = new ArrayList();
-    for (let enm of enemies) {
-      elist.add(ActorPrefabId.of(enm));
-    }
-    enms.put(t, Collections.unmodifiableList(elist));
-    let res = new EnemyWave();
-    res.enemies = Collections.unmodifiableMap(enms);
-    res.guardInvariants();
-    return res;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static singleLine(t, ...enemies) {
-    if (Array.isArray(enemies)&&enemies.length===1&&Array.isArray(enemies[0])) {
-      enemies = enemies[0];
-    }
-    let res = new EnemyWave();
-    let elist = new ArrayList();
-    for (let enm of enemies) {
-      elist.add(ActorPrefabId.of(enm));
-    }
-    res.enemies = Dut.immutableMap(t, Collections.unmodifiableList(elist));
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.EnemyWave = EnemyWave;
-class GameActors {
-  constructor() {
-  }
-
-  getClass() {
-    return "GameActors";
-  }
-
-  static rootHasActorWithTag(actors, tag) {
-    for (let act of actors.children(ActorId.ROOT)) {
-      if (act.hasTag(tag)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  static findAllByTag(actors, tag) {
-    const res = new ArrayList();
-    let act = (actor) => {
-      if (actor.hasTag(tag)) {
-        res.add(actor);
-      }
-    };
-    actors.forEach(ActorId.ROOT, act);
-    return res;
-  }
-
-  static findByUniqueName(actors, name) {
-    let res = GameActors.findByUniqueNameNonStrict(actors, ActorId.ROOT, name);
-    if (res==null) {
-      throw new Error("actor with the given name doesn't exists: "+name);
-    }
-    return res;
-  }
-
-  static findByNameUniqueNonStrict(actors, name) {
-    return GameActors.findByUniqueNameNonStrict(actors, ActorId.ROOT, name);
-  }
-
-  static findByUniqueNameNonStrict(actors, root, name) {
-    let res = null;
-    let self = actors.get(root);
-    if (self.getName().equals(name)) {
-      res = self;
-    }
-    for (let ch of actors.children(root)) {
-      let chres = GameActors.findByUniqueNameNonStrict(actors, ch.getId(), name);
-      if (chres!=null) {
-        if (res!=null) {
-          throw new Error("actor name is ambiguous: "+name);
-        }
-        res = chres;
-      }
-    }
-    return res;
-  }
-
-  static getCollider(actor, layer) {
-    for (let cmp of actor.getComponents()) {
-      if (!(cmp instanceof ColliderComponent)) {
-        continue;
-      }
-      let collider = cmp;
-      if (collider.getLayer().equals(layer)) {
-        return collider;
-      }
-    }
-    throw new Error("unable to find collider: "+actor.getId()+", "+layer);
-  }
-
-}
-classRegistry.GameActors = GameActors;
-class GameProgress {
-  level;
-  wave;
-  constructor() {
-  }
-
-  getClass() {
-    return "GameProgress";
-  }
-
-  guardInvariants() {
-  }
-
-  getLevel() {
-    return this.level;
-  }
-
-  getWave() {
-    return this.wave;
-  }
-
-  getCurrentLevel() {
-    return Levels.level(this.level);
-  }
-
-  getCurrentLevelName() {
-    return this.getCurrentLevel().getName();
-  }
-
-  getCurrentWave() {
-    return this.getCurrentLevel().getWaves().get(this.wave);
-  }
-
-  toNextState() {
-    this.wave = this.wave+1;
-    if (Levels.level(this.level).getWaves().size()>this.wave) {
-      return GameProgressTransitionType.WAVE;
-    }
-    this.level = this.level+1;
-    this.wave = 0;
-    return GameProgressTransitionType.LEVEL;
-  }
-
-  toString() {
-  }
-
-  static newGame() {
-    let res = new GameProgress();
-    res.level = 0;
-    res.wave = 0;
-    res.guardInvariants();
-    return res;
-  }
-
-  static atLevel(level) {
-    let res = new GameProgress();
-    res.level = level;
-    res.wave = 0;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.GameProgress = GameProgress;
-const createGameProgressTransitionType = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const GameProgressTransitionType = Object.freeze({
-  WAVE: createGameProgressTransitionType("WAVE"),
-  LEVEL: createGameProgressTransitionType("LEVEL"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-const createGameState = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const GameState = Object.freeze({
-  PLAYING: createGameState("PLAYING"),
-  GAME_OVER: createGameState("GAME_OVER"),
-  VICTORY: createGameState("VICTORY"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class GameStateBehavior extends Behavior {
-  gameSlot;
-  progress;
-  enemySpawns = null;
-  waveTime = 0;
-  state = GameState.PLAYING;
-  score = 0;
-  player;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "GameStateBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    let statusData = this.gameSlot.loadGame();
-    this.player = this.world().actors().get(GameScreen.PLAYER_ACTOR_ID);
-    let health = this.player.getComponent("HealthScript");
-    this.progress = GameProgress.atLevel(statusData.getLevel());
-    this.score = statusData.getScore();
-    health.setProperties(statusData.getMaxHealth(), statusData.getHealth());
-    this.enemySpawns = GameActors.findAllByTag(this.world().actors(), ActorTag.of("enemy-spawn"));
-    this.waveTime = 0;
-    this.state = GameState.PLAYING;
-  }
-
-  move(dt, inputs) {
-    let health = this.player.getComponent("HealthScript");
-    if (health.isDeath()) {
-      this.toGameOver();
-    }
-    if (this.state.equals(GameState.PLAYING)) {
-      let waveTimeBefore = this.waveTime;
-      this.waveTime = this.waveTime+dt;
-      let wave = this.progress.getCurrentWave();
-      let justSpawned = false;
-      for (let id of wave.getToSpawn(waveTimeBefore, this.waveTime)) {
-        this.spawnEnemy(id);
-        justSpawned = true;
-      }
-      if (!justSpawned&&wave.isAfterSpawnAll(this.waveTime)&&!this.npcExists()) {
-        let tt = this.progress.toNextState();
-        this.waveTime = 0;
-        if (tt.equals(GameProgressTransitionType.LEVEL)) {
-          let before = this.gameSlot.loadGame();
-          let toSave = GameStatusData.of(this.progress.getLevel(), this.score, health.getMaxHealth(), health.getHealth(), before.getAvailableLoads());
-          this.gameSlot.saveGame(toSave);
-        }
-      }
-    }
-  }
-
-  getState() {
-    return this.state;
-  }
-
-  isControllable() {
-    if (this.state.equals(GameState.PLAYING)) {
-      return true;
-    }
-    return false;
-  }
-
-  isFinished() {
-    if (this.state.equals(GameState.GAME_OVER)||this.state.equals(GameState.VICTORY)) {
-      return true;
-    }
-    return false;
-  }
-
-  isGameOver() {
-    return this.state.equals(GameState.GAME_OVER);
-  }
-
-  isVictory() {
-    return this.state.equals(GameState.VICTORY);
-  }
-
-  toGameOver() {
-    if (this.state.equals(GameState.GAME_OVER)) {
-      return this;
-    }
-    this.actor().getComponent("AudioBehavior").playSound(AudioTrackId.of("game-over"));
-    this.world().actors().get(GameScreen.CAMERA_ACTOR_ID).getComponent("CameraControllerComponent").shake(CameraShake.create(0.2, 1));
-    this.state = GameState.GAME_OVER;
-    this.gameSlot.clear();
-    return this;
-  }
-
-  toVictory() {
-    if (this.state.equals(GameState.VICTORY)) {
-      return this;
-    }
-    this.actor().getComponent("AudioBehavior").playSound(AudioTrackId.of("game-victory"));
-    this.state = GameState.VICTORY;
-    this.gameSlot.clear();
-    return this;
-  }
-
-  getLevelName() {
-    return this.progress.getCurrentLevelName();
-  }
-
-  getScore() {
-    return this.score;
-  }
-
-  incrementScore() {
-    this.score = this.score+1;
-    return this;
-  }
-
-  getRanking() {
-    Guard.beTrue(this.isFinished(), "game must be finished to be able get ranking");
-    let hs = this.player.getComponent("HealthScript");
-    let dt = hs.getDeathType();
-    if (this.isVictory()) {
-      dt = AttackerType.OTHER;
-    }
-    return Ranking.of(this.isVictory(), dt, this.progress.getLevel(), this.score);
-  }
-
-  npcExists() {
-    return GameActors.rootHasActorWithTag(this.world().actors(), ActorTag.of("npc"));
-  }
-
-  spawnEnemy(id) {
-    let spawn = this.enemySpawns.get(Randoms.nextInt(0, this.enemySpawns.size()));
-    let localPos = Vec3.create(Randoms.nextFloat(0, 1)-0.5, 0, Randoms.nextFloat(0, 1)-0.5);
-    let rpGen = spawn.getComponentByKey("RpGeneratorComponent", ComponentKey.of("enemy-spawn"));
-    let pos = rpGen.nextPoint();
-    let rot = Quaternion.rotY(Randoms.nextFloat(0, 2*FMath.PI));
-    let fp = this.world().assets().get("ActorPrefab", id);
-    let fact = this.world().constructActor(CreateActorRequest.create(fp, null, pos, rot));
-    let done = false;
-    while (!done) {
-      done = true;
-      for (let comp of fact.getComponents()) {
-        if (!(comp instanceof ColliderComponent)) {
-          continue;
-        }
-        let cc = comp;
-        if (!cc.getLayer().equals(CollisionLayers.ENEMY_BODY)) {
-          continue;
-        }
-        while (!this.world().collisions().getColliderIntersections(cc).isEmpty()) {
-          spawn = this.enemySpawns.get(Randoms.nextInt(0, this.enemySpawns.size()));
-          rpGen = spawn.getComponentByKey("RpGeneratorComponent", ComponentKey.of("enemy-spawn"));
-          localPos = Vec3.create(Randoms.nextFloat(0, 1)-0.5, 0, Randoms.nextFloat(0, 1)-0.5);
-          pos = rpGen.nextPoint();
-          fact.getComponent("TransformComponent").setPos(pos);
-          done = false;
-          break;
-        }
-      }
-    }
-  }
-
-  static create(key, gameSlot) {
-    let res = new GameStateBehavior(key);
-    res.gameSlot = gameSlot;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.GameStateBehavior = GameStateBehavior;
-class Level {
-  name;
-  waves;
-  constructor() {
-  }
-
-  getClass() {
-    return "Level";
-  }
-
-  guardInvariants() {
-  }
-
-  getName() {
-    return this.name;
-  }
-
-  getWaves() {
-    return this.waves;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(name, ...waves) {
-    if (Array.isArray(waves)&&waves.length===1&&Array.isArray(waves[0])) {
-      waves = waves[0];
-    }
-    let res = new Level();
-    res.name = name;
-    res.waves = Dut.immutableList(waves);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.Level = Level;
-class Levels {
-  static MUSHROOM = "enemy-mushroom";
-  static PIG = "enemy-pig";
-  static YETI = "enemy-yeti";
-  static DEER = "enemy-deer";
-  static CRAB = "enemy-crab";
-  static CYCLOPS = "enemy-cyclops";
-  static DEMON = "enemy-demon";
-  static PRINCESS = "princess";
-  static LEVEL_1 = Level.create("Level 1", EnemyWave.singleLine(3, Levels.MUSHROOM));
-  static LEVEL_2 = Level.create("Level 2", EnemyWave.singleLine(3, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM));
-  static LEVEL_3 = Level.create("Level 3", EnemyWave.singleLine(3, Levels.MUSHROOM, Levels.MUSHROOM, Levels.PIG).putLine(6, Levels.PIG, Levels.PIG, Levels.MUSHROOM, Levels.MUSHROOM));
-  static LEVEL_4 = Level.create("Level 4", EnemyWave.singleLine(3, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM).putLine(6, Levels.MUSHROOM, Levels.MUSHROOM, Levels.PIG, Levels.PIG, Levels.PIG));
-  static LEVEL_5 = Level.create("Level 5", EnemyWave.singleLine(3, Levels.YETI, Levels.YETI, Levels.YETI, Levels.MUSHROOM, Levels.MUSHROOM).putLine(6, Levels.PIG, Levels.PIG));
-  static LEVEL_6 = Level.create("Level 6", EnemyWave.singleLine(3, Levels.MUSHROOM, Levels.MUSHROOM, Levels.PIG, Levels.PIG, Levels.YETI, Levels.YETI).putLine(6, Levels.YETI, Levels.YETI, Levels.PIG, Levels.PIG, Levels.PIG).putLine(9, Levels.PIG, Levels.PIG, Levels.PIG));
-  static LEVEL_7 = Level.create("Level 7", EnemyWave.singleLine(3, Levels.PIG, Levels.PIG, Levels.YETI, Levels.YETI, Levels.YETI, Levels.YETI).putLine(6, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM).putLine(9, Levels.PIG, Levels.PIG, Levels.YETI, Levels.YETI, Levels.YETI));
-  static LEVEL_8 = Level.create("Level 8", EnemyWave.singleLine(3, Levels.PIG, Levels.PIG, Levels.PIG, Levels.PIG, Levels.PIG, Levels.PIG).putLine(6, Levels.PIG, Levels.PIG, Levels.PIG, Levels.PIG).putLine(12, Levels.YETI, Levels.YETI, Levels.YETI, Levels.YETI, Levels.YETI));
-  static LEVEL_9 = Level.create("Level 9", EnemyWave.singleLine(3, Levels.MUSHROOM, Levels.PIG, Levels.PIG, Levels.PIG, Levels.PIG, Levels.YETI, Levels.YETI).putLine(6, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM).putLine(9, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM));
-  static LEVEL_10 = Level.create("Level 10", EnemyWave.singleLine(3, Levels.CYCLOPS));
-  static LEVEL_11 = Level.create("Level 11", EnemyWave.singleLine(3, Levels.PIG, Levels.PIG, Levels.PIG, Levels.PIG, Levels.YETI, Levels.YETI, Levels.YETI).putLine(6, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM).putLine(9, Levels.MUSHROOM, Levels.MUSHROOM, Levels.YETI, Levels.YETI).putLine(15, Levels.PIG, Levels.PIG, Levels.MUSHROOM, Levels.DEER));
-  static LEVEL_12 = Level.create("Level 12", EnemyWave.singleLine(3, Levels.DEER, Levels.DEER, Levels.DEER, Levels.YETI, Levels.YETI, Levels.YETI).putLine(6, Levels.PIG, Levels.PIG, Levels.PIG, Levels.PIG).putLine(7, Levels.PIG, Levels.PIG, Levels.PIG, Levels.PIG, Levels.YETI, Levels.YETI));
-  static LEVEL_13 = Level.create("Level 13", EnemyWave.singleLine(3, Levels.MUSHROOM, Levels.MUSHROOM, Levels.PIG, Levels.PIG, Levels.PIG, Levels.YETI, Levels.YETI, Levels.DEER).putLine(6, Levels.PIG, Levels.PIG, Levels.PIG, Levels.PIG, Levels.DEER, Levels.DEER));
-  static LEVEL_14 = Level.create("Level 14", EnemyWave.singleLine(3, Levels.YETI, Levels.YETI, Levels.YETI, Levels.CRAB).putLine(6, Levels.CRAB, Levels.CRAB, Levels.CRAB, Levels.MUSHROOM, Levels.MUSHROOM, Levels.MUSHROOM));
-  static LEVEL_15 = Level.create("Level 15", EnemyWave.singleLine(3, Levels.CRAB, Levels.CRAB, Levels.CRAB, Levels.CRAB).putLine(6, Levels.CRAB, Levels.CRAB, Levels.DEER, Levels.DEER, Levels.DEER).putLine(9, Levels.YETI, Levels.YETI, Levels.DEER, Levels.DEER));
-  static LEVEL_16 = Level.create("Level 16", EnemyWave.singleLine(3, Levels.DEER, Levels.DEER, Levels.DEER, Levels.DEER, Levels.YETI, Levels.YETI).putLine(6, Levels.CRAB, Levels.CRAB, Levels.DEER, Levels.DEER, Levels.DEER).putLine(9, Levels.YETI, Levels.YETI, Levels.MUSHROOM, Levels.MUSHROOM).putLine(12, Levels.MUSHROOM, Levels.MUSHROOM, Levels.CRAB, Levels.CRAB));
-  static LEVEL_17 = Level.create("Level 17", EnemyWave.singleLine(3, Levels.DEER, Levels.DEER, Levels.DEER, Levels.DEER, Levels.YETI, Levels.YETI).putLine(6, Levels.CYCLOPS).putLine(9, Levels.CRAB, Levels.CRAB, Levels.CRAB));
-  static LEVEL_18 = Level.create("Level 18", EnemyWave.singleLine(3, Levels.YETI, Levels.YETI).putLine(6, Levels.CYCLOPS).putLine(9, Levels.CRAB, Levels.CRAB).putLine(12, Levels.MUSHROOM, Levels.MUSHROOM).putLine(15, Levels.DEER, Levels.DEER).putLine(18, Levels.CRAB, Levels.CRAB).putLine(21, Levels.YETI, Levels.YETI));
-  static LEVEL_19 = Level.create("Level 19", EnemyWave.singleLine(3, Levels.CYCLOPS, Levels.DEER, Levels.CRAB, Levels.CRAB).putLine(6, Levels.DEER, Levels.DEER, Levels.DEER, Levels.CRAB).putLine(12, Levels.CRAB, Levels.CRAB, Levels.CYCLOPS));
-  static LEVEL_20 = Level.create("Level 20", EnemyWave.singleLine(3, Levels.DEMON));
-  static LEVEL_FINAL = Level.create("Final", EnemyWave.singleLine(3, Levels.PRINCESS));
-  static LEVELS = Dut.immutableList(Levels.LEVEL_1, Levels.LEVEL_2, Levels.LEVEL_3, Levels.LEVEL_4, Levels.LEVEL_5, Levels.LEVEL_6, Levels.LEVEL_7, Levels.LEVEL_8, Levels.LEVEL_9, Levels.LEVEL_10, Levels.LEVEL_11, Levels.LEVEL_12, Levels.LEVEL_13, Levels.LEVEL_14, Levels.LEVEL_15, Levels.LEVEL_16, Levels.LEVEL_17, Levels.LEVEL_18, Levels.LEVEL_19, Levels.LEVEL_20, Levels.LEVEL_FINAL);
-  constructor() {
-  }
-
-  getClass() {
-    return "Levels";
-  }
-
-  static level(idx) {
-    idx = Math.min(idx, Levels.LEVELS.size()-1);
-    return Levels.LEVELS.get(idx);
-  }
-
-  static getNumLevels() {
-    return Levels.LEVELS.size();
-  }
-
-}
-classRegistry.Levels = Levels;
-class GameStatusData {
-  level;
-  score;
-  maxHealth;
-  health;
-  availableLoads;
-  constructor() {
-  }
-
-  getClass() {
-    return "GameStatusData";
-  }
-
-  guardInvariants() {
-  }
-
-  getLevel() {
-    return this.level;
-  }
-
-  getScore() {
-    return this.score;
-  }
-
-  getMaxHealth() {
-    return this.maxHealth;
-  }
-
-  getHealth() {
-    return this.health;
-  }
-
-  getAvailableLoads() {
-    return this.availableLoads;
-  }
-
-  decreaseAvailableLoads() {
-    return GameStatusData.of(this.level, this.score, this.maxHealth, this.health, this.availableLoads-1);
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static of(level, score, maxHealth, health, availableLoads) {
-    let res = new GameStatusData();
-    res.level = level;
-    res.score = score;
-    res.maxHealth = maxHealth;
-    res.health = health;
-    res.availableLoads = availableLoads;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.GameStatusData = GameStatusData;
-class LocalDataGameSlot {
-  static DOC_TYPE = "On The Box - game status";
-  storage;
-  key;
-  constructor() {
-  }
-
-  getClass() {
-    return "LocalDataGameSlot";
-  }
-
-  guardInvariants() {
-  }
-
-  saveGame(data) {
-    let jsonObj = JsonObject.empty().withString("docType", LocalDataGameSlot.DOC_TYPE).withInt("schemaVersion", 1).withInt("level", data.getLevel()).withInt("score", data.getScore()).withFloat("maxHealth", data.getMaxHealth()).withFloat("health", data.getHealth()).withInt("availableLoads", data.getAvailableLoads());
-    let str = JsonObjects.toJson(jsonObj);
-    this.storage.saveString(this.key, str);
-  }
-
-  clear() {
-    this.storage.delete(this.key);
-  }
-
-  isGameSaved() {
-    if (!this.storage.exists(this.key)) {
-      return false;
-    }
-    let str = this.storage.loadString(this.key);
-    let jsonObj = JsonObjects.parse(str);
-    let docType = jsonObj.getString("docType");
-    let schemaVersion = jsonObj.getInt("schemaVersion");
-    if (!docType.equals(LocalDataGameSlot.DOC_TYPE)) {
-      return false;
-    }
-    if (schemaVersion!=1) {
-      return false;
-    }
-    return true;
-  }
-
-  loadGame() {
-    if (!this.storage.exists(this.key)) {
-      throw new Error("file doesn't exists");
-    }
-    let str = this.storage.loadString(this.key);
-    let jsonObj = JsonObjects.parse(str);
-    let docType = jsonObj.getString("docType");
-    let schemaVersion = jsonObj.getInt("schemaVersion");
-    if (!docType.equals(LocalDataGameSlot.DOC_TYPE)) {
-      throw new Error("header doesn't match");
-    }
-    if (schemaVersion==1) {
-      let level = jsonObj.getInt("level");
-      let score = jsonObj.getInt("score");
-      let maxHealth = jsonObj.getFloat("maxHealth");
-      let health = jsonObj.getFloat("health");
-      let availableLoads = jsonObj.getInt("availableLoads");
-      return GameStatusData.of(level, score, maxHealth, health, availableLoads);
-    }
-    else {
-      throw new Error("unsupported version: "+schemaVersion);
-    }
-  }
-
-  static create(storage, key) {
-    let res = new LocalDataGameSlot();
-    res.storage = storage;
-    res.key = key;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.LocalDataGameSlot = LocalDataGameSlot;
-class LocalDataRankingManager {
-  static DOC_TYPE = "On The Box - rankings";
-  storage;
-  key;
-  numRankingSlots;
-  numGamesPlayed;
-  bestGames;
-  latestGame;
-  highlighted = -1;
-  constructor() {
-  }
-
-  getClass() {
-    return "LocalDataRankingManager";
-  }
-
-  guardInvariants() {
-  }
-
-  putRanking(ranking) {
-    this.ensureLoaded();
-    let place = -1;
-    let newBestGames = new ArrayList();
-    for (let i = 0; i<this.bestGames.size()&&newBestGames.size()<this.numRankingSlots-1; ++i) {
-      let orig = this.bestGames.get(i);
-      if (place==-1&&this.isBetter(orig, ranking)) {
-        place = i;
-        newBestGames.add(ranking);
-        if (newBestGames.size()<this.numRankingSlots-1) {
-          newBestGames.add(orig);
-        }
-      }
-      else {
-        newBestGames.add(orig);
-      }
-    }
-    if (place==-1&&newBestGames.size()<this.numRankingSlots-1) {
-      place = newBestGames.size();
-      newBestGames.add(ranking);
-    }
-    this.bestGames = Collections.unmodifiableList(newBestGames);
-    this.latestGame = ranking;
-    this.highlighted = place!=-1?place:this.numRankingSlots-1;
-    this.numGamesPlayed = this.numGamesPlayed+1;
-    this.save();
-  }
-
-  getNumGamesPlayed() {
-    this.ensureLoaded();
-    return this.numGamesPlayed;
-  }
-
-  getRankings() {
-    this.ensureLoaded();
-    let res = new ArrayList();
-    for (let i = 0; i<this.bestGames.size(); ++i) {
-      res.add(PositionedRanking.of(""+(i+1), this.bestGames.get(i)));
-    }
-    while (res.size()<this.numRankingSlots-1) {
-      res.add(PositionedRanking.of("", Ranking.empty()));
-    }
-    while (res.size()>this.numRankingSlots-1) {
-      res.remove(res.size()-1);
-    }
-    res.add(PositionedRanking.of("", this.latestGame==null?Ranking.empty():this.latestGame));
-    return res;
-  }
-
-  getNumRankingSlots() {
-    return this.numRankingSlots;
-  }
-
-  getHighlighted() {
-    this.ensureLoaded();
-    return this.highlighted;
-  }
-
-  save() {
-    let bestGamesJson = JsonArray.empty();
-    for (let i = 0; i<this.bestGames.size(); ++i) {
-      bestGamesJson = bestGamesJson.plusObject(this.gameToJson(this.bestGames.get(i)));
-    }
-    let jsonObj = JsonObject.empty().withString("docType", LocalDataRankingManager.DOC_TYPE).withInt("schemaVersion", 1).withInt("numGamesPlayed", this.numGamesPlayed).withInt("highlighted", this.highlighted).withArray("bestGames", bestGamesJson).withObject("latestGame", this.gameToJson(this.latestGame));
-    let str = JsonObjects.toJson(jsonObj);
-    this.storage.saveString(this.key, str);
-  }
-
-  ensureLoaded() {
-    if (this.bestGames!=null&&this.latestGame!=null) {
-      return ;
-    }
-    if (!this.storage.exists(this.key)) {
-      this.numGamesPlayed = 0;
-      this.bestGames = new ArrayList();
-      this.latestGame = null;
-      this.highlighted = -1;
-      return ;
-    }
-    let str = this.storage.loadString(this.key);
-    let jsonObj = JsonObjects.parse(str);
-    let docType = jsonObj.getString("docType");
-    let schemaVersion = jsonObj.getInt("schemaVersion");
-    if (!docType.equals(LocalDataRankingManager.DOC_TYPE)) {
-      this.numGamesPlayed = 0;
-      this.bestGames = new ArrayList();
-      this.latestGame = null;
-      this.highlighted = -1;
-      return ;
-    }
-    if (schemaVersion==1) {
-      this.numGamesPlayed = jsonObj.getInt("numGamesPlayed");
-      this.highlighted = jsonObj.getInt("highlighted");
-      this.bestGames = new ArrayList();
-      let bestGamesJson = jsonObj.getJsonArray("bestGames");
-      for (let i = 0; i<bestGamesJson.size(); ++i) {
-        this.bestGames.add(this.jsonToGame(bestGamesJson.getJsonObject(i)));
-      }
-      this.latestGame = this.jsonToGame(jsonObj.getJsonObject("latestGame"));
-    }
-    else {
-      throw new Error("unsupported schema version");
-    }
-  }
-
-  jsonToGame(json) {
-    let princessSaved = json.getBoolean("princessSaved");
-    let deathType = AttackerType.valueOf(json.getString("deathType"));
-    let level = json.getInt("level");
-    let score = json.getInt("score");
-    return Ranking.of(princessSaved, deathType, level, score);
-  }
-
-  gameToJson(ranking) {
-    let res = JsonObject.empty().withBoolean("princessSaved", ranking.isPrincessSaved()).withString("deathType", ranking.getDeathType().name()).withInt("level", ranking.getLevel()).withInt("score", ranking.getScore());
-    return res;
-  }
-
-  isBetter(baseline, tested) {
-    if (tested.getLevel()>baseline.getLevel()) {
-      return true;
-    }
-    if (tested.getLevel()<baseline.getLevel()) {
-      return false;
-    }
-    if (tested.isPrincessSaved()&&!baseline.isPrincessSaved()) {
-      return true;
-    }
-    if (!tested.isPrincessSaved()&&baseline.isPrincessSaved()) {
-      return false;
-    }
-    return tested.getScore()>baseline.getScore();
-  }
-
-  static create(storage, key, numRankingSlots) {
-    let res = new LocalDataRankingManager();
-    res.storage = storage;
-    res.key = key;
-    res.numRankingSlots = numRankingSlots;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.LocalDataRankingManager = LocalDataRankingManager;
-class PositionedRanking {
-  position;
-  ranking;
-  constructor() {
-  }
-
-  getClass() {
-    return "PositionedRanking";
-  }
-
-  guardInvariants() {
-  }
-
-  getPosition() {
-    return this.position;
-  }
-
-  getRanking() {
-    return this.ranking;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static of(position, ranking) {
-    let res = new PositionedRanking();
-    res.position = position;
-    res.ranking = ranking;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.PositionedRanking = PositionedRanking;
-class Ranking {
-  princessSaved;
-  deathType;
-  level;
-  score;
-  constructor() {
-  }
-
-  getClass() {
-    return "Ranking";
-  }
-
-  guardInvariants() {
-  }
-
-  isPrincessSaved() {
-    return this.princessSaved;
-  }
-
-  getDeathType() {
-    return this.deathType;
-  }
-
-  getLevel() {
-    return this.level;
-  }
-
-  getScore() {
-    return this.score;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static of(princessSaved, deathType, level, score) {
-    let res = new Ranking();
-    res.princessSaved = princessSaved;
-    res.deathType = deathType;
-    res.level = level;
-    res.score = score;
-    res.guardInvariants();
-    return res;
-  }
-
-  static empty() {
-    let res = new Ranking();
-    res.princessSaved = false;
-    res.deathType = AttackerType.OTHER;
-    res.level = -1;
-    res.score = 0;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.Ranking = Ranking;
-class GameObjectScript extends Behavior {
-  grounded = false;
-  groundedBefore = false;
-  groundedEpsion = 0.5;
-  groundedCollider;
-  transform;
-  audioBehavior;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "GameObjectScript";
-  }
-
-  onMessage(message) {
-    super.onMessage(message);
-    if (message.typeEquals(ActorMessageType.OUTSPACE)) {
-      let health = this.actor().getComponentNonStrict("HealthScript");
-      if (health!=null) {
-        health.kill(AttackerType.FALL);
-      }
-      this.world().actors().remove(this.actor().getId());
-    }
-  }
-
-  move(dt, inputs) {
-    this.updateGrounded();
-  }
-
-  playSound(trackId) {
-    if (this.audioBehavior==null) {
-      this.audioBehavior = this.world().actors().get(GameScreen.GAME_STATE_ACTOR_ID).getComponent("AudioBehavior");
-    }
-    this.audioBehavior.playSound(trackId);
-  }
-
-  playRandomSound(trackIds) {
-    this.playSound(Randoms.pickOne(trackIds));
-  }
-
-  isGrounded() {
-    return this.grounded;
-  }
-
-  isGroundedBefore() {
-    return this.groundedBefore;
-  }
-
-  updateGrounded() {
-    if (this.transform==null) {
-      this.transform = this.actor().getComponent("TransformComponent");
-    }
-    if (this.groundedCollider==null) {
-      for (let comp of this.actor().getComponents()) {
-        if (comp instanceof ColliderComponent) {
-          let cc = comp;
-          if (cc.getLayer().id().endsWith("_BODY")) {
-            this.groundedCollider = cc;
-            break;
-          }
-        }
-      }
-      if (this.groundedCollider==null) {
-        return ;
-      }
-    }
-    this.groundedBefore = this.grounded;
-    let pos = this.transform.getPos();
-    let bestGroundPoint = Vec3.create(pos.x(), pos.y()+2, pos.z());
-    let contacts = this.world().collisions().getColliderContacts(this.groundedCollider);
-    for (let cont of contacts) {
-      if (cont.getColliderB().getLayer().equals(CollisionLayers.WALL)) {
-        for (let cp of cont.getContactPoints()) {
-          if (cp.getPosA().y()<bestGroundPoint.y()) {
-            bestGroundPoint = cp.getPosA();
-          }
-        }
-      }
-    }
-    if (bestGroundPoint.y()<pos.y()+this.groundedEpsion) {
-      this.grounded = true;
-    }
-    else {
-      this.grounded = false;
-    }
-  }
-
-}
-classRegistry.GameObjectScript = GameObjectScript;
-const createAttackerType = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const AttackerType = Object.freeze({
-  MUSHROOM: createAttackerType("MUSHROOM"),
-  PIG: createAttackerType("PIG"),
-  YETI: createAttackerType("YETI"),
-  DEER: createAttackerType("DEER"),
-  CRAB: createAttackerType("CRAB"),
-  CYCLOPS: createAttackerType("CYCLOPS"),
-  DEMON: createAttackerType("DEMON"),
-  FALL: createAttackerType("FALL"),
-  PLAYER: createAttackerType("PLAYER"),
-  OTHER: createAttackerType("OTHER"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class BlinkScript extends Behavior {
-  normalId;
-  blinkId;
-  model;
-  blinking = false;
-  currentStateTime = 0;
-  blinkTime = 0;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "BlinkScript";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.model = this.actor().getComponent("ModelComponent");
-    this.normalId = this.model.getModelId();
-    this.blinkId = ModelId.of(this.normalId.id()+"-white");
-  }
-
-  move(dt, inputs) {
-    if (this.blinking) {
-      this.currentStateTime = this.currentStateTime+dt;
-      if (this.currentStateTime>this.blinkTime) {
-        let currId = this.model.getModelId();
-        if (currId.equals(this.normalId)) {
-          this.model.setModelId(this.blinkId);
-        }
-        else {
-          this.model.setModelId(this.normalId);
-        }
-      }
-    }
-    else {
-      this.model.setModelId(this.normalId);
-    }
-  }
-
-  startBlinking(blinkTime) {
-    this.blinking = true;
-    this.currentStateTime = 0;
-    this.blinkTime = blinkTime;
-    return this;
-  }
-
-  stopBlinking() {
-    this.blinking = false;
-    return this;
-  }
-
-  setPrefabProperties(idMapping, properties) {
-  }
-
-  static create(key) {
-    let res = new BlinkScript(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.BlinkScript = BlinkScript;
-class BloodOnHitScript extends Behavior {
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "BloodOnHitScript";
-  }
-
-  guardInvariants() {
-  }
-
-  onMessage(message) {
-    super.onMessage(message);
-    if (message.typeEquals(ActorMessageType.HIT_RECEIVED)) {
-      let hit = message.getPayload("HitMessage");
-      let prefab = this.world().assets().get("ActorPrefab", GameScreen.BLOOD_ACTOR_PREFAB_ID);
-      for (let i = 0; i<10; ++i) {
-        let velRand = Vec3.create(Randoms.nextFloat(0, 2*hit.getImpact())-hit.getImpact(), Randoms.nextFloat(0, 2*hit.getImpact())-hit.getImpact(), Randoms.nextFloat(0, 2*hit.getImpact())-hit.getImpact());
-        let bloodActor = this.world().constructActor(CreateActorRequest.create(prefab, null, hit.getPos(), Quaternion.ZERO_ROT));
-        let rb = bloodActor.getComponent("RigidBodyComponent");
-        rb.setVelocity(hit.getDir().scale(hit.getImpact()*0.1).addScaled(velRand, 0.1));
-      }
-    }
-  }
-
-  setPrefabProperties(idMapping, properties) {
-  }
-
-  static create(key) {
-    let res = new BloodOnHitScript(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.BloodOnHitScript = BloodOnHitScript;
-class BloodScript extends Behavior {
-  rigidBody;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "BloodScript";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-  }
-
-  move(dt, inputs) {
-  }
-
-  lateMove(dt, inputs) {
-    if (this.rigidBody.isKinematic()) {
-      return ;
-    }
-    for (let cmp of this.actor().getComponents()) {
-      if (!(cmp instanceof ColliderComponent)) {
-        continue;
-      }
-      let collider = cmp;
-      let cols = this.world().collisions().getColliderIntersections(collider);
-      if (!cols.isEmpty()) {
-        this.rigidBody.setVelocity(Vec3.ZERO);
-        this.rigidBody.setAngularVelocity(Vec3.ZERO);
-        this.rigidBody.setKinematic(true);
-        return ;
-      }
-    }
-  }
-
-  setPrefabProperties(idMapping, properties) {
-  }
-
-  static create(key) {
-    let res = new BloodScript(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.BloodScript = BloodScript;
-class Characters {
-  constructor() {
-  }
-
-  getClass() {
-    return "Characters";
-  }
-
-  static turn(targetTurn, turn, maxDeltaTurn) {
-    if (targetTurn>turn) {
-      if (FMath.abs(turn-targetTurn)<=maxDeltaTurn) {
-        turn = targetTurn;
-      }
-      else if (targetTurn-turn<turn-targetTurn+FMath.PI*2) {
-        turn = turn+maxDeltaTurn;
-        if (turn>FMath.PI) {
-          turn = turn-2*FMath.PI;
-        }
-      }
-      else {
-        turn = turn-maxDeltaTurn;
-        if (turn<-FMath.PI) {
-          turn = turn+2*FMath.PI;
-        }
-      }
-    }
-    else {
-      if (FMath.abs(turn-targetTurn)<=maxDeltaTurn) {
-        turn = targetTurn;
-      }
-      else if (turn-targetTurn<targetTurn-turn+FMath.PI*2) {
-        turn = turn-maxDeltaTurn;
-        if (turn<-FMath.PI) {
-          turn = turn+2*FMath.PI;
-        }
-      }
-      else {
-        turn = turn+maxDeltaTurn;
-        if (turn>FMath.PI) {
-          turn = turn-2*FMath.PI;
-        }
-      }
-    }
-    return turn;
-  }
-
-  static getRandomTargetPoint(actors) {
-    let box = actors.get(GameScreen.BOX_ACTOR_ID);
-    let localPos = Vec3.create(Randoms.nextFloat(0, 0.9)-0.45, 0, Randoms.nextFloat(0, 0.9)-0.45);
-    let mc = box.getComponent("ModelComponent");
-    let pos = mc.toGlobal(localPos);
-    return Vec3.create(pos.x(), 0, pos.z());
-  }
-
-  static getPlayerPosSafe(actors) {
-    if (!actors.exists(GameScreen.PLAYER_ACTOR_ID)) {
-      return Characters.getRandomTargetPoint(actors);
-    }
-    return actors.get(GameScreen.PLAYER_ACTOR_ID).getComponent("TransformComponent").getPos();
-  }
-
-}
-classRegistry.Characters = Characters;
-class CrabScript extends GameObjectScript {
-  static HIT_SOUNDS = Dut.immutableList(AudioTrackId.of("hit-1"), AudioTrackId.of("hit-2"));
-  static DEATH_SOUNDS = Dut.immutableList(AudioTrackId.of("death-monster-1"), AudioTrackId.of("death-monster-2"));
-  static FIRE_SOUNDS = Dut.immutableList(AudioTrackId.of("fire-laser-1"), AudioTrackId.of("fire-laser-2"));
-  transform;
-  rigidBody;
-  health;
-  moveForce = 320;
-  airControlForce = 0;
-  airFriction = 3;
-  groundFriction = 70;
-  turn = 0;
-  turnSpeed = 2*FMath.PI;
-  bulletId = ActorPrefabId.of("enemy-bullet-1");
-  attackProbability = 0.4;
-  state = CrabState.REST;
-  stateRemainingTime = 0;
-  targetPos = Vec3.ZERO;
-  restBaseTimesSpan = 2;
-  restRandomTimeSpan = 2;
-  distError = 0.5;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "CrabScript";
-  }
-
-  guardInvariants() {
-  }
-
-  onMessage(message) {
-    super.onMessage(message);
-    if (message.typeEquals(ActorMessageType.HIT_RECEIVED)) {
-      let hit = message.getPayload("HitMessage");
-      this.playRandomSound(CrabScript.HIT_SOUNDS);
-      this.actor().getComponent("RigidBodyComponent").applyImpulse(hit.getPos(), hit.getDir().scale(hit.getImpact()));
-    }
-  }
-
-  init() {
-    this.transform = this.actor().getComponent("TransformComponent");
-    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-    this.health = this.actor().getComponent("HealthScript");
-    this.state = CrabState.REST;
-    this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-  }
-
-  move(dt, inputs) {
-    super.move(dt, inputs);
-    this.stateRemainingTime = this.stateRemainingTime-dt;
-    if (!this.health.isAlive()&&!this.state.equals(CrabState.DYING)) {
-      this.state = CrabState.DYING;
-      this.stateRemainingTime = 2;
-      this.playRandomSound(CrabScript.DEATH_SOUNDS);
-    }
-    if (this.state.equals(CrabState.REST)) {
-      if (this.stateRemainingTime<=0) {
-        let rand = Randoms.nextFloat(0, 1);
-        if (rand<this.attackProbability) {
-          this.state = CrabState.READY_TO_ATTACK;
-          this.stateRemainingTime = 1.5;
-          this.targetPos = Characters.getPlayerPosSafe(this.world().actors());
-        }
-        else {
-          this.targetPos = Characters.getRandomTargetPoint(this.world().actors());
-          this.state = CrabState.MOVE;
-        }
-      }
-    }
-    else if (this.state.equals(CrabState.MOVE)) {
-      let pos = this.transform.getPos();
-      let dist = this.targetPos.dist(pos);
-      if (dist<=this.distError) {
-        this.state = CrabState.REST;
-        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-      }
-      else {
-        let dir = this.targetPos.subAndNormalize(pos);
-        let targetTurn = FMath.atan2(dir.x(), dir.z());
-        let maxdTurn = dt*this.turnSpeed;
-        this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
-        let force = this.isGrounded()?this.moveForce:this.airControlForce;
-        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x()*force, 0, dir.z()*force));
-      }
-    }
-    else if (this.state.equals(CrabState.READY_TO_ATTACK)) {
-      let pos = this.transform.getPos();
-      let dir = this.targetPos.subAndNormalize(pos);
-      let targetTurn = FMath.atan2(dir.x(), dir.z());
-      let maxdTurn = dt*this.turnSpeed;
-      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
-      if (this.stateRemainingTime<=0) {
-        this.state = CrabState.ATTACK;
-        this.stateRemainingTime = 1;
-      }
-    }
-    else if (this.state.equals(CrabState.ATTACK)) {
-      this.playRandomSound(CrabScript.FIRE_SOUNDS);
-      this.state = CrabState.REST;
-      this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-      let bulletPrefab = this.world().assets().get("ActorPrefab", this.bulletId);
-      let pos = this.transform.getPos().add(0, 0.9, 0);
-      let bullet1 = this.world().constructActor(CreateActorRequest.create(bulletPrefab, null, pos, this.transform.getRot()));
-      let bullet2 = this.world().constructActor(CreateActorRequest.create(bulletPrefab, null, pos, this.transform.getRot().mul(Quaternion.rotY(FMath.PI/8).normalize())));
-      let bullet3 = this.world().constructActor(CreateActorRequest.create(bulletPrefab, null, pos, this.transform.getRot().mul(Quaternion.rotY(-FMath.PI/8).normalize())));
-      bullet1.getComponent("BulletScript").setAttackerType(AttackerType.CRAB);
-      bullet2.getComponent("BulletScript").setAttackerType(AttackerType.CRAB);
-      bullet3.getComponent("BulletScript").setAttackerType(AttackerType.CRAB);
-    }
-    let vx = this.rigidBody.getVelocity().x();
-    let vz = this.rigidBody.getVelocity().z();
-    let friction = this.isGrounded()?this.groundFriction:this.airFriction;
-    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
-    this.transform.setRot(Quaternion.rotY(this.turn));
-  }
-
-  setPrefabProperties(idMapping, properties) {
-  }
-
-  static create(key) {
-    let res = new CrabScript(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.CrabScript = CrabScript;
-const createCrabState = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const CrabState = Object.freeze({
-  REST: createCrabState("REST"),
-  MOVE: createCrabState("MOVE"),
-  READY_TO_ATTACK: createCrabState("READY_TO_ATTACK"),
-  ATTACK: createCrabState("ATTACK"),
-  DYING: createCrabState("DYING"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class CyclopsScript extends GameObjectScript {
-  static HIT_SOUNDS = Dut.immutableList(AudioTrackId.of("hit-1"), AudioTrackId.of("hit-2"));
-  static DEATH_SOUNDS = Dut.immutableList(AudioTrackId.of("death-monster-2"), AudioTrackId.of("death-monster-3"));
-  transform;
-  blink;
-  rigidBody;
-  health;
-  moveForce = 360;
-  airControlForce = 0;
-  airFriction = 3;
-  groundFriction = 100;
-  turn = 0;
-  turnSpeed = 2*FMath.PI;
-  attackImpact = 45;
-  state = CyclopsState.REST;
-  stateRemainingTime = 0;
-  targetPos = Vec3.ZERO;
-  restBaseTimesSpan = 0.5;
-  restRandomTimeSpan = 3;
-  distError = 0.5;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "CyclopsScript";
-  }
-
-  guardInvariants() {
-  }
-
-  onMessage(message) {
-    super.onMessage(message);
-    if (message.typeEquals(ActorMessageType.HIT_RECEIVED)) {
-      let hit = message.getPayload("HitMessage");
-      this.playRandomSound(CyclopsScript.HIT_SOUNDS);
-      this.actor().getComponent("RigidBodyComponent").applyImpulse(hit.getPos(), hit.getDir().scale(hit.getImpact()));
-      if (this.state.equals(CyclopsState.REST)||this.state.equals(CyclopsState.MOVE)||this.state.equals(CyclopsState.READY_TO_ATTACK)) {
-        this.state = CyclopsState.REST;
-        this.stateRemainingTime = 0.3;
-        this.blink.stopBlinking();
-      }
-    }
-  }
-
-  init() {
-    this.transform = this.actor().getComponent("TransformComponent");
-    this.blink = this.actor().getComponent("BlinkScript");
-    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-    this.health = this.actor().getComponent("HealthScript");
-    this.state = CyclopsState.REST;
-    this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-  }
-
-  move(dt, inputs) {
-    super.move(dt, inputs);
-    this.stateRemainingTime = this.stateRemainingTime-dt;
-    if (!this.health.isAlive()&&!this.state.equals(CyclopsState.DYING)) {
-      this.playRandomSound(CyclopsScript.DEATH_SOUNDS);
-      this.state = CyclopsState.DYING;
-      this.stateRemainingTime = 2;
-    }
-    if (this.transform.getPos().y()<-20) {
-      let dest = Characters.getRandomTargetPoint(this.world().actors()).add(0, 5, 0);
-      this.transform.setPos(dest);
-      this.rigidBody.setVelocity(Vec3.ZERO);
-      this.state = CyclopsState.REST;
-      this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-    }
-    if (this.state.equals(CyclopsState.REST)) {
-      if (this.stateRemainingTime<=0) {
-        let pos = this.transform.getPos();
-        let playerPos = Characters.getPlayerPosSafe(this.world().actors());
-        if (playerPos!=null&&playerPos.dist(pos)<7) {
-          this.state = CyclopsState.READY_TO_ATTACK;
-          this.stateRemainingTime = 0.8;
-          this.blink.startBlinking(0.3);
-          this.targetPos = playerPos;
-        }
-        else {
-          this.targetPos = Characters.getRandomTargetPoint(this.world().actors());
-          this.state = CyclopsState.MOVE;
-        }
-      }
-    }
-    else if (this.state.equals(CyclopsState.MOVE)) {
-      let pos = this.transform.getPos();
-      let dist = this.targetPos.dist(pos);
-      if (dist<=this.distError) {
-        this.state = CyclopsState.REST;
-        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-      }
-      else {
-        let dir = this.targetPos.subAndNormalize(pos);
-        let targetTurn = FMath.atan2(dir.x(), dir.z());
-        let maxdTurn = dt*this.turnSpeed;
-        this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
-        let force = this.isGrounded()?this.moveForce:this.airControlForce;
-        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x()*force, 0, dir.z()*force));
-      }
-    }
-    else if (this.state.equals(CyclopsState.READY_TO_ATTACK)) {
-      let pos = this.transform.getPos();
-      let dir = this.targetPos.subAndNormalize(pos);
-      let targetTurn = FMath.atan2(dir.x(), dir.z());
-      let maxdTurn = dt*this.turnSpeed;
-      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
-      if (this.stateRemainingTime<=0) {
-        this.blink.stopBlinking();
-        this.state = CyclopsState.ATTACK;
-        this.stateRemainingTime = 1;
-        if (this.isGrounded()) {
-          this.rigidBody.applyImpulse(this.transform.getPos(), Vec3.create(dir.x()*240, 15, dir.z()*240));
-        }
-      }
-    }
-    else if (this.state.equals(CyclopsState.ATTACK)) {
-      let collider = GameActors.getCollider(this.actor(), CollisionLayers.ENEMY_PUNCH);
-      let attackPos = collider.toGlobal(Vec3.ZERO);
-      let attackDir = collider.toGlobal(Vec3.FORWARD).subAndNormalize(attackPos);
-      let hits = this.world().collisions().getColliderIntersections(collider);
-      for (let hitCollider of hits) {
-        let hitAct = hitCollider.getActor();
-        let hitMsg = HitMessage.create(attackPos, attackDir, this.attackImpact, AttackerType.CYCLOPS);
-        hitAct.sendMessage(ActorMessage.create(ActorMessageType.HIT_RECEIVED, hitMsg));
-      }
-      if (!hits.isEmpty()||this.stateRemainingTime<=0) {
-        this.state = CyclopsState.REST;
-        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-      }
-    }
-    let vx = this.rigidBody.getVelocity().x();
-    let vz = this.rigidBody.getVelocity().z();
-    let friction = this.isGrounded()?this.groundFriction:this.airFriction;
-    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
-    this.transform.setRot(Quaternion.rotY(this.turn));
-  }
-
-  setPrefabProperties(idMapping, properties) {
-  }
-
-  static create(key) {
-    let res = new CyclopsScript(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.CyclopsScript = CyclopsScript;
-const createCyclopsState = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const CyclopsState = Object.freeze({
-  REST: createCyclopsState("REST"),
-  MOVE: createCyclopsState("MOVE"),
-  READY_TO_ATTACK: createCyclopsState("READY_TO_ATTACK"),
-  ATTACK: createCyclopsState("ATTACK"),
-  DYING: createCyclopsState("DYING"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class DeerScript extends GameObjectScript {
-  static HIT_SOUNDS = Dut.immutableList(AudioTrackId.of("hit-1"), AudioTrackId.of("hit-2"));
-  static DEATH_SOUNDS = Dut.immutableList(AudioTrackId.of("death-monster-1"), AudioTrackId.of("death-monster-2"));
-  transform;
-  blink;
-  rigidBody;
-  health;
-  moveForce = 480;
-  airControlForce = 0;
-  airFriction = 3;
-  groundFriction = 100;
-  turn = 0;
-  turnSpeed = 2*FMath.PI;
-  attackImpact = 30;
-  state = DeerState.REST;
-  stateRemainingTime = 0;
-  targetPos = Vec3.ZERO;
-  restBaseTimesSpan = 1;
-  restRandomTimeSpan = 1;
-  distError = 0.5;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "DeerScript";
-  }
-
-  guardInvariants() {
-  }
-
-  onMessage(message) {
-    super.onMessage(message);
-    if (message.typeEquals(ActorMessageType.HIT_RECEIVED)) {
-      let hit = message.getPayload("HitMessage");
-      this.playRandomSound(DeerScript.HIT_SOUNDS);
-      this.actor().getComponent("RigidBodyComponent").applyImpulse(hit.getPos(), hit.getDir().scale(hit.getImpact()));
-      if (this.state.equals(DeerState.REST)||this.state.equals(DeerState.MOVE)||this.state.equals(DeerState.READY_TO_ATTACK)) {
-        this.state = DeerState.REST;
-        this.stateRemainingTime = 0.3;
-        this.blink.stopBlinking();
-      }
-    }
-  }
-
-  init() {
-    this.transform = this.actor().getComponent("TransformComponent");
-    this.blink = this.actor().getComponent("BlinkScript");
-    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-    this.health = this.actor().getComponent("HealthScript");
-    this.state = DeerState.REST;
-    this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-  }
-
-  move(dt, inputs) {
-    super.move(dt, inputs);
-    this.stateRemainingTime = this.stateRemainingTime-dt;
-    if (!this.health.isAlive()&&!this.state.equals(DeerState.DYING)) {
-      this.state = DeerState.DYING;
-      this.stateRemainingTime = 2;
-      this.playRandomSound(DeerScript.DEATH_SOUNDS);
-    }
-    if (this.state.equals(DeerState.REST)) {
-      if (this.stateRemainingTime<=0) {
-        let pos = this.transform.getPos();
-        let playerPos = Characters.getPlayerPosSafe(this.world().actors());
-        if (playerPos!=null&&playerPos.dist(pos)<7) {
-          this.state = DeerState.READY_TO_ATTACK;
-          this.stateRemainingTime = 1.5;
-          this.blink.startBlinking(0.3);
-          this.targetPos = playerPos;
-        }
-        else {
-          this.targetPos = Characters.getRandomTargetPoint(this.world().actors());
-          this.state = DeerState.MOVE;
-        }
-      }
-    }
-    else if (this.state.equals(DeerState.MOVE)) {
-      let pos = this.transform.getPos();
-      let dist = this.targetPos.dist(pos);
-      if (dist<=this.distError) {
-        this.state = DeerState.REST;
-        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-      }
-      else {
-        let dir = this.targetPos.subAndNormalize(pos);
-        let targetTurn = FMath.atan2(dir.x(), dir.z());
-        let maxdTurn = dt*this.turnSpeed;
-        this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
-        let force = this.isGrounded()?this.moveForce:this.airControlForce;
-        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x()*force, 0, dir.z()*force));
-      }
-    }
-    else if (this.state.equals(DeerState.READY_TO_ATTACK)) {
-      let pos = this.transform.getPos();
-      let dir = this.targetPos.subAndNormalize(pos);
-      let targetTurn = FMath.atan2(dir.x(), dir.z());
-      let maxdTurn = dt*this.turnSpeed;
-      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
-      if (this.stateRemainingTime<=0) {
-        this.blink.stopBlinking();
-        this.state = DeerState.ATTACK;
-        this.stateRemainingTime = 1;
-        if (this.isGrounded()) {
-          this.rigidBody.applyImpulse(this.transform.getPos(), Vec3.create(dir.x()*120, 15, dir.z()*120));
-        }
-      }
-    }
-    else if (this.state.equals(DeerState.ATTACK)) {
-      let collider = GameActors.getCollider(this.actor(), CollisionLayers.ENEMY_PUNCH);
-      let attackPos = collider.toGlobal(Vec3.ZERO);
-      let attackDir = collider.toGlobal(Vec3.FORWARD).subAndNormalize(attackPos);
-      let hits = this.world().collisions().getColliderIntersections(collider);
-      for (let hitCollider of hits) {
-        let hitAct = hitCollider.getActor();
-        let hitMsg = HitMessage.create(attackPos, attackDir, this.attackImpact, AttackerType.DEER);
-        hitAct.sendMessage(ActorMessage.create(ActorMessageType.HIT_RECEIVED, hitMsg));
-      }
-      if (!hits.isEmpty()||this.stateRemainingTime<=0) {
-        this.state = DeerState.REST;
-        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-      }
-    }
-    let vx = this.rigidBody.getVelocity().x();
-    let vz = this.rigidBody.getVelocity().z();
-    let friction = this.isGrounded()?this.groundFriction:this.airFriction;
-    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
-    this.transform.setRot(Quaternion.rotY(this.turn));
-  }
-
-  setPrefabProperties(idMapping, properties) {
-  }
-
-  static create(key) {
-    let res = new DeerScript(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.DeerScript = DeerScript;
-const createDeerState = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const DeerState = Object.freeze({
-  REST: createDeerState("REST"),
-  MOVE: createDeerState("MOVE"),
-  READY_TO_ATTACK: createDeerState("READY_TO_ATTACK"),
-  ATTACK: createDeerState("ATTACK"),
-  DYING: createDeerState("DYING"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class DemonScript extends GameObjectScript {
-  static HIT_SOUNDS = Dut.immutableList(AudioTrackId.of("hit-1"), AudioTrackId.of("hit-2"));
-  static DEATH_SOUNDS = Dut.immutableList(AudioTrackId.of("death-monster-2"), AudioTrackId.of("death-monster-3"));
-  static FIRE_SOUNDS = Dut.immutableList(AudioTrackId.of("fire-laser-1"), AudioTrackId.of("fire-laser-2"));
-  transform;
-  blink;
-  rigidBody;
-  health;
-  moveForce = 600;
-  airControlForce = 0;
-  airFriction = 3;
-  groundFriction = 100;
-  turn = 0;
-  turnSpeed = 2*FMath.PI;
-  bulletId = ActorPrefabId.of("enemy-bullet-1");
-  attackImpact = 55;
-  state = DemonState.REST;
-  stateRemainingTime = 0;
-  targetPos = Vec3.ZERO;
-  restBaseTimesSpan = 0.5;
-  restRandomTimeSpan = 3;
-  distError = 0.5;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "DemonScript";
-  }
-
-  guardInvariants() {
-  }
-
-  onMessage(message) {
-    super.onMessage(message);
-    if (message.typeEquals(ActorMessageType.HIT_RECEIVED)) {
-      let hit = message.getPayload("HitMessage");
-      this.playRandomSound(DemonScript.HIT_SOUNDS);
-      this.actor().getComponent("RigidBodyComponent").applyImpulse(hit.getPos(), hit.getDir().scale(hit.getImpact()));
-      if (this.state.equals(DemonState.REST)||this.state.equals(DemonState.MOVE)||this.state.equals(DemonState.READY_TO_ATTACK)||this.state.equals(DemonState.READY_TO_FIRE)) {
-        this.blink.stopBlinking();
-        let rand = Randoms.nextFloat(0, 1);
-        if (rand<0.5) {
-          this.state = DemonState.READY_TO_FIRE;
-          this.stateRemainingTime = 0.5;
-          this.targetPos = Characters.getPlayerPosSafe(this.world().actors());
-        }
-        else {
-          this.state = DemonState.REST;
-          this.stateRemainingTime = 0.2;
-        }
-      }
-    }
-  }
-
-  init() {
-    this.transform = this.actor().getComponent("TransformComponent");
-    this.blink = this.actor().getComponent("BlinkScript");
-    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-    this.health = this.actor().getComponent("HealthScript");
-    this.state = DemonState.REST;
-    this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-  }
-
-  move(dt, inputs) {
-    super.move(dt, inputs);
-    this.stateRemainingTime = this.stateRemainingTime-dt;
-    if (!this.health.isAlive()&&!this.state.equals(DemonState.DYING)) {
-      this.playRandomSound(DemonScript.DEATH_SOUNDS);
-      this.state = DemonState.DYING;
-      this.stateRemainingTime = 2;
-    }
-    if (this.transform.getPos().y()<-20) {
-      let dest = Characters.getRandomTargetPoint(this.world().actors()).add(0, 5, 0);
-      this.transform.setPos(dest);
-      this.rigidBody.setVelocity(Vec3.ZERO);
-      this.state = DemonState.REST;
-      this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-    }
-    if (this.state.equals(DemonState.REST)) {
-      if (this.stateRemainingTime<=0) {
-        let pos = this.transform.getPos();
-        let playerPos = Characters.getPlayerPosSafe(this.world().actors());
-        if (playerPos!=null&&playerPos.dist(pos)<7) {
-          this.state = DemonState.READY_TO_ATTACK;
-          this.stateRemainingTime = 0.8;
-          this.blink.startBlinking(0.3);
-          this.targetPos = playerPos;
-        }
-        else {
-          let rand = Randoms.nextFloat(0, 1);
-          if (rand<0.5) {
-            this.state = DemonState.READY_TO_FIRE;
-            this.stateRemainingTime = 1;
-            this.targetPos = Characters.getPlayerPosSafe(this.world().actors());
-          }
-          else {
-            this.targetPos = Characters.getRandomTargetPoint(this.world().actors());
-            this.state = DemonState.MOVE;
-          }
-        }
-      }
-    }
-    else if (this.state.equals(DemonState.MOVE)) {
-      let pos = this.transform.getPos();
-      let dist = this.targetPos.dist(pos);
-      if (dist<=this.distError) {
-        this.state = DemonState.REST;
-        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-      }
-      else {
-        let dir = this.targetPos.subAndNormalize(pos);
-        let targetTurn = FMath.atan2(dir.x(), dir.z());
-        let maxdTurn = dt*this.turnSpeed;
-        this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
-        let force = this.isGrounded()?this.moveForce:this.airControlForce;
-        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x()*force, 0, dir.z()*force));
-      }
-    }
-    else if (this.state.equals(DemonState.READY_TO_ATTACK)) {
-      let pos = this.transform.getPos();
-      let dir = this.targetPos.subAndNormalize(pos);
-      let targetTurn = FMath.atan2(dir.x(), dir.z());
-      let maxdTurn = dt*this.turnSpeed;
-      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
-      if (this.stateRemainingTime<=0) {
-        this.blink.stopBlinking();
-        this.state = DemonState.ATTACK;
-        this.stateRemainingTime = 1;
-        if (this.isGrounded()) {
-          this.rigidBody.applyImpulse(this.transform.getPos(), Vec3.create(dir.x()*300, 15, dir.z()*300));
-        }
-      }
-    }
-    else if (this.state.equals(DemonState.ATTACK)) {
-      let collider = GameActors.getCollider(this.actor(), CollisionLayers.ENEMY_PUNCH);
-      let attackPos = collider.toGlobal(Vec3.ZERO);
-      let attackDir = collider.toGlobal(Vec3.FORWARD).subAndNormalize(attackPos);
-      let hits = this.world().collisions().getColliderIntersections(collider);
-      for (let hitCollider of hits) {
-        let hitAct = hitCollider.getActor();
-        let hitMsg = HitMessage.create(attackPos, attackDir, this.attackImpact, AttackerType.DEMON);
-        hitAct.sendMessage(ActorMessage.create(ActorMessageType.HIT_RECEIVED, hitMsg));
-      }
-      if (!hits.isEmpty()||this.stateRemainingTime<=0) {
-        this.state = DemonState.REST;
-        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-      }
-    }
-    else if (this.state.equals(DemonState.READY_TO_FIRE)) {
-      let pos = this.transform.getPos();
-      let dir = this.targetPos.subAndNormalize(pos);
-      let targetTurn = FMath.atan2(dir.x(), dir.z());
-      let maxdTurn = dt*this.turnSpeed;
-      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
-      if (this.stateRemainingTime<=0) {
-        this.state = DemonState.FIRE;
-        this.stateRemainingTime = 1;
-      }
-    }
-    else if (this.state.equals(DemonState.FIRE)) {
-      this.playRandomSound(DemonScript.FIRE_SOUNDS);
-      this.state = DemonState.REST;
-      this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-      let bulletPrefab = this.world().assets().get("ActorPrefab", this.bulletId);
-      let pos = this.transform.getPos().add(0, 0.9, 0);
-      let bullet1 = this.world().constructActor(CreateActorRequest.create(bulletPrefab, null, pos, this.transform.getRot()));
-      let bullet2 = this.world().constructActor(CreateActorRequest.create(bulletPrefab, null, pos, this.transform.getRot().mul(Quaternion.rotY(FMath.PI/8).normalize())));
-      let bullet3 = this.world().constructActor(CreateActorRequest.create(bulletPrefab, null, pos, this.transform.getRot().mul(Quaternion.rotY(-FMath.PI/8).normalize())));
-      bullet1.getComponent("BulletScript").setAttackerType(AttackerType.DEMON);
-      bullet2.getComponent("BulletScript").setAttackerType(AttackerType.DEMON);
-      bullet3.getComponent("BulletScript").setAttackerType(AttackerType.DEMON);
-    }
-    let vx = this.rigidBody.getVelocity().x();
-    let vz = this.rigidBody.getVelocity().z();
-    let friction = this.isGrounded()?this.groundFriction:this.airFriction;
-    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
-    this.transform.setRot(Quaternion.rotY(this.turn));
-  }
-
-  setPrefabProperties(idMapping, properties) {
-  }
-
-  static create(key) {
-    let res = new DemonScript(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.DemonScript = DemonScript;
-const createDemonState = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const DemonState = Object.freeze({
-  REST: createDemonState("REST"),
-  MOVE: createDemonState("MOVE"),
-  READY_TO_ATTACK: createDemonState("READY_TO_ATTACK"),
-  ATTACK: createDemonState("ATTACK"),
-  READY_TO_FIRE: createDemonState("READY_TO_FIRE"),
-  FIRE: createDemonState("FIRE"),
-  DYING: createDemonState("DYING"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class HealthScript extends Behavior {
-  maxHealth = 100;
-  health = 100;
-  deathType = null;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "HealthScript";
-  }
-
-  guardInvariants() {
-  }
-
-  isAlive() {
-    return this.health>0;
-  }
-
-  isDeath() {
-    return this.health<=0;
-  }
-
-  getMaxHealth() {
-    return this.maxHealth;
-  }
-
-  getHealth() {
-    return this.health;
-  }
-
-  getDeathType() {
-    return this.deathType;
-  }
-
-  onMessage(message) {
-    super.onMessage(message);
-    if (message.typeEquals(ActorMessageType.HIT_RECEIVED)) {
-      let hit = message.getPayload("HitMessage");
-      this.health = FMath.max(0, this.health-hit.getImpact());
-      if (this.isDeath()) {
-        this.deathType = hit.getAttackerType();
-      }
-    }
-  }
-
-  kill(attackerType) {
-    this.health = 0;
-    this.deathType = attackerType;
-    return this;
-  }
-
-  increaseHealth(d) {
-    Guard.notNegative(d, "d cannot be negative");
-    this.health = FMath.min(this.maxHealth, this.health+d);
-    if (this.isAlive()) {
-      this.deathType = null;
-    }
-    return this;
-  }
-
-  setPrefabProperties(idMapping, properties) {
-    this.maxHealth = Float.valueOf(properties.getOrDefault("maxHealth", "100"));
-    this.health = Float.valueOf(properties.getOrDefault("health", "100"));
-  }
-
-  setProperties(maxHealth, health) {
-    this.maxHealth = maxHealth;
-    this.health = health;
-    return this;
-  }
-
-  static create(key) {
-    let res = new HealthScript(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.HealthScript = HealthScript;
-class ItemsOnDeathScript extends Behavior {
-  coins = Collections.emptyList();
-  hearts = Collections.emptyList();
-  health;
-  done = false;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "ItemsOnDeathScript";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.health = this.actor().getComponent("HealthScript");
-  }
-
-  move(dt, inputs) {
-    if (this.done||this.health.getHealth()>0) {
-      return ;
-    }
-    let tc = this.actor().getComponent("TransformComponent");
-    let pos = tc.getPos().add(0, 1, 0);
-    for (let p of this.coins) {
-      let rval = Randoms.nextFloat(0, 1);
-      if (rval>p) {
-        continue;
-      }
-      let prefab = this.world().assets().get("ActorPrefab", GameScreen.COIN_ACTOR_PREFAB_ID);
-      for (let i = 0; i<1; ++i) {
-        let velRand = Vec3.create(Randoms.nextFloat(0, 5)-2.5, Randoms.nextFloat(4, 5), Randoms.nextFloat(0, 5)-2.5);
-        let itemActor = this.world().constructActor(CreateActorRequest.create(prefab, null, pos, Quaternion.ZERO_ROT));
-        let rb = itemActor.getComponent("RigidBodyComponent");
-        rb.setVelocity(velRand);
-      }
-    }
-    for (let p of this.hearts) {
-      let rval = Randoms.nextFloat(0, 1);
-      if (rval>p) {
-        continue;
-      }
-      let prefab = this.world().assets().get("ActorPrefab", GameScreen.HEART_ACTOR_PREFAB_ID);
-      for (let i = 0; i<1; ++i) {
-        let velRand = Vec3.create(Randoms.nextFloat(0, 5)-2.5, Randoms.nextFloat(4, 5), Randoms.nextFloat(0, 5)-2.5);
-        let itemActor = this.world().constructActor(CreateActorRequest.create(prefab, null, pos, Quaternion.ZERO_ROT));
-        let rb = itemActor.getComponent("RigidBodyComponent");
-        rb.setVelocity(velRand);
-      }
-    }
-    this.done = true;
-  }
-
-  setPrefabProperties(idMapping, properties) {
-    if (properties.containsKey("coins")) {
-      let str = properties.get("coins");
-      this.coins = Collections.unmodifiableList(Jsons.toFloatList(str));
-    }
-    else {
-      this.coins = Collections.emptyList();
-    }
-    if (properties.containsKey("hearts")) {
-      let str = properties.get("hearts");
-      this.hearts = Collections.unmodifiableList(Jsons.toFloatList(str));
-    }
-    else {
-      this.hearts = Collections.emptyList();
-    }
-  }
-
-  static create(key) {
-    let res = new ItemsOnDeathScript(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.ItemsOnDeathScript = ItemsOnDeathScript;
-class MushroomScript extends GameObjectScript {
-  static HIT_SOUNDS = Dut.immutableList(AudioTrackId.of("hit-1"), AudioTrackId.of("hit-2"));
-  static DEATH_SOUNDS = Dut.immutableList(AudioTrackId.of("death-monster-1"), AudioTrackId.of("death-monster-2"));
-  static FWD = Vec3.create(0, 0, 1);
-  transform;
-  blink;
-  rigidBody;
-  health;
-  moveForce = 240;
-  airControlForce = 0;
-  airFriction = 3;
-  groundFriction = 50;
-  turn = 0;
-  turnSpeed = 2*FMath.PI;
-  attackImpact = 20;
-  state = MushroomState.REST;
-  stateRemainingTime = 0;
-  targetPos = Vec3.ZERO;
-  restBaseTimesSpan = 2;
-  restRandomTimeSpan = 3;
-  distError = 0.5;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "MushroomScript";
-  }
-
-  guardInvariants() {
-  }
-
-  onMessage(message) {
-    super.onMessage(message);
-    if (message.typeEquals(ActorMessageType.HIT_RECEIVED)) {
-      let hit = message.getPayload("HitMessage");
-      this.playRandomSound(MushroomScript.HIT_SOUNDS);
-      this.actor().getComponent("RigidBodyComponent").applyImpulse(hit.getPos(), hit.getDir().scale(hit.getImpact()));
-      if (this.state.equals(MushroomState.REST)||this.state.equals(MushroomState.MOVE)||this.state.equals(MushroomState.READY_TO_ATTACK)) {
-        this.state = MushroomState.REST;
-        this.stateRemainingTime = 0.3;
-        this.blink.stopBlinking();
-      }
-    }
-  }
-
-  init() {
-    this.transform = this.actor().getComponent("TransformComponent");
-    this.blink = this.actor().getComponent("BlinkScript");
-    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-    this.health = this.actor().getComponent("HealthScript");
-    this.state = MushroomState.REST;
-    this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-  }
-
-  move(dt, inputs) {
-    super.move(dt, inputs);
-    this.stateRemainingTime = this.stateRemainingTime-dt;
-    if (!this.health.isAlive()&&!this.state.equals(MushroomState.DYING)) {
-      this.state = MushroomState.DYING;
-      this.stateRemainingTime = 2;
-      this.playRandomSound(MushroomScript.DEATH_SOUNDS);
-    }
-    if (this.state.equals(MushroomState.REST)) {
-      if (this.stateRemainingTime<=0) {
-        let pos = this.transform.getPos();
-        let playerPos = Characters.getPlayerPosSafe(this.world().actors());
-        if (playerPos!=null&&playerPos.dist(pos)<7) {
-          this.state = MushroomState.READY_TO_ATTACK;
-          this.stateRemainingTime = 2;
-          this.blink.startBlinking(0.3);
-          this.targetPos = playerPos;
-        }
-        else {
-          this.targetPos = Characters.getRandomTargetPoint(this.world().actors());
-          this.state = MushroomState.MOVE;
-        }
-      }
-    }
-    else if (this.state.equals(MushroomState.MOVE)) {
-      let pos = this.transform.getPos();
-      let dist = this.targetPos.dist(pos);
-      if (dist<=this.distError) {
-        this.state = MushroomState.REST;
-        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-      }
-      else {
-        let dir = this.targetPos.subAndNormalize(pos);
-        let targetTurn = FMath.atan2(dir.x(), dir.z());
-        let maxdTurn = dt*this.turnSpeed;
-        this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
-        let force = this.isGrounded()?this.moveForce:this.airControlForce;
-        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x()*force, 0, dir.z()*force));
-      }
-    }
-    else if (this.state.equals(MushroomState.READY_TO_ATTACK)) {
-      let pos = this.transform.getPos();
-      let dir = this.targetPos.subAndNormalize(pos);
-      let targetTurn = FMath.atan2(dir.x(), dir.z());
-      let maxdTurn = dt*this.turnSpeed;
-      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
-      if (this.stateRemainingTime<=0) {
-        this.blink.stopBlinking();
-        this.state = MushroomState.ATTACK;
-        this.stateRemainingTime = 1;
-        if (this.isGrounded()) {
-          this.rigidBody.applyImpulse(this.transform.getPos(), Vec3.create(dir.x()*60, 7, dir.z()*60));
-        }
-      }
-    }
-    else if (this.state.equals(MushroomState.ATTACK)) {
-      let collider = GameActors.getCollider(this.actor(), CollisionLayers.ENEMY_PUNCH);
-      let attackPos = collider.toGlobal(Vec3.ZERO);
-      let attackDir = collider.toGlobal(MushroomScript.FWD).subAndNormalize(attackPos);
-      let hits = this.world().collisions().getColliderIntersections(collider);
-      for (let hitCollider of hits) {
-        let hitAct = hitCollider.getActor();
-        let hitMsg = HitMessage.create(attackPos, attackDir, this.attackImpact, AttackerType.MUSHROOM);
-        hitAct.sendMessage(ActorMessage.create(ActorMessageType.HIT_RECEIVED, hitMsg));
-      }
-      if (!hits.isEmpty()||this.stateRemainingTime<=0) {
-        this.state = MushroomState.REST;
-        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-      }
-    }
-    let vx = this.rigidBody.getVelocity().x();
-    let vz = this.rigidBody.getVelocity().z();
-    let friction = this.isGrounded()?this.groundFriction:this.airFriction;
-    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
-    this.transform.setRot(Quaternion.rotY(this.turn));
-  }
-
-  setPrefabProperties(idMapping, properties) {
-  }
-
-  static create(key) {
-    let res = new MushroomScript(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.MushroomScript = MushroomScript;
-const createMushroomState = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const MushroomState = Object.freeze({
-  REST: createMushroomState("REST"),
-  MOVE: createMushroomState("MOVE"),
-  READY_TO_ATTACK: createMushroomState("READY_TO_ATTACK"),
-  ATTACK: createMushroomState("ATTACK"),
-  DYING: createMushroomState("DYING"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class PigScript extends GameObjectScript {
-  static HIT_SOUNDS = Dut.immutableList(AudioTrackId.of("hit-1"), AudioTrackId.of("hit-2"));
-  static DEATH_SOUNDS = Dut.immutableList(AudioTrackId.of("death-monster-1"), AudioTrackId.of("death-monster-2"));
-  static FIRE_SOUNDS = Dut.immutableList(AudioTrackId.of("fire-laser-1"), AudioTrackId.of("fire-laser-2"));
-  transform;
-  rigidBody;
-  health;
-  moveForce = 240;
-  airControlForce = 0;
-  airFriction = 3;
-  groundFriction = 50;
-  turn = 0;
-  turnSpeed = 2*FMath.PI;
-  bulletId = ActorPrefabId.of("enemy-bullet-1");
-  attachProbability = 0.3;
-  state = PigState.REST;
-  stateRemainingTime = 0;
-  targetPos = Vec3.ZERO;
-  restBaseTimesSpan = 2;
-  restRandomTimeSpan = 3;
-  distError = 0.5;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "PigScript";
-  }
-
-  guardInvariants() {
-  }
-
-  onMessage(message) {
-    super.onMessage(message);
-    if (message.typeEquals(ActorMessageType.HIT_RECEIVED)) {
-      let hit = message.getPayload("HitMessage");
-      this.playRandomSound(PigScript.HIT_SOUNDS);
-      this.actor().getComponent("RigidBodyComponent").applyImpulse(hit.getPos(), hit.getDir().scale(hit.getImpact()));
-    }
-  }
-
-  init() {
-    this.transform = this.actor().getComponent("TransformComponent");
-    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-    this.health = this.actor().getComponent("HealthScript");
-    this.state = PigState.REST;
-    this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-  }
-
-  move(dt, inputs) {
-    super.move(dt, inputs);
-    this.stateRemainingTime = this.stateRemainingTime-dt;
-    if (!this.health.isAlive()&&!this.state.equals(PigState.DYING)) {
-      this.state = PigState.DYING;
-      this.stateRemainingTime = 2;
-      this.playRandomSound(PigScript.DEATH_SOUNDS);
-    }
-    if (this.state.equals(PigState.REST)) {
-      if (this.stateRemainingTime<=0) {
-        let rand = Randoms.nextFloat(0, 1);
-        if (rand<this.attachProbability) {
-          this.state = PigState.READY_TO_ATTACK;
-          this.stateRemainingTime = 2;
-          this.targetPos = Characters.getPlayerPosSafe(this.world().actors());
-        }
-        else {
-          this.targetPos = Characters.getRandomTargetPoint(this.world().actors());
-          this.state = PigState.MOVE;
-        }
-      }
-    }
-    else if (this.state.equals(PigState.MOVE)) {
-      let pos = this.transform.getPos();
-      let dist = this.targetPos.dist(pos);
-      if (dist<=this.distError) {
-        this.state = PigState.REST;
-        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-      }
-      else {
-        let dir = this.targetPos.subAndNormalize(pos);
-        let targetTurn = FMath.atan2(dir.x(), dir.z());
-        let maxdTurn = dt*this.turnSpeed;
-        this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
-        let force = this.isGrounded()?this.moveForce:this.airControlForce;
-        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x()*force, 0, dir.z()*force));
-      }
-    }
-    else if (this.state.equals(PigState.READY_TO_ATTACK)) {
-      let pos = this.transform.getPos();
-      let dir = this.targetPos.subAndNormalize(pos);
-      let targetTurn = FMath.atan2(dir.x(), dir.z());
-      let maxdTurn = dt*this.turnSpeed;
-      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
-      if (this.stateRemainingTime<=0) {
-        this.state = PigState.ATTACK;
-        this.stateRemainingTime = 1;
-      }
-    }
-    else if (this.state.equals(PigState.ATTACK)) {
-      this.playRandomSound(PigScript.FIRE_SOUNDS);
-      this.state = PigState.REST;
-      this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-      let bulletPrefab = this.world().assets().get("ActorPrefab", this.bulletId);
-      let pos = this.transform.getPos().add(0, 0.9, 0);
-      let bullet = this.world().constructActor(CreateActorRequest.create(bulletPrefab, null, pos, this.transform.getRot()));
-      bullet.getComponent("BulletScript").setAttackerType(AttackerType.PIG);
-    }
-    let vx = this.rigidBody.getVelocity().x();
-    let vz = this.rigidBody.getVelocity().z();
-    let friction = this.isGrounded()?this.groundFriction:this.airFriction;
-    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
-    this.transform.setRot(Quaternion.rotY(this.turn));
-  }
-
-  setPrefabProperties(idMapping, properties) {
-  }
-
-  static create(key) {
-    let res = new PigScript(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.PigScript = PigScript;
-const createPigState = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const PigState = Object.freeze({
-  REST: createPigState("REST"),
-  MOVE: createPigState("MOVE"),
-  READY_TO_ATTACK: createPigState("READY_TO_ATTACK"),
-  ATTACK: createPigState("ATTACK"),
-  DYING: createPigState("DYING"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class PlayerInput {
-  dt;
-  controllable;
-  dir;
-  punch;
-  ground;
-  constructor() {
-  }
-
-  getClass() {
-    return "PlayerInput";
-  }
-
-  guardInvariants() {
-  }
-
-  getDt() {
-    return this.dt;
-  }
-
-  isControllable() {
-    return this.controllable;
-  }
-
-  getDir() {
-    return this.dir;
-  }
-
-  isPunch() {
-    return this.punch;
-  }
-
-  isGround() {
-    return this.ground;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(dt, controllable, dir, punch, ground) {
-    let res = new PlayerInput();
-    res.controllable = controllable;
-    res.dt = dt;
-    res.dir = dir;
-    res.punch = punch;
-    res.ground = ground;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.PlayerInput = PlayerInput;
-class PlayerScript extends GameObjectScript {
-  static PUNCH_SOUNDS = Dut.immutableList(AudioTrackId.of("punch-1"), AudioTrackId.of("punch-2"), AudioTrackId.of("punch-3"));
-  static HIT_SOUNDS = Dut.immutableList(AudioTrackId.of("hit-1"), AudioTrackId.of("hit-2"));
-  static DEATH_SOUNDS = Dut.immutableList(AudioTrackId.of("death-human-1"));
-  static JOYSTICK_SENSITIVITY = 1e-5;
-  transform;
-  model;
-  rigidBody;
-  health;
-  animationPlayer;
-  state;
-  runForce = 1000;
-  airControlForce = 7;
-  airFriction = 3;
-  groundFriction = 200;
-  turnSpeed = 4*FMath.PI;
-  punchImpact = 50;
-  turn = 0;
-  dying = false;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "PlayerScript";
-  }
-
-  guardInvariants() {
-  }
-
-  onMessage(message) {
-    super.onMessage(message);
-    if (message.typeEquals(ActorMessageType.HIT_RECEIVED)) {
-      let hit = message.getPayload("HitMessage");
-      this.playRandomSound(PlayerScript.HIT_SOUNDS);
-      this.actor().getComponent("RigidBodyComponent").applyImpulse(hit.getPos(), hit.getDir().scale(hit.getImpact()));
-      this.state = this.stateHit.bind(this);
-      this.world().actors().get(GameScreen.CAMERA_ACTOR_ID).getComponent("CameraControllerComponent").shake(CameraShake.create(0.15, 0.2));
-    }
-  }
-
-  init() {
-    this.transform = this.actor().getComponent("TransformComponent");
-    this.model = this.actor().getComponent("ModelComponent");
-    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-    this.health = this.actor().getComponent("HealthScript");
-    let animCol = this.world().assets().get("MeshAnimationCollection", MeshAnimationCollectionId.of("tyracorn"));
-    this.animationPlayer = MeshAnimationPlayer.create(animCol, MeshAnimationKey.of("idle"));
-    this.state = this.stateIdle.bind(this);
-    this.turn = 0;
-  }
-
-  move(dt, inputs) {
-    super.move(dt, inputs);
-    if (!this.dying&&!this.health.isAlive()) {
-      this.playRandomSound(PlayerScript.DEATH_SOUNDS);
-      this.dying = true;
-    }
-    let gameState = this.world().actors().get(GameScreen.GAME_STATE_ACTOR_ID).getComponent("GameStateBehavior");
-    let dir = inputs.getVec2("dir", Vec2.ZERO);
-    let punch = inputs.getBoolean("punch", false);
-    let input = PlayerInput.create(dt, gameState.isControllable(), dir, punch, this.isGrounded());
-    this.state(input);
-    let step = this.animationPlayer.move(dt);
-    if (step.hasTrigger("punch-sound")) {
-      this.playRandomSound(PlayerScript.PUNCH_SOUNDS);
-    }
-    if (step.hasTrigger("punch")) {
-      let collider = GameActors.getCollider(this.actor(), CollisionLayers.PLAYER_PUNCH);
-      let punchWorld = collider.toGlobal(Vec3.ZERO);
-      let punchDir = collider.toGlobal(Vec3.FORWARD).subAndNormalize(punchWorld);
-      let hits = this.world().collisions().getColliderIntersections(collider);
-      let hit = false;
-      for (let hitCollider of hits) {
-        let hitAct = hitCollider.getActor();
-        let hitMsg = HitMessage.create(punchWorld, punchDir, this.punchImpact, AttackerType.PLAYER);
-        hitAct.sendMessage(ActorMessage.create(ActorMessageType.HIT_RECEIVED, hitMsg));
-      }
-      if (hit) {
-        this.world().actors().get(GameScreen.CAMERA_ACTOR_ID).getComponent("CameraControllerComponent").shake(CameraShake.create(0.1, 0.15));
-      }
-    }
-    let vx = this.rigidBody.getVelocity().x();
-    let vz = this.rigidBody.getVelocity().z();
-    let friction = this.isGrounded()?this.groundFriction:this.airFriction;
-    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
-    this.model.setInterpolation(step.getInterpolation());
-    this.transform.setRot(Quaternion.rotY(this.turn));
-  }
-
-  stateIdle(input) {
-    this.animationPlayer.play(MeshAnimationKey.of("idle"), MeshAnimationPlayConfig.PLAY);
-    if (!input.isControllable()) {
-      return null;
-    }
-    if (input.isPunch()) {
-      this.state = this.statePunch.bind(this);
-    }
-    else if (input.getDir().mag()>=PlayerScript.JOYSTICK_SENSITIVITY) {
-      this.state = this.stateRun.bind(this);
-    }
-    return null;
-  }
-
-  stateRun(input) {
-    this.animationPlayer.play(MeshAnimationKey.of("run"), MeshAnimationPlayConfig.PLAY);
-    if (!input.isControllable()) {
-      this.state = this.stateIdle.bind(this);
-    }
-    if (input.isPunch()) {
-      this.state = this.statePunch.bind(this);
-    }
-    else if (input.getDir().mag()<PlayerScript.JOYSTICK_SENSITIVITY) {
-      this.state = this.stateIdle.bind(this);
-    }
-    else {
-      let dir = input.getDir().normalize();
-      let force = input.isGround()?this.runForce:this.airControlForce;
-      this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x()*force, 0, -dir.y()*force));
-      let targetTurn = FMath.atan2(dir.x(), -dir.y());
-      let maxdTurn = input.getDt()*this.turnSpeed;
-      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
-    }
-    return null;
-  }
-
-  statePunch(input) {
-    this.animationPlayer.play(MeshAnimationKey.of("punch"), MeshAnimationPlayConfig.PLAY);
-    if (this.animationPlayer.isEnd()) {
-      if (!input.isControllable()) {
-        this.state = this.stateIdle.bind(this);
-      }
-      else if (input.isPunch()) {
-        this.animationPlayer.play(MeshAnimationKey.of("punch"), MeshAnimationPlayConfig.RESTART);
-      }
-      else if (input.getDir().mag()>=PlayerScript.JOYSTICK_SENSITIVITY) {
-        this.state = this.stateRun.bind(this);
-      }
-      else {
-        this.state = this.stateIdle.bind(this);
-      }
-    }
-    if (input.isControllable()&&input.getDir().mag()>PlayerScript.JOYSTICK_SENSITIVITY) {
-      let dir = input.getDir().normalize();
-      let targetTurn = FMath.atan2(dir.x(), -dir.y());
-      let maxdTurn = input.getDt()*this.turnSpeed;
-      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
-    }
-    return null;
-  }
-
-  stateHit(input) {
-    this.animationPlayer.play(MeshAnimationKey.of("hit"), MeshAnimationPlayConfig.PLAY);
-    if (this.animationPlayer.isEnd()) {
-      if (!input.isControllable()) {
-        this.state = this.stateIdle.bind(this);
-      }
-      else if (input.isPunch()) {
-        this.animationPlayer.play(MeshAnimationKey.of("punch"), MeshAnimationPlayConfig.RESTART);
-      }
-      else if (input.getDir().mag()>=PlayerScript.JOYSTICK_SENSITIVITY) {
-        this.state = this.stateRun.bind(this);
-      }
-      else {
-        this.state = this.stateIdle.bind(this);
-      }
-    }
-    return null;
-  }
-
-  setPrefabProperties(idMapping, properties) {
-  }
-
-  static create(key) {
-    let res = new PlayerScript(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.PlayerScript = PlayerScript;
-class PrincessScript extends GameObjectScript {
-  transform;
-  model;
-  rigidBody;
-  animationPlayer;
-  airFriction = 3;
-  groundFriction = 200;
-  gameState;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "PrincessScript";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.transform = this.actor().getComponent("TransformComponent");
-    this.model = this.actor().getComponent("ModelComponent");
-    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-    let animCol = this.world().assets().get("MeshAnimationCollection", MeshAnimationCollectionId.of("kimono-female"));
-    this.animationPlayer = MeshAnimationPlayer.create(animCol, MeshAnimationKey.of("idle"));
-    this.gameState = this.world().actors().get(GameScreen.GAME_STATE_ACTOR_ID).getComponent("GameStateBehavior");
-  }
-
-  move(dt, inputs) {
-    super.move(dt, inputs);
-    let step = this.animationPlayer.move(dt);
-    let vx = this.rigidBody.getVelocity().x();
-    let vz = this.rigidBody.getVelocity().z();
-    let friction = this.isGrounded()?this.groundFriction:this.airFriction;
-    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
-    this.model.setInterpolation(step.getInterpolation());
-    this.transform.setRot(Quaternion.rotY(0));
-  }
-
-  lateMove(dt, inputs) {
-    for (let cmp of this.actor().getComponents()) {
-      if (!(cmp instanceof ColliderComponent)) {
-        continue;
-      }
-      let collider = cmp;
-      if (collider.getLayer().equals(CollisionLayers.PRINCESS_ENVELOPE)) {
-        let cols = this.world().collisions().getColliderIntersections(collider);
-        if (!cols.isEmpty()) {
-          this.gameState.toVictory();
-          return ;
-        }
-      }
-    }
-  }
-
-  setPrefabProperties(idMapping, properties) {
-  }
-
-  static create(key) {
-    let res = new PrincessScript(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.PrincessScript = PrincessScript;
-class ShrinkOnDeathScript extends Behavior {
-  health;
-  duration = 2;
-  baseMat;
-  dyingTime = 0;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "ShrinkOnDeathScript";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.health = this.actor().getComponent("HealthScript");
-  }
-
-  move(dt, inputs) {
-    if (this.health.isDeath()) {
-      if (this.baseMat==null) {
-        this.baseMat = this.actor().getComponent("ModelComponent").getTransform();
-        this.dyingTime = 0;
-      }
-      else {
-        this.dyingTime = this.dyingTime+dt;
-        let rem = this.duration-this.dyingTime;
-        let scale = FMath.max(rem/this.duration, 0.1);
-        this.actor().getComponent("ModelComponent").setTransform(Mat44.scale(1, scale, 1).mul(this.baseMat));
-        if (rem<=0) {
-          this.world().actors().remove(this.actor().getId());
-        }
-      }
-    }
-  }
-
-  setPrefabProperties(idMapping, properties) {
-    this.duration = Float.valueOf(properties.getOrDefault("duration", "2"));
-  }
-
-  static create(key) {
-    let res = new ShrinkOnDeathScript(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.ShrinkOnDeathScript = ShrinkOnDeathScript;
-class YetiScript extends GameObjectScript {
-  static HIT_SOUNDS = Dut.immutableList(AudioTrackId.of("hit-1"), AudioTrackId.of("hit-2"));
-  static DEATH_SOUNDS = Dut.immutableList(AudioTrackId.of("death-monster-2"), AudioTrackId.of("death-monster-3"));
-  transform;
-  blink;
-  rigidBody;
-  health;
-  moveForce = 180;
-  airControlForce = 0;
-  airFriction = 3;
-  groundFriction = 50;
-  turn = 0;
-  turnSpeed = 2*FMath.PI;
-  attackImpact = 30;
-  state = YetiState.REST;
-  stateRemainingTime = 0;
-  targetPos = Vec3.ZERO;
-  restBaseTimesSpan = 2;
-  restRandomTimeSpan = 3;
-  distError = 0.5;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "YetiScript";
-  }
-
-  guardInvariants() {
-  }
-
-  onMessage(message) {
-    super.onMessage(message);
-    if (message.typeEquals(ActorMessageType.HIT_RECEIVED)) {
-      let hit = message.getPayload("HitMessage");
-      this.playRandomSound(YetiScript.HIT_SOUNDS);
-      this.actor().getComponent("RigidBodyComponent").applyImpulse(hit.getPos(), hit.getDir().scale(hit.getImpact()));
-      if (this.state.equals(YetiState.REST)||this.state.equals(YetiState.MOVE)||this.state.equals(YetiState.READY_TO_ATTACK)) {
-        this.state = YetiState.REST;
-        this.stateRemainingTime = 0.3;
-        this.blink.stopBlinking();
-      }
-    }
-  }
-
-  init() {
-    this.transform = this.actor().getComponent("TransformComponent");
-    this.blink = this.actor().getComponent("BlinkScript");
-    this.rigidBody = this.actor().getComponent("RigidBodyComponent");
-    this.health = this.actor().getComponent("HealthScript");
-    this.state = YetiState.REST;
-    this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-  }
-
-  move(dt, inputs) {
-    super.move(dt, inputs);
-    this.stateRemainingTime = this.stateRemainingTime-dt;
-    if (!this.health.isAlive()&&!this.state.equals(YetiState.DYING)) {
-      this.playRandomSound(YetiScript.DEATH_SOUNDS);
-      this.state = YetiState.DYING;
-      this.stateRemainingTime = 2;
-    }
-    if (this.state.equals(YetiState.REST)) {
-      if (this.stateRemainingTime<=0) {
-        let pos = this.transform.getPos();
-        let playerPos = Characters.getPlayerPosSafe(this.world().actors());
-        if (playerPos!=null&&playerPos.dist(pos)<7) {
-          this.state = YetiState.READY_TO_ATTACK;
-          this.stateRemainingTime = 2;
-          this.blink.startBlinking(0.3);
-          this.targetPos = playerPos;
-        }
-        else {
-          this.targetPos = Characters.getRandomTargetPoint(this.world().actors());
-          this.state = YetiState.MOVE;
-        }
-      }
-    }
-    else if (this.state.equals(YetiState.MOVE)) {
-      let pos = this.transform.getPos();
-      let dist = this.targetPos.dist(pos);
-      if (dist<=this.distError) {
-        this.state = YetiState.REST;
-        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-      }
-      else {
-        let dir = this.targetPos.subAndNormalize(pos);
-        let targetTurn = FMath.atan2(dir.x(), dir.z());
-        let maxdTurn = dt*this.turnSpeed;
-        this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
-        let force = this.isGrounded()?this.moveForce:this.airControlForce;
-        this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(dir.x()*force, 0, dir.z()*force));
-      }
-    }
-    else if (this.state.equals(YetiState.READY_TO_ATTACK)) {
-      let pos = this.transform.getPos();
-      let dir = this.targetPos.subAndNormalize(pos);
-      let targetTurn = FMath.atan2(dir.x(), dir.z());
-      let maxdTurn = dt*this.turnSpeed;
-      this.turn = Characters.turn(targetTurn, this.turn, maxdTurn);
-      if (this.stateRemainingTime<=0) {
-        this.blink.stopBlinking();
-        this.state = YetiState.ATTACK;
-        this.stateRemainingTime = 1;
-        if (this.isGrounded()) {
-          this.rigidBody.applyImpulse(this.transform.getPos(), Vec3.create(dir.x()*120, 7, dir.z()*120));
-        }
-      }
-    }
-    else if (this.state.equals(YetiState.ATTACK)) {
-      let collider = GameActors.getCollider(this.actor(), CollisionLayers.ENEMY_PUNCH);
-      let attackPos = collider.toGlobal(Vec3.ZERO);
-      let attackDir = collider.toGlobal(Vec3.FORWARD).subAndNormalize(attackPos);
-      let hits = this.world().collisions().getColliderIntersections(collider);
-      for (let hitCollider of hits) {
-        let hitAct = hitCollider.getActor();
-        let hitMsg = HitMessage.create(attackPos, attackDir, this.attackImpact, AttackerType.YETI);
-        hitAct.sendMessage(ActorMessage.create(ActorMessageType.HIT_RECEIVED, hitMsg));
-      }
-      if (!hits.isEmpty()||this.stateRemainingTime<=0) {
-        this.state = YetiState.REST;
-        this.stateRemainingTime = this.restBaseTimesSpan+Randoms.nextFloat(0, this.restRandomTimeSpan);
-      }
-    }
-    let vx = this.rigidBody.getVelocity().x();
-    let vz = this.rigidBody.getVelocity().z();
-    let friction = this.isGrounded()?this.groundFriction:this.airFriction;
-    this.rigidBody.applyForce(this.transform.getPos(), Vec3.create(-friction*vx, 0, -friction*vz));
-    this.transform.setRot(Quaternion.rotY(this.turn));
-  }
-
-  setPrefabProperties(idMapping, properties) {
-  }
-
-  static create(key) {
-    let res = new YetiScript(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.YetiScript = YetiScript;
-const createYetiState = (description) => {
-  const symbol = Symbol(description);
-  return {
-    symbol: symbol,
-    name() {
-      return this.symbol.description;
-    },
-    equals(other) {
-      return this.symbol === other?.symbol;
-    },
-    hashCode() {
-      const description = this.symbol.description || "";
-      let hash = 0;
-      for (let i = 0; i < description.length; i++) {
-        const char = description.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return hash;
-    },
-    [Symbol.toPrimitive]() {
-      return this.symbol;
-    },
-    toString() {
-      return this.symbol.toString();
-    }
-  };
-};
-const YetiState = Object.freeze({
-  REST: createYetiState("REST"),
-  MOVE: createYetiState("MOVE"),
-  READY_TO_ATTACK: createYetiState("READY_TO_ATTACK"),
-  ATTACK: createYetiState("ATTACK"),
-  DYING: createYetiState("DYING"),
-
-  valueOf(description) {
-    if (typeof description !== 'string') {
-      throw new Error('valueOf expects a string parameter');
-    }
-    for (const [key, value] of Object.entries(this)) {
-      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
-        return value;
-      }
-    }
-    throw new Error(`No enum constant with description: ${description}`);
-  },
-
-  values() {
-    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
-  }
-});
-class BulletScript extends Behavior {
-  transform;
-  lifeTime = 1;
-  speed = 1;
-  impact = 12;
-  dir;
-  attackerType = AttackerType.OTHER;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "BulletScript";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.transform = this.actor().getComponent("TransformComponent");
-  }
-
-  move(dt, inputs) {
-    if (this.dir==null) {
-      let zero = this.transform.toGlobal(Vec3.ZERO);
-      let fwd = this.transform.toGlobal(Vec3.FORWARD);
-      this.dir = fwd.subAndNormalize(zero);
-    }
-    this.transform.move(this.dir.scale(dt*this.speed));
-    this.lifeTime = this.lifeTime-dt;
-    if (this.lifeTime<=0) {
-      this.world().actors().remove(this.actor().getId());
-    }
-    for (let comp of this.actor().getComponents()) {
-      if (!(comp instanceof ColliderComponent)) {
-        continue;
-      }
-      let collider = comp;
-      let hits = this.world().collisions().getColliderIntersections(collider);
-      for (let hitCollider of hits) {
-        let hitAct = hitCollider.getActor();
-        let hitMsg = HitMessage.create(this.transform.getPos(), this.dir, this.impact, this.attackerType);
-        hitAct.sendMessage(ActorMessage.create(ActorMessageType.HIT_RECEIVED, hitMsg));
-      }
-      if (!hits.isEmpty()) {
-        this.world().actors().remove(this.actor().getId());
-        return ;
-      }
-    }
-  }
-
-  setPrefabProperties(idMapping, properties) {
-    this.lifeTime = Float.valueOf(properties.getOrDefault("lifeTime", "1"));
-    this.speed = Float.valueOf(properties.getOrDefault("speed", "1"));
-    this.impact = Float.valueOf(properties.getOrDefault("impact", "12"));
-    this.attackerType = AttackerType.valueOf(properties.getOrDefault("attackerType", AttackerType.OTHER.name()));
-  }
-
-  setAttackerType(attackerType) {
-    this.attackerType = attackerType;
-    return this;
-  }
-
-  static create(key) {
-    let res = new BulletScript(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.BulletScript = BulletScript;
-class HitMessage {
-  pos;
-  dir;
-  impact;
-  attackerType;
-  constructor() {
-  }
-
-  getClass() {
-    return "HitMessage";
-  }
-
-  guardInvariants() {
-  }
-
-  getPos() {
-    return this.pos;
-  }
-
-  getDir() {
-    return this.dir;
-  }
-
-  getImpact() {
-    return this.impact;
-  }
-
-  getAttackerType() {
-    return this.attackerType;
-  }
-
-  hashCode() {
-    return Reflections.hashCode(this);
-  }
-
-  equals(obj) {
-    return Reflections.equals(this, obj);
-  }
-
-  toString() {
-  }
-
-  static create(pos, dir, impact, attackerType) {
-    let res = new HitMessage();
-    res.pos = pos;
-    res.dir = dir;
-    res.impact = impact;
-    res.attackerType = attackerType;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.HitMessage = HitMessage;
-class CoinScript extends GameObjectScript {
-  static PICKUP_SOUNDS = Dut.immutableList(AudioTrackId.of("coin-pickup-1"), AudioTrackId.of("coin-pickup-2"));
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "CoinScript";
-  }
-
-  guardInvariants() {
-  }
-
-  move(dt, inputs) {
-    for (let comp of this.actor().getComponents()) {
-      if (!(comp instanceof ColliderComponent)) {
-        continue;
-      }
-      let collider = comp;
-      if (!collider.getLayer().equals(CollisionLayers.ITEM_PICKUP)) {
-        continue;
-      }
-      let hits = this.world().collisions().getColliderIntersections(collider);
-      if (!hits.isEmpty()) {
-        this.playRandomSound(CoinScript.PICKUP_SOUNDS);
-        this.world().actors().get(GameScreen.GAME_STATE_ACTOR_ID).getComponent("GameStateBehavior").incrementScore();
-        this.world().actors().remove(this.actor().getId());
-        return ;
-      }
-    }
-  }
-
-  setPrefabProperties(idMapping, properties) {
-  }
-
-  static create(key) {
-    let res = new CoinScript(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.CoinScript = CoinScript;
-class HeartScript extends GameObjectScript {
-  static PICKUP_SOUNDS = Dut.immutableList(AudioTrackId.of("coin-pickup-1"), AudioTrackId.of("coin-pickup-2"));
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "HeartScript";
-  }
-
-  guardInvariants() {
-  }
-
-  move(dt, inputs) {
-    for (let comp of this.actor().getComponents()) {
-      if (!(comp instanceof ColliderComponent)) {
-        continue;
-      }
-      let collider = comp;
-      if (!collider.getLayer().equals(CollisionLayers.ITEM_PICKUP)) {
-        continue;
-      }
-      let hits = this.world().collisions().getColliderIntersections(collider);
-      if (!hits.isEmpty()) {
-        this.playRandomSound(HeartScript.PICKUP_SOUNDS);
-        this.world().actors().get(GameScreen.PLAYER_ACTOR_ID).getComponent("HealthScript").increaseHealth(10);
-        this.world().actors().remove(this.actor().getId());
-        return ;
-      }
-    }
-  }
-
-  setPrefabProperties(idMapping, properties) {
-  }
-
-  static create(key) {
-    let res = new HeartScript(key);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.HeartScript = HeartScript;
-class ConfigPropertiesSettings {
-  static SOUND_ENABLED_KEY = PropertyKey.of("audio.sound.enabled");
-  static SOUND_VOLUME_KEY = PropertyKey.of("audio.sound.volume");
-  static MUSIC_ENABLED_KEY = PropertyKey.of("audio.music.enabled");
-  static MUSIC_VOLUME_KEY = PropertyKey.of("audio.music.volume");
-  properties;
-  constructor() {
-  }
-
-  getClass() {
-    return "ConfigPropertiesSettings";
-  }
-
-  guardInvariants() {
-  }
-
-  isSoundEnabled() {
-    return this.properties.getBoolean(ConfigPropertiesSettings.SOUND_ENABLED_KEY, true);
-  }
-
-  setSoundEnabled(soundEnabled) {
-    this.properties.put(ConfigPropertiesSettings.SOUND_ENABLED_KEY, soundEnabled);
-  }
-
-  getSoundVolume() {
-    return this.properties.getFloat(ConfigPropertiesSettings.SOUND_VOLUME_KEY, 1);
-  }
-
-  setSoundVolume(soundVolume) {
-    this.properties.put(ConfigPropertiesSettings.SOUND_VOLUME_KEY, soundVolume);
-  }
-
-  isMusicEnabled() {
-    return this.properties.getBoolean(ConfigPropertiesSettings.MUSIC_ENABLED_KEY, true);
-  }
-
-  setMusicEnabled(musicEnabled) {
-    this.properties.put(ConfigPropertiesSettings.MUSIC_ENABLED_KEY, musicEnabled);
-  }
-
-  getMusicVolume() {
-    return this.properties.getFloat(ConfigPropertiesSettings.MUSIC_VOLUME_KEY, 1);
-  }
-
-  setMusicVolume(musicVolume) {
-    this.properties.put(ConfigPropertiesSettings.MUSIC_VOLUME_KEY, musicVolume);
-  }
-
-  static create(properties) {
-    let res = new ConfigPropertiesSettings();
-    res.properties = properties;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.ConfigPropertiesSettings = ConfigPropertiesSettings;
-class DelayedComponent extends UiComponent {
-  component;
-  delay;
-  time;
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "DelayedComponent";
-  }
-
-  guardInvariants() {
-  }
-
-  init(container) {
-    this.component.init(container);
-  }
-
-  move(dt) {
-    this.time = this.time+dt;
-    if (this.time<this.delay) {
-      return ;
-    }
-    this.component.move(dt);
-  }
-
-  draw(painter) {
-    if (this.time<this.delay) {
-      return ;
-    }
-    this.component.draw(painter);
-  }
-
-  onContainerResize(size) {
-    this.component.onContainerResize(size);
-  }
-
-  onKeyPressed(key) {
-    if (this.time<this.delay) {
-      return false;
-    }
-    return this.component.onKeyPressed(key);
-  }
-
-  onKeyReleased(key) {
-    if (this.time<this.delay) {
-      return false;
-    }
-    return this.component.onKeyReleased(key);
-  }
-
-  onTouchStart(id, pos, size) {
-    if (this.time<this.delay) {
-      return false;
-    }
-    return this.component.onTouchStart(id, pos, size);
-  }
-
-  onTouchMove(id, pos, size) {
-    if (this.time<this.delay) {
-      return false;
-    }
-    return this.component.onTouchMove(id, pos, size);
-  }
-
-  onTouchEnd(id, pos, size, cancel) {
-    if (this.time<this.delay) {
-      return false;
-    }
-    return this.component.onTouchEnd(id, pos, size, cancel);
-  }
-
-  toString() {
-  }
-
-  static create(component, delay) {
-    let res = new DelayedComponent();
-    res.component = component;
-    res.delay = delay;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.DelayedComponent = DelayedComponent;
-class HealthPanel extends UiComponent {
-  borderColor;
-  bgColor;
-  healthBarColor;
-  healthFont;
-  maxHealth = 100;
-  health = 100;
-  regionFnc;
-  containerSize;
-  region;
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "HealthPanel";
-  }
-
-  guardInvariants() {
-  }
-
-  move(dt) {
-  }
-
-  draw(painter) {
-    if (this.bgColor.a()>0) {
-      painter.fillRect(this.region, this.bgColor);
-      let hreg = Rect2.create(this.region.x(), this.region.y(), this.region.width()*(this.health/this.maxHealth), this.region.height());
-      painter.fillRect(hreg, this.healthBarColor);
-    }
-    let p1 = Vec2.create(this.region.x(), this.region.y());
-    let p2 = Vec2.create(this.region.x()+this.region.width(), this.region.y());
-    let p3 = Vec2.create(this.region.x()+this.region.width(), this.region.y()+this.region.height());
-    let p4 = Vec2.create(this.region.x(), this.region.y()+this.region.height());
-    if (this.borderColor.a()>0) {
-      painter.drawLine(p1, p2, this.borderColor);
-      painter.drawLine(p2, p3, this.borderColor);
-      painter.drawLine(p3, p4, this.borderColor);
-      painter.drawLine(p4, p1, this.borderColor);
-    }
-  }
-
-  onContainerResize(size) {
-    this.containerSize = size;
-    this.region = Functions.apply(this.regionFnc, size);
-  }
-
-  setBorderColor(borderColor) {
-    Guard.notNull(borderColor, "borderColor cannot be null");
-    this.borderColor = borderColor;
-    return this;
-  }
-
-  setBgColor(bgColor) {
-    Guard.notNull(bgColor, "bgColor cannot be null");
-    this.bgColor = bgColor;
-    return this;
-  }
-
-  setRegionFnc(regionFnc) {
-    Guard.notNull(regionFnc, "regionFnc cannot be null");
-    this.regionFnc = regionFnc;
-    this.onContainerResize(this.containerSize);
-    return this;
-  }
-
-  setHealth(maxHealth, health) {
-    this.maxHealth = maxHealth;
-    this.health = health;
-    return this;
-  }
-
-  toString() {
-  }
-
-  static create() {
-    let res = new HealthPanel();
-    res.borderColor = Rgba.create(0.8, 0.8, 0.8, 1);
-    res.bgColor = Rgba.create(0.2, 0.2, 0.2, 1);
-    res.healthBarColor = Rgba.create(0.9, 0.2, 0.2, 1);
-    res.regionFnc = UiRegionFncs.center(100, 25);
-    res.containerSize = Size2.create(1, 1);
-    res.region = Functions.apply(res.regionFnc, res.containerSize);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.HealthPanel = HealthPanel;
-class ScallingImageView extends UiComponent {
-  assets;
-  spriteContainer;
-  sprite;
-  visible;
-  startScale;
-  endScale;
-  duration;
-  atime;
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "ScallingImageView";
-  }
-
-  guardInvariants() {
-  }
-
-  init(container) {
-    this.spriteContainer.init(container);
-  }
-
-  move(dt) {
-    if (!this.visible||this.atime>this.duration) {
-      return ;
-    }
-    let t = this.atime/this.duration;
-    let scale = (1-t)*this.startScale+t*this.endScale;
-    this.sprite.setRegionFnc(this.createSpriteRegFnc(scale));
-    this.atime = this.atime+dt;
-  }
-
-  draw(painter) {
-    if (this.visible) {
-      this.spriteContainer.draw(painter);
-    }
-  }
-
-  onContainerResize(size) {
-    this.spriteContainer.onContainerResize(size);
-  }
-
-  setRegionFnc(regionFnc) {
-    this.spriteContainer.setRegionFnc(regionFnc);
-    return this;
-  }
-
-  toString() {
-  }
-
-  getSprite() {
-    return this.visible?this.sprite.getTexture():null;
-  }
-
-  show(sprite, startScale, endScale, duration) {
-    this.sprite.setTexture(sprite);
-    this.sprite.setRegionFnc(this.createSpriteRegFnc(startScale));
-    this.startScale = startScale;
-    this.endScale = endScale;
-    this.duration = duration;
-    this.atime = 0;
-    this.visible = true;
-    return this;
-  }
-
-  hide() {
-    this.visible = false;
-    return this;
-  }
-
-  createSpriteRegFnc(scale) {
-    let sprTex = this.assets.get("Texture", this.sprite.getTexture());
-    let sprW = sprTex.getWidth();
-    let sprH = sprTex.getHeight();
-    let sprAsp = sprW/sprH;
-    return (s) => {
-      if (s.width()<1||s.height()<1) {
-        return Rect2.create(Pos2.ZERO, s);
-      }
-      let aspect = s.width()/s.height();
-      if (sprAsp>=aspect) {
-        let w = s.width()*scale;
-        let h = sprH*s.width()/sprW*scale;
-        return Rect2.create(s.width()/2-w/2, s.height()/2-h/2, w, h);
-      }
-      else {
-        let w = sprW*s.height()/sprH*scale;
-        let h = s.height()*scale;
-        return Rect2.create(s.width()/2-w/2, s.height()/2-h/2, w, h);
-      }
-    };
-  }
-
-  static create(assets) {
-    let res = new ScallingImageView();
-    res.assets = assets;
-    res.spriteContainer = Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setInnerSizeFnc(UiSizeFncs.identity()).setRegionFnc(UiRegionFncs.full());
-    res.sprite = ImageView.create().setRegionFnc(UiRegionFncs.full()).setTexture("empty");
-    res.spriteContainer.addComponent(res.sprite);
-    res.visible = false;
-    res.startScale = 1;
-    res.endScale = 1;
-    res.duration = 1;
-    res.atime = 0;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.ScallingImageView = ScallingImageView;
-class TiledBackground extends UiComponent {
-  texture;
-  tileSize;
-  velocity;
-  containerSize;
-  offset = Vec2.ZERO;
-  spriteStyle = SpriteStyle.PIXEL_EDGE.withTextureStyle(TextureStyle.SMOOTH_REPEAT);
-  constructor() {
-    super();
-  }
-
-  getClass() {
-    return "TiledBackground";
-  }
-
-  guardInvariants() {
-  }
-
-  move(dt) {
-    let nx = this.offset.x()+dt*this.velocity.x();
-    let ny = this.offset.y()+dt*this.velocity.y();
-    while (nx>0) {
-      nx = nx-this.tileSize.width();
-    }
-    while (nx+this.tileSize.width()<0) {
-      nx = nx+this.tileSize.width();
-    }
-    while (ny>0) {
-      ny = ny-this.tileSize.height();
-    }
-    while (ny+this.tileSize.height()<0) {
-      ny = ny+this.tileSize.height();
-    }
-    this.offset = Vec2.create(nx, ny);
-  }
-
-  draw(painter) {
-    for (let y = this.offset.y(); y<=this.containerSize.height(); y=y+this.tileSize.height()) {
-      for (let x = this.offset.x(); x<=this.containerSize.width(); x=x+this.tileSize.width()) {
-        painter.drawImage(this.texture, x, y, this.tileSize.width(), this.tileSize.height(), this.spriteStyle);
-      }
-    }
-  }
-
-  onContainerResize(size) {
-    this.containerSize = size;
-  }
-
-  getTexture() {
-    return this.texture;
-  }
-
-  setTexture() {
-    if (arguments.length===1&&arguments[0] instanceof TextureId) {
-      return this.setTexture_1_TextureId(arguments[0]);
-    }
-    else if (arguments.length===1&& typeof arguments[0]==="string") {
-      return this.setTexture_1_string(arguments[0]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
-  }
-
-  setTexture_1_TextureId(texture) {
-    Guard.notNull(texture, "texture cannot be null");
-    this.texture = texture;
-    return this;
-  }
-
-  setTexture_1_string(texture) {
-    return this.setTexture(TextureId.of(texture));
-  }
-
-  toString() {
-  }
-
-  static create() {
-    let res = new TiledBackground();
-    res.texture = TextureId.of("image");
-    res.tileSize = Size2.create(256, 256);
-    res.velocity = Vec2.create(0, 60);
-    res.containerSize = Size2.create(1, 1);
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.TiledBackground = TiledBackground;
-class Uis {
-  static PUNCH_TRAIT = UiComponentTrait.of("PUNCH");
-  static LAYER_SEPARATOR_TRAIT = UiComponentTrait.of("LAYER_SEPARATOR");
-  static DEATH_TYPES = Dut.immutableMap(AttackerType.MUSHROOM, "Killed by Mushroom", AttackerType.PIG, "Killed by Pig", AttackerType.YETI, "Killed by Yeti", AttackerType.DEER, "Killed by Deer", AttackerType.CRAB, "Killed by Crab", AttackerType.CYCLOPS, "Killed by Cyclops", AttackerType.DEMON, "Killed by Demon", AttackerType.FALL, "Death by Fall", AttackerType.PLAYER, "Killed by Player", AttackerType.OTHER, "Mysteriously died");
-  mStyler;
-  settings;
-  rankingManager;
-  slotHeight = 120;
-  constructor() {
-  }
-
-  getClass() {
-    return "Uis";
-  }
-
-  guardInvariants() {
-  }
-
-  uiSizeFnc() {
-    return UiSizeFncs.constantHeight(1600);
-  }
-
-  styler() {
-    if (this.mStyler==null) {
-      let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
-      let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
-      let panelKey = UiComponentStyleKey.plain(UiComponentType.PANEL);
-      let trPanelKey = panelKey.plusTrait(UiComponentTrait.TRANSPARENT);
-      this.mStyler = DefaultUiStyler.create().setH1Font(FontId.of("kenny-mini-100")).setH1Color(Rgba.create(0.723, 0.127, 0.003, 1)).setLargeTextFont(FontId.of("kenny-mini-75")).setMediumTextFont(FontId.of("kenny-mini-50")).setSmallTextFont(FontId.of("kenny-mini-40")).setTextColor(Rgba.create(0.723, 0.127, 0.003, 1)).setButtonLabelFont(FontId.of("kenny-mini-50")).setButtonLabelColor(Rgba.create(0.723, 0.127, 0.003, 1)).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey, btnKey.plusTrait(Uis.PUNCH_TRAIT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punch-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(trPanelKey, panelKey.plusTrait(Uis.LAYER_SEPARATOR_TRAIT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.BACKGROUND_COLOR, Rgba.create(0.5, 0.5, 0.5, 0.5)))));
-    }
-    return this.mStyler;
-  }
-
-  slotRegionFnc(slot) {
-    return (size) => {
-      return Rect2.create(0, slot*this.slotHeight, size.width(), this.slotHeight);
-    };
-  }
-
-  panel916() {
-    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setInnerSizeFnc((size) => {
-  return Size2.create(900, 1600);
-}).setRegionFnc((t) => {
+  static create916Panel() {
+    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setRegionFnc((t) => {
   if (t.aspect()>9/16) {
     return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
   }
@@ -41694,122 +37263,825 @@ class Uis {
 });
   }
 
-  tiledBg() {
-    return TiledBackground.create().setTexture("bg-tile");
+  static createExitButton(action) {
+    return Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
   }
 
-  titleScreenBg() {
-    return ImageView.create().setTexture("title-screen").setRegionFnc(UiRegionFncs.full());
+  static createPauseButton(action) {
+    return Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
   }
 
-  baseScreenBg() {
-    return ImageView.create().setTexture("base-screen").setRegionFnc(UiRegionFncs.full());
+}
+classRegistry.PlayUis = PlayUis;
+class CarController extends UiComponent {
+  forwardButton;
+  reverseButton;
+  leftButton;
+  rightButton;
+  brakeButton;
+  constructor() {
+    super();
   }
 
-  mediumBtn(label, slot, disabled, action) {
-    return Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.centerTop(slot*this.slotHeight, 600, 100)).setText(label).setDisabled(disabled).addOnClickAction(action);
+  getClass() {
+    return "CarController";
   }
 
-  bgBlockPanel(startSlot, numSlots, light, padding) {
-    let pd = padding?0.5:0;
-    return ImageView.create().setTexture(light?"panel-xl-light":"panel-xl-dark").setRegionFnc(UiRegionFncs.centerTop((startSlot-pd)*this.slotHeight, 800, (numSlots+2*pd)*this.slotHeight));
+  guardInvariants() {
   }
 
-  soundControl(label, slot) {
-    let panel = Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setInnerSizeFnc(UiSizeFncs.identity()).setRegionFnc(UiRegionFncs.centerTop(slot*this.slotHeight, 600, this.slotHeight));
-    const soundVol = Label.create().addTrait(UiComponentTrait.L).setPosFnc(UiPosFncs.leftTop(450, 50)).setText(Formats.floatToFixedDecimals(this.settings.getSoundVolume()*10, 0)).setAlignment(TextAlignment.CENTER);
-    panel.addComponent(soundVol);
-    let soundVolDownAct = (evtSource) => {
-      let vol = this.settings.getSoundVolume();
-      vol = FMath.clamp(vol-0.1, 0, 1);
-      this.settings.setSoundVolume(vol);
-      soundVol.setText(Formats.floatToFixedDecimals(vol*10, 0));
-    };
-    let soundVolDownBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(300, 0, 100, 100)).setText("-").addOnClickAction(soundVolDownAct);
-    panel.addComponent(soundVolDownBtn);
-    let soundVolUpAct = (evtSource) => {
-      let vol = this.settings.getSoundVolume();
-      vol = FMath.clamp(vol+0.1, 0, 1);
-      this.settings.setSoundVolume(vol);
-      soundVol.setText(Formats.floatToFixedDecimals(vol*10, 0));
-    };
-    let soundVolUpBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(500, 0, 100, 100)).setText("+").addOnClickAction(soundVolUpAct);
-    panel.addComponent(soundVolUpBtn);
-    let soundToggleAct = (evtSource) => {
-      let btn = evtSource;
-      this.settings.setSoundEnabled(btn.isToggledOn());
-    };
-    let soundToggle = ToggleButton.create().addTrait(UiComponentTrait.S).setRegionFnc(UiRegionFncs.leftTop(0, 0, 250, 100)).setText("Sound").toggle(this.settings.isSoundEnabled()).addOnToggleAction(soundToggleAct);
-    panel.addComponent(soundToggle);
-    return panel;
-  }
-
-  rankings(startSlot) {
-    let positionedRankings = this.rankingManager.getRankings();
-    let panel = Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setInnerSizeFnc(UiSizeFncs.identity()).setRegionFnc(UiRegionFncs.centerTop(startSlot*this.slotHeight, 600, this.slotHeight*positionedRankings.size()));
-    for (let i = 0; i<positionedRankings.size(); ++i) {
-      let ranking = this.rankingManager.getRankings().get(i);
-      let highlighted = i==this.rankingManager.getHighlighted();
-      let y = (i+0.5)*this.slotHeight;
-      panel.addComponent(ImageView.create().setTexture(highlighted?"panel-xl-light":"panel-xl-dark").setRegionFnc(UiRegionFncs.leftTop(0, y, 600, this.slotHeight)));
-      if (ranking.getRanking().getLevel()>=0) {
-        let rankLbl = Label.create().addTrait(UiComponentTrait.H1).setText(ranking.getPosition()).setAlignment(TextAlignment.LEFT_CENTER).setPosFnc(UiPosFncs.leftTop(30, y+60));
-        panel.addComponent(rankLbl);
-        let endTypeStr = Uis.DEATH_TYPES.get(ranking.getRanking().getDeathType());
-        if (ranking.getRanking().isPrincessSaved()) {
-          endTypeStr = "Princess rescued";
-        }
-        if (endTypeStr==null) {
-          throw new Error("unmapped death type, implement me: "+ranking.getRanking().getDeathType());
-        }
-        let endTypeLbl = Label.create().setText(endTypeStr).addTrait(UiComponentTrait.M).setAlignment(TextAlignment.LEFT_CENTER).setPosFnc(UiPosFncs.leftTop(100, y+40));
-        panel.addComponent(endTypeLbl);
-        let infoLbl = Label.create().setText(Levels.level(ranking.getRanking().getLevel()).getName()+", Score "+ranking.getRanking().getScore()).addTrait(UiComponentTrait.M).setAlignment(TextAlignment.LEFT_CENTER).setPosFnc(UiPosFncs.leftTop(100, y+80));
-        panel.addComponent(infoLbl);
-      }
+  getAcceleration() {
+    let res = 0;
+    if (this.forwardButton.isDown()) {
+      res = res+1;
     }
-    return panel;
+    if (this.reverseButton.isDown()) {
+      res = res-1;
+    }
+    return res;
   }
 
-  squareImage(texture, startSlot, numSlots) {
-    let size = this.slotHeight*numSlots-20;
-    return ImageView.create().setTexture(texture).setRegionFnc(UiRegionFncs.centerTop(startSlot*this.slotHeight, size, size));
+  getSteering() {
+    let res = 0;
+    if (this.rightButton.isDown()) {
+      res = res+1;
+    }
+    if (this.leftButton.isDown()) {
+      res = res-1;
+    }
+    return res;
   }
 
-  titleLabel(text, slot) {
-    return Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.centerTop(slot*this.slotHeight)).setText(text).setAlignment(TextAlignment.CENTER_TOP);
+  getBrake() {
+    return this.brakeButton.isDown()?1:0;
   }
 
-  normalLabel(text, slot) {
-    return Label.create().addTrait(UiComponentTrait.M).setPosFnc(UiPosFncs.centerTop(slot*this.slotHeight)).setText(text).setAlignment(TextAlignment.CENTER_TOP);
+  init(container) {
+    this.forwardButton.init(container);
+    this.reverseButton.init(container);
+    this.leftButton.init(container);
+    this.rightButton.init(container);
+    this.brakeButton.init(container);
   }
 
-  pauseBtn(action) {
-    return Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(75, 0, 75, 75)).addOnClickAction(action);
+  move(dt) {
+    this.forwardButton.move(dt);
+    this.reverseButton.move(dt);
+    this.leftButton.move(dt);
+    this.rightButton.move(dt);
+    this.brakeButton.move(dt);
   }
 
-  exitBtn(action) {
-    return Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(75, 0, 75, 75)).addOnClickAction(action);
+  draw(painter) {
+    this.forwardButton.draw(painter);
+    this.reverseButton.draw(painter);
+    this.leftButton.draw(painter);
+    this.rightButton.draw(painter);
+    this.brakeButton.draw(painter);
   }
 
-  static prepareScaledFonts(drivers) {
-    let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(50, 75, 100));
+  onContainerResize(size) {
+    this.forwardButton.onContainerResize(size);
+    this.reverseButton.onContainerResize(size);
+    this.leftButton.onContainerResize(size);
+    this.rightButton.onContainerResize(size);
+    this.brakeButton.onContainerResize(size);
+  }
+
+  onTouchStart(id, pos, size) {
+    this.forwardButton.onTouchStart(id, pos, size);
+    this.reverseButton.onTouchStart(id, pos, size);
+    this.leftButton.onTouchStart(id, pos, size);
+    this.rightButton.onTouchStart(id, pos, size);
+    this.brakeButton.onTouchStart(id, pos, size);
+    return false;
+  }
+
+  onTouchMove(id, pos, size) {
+    this.forwardButton.onTouchMove(id, pos, size);
+    this.reverseButton.onTouchMove(id, pos, size);
+    this.leftButton.onTouchMove(id, pos, size);
+    this.rightButton.onTouchMove(id, pos, size);
+    this.brakeButton.onTouchMove(id, pos, size);
+    return false;
+  }
+
+  onTouchEnd(id, pos, size, cancel) {
+    this.forwardButton.onTouchEnd(id, pos, size, cancel);
+    this.reverseButton.onTouchEnd(id, pos, size, cancel);
+    this.leftButton.onTouchEnd(id, pos, size, cancel);
+    this.rightButton.onTouchEnd(id, pos, size, cancel);
+    this.brakeButton.onTouchEnd(id, pos, size, cancel);
+    return false;
+  }
+
+  onKeyPressed(key) {
+    this.forwardButton.onKeyPressed(key);
+    this.reverseButton.onKeyPressed(key);
+    this.leftButton.onKeyPressed(key);
+    this.rightButton.onKeyPressed(key);
+    this.brakeButton.onKeyPressed(key);
+    return false;
+  }
+
+  onKeyReleased(key) {
+    this.forwardButton.onKeyReleased(key);
+    this.reverseButton.onKeyReleased(key);
+    this.leftButton.onKeyReleased(key);
+    this.rightButton.onKeyReleased(key);
+    this.brakeButton.onKeyReleased(key);
+    return false;
   }
 
   toString() {
   }
 
-  static create(settings, rankingManager) {
-    let res = new Uis();
-    res.settings = settings;
-    res.rankingManager = rankingManager;
+  static create(drivers) {
+    let res = new CarController();
+    res.forwardButton = Button.create().addTrait(PlayUis.ARROW_UP).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(h5, s.height()-h5-h2-2*size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(h2, s.height()-h5-h2-2*size, size, size);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.arrowUpOrW());
+    res.reverseButton = Button.create().addTrait(PlayUis.ARROW_DOWN).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(h5, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(h2, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.arrowDownOrS());
+    res.brakeButton = Button.create().addTrait(PlayUis.BRAKE).setRegionFnc(UiRegionFncs.leftBottom(400, 350, 300, 150)).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let buttonSize = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    let h = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    let w = FMath.clamp(2.5*h, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h5+h2+buttonSize, s.height()-h6-1.5*h, w, h);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let buttonSize = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    let h = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    let w = FMath.clamp(2.5*h, 1, s.width()*0.5-1.8*h5);
+    return Rect2.create(2*h2+buttonSize, s.height()-h6-1.5*h, w, h);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.space());
+    res.leftButton = Button.create().addTrait(PlayUis.ARROW_LEFT).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(s.width()-h5-h2-2*size, s.height()-h6-1.5*size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(s.width()-2*h2-2*size, s.height()-h6-1.5*size, size, size);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.arrowLeftOrA());
+    res.rightButton = Button.create().addTrait(PlayUis.ARROW_RIGHT).setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(s.width()-h5-size, s.height()-h6-1.5*size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h6 = s.height()*0.06;
+    let h10 = s.height()*0.1;
+    let size = FMath.clamp(h10, 1, s.width()*0.25-h5);
+    return Rect2.create(s.width()-h2-size, s.height()-h6-1.5*size, size, size);
+  }
+}).setKeyCodeMatcher(KeyCodeMatchers.arrowRightOrD());
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.Uis = Uis;
+classRegistry.CarController = CarController;
+class BreakableSphereBehavior extends Behavior {
+  numPieces = 10;
+  radiusFactor = 0.3;
+  sphereModelId;
+  hit = false;
+  hitDir;
+  hitImpact;
+  childMaterialId = PhysicalMaterialId.of("object");
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "BreakableSphereBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt, inputs) {
+    if (!this.hit) {
+      return ;
+    }
+    this.world().actors().remove(this.actor().getId());
+    let tc = this.actor().getComponent("TransformComponent");
+    let rb = this.actor().getComponent("RigidBodyComponent");
+    let collider = this.actor().getComponent("ColliderComponent");
+    let r = this.radiusFactor*collider.getRadius();
+    let m = Math.max(0.2, rb.getMass()/this.numPieces);
+    for (let i = 0; i<this.numPieces; ++i) {
+      let posRandom = Vec3.create(Randoms.nextFloat(0, r)-r/2, Randoms.nextFloat(0, r)-r/2, Randoms.nextFloat(0, r)-r/2);
+      let velRand = Vec3.create(Randoms.nextFloat(0, this.hitImpact)-this.hitImpact/2, Randoms.nextFloat(0, this.hitImpact)-this.hitImpact/2, Randoms.nextFloat(0, this.hitImpact)-this.hitImpact/2);
+      let sphere = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(tc.getPos().add(posRandom))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(this.sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(m).setVelocity(this.hitDir.scale(this.hitImpact).add(velRand))).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(this.childMaterialId)).addComponent(LifetimeComponent.create(ComponentKey.LIFETIME).setRemaining(10, 3));
+      this.world().actors().add(ActorId.ROOT, sphere);
+    }
+  }
+
+  onMessage(message) {
+    if (message.typeEquals(ActorMessageType.HIT_RECEIVED)) {
+      let hitMessage = message.getPayload("DemoHitMessage");
+      this.hitDir = hitMessage.getDir();
+      this.hitImpact = hitMessage.getImpulse();
+      this.hit = true;
+    }
+  }
+
+  setSphereModelId(sphereModelId) {
+    this.sphereModelId = sphereModelId;
+    return this;
+  }
+
+  static create(key) {
+    let res = new BreakableSphereBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.BreakableSphereBehavior = BreakableSphereBehavior;
+class CarWheelJointConfig {
+  carActor;
+  wheelActor;
+  pos;
+  forward;
+  up;
+  constructor() {
+  }
+
+  getClass() {
+    return "CarWheelJointConfig";
+  }
+
+  guardInvariants() {
+  }
+
+  getCarActor() {
+    return this.carActor;
+  }
+
+  getWheelActor() {
+    return this.wheelActor;
+  }
+
+  getPos() {
+    return this.pos;
+  }
+
+  getForward() {
+    return this.forward;
+  }
+
+  getUp() {
+    return this.up;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(carActor, wheelActor, pos, forward, up) {
+    let res = new CarWheelJointConfig();
+    res.carActor = carActor;
+    res.wheelActor = wheelActor;
+    res.pos = pos;
+    res.forward = forward;
+    res.up = up;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CarWheelJointConfig = CarWheelJointConfig;
+class CarWheelJointComponent extends RigidBodyJointComponent {
+  localCarPos;
+  localCarUp;
+  localCarRight;
+  localWheelPos;
+  localWheelRight;
+  carBody;
+  wheelBody;
+  collisionExclusions;
+  initDone = false;
+  config;
+  damp = 0.1;
+  suspensionStiffness = 200;
+  suspensionDamp = 10;
+  suspensionLastDir = Vec3.UP;
+  maxForwardTorque = 50;
+  maxReverseTorque = 25;
+  maxBrakeTorque = 1.5;
+  cumBrake = 0;
+  engine = 0;
+  brake = 0;
+  maxSteer = FMath.PI_THIRD/2;
+  steerSpeed = FMath.PI_THIRD/2;
+  steer = 0;
+  currentSteer = 0;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "CarWheelJointComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.initDone = true;
+    if (this.config==null) {
+      return ;
+    }
+    let car = this.world().actors().get(this.config.getCarActor());
+    let wheel = this.world().actors().get(this.config.getWheelActor());
+    this.carBody = car.getComponent("RigidBodyComponent");
+    this.wheelBody = wheel.getComponent("RigidBodyComponent");
+    let globalRight = this.config.getForward().crossAndNormalize(this.config.getUp());
+    this.localCarPos = this.carBody.toLocal(this.config.getPos());
+    this.localCarUp = this.carBody.toLocalRot(this.config.getUp()).normalize();
+    this.localCarRight = this.carBody.toLocalRot(globalRight).normalize();
+    this.localWheelPos = this.wheelBody.toLocal(this.config.getPos());
+    this.localWheelRight = this.wheelBody.toLocalRot(globalRight).normalize();
+    this.collisionExclusions = Dut.immutableSet(CollisionExclusion.create(this.config.getCarActor(), this.config.getWheelActor()));
+    this.broadcastDomainUpdate(ActorDomain.COLLISION_EXCLUSION, false);
+    this.config = null;
+  }
+
+  move(dt, inputs) {
+    let wheelRight = this.wheelBody.toGlobalRot(this.localWheelRight);
+    let wheelRotVel = this.wheelBody.getAngularVelocity().dot(wheelRight);
+    this.wheelBody.applyTorque(wheelRight.scale(-this.damp*wheelRotVel));
+    let etq = this.engine>=0?this.engine*this.maxForwardTorque:this.engine*this.maxReverseTorque;
+    this.wheelBody.applyTorque(wheelRight.scale(-etq));
+    let carPos = this.carBody.toGlobal(this.localCarPos);
+    let carVel = this.carBody.getPointVelocity(carPos);
+    let wheelPos = this.wheelBody.toGlobal(this.localWheelPos);
+    let wheelVel = this.wheelBody.getPointVelocity(wheelPos);
+    let pDiff = wheelPos.sub(carPos);
+    let dir = pDiff.sqrMag()>0.0001?pDiff.normalize():this.suspensionLastDir;
+    let vDiff = wheelVel.sub(carVel).dot(dir);
+    let fmag = this.suspensionStiffness*pDiff.mag()+vDiff*this.suspensionDamp;
+    this.carBody.applyForce(carPos, dir.scale(fmag));
+    this.wheelBody.applyForce(wheelPos, dir.scale(-fmag));
+    this.suspensionLastDir = dir;
+    let tgtTurn = -this.steer*this.maxSteer;
+    if (this.currentSteer<tgtTurn) {
+      this.currentSteer = Math.min(this.maxSteer, this.currentSteer+dt*this.steerSpeed);
+    }
+    else if (this.currentSteer>tgtTurn) {
+      this.currentSteer = Math.max(-this.maxSteer, this.currentSteer-dt*this.steerSpeed);
+    }
+  }
+
+  getRigidBodyA() {
+    return this.carBody;
+  }
+
+  getRigidBodyB() {
+    return this.wheelBody;
+  }
+
+  solveVelocities(configuration, iteration) {
+    let res = false;
+    let carPos = this.carBody.toGlobal(this.localCarPos);
+    let carUp = this.carBody.toGlobalRot(this.localCarUp);
+    let carRight = this.carBody.toGlobalRot(Quaternion.rot(this.localCarUp, this.currentSteer).rotate(this.localCarRight));
+    let wheelPos = this.wheelBody.toGlobal(this.localWheelPos);
+    let wheelRight = this.wheelBody.toGlobalRot(this.localWheelRight);
+    let wheelProjPos = Geometry3.projectToLine(carPos, carUp, wheelPos);
+    let wheelProjVel = this.carBody.getPointVelocity(wheelProjPos);
+    let wheelVel = this.wheelBody.getPointVelocity(wheelPos);
+    let nextWheelProjPos = wheelProjPos.addScaled(wheelProjVel, configuration.getTimeStep());
+    let nextWheelPos = wheelPos.addScaled(wheelVel, configuration.getTimeStep());
+    let pivotDiff = nextWheelPos.sub(nextWheelProjPos).scale(1/configuration.getTimeStep());
+    pivotDiff = pivotDiff.subScaled(carUp, pivotDiff.dot(carUp));
+    let pivotMag = pivotDiff.mag();
+    if (pivotMag>=configuration.getVelError()) {
+      let normal = pivotDiff.normalize();
+      let uinefCar = this.carBody.getImpulseEffectOnPoint(wheelProjPos, normal, wheelProjPos);
+      let uinefWheel = this.wheelBody.getImpulseEffectOnPoint(wheelPos, normal, wheelPos);
+      let uinefnorm1 = normal.dot(uinefCar);
+      let uinefnorm2 = normal.dot(uinefWheel);
+      let uinefnorm = uinefnorm1+uinefnorm2;
+      let normimmag = pivotMag/uinefnorm;
+      Guard.notNegative(normimmag, "normimmag cannot be negative: %s", normimmag);
+      this.carBody.applyImpulse(wheelProjPos, normal.scale(normimmag));
+      this.wheelBody.applyImpulse(wheelPos, normal.scale(-normimmag));
+      if (normimmag>configuration.getImpulseError()) {
+        res = true;
+      }
+    }
+    let carSidePos = wheelProjPos.add(carRight);
+    let wheelSidePos = wheelPos.add(wheelRight);
+    let carSideVel = this.carBody.getPointVelocity(carSidePos);
+    let wheelSideVel = this.wheelBody.getPointVelocity(wheelSidePos);
+    let nextCarSidePos = carSidePos.addScaled(carSideVel, configuration.getTimeStep());
+    let nextWheelSidePos = wheelSidePos.addScaled(wheelSideVel, configuration.getTimeStep());
+    let sideDiff = nextWheelSidePos.sub(nextCarSidePos).scale(1/configuration.getTimeStep());
+    sideDiff = sideDiff.subScaled(carUp, sideDiff.dot(carUp));
+    let sideMag = sideDiff.mag();
+    if (sideMag>=configuration.getVelError()) {
+      let normal = sideDiff.normalize();
+      let uinefCar = this.carBody.getImpulseEffectOnPoint(carSidePos, normal, carSidePos);
+      let uinefWheel = this.wheelBody.getImpulseEffectOnPoint(wheelSidePos, normal, wheelSidePos);
+      let uinefnorm1 = normal.dot(uinefCar);
+      let uinefnorm2 = normal.dot(uinefWheel);
+      let uinefnorm = uinefnorm1+uinefnorm2;
+      let normimmag = sideMag/uinefnorm;
+      Guard.notNegative(normimmag, "normimmag cannot be negative: %s", normimmag);
+      this.carBody.applyImpulse(carSidePos, normal.scale(normimmag));
+      this.wheelBody.applyImpulse(wheelSidePos, normal.scale(-normimmag));
+      if (normimmag>configuration.getImpulseError()) {
+        res = true;
+      }
+    }
+    if (this.brake>0&&this.maxBrakeTorque>0) {
+      if (iteration==0) {
+        this.cumBrake = 0;
+      }
+      let wheelAngVel = this.wheelBody.getAngularVelocity();
+      let wheelAngVelProj = wheelRight.scale(wheelRight.dot(wheelAngVel));
+      let unitBrakeEfect = this.wheelBody.getInverseInertia().mul(wheelRight);
+      let btq = wheelAngVelProj.dot(wheelRight)/unitBrakeEfect.dot(wheelRight);
+      let targetBrakeTq = this.brake*this.maxBrakeTorque;
+      if (btq>=0) {
+        btq = FMath.min(btq, targetBrakeTq-this.cumBrake);
+      }
+      else {
+        btq = FMath.max(btq, -targetBrakeTq-this.cumBrake);
+      }
+      this.wheelBody.applyTorqueImpulse(wheelRight.scale(-btq));
+      this.cumBrake = this.cumBrake+btq;
+      if (btq>configuration.getImpulseError()) {
+        res = true;
+      }
+    }
+    return res;
+  }
+
+  getCollisionExclusions() {
+    return this.collisionExclusions;
+  }
+
+  setDamp(damp) {
+    this.damp = damp;
+    return this;
+  }
+
+  setSuspensionStiffness(suspensionStiffness) {
+    Guard.beTrue(suspensionStiffness>=0, "suspensionStiffness must be >= 0");
+    this.suspensionStiffness = suspensionStiffness;
+    return this;
+  }
+
+  setSuspensionDamp(suspensionDamp) {
+    Guard.beTrue(suspensionDamp>=0, "suspensionDamp must be >= 0");
+    this.suspensionDamp = suspensionDamp;
+    return this;
+  }
+
+  setMaxForwardTorque(maxForwardTorque) {
+    Guard.beTrue(maxForwardTorque>=0, "maxForwardTorque must be >= 0");
+    this.maxForwardTorque = maxForwardTorque;
+    return this;
+  }
+
+  setMaxReverseTorque(maxReverseTorque) {
+    Guard.beTrue(maxReverseTorque>=0, "maxReverseTorque must be >= 0");
+    this.maxReverseTorque = maxReverseTorque;
+    return this;
+  }
+
+  setMaxBrakeTorque(maxBrakeTorque) {
+    Guard.beTrue(maxBrakeTorque>=0, "maxBrakeTorque must be >= 0");
+    this.maxBrakeTorque = maxBrakeTorque;
+    return this;
+  }
+
+  setEngine(engine) {
+    Guard.beTrue(engine>=-1&&engine<=1, "engine must be in [-1, 1] interval");
+    this.engine = engine;
+    return this;
+  }
+
+  setBrake(brake) {
+    Guard.beTrue(brake>=0&&brake<=1, "brake must be in [0, 1] interval");
+    this.brake = brake;
+    return this;
+  }
+
+  setMaxSteer(maxSteer) {
+    Guard.beTrue(maxSteer>=0, "maxSteer must be >= 0");
+    this.maxSteer = maxSteer;
+    return this;
+  }
+
+  setSteerSpeed(steerSpeed) {
+    Guard.beTrue(steerSpeed>=0, "steerSpeed must be >= 0");
+    this.steerSpeed = steerSpeed;
+    return this;
+  }
+
+  setSteer(steer) {
+    Guard.beTrue(steer>=-1&&steer<=1, "steer must be in [-1, 1] interval");
+    this.steer = steer;
+    return this;
+  }
+
+  setJoint() {
+    if (arguments.length===1&&arguments[0] instanceof CarWheelJointConfig) {
+      return this.setJoint_1_CarWheelJointConfig(arguments[0]);
+    }
+    else if (arguments.length===5&& typeof arguments[0]==="string"&& typeof arguments[1]==="string"&&arguments[2] instanceof Vec3&&arguments[3] instanceof Vec3&&arguments[4] instanceof Vec3) {
+      return this.setJoint_5_string_string_Vec3_Vec3_Vec3(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  setJoint_1_CarWheelJointConfig(config) {
+    this.config = config;
+    if (this.initDone) {
+      this.init();
+    }
+    return this;
+  }
+
+  setJoint_5_string_string_Vec3_Vec3_Vec3(carActor, wheelActor, pos, forward, up) {
+    return this.setJoint(CarWheelJointConfig.create(ActorId.of(carActor), ActorId.of(wheelActor), pos, forward, up));
+  }
+
+  renderDebug(gDriver, request, camera) {
+    if (!request.hasDebugRenderRealm(DebugRenderRealm.JOINT)) {
+      return ;
+    }
+    let prend = gDriver.startRenderer("PrimitiveRenderer", BasicEnvironment.create(camera));
+    let carPos = this.carBody.toGlobal(this.localCarPos);
+    let carUp = this.carBody.toGlobal(this.localCarPos.add(this.localCarUp));
+    let carRight = this.carBody.toGlobal(this.localCarPos.add(this.localCarRight));
+    let wheelPos = this.wheelBody.toGlobal(this.localWheelPos);
+    let wheelRight = this.wheelBody.toGlobal(this.localWheelPos.add(this.localWheelRight));
+    DebugRendering.sphere(prend, carPos, 0.3, Rgb.BLUE);
+    DebugRendering.sphere(prend, wheelPos, 0.3, Rgb.BLUE);
+    DebugRendering.line(prend, carPos, wheelPos, Rgb.BLUE);
+    DebugRendering.line(prend, carPos, carUp, Rgb.BLUE);
+    DebugRendering.line(prend, carPos, carRight, Rgb.BLUE);
+    DebugRendering.line(prend, wheelPos, wheelRight, Rgb.BLUE);
+  }
+
+  toString() {
+  }
+
+  static create(key) {
+    let res = new CarWheelJointComponent(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.CarWheelJointComponent = CarWheelJointComponent;
+class RigidBodyApp08 extends TyracornScreen {
+  time = 0;
+  world;
+  inputs = InputCache.create();
+  ui;
+  controller;
+  wheelFL;
+  wheelFR;
+  wheelBL;
+  wheelBR;
+  paused = false;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "RigidBodyApp08";
+  }
+
+  move(drivers, screenManager, dt) {
+    this.time = this.time+dt;
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    if (this.paused&&this.ui.getNumLayers()==1) {
+      this.ui.pushLayer();
+      this.ui.addComponent(Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setRegionFnc(UiRegionFncs.full()));
+      let menuPanel = Panel.create().setRegionFnc(UiRegionFncs.center(250, 250));
+      this.ui.addComponent(menuPanel);
+      menuPanel.addComponent(Label.create().addTrait(UiComponentTrait.H1).setAlignment(TextAlignment.CENTER_TOP).setPosFnc(UiPosFncs.centerTop(40)).setText("Pause"));
+      menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(100, 150, 30)).setText("Resume").addOnClickAction((evtSource) => {
+  this.paused = false;
+  this.ui.popLayer();
+}));
+      if (drivers.getPlatform().isExitable()) {
+        menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(150, 150, 30)).setText("Exit").addOnClickAction(UiEventActions.exitApp(screenManager)));
+      }
+    }
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    if (!this.paused) {
+      let steer = this.controller.getSteering();
+      let accel = this.controller.getAcceleration();
+      let brake = this.controller.getBrake();
+      this.wheelFL.setSteer(steer);
+      this.wheelFR.setSteer(steer);
+      this.wheelFL.setEngine(accel);
+      this.wheelFR.setEngine(accel);
+      this.wheelFL.setBrake(brake);
+      this.wheelFR.setBrake(brake);
+      this.wheelBL.setBrake(brake);
+      this.wheelBR.setBrake(brake);
+      this.world.move(dt, this.inputs);
+    }
+    this.world.render(RenderRequest.NORMAL);
+    gDriver.clearBuffers(BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    this.ui.move(dt);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  load(drivers, screenManager, properties) {
+    let assets = drivers.getDriver("AssetManager");
+    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/primitives.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")));
+  }
+
+  init(drivers, screenManager, properties) {
+    let assets = drivers.getDriver("AssetManager");
+    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 30));
+    assets.put(MaterialId.of("brass"), Material.BRASS);
+    assets.put(MaterialId.of("copper"), Material.COPPER);
+    assets.put(MaterialId.of("chrome"), Material.CHROME);
+    const sphereModelId = ModelId.of("sphere");
+    const skyboxModelId = ModelId.of("skybox-1");
+    const cylinderModelId = ModelId.of("cylinder");
+    assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
+    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("brass"));
+    const groundModelId = ModelId.of("ground");
+    assets.put(groundModelId, groundModel);
+    let copperBox = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
+    const copperBoxModelId = ModelId.of("copperBox");
+    assets.put(copperBoxModelId, copperBox);
+    let chromeBox = Model.simple(MeshId.of("modelBox"), MaterialId.of("chrome"));
+    const chromeBoxModelId = ModelId.of("chromeBox");
+    assets.put(chromeBoxModelId, chromeBox);
+    let boxModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("stone-1"));
+    const boxModelId = ModelId.of("box");
+    assets.put(boxModelId, boxModel);
+    const wallColMatId = PhysicalMaterialId.of("wall");
+    assets.put(wallColMatId, PhysicalMaterial.simple(0.6, 1.8, 1.8));
+    const objectColMatId = PhysicalMaterialId.of("object");
+    assets.put(objectColMatId, PhysicalMaterial.create(0.6, PhysicalMaterialCombineType.AVG, 18, 18, PhysicalMaterialCombineType.MAX));
+    const carColMat = PhysicalMaterialId.of("car");
+    assets.put(carColMat, PhysicalMaterial.create(0.2, PhysicalMaterialCombineType.AVG, 2, 2.5, PhysicalMaterialCombineType.MIN));
+    const wheelColMat = PhysicalMaterialId.of("wheel");
+    assets.put(wheelColMat, PhysicalMaterial.create(0.0, PhysicalMaterialCombineType.MIN, 18, 20, PhysicalMaterialCombineType.MAX));
+    this.world = RigidBodyWorld.create(drivers);
+    let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create(ComponentKey.WORLD).setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-300, -30, -300, 300, 30, 300)));
+    this.world.actors().add(worldActor);
+    let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create(ComponentKey.TRANSFORM)).addComponent(SkyboxComponent.create(ComponentKey.SKYBOX).setModelId(skyboxModelId).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create(ComponentKey.AUTO_ROTATE).setAngularVelocity(Vec3.create(0, 0.1, 0)));
+    this.world.actors().add(skybox);
+    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(10, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(40, 1, 60)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 2, 62)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
+    this.world.actors().add(ground);
+    let back = Actor.create("back").setName("back").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(10, 0, -30))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(42, 1, 7)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 7, 1)).setMaterialId(wallColMatId));
+    this.world.actors().add(back);
+    let front = Actor.create("front").setName("front").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(10, 0, 30))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(42, 1, 3)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(42, 3, 1)).setMaterialId(wallColMatId));
+    this.world.actors().add(front);
+    let left = Actor.create("left").setName("left").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-10, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 62, 7)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 62)).setMaterialId(wallColMatId));
+    this.world.actors().add(left);
+    let right = Actor.create("right").setName("right").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(30, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.transofm(Vec3.create(0, 0, 0), Quaternion.rotX(FMath.PI/2)).mul(Mat44.scale(1, 62, 7)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(1, 7, 62)).setMaterialId(wallColMatId));
+    this.world.actors().add(right);
+    let slope1 = Actor.create("slope-1").setName("slope-1").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(8, 0.5, 0).rotate(FMath.PI/10, Vec3.create(0, 0, 1))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(copperBoxModelId).setTransform(Mat44.scale(7, 1, 15))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(7, 1, 15).setMaterialId(wallColMatId));
+    this.world.actors().add(slope1);
+    let slope2 = Actor.create("slope-2").setName("slope-2").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(20, 0.5, 0).rotate(-FMath.PI/10, Vec3.create(0, 0, 1))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(copperBoxModelId).setTransform(Mat44.scale(7, 1, 15))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(7, 1, 15).setMaterialId(wallColMatId));
+    this.world.actors().add(slope2);
+    let bridge = Actor.create("bridge").setName("bridge").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(14, 1.54, 0)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(copperBoxModelId).setTransform(Mat44.scale(5.6, 1, 15))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(5.6, 1, 15).setMaterialId(wallColMatId));
+    this.world.actors().add(bridge);
+    let stair = Actor.create("stair").setName("stair").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-2, -0.1, -18)).rotate(-FMath.PI/3, Vec3.create(0, 1, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(copperBoxModelId).setTransform(Mat44.scale(6, 1, 6))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(6, 1, 6)).setMaterialId(wallColMatId));
+    this.world.actors().add(stair);
+    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(10, 25, 20), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
+    this.world.actors().add(light);
+    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 9, 15), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY)).addComponent(CameraControllerComponent.create(ComponentKey.random()).setMode(CameraControlMode.THIRD_PERSON).setTargetId(ActorId.of("car")).setPosOffset(Vec3.create(0, 5, 11)).setPosK(0.05).setLookAtK(0.15));
+    this.world.actors().add(camera);
+    let suspensionStiffness = 200;
+    let suspensionDamp = 10;
+    let maxTurn = FMath.PI_THIRD/2;
+    let turnSpeed = FMath.PI_THIRD/2;
+    let car = Actor.create("car").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(0, 5, 0)).addComponent(RemoveOnOutspaceComponent.create(ComponentKey.REMOVE_ON_OUTSPACE)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(chromeBoxModelId).setTransform(Mat44.trans(0, -0.3, 0).mul(Mat44.scale(2, 1.0, 5)))).addComponent(ModelComponent.create(ComponentKey.MODEL_2).setModelId(chromeBoxModelId).setTransform(Mat44.trans(0, 0, -0.5).mul(Mat44.scale(1.8, 1.6, 2)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setMass(10)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setPos(0, -0.3, 0).setSize(2, 1, 5).setMaterialId(carColMat)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_2).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.BOX).setPos(0, 0, -0.5).setSize(1.8, 1.6, 2).setMaterialId(carColMat));
+    this.world.actors().add(car);
+    let wheelFRAct = Actor.create("wheel-front-right").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(1, 3.5, -1.6)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(cylinderModelId).setTransform(Mat44.rotZ(FMath.PI_HALF).mul(Mat44.scale(0.8, 0.3, 0.8)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setMass(1)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(0.8).setMaterialId(wheelColMat)).addComponent(CarWheelJointComponent.create(ComponentKey.random()).setJoint("car", "wheel-front-right", Vec3.create(1, 3.5, -1.6), Vec3.BACKWARD, Vec3.UP));
+    this.world.actors().add(car.getId(), wheelFRAct);
+    this.wheelFR = wheelFRAct.getComponent("CarWheelJointComponent");
+    let wheelFLAct = Actor.create("wheel-front-left").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(-1, 3.5, -1.6)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(cylinderModelId).setTransform(Mat44.rotZ(FMath.PI_HALF).mul(Mat44.scale(0.8, 0.3, 0.8)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setMass(1)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(0.8).setMaterialId(wheelColMat)).addComponent(CarWheelJointComponent.create(ComponentKey.random()).setJoint("car", "wheel-front-left", Vec3.create(-1, 3.5, -1.6), Vec3.BACKWARD, Vec3.UP));
+    this.world.actors().add(car.getId(), wheelFLAct);
+    this.wheelFL = wheelFLAct.getComponent("CarWheelJointComponent");
+    let wheelBRAct = Actor.create("wheel-back-right").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(1, 3.5, 1.8)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(cylinderModelId).setTransform(Mat44.rotZ(FMath.PI_HALF).mul(Mat44.scale(0.8, 0.3, 0.8)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setMass(1)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(0.8).setMaterialId(wheelColMat)).addComponent(CarWheelJointComponent.create(ComponentKey.random()).setJoint("car", "wheel-back-right", Vec3.create(1, 3.5, 1.8), Vec3.BACKWARD, Vec3.UP));
+    this.world.actors().add(car.getId(), wheelBRAct);
+    this.wheelBR = wheelBRAct.getComponent("CarWheelJointComponent");
+    let wheelBLAct = Actor.create("wheel-back-left").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(Vec3.create(-1, 3.5, 1.8))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(cylinderModelId).setTransform(Mat44.rotZ(FMath.PI_HALF).mul(Mat44.scale(0.8, 0.3, 0.8)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setMass(1)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(0.8).setMaterialId(wheelColMat)).addComponent(CarWheelJointComponent.create(ComponentKey.random()).setJoint("car", "wheel-back-left", Vec3.create(-1, 3.5, 1.8), Vec3.BACKWARD, Vec3.UP));
+    this.world.actors().add(car.getId(), wheelBLAct);
+    this.wheelBL = wheelBLAct.getComponent("CarWheelJointComponent");
+    this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
+    this.controller = CarController.create(drivers);
+    this.ui.addComponent(this.controller);
+    let addSphereAct = (evtSource) => {
+      let r = Randoms.nextFloat(1, 1.5);
+      let m = Randoms.nextFloat(1, 2);
+      let sphere = Actor.create(Randoms.nextAlphabetic(32)).addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 8, 0))).addComponent(RemoveOnOutspaceComponent.create(ComponentKey.REMOVE_ON_OUTSPACE)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(sphereModelId).setTransform(Mat44.scale(r))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(false).setMass(m).setVelocity(this.getRandomVelocity())).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.OBJECT).setShape(ColliderShape.SPHERE).setRadius(r).setMaterialId(objectColMatId)).addComponent(BreakableSphereBehavior.create(ComponentKey.random()).setSphereModelId(sphereModelId));
+      this.world.actors().add(sphere);
+    };
+    this.ui.addComponent(Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(10, 10, 120, 30)).setText("Sphere").addOnClickAction(addSphereAct));
+    this.ui.addComponent(ToggleButton.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(10, 50, 120, 30)).setText("Camera").toggleOn().addOnToggleAction((b) => {
+  let btn = b;
+  let cc = this.world.actors().get(ActorId.of("camera")).getComponent("CameraControllerComponent");
+  cc.setMode(btn.isToggledOn()?CameraControlMode.THIRD_PERSON:CameraControlMode.ISOMETRIC);
+}));
+    this.ui.addComponent(PlayUis.createPauseButton((evt) => {
+  this.paused = true;
+}));
+    this.ui.subscribe(drivers);
+    let dlist = InputCacheDisplayListener.create(this.inputs);
+    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
+    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
+  }
+
+  pause(drivers) {
+    this.paused = true;
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+    this.world.destroy(drivers);
+  }
+
+  getRandomVelocity() {
+    let vx = Randoms.nextFloat(0, 2)-1;
+    let vy = Randoms.nextFloat(0, 2)-1;
+    let vz = Randoms.nextFloat(0, 2)-1;
+    return Vec3.create(vx, vy, vz);
+  }
+
+}
+classRegistry.RigidBodyApp08 = RigidBodyApp08;
 
 
 // -------------------------------------
@@ -42192,7 +38464,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "sand-clock"), new MenuScreen());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new RigidBodyApp08());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

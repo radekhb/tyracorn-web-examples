@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-16";
-const assetsDirName = "/assets-edd8d3";
+const basePath = "/tyracorn-web-examples/basic-app-15";
+const assetsDirName = "/assets-40d32e";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -2620,6 +2620,25 @@ class DataBlock {
     }
 
     /**
+     * Creates new data block from base64 encoded string.
+     * 
+     * @param {String} base64Str base64 encoded string
+     * @returns {DataBlock} created block
+     */
+    static fromBase64String(base64Str) {
+        const binaryString = atob(base64Str);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        let res = new DataBlock();
+        res.data = bytes.buffer;
+        res.view = new DataView(res.data);
+        res.guardInvaritants();
+        return res;
+    }
+
+    /**
      * Creates new data block from stream writer. This causes the writer to be closed.
      * This is to prevent extra data copying.
      * This is internal method only, do not call from outside.
@@ -2651,24 +2670,6 @@ class DataBlock {
         return res;
     }
 
-    /**
-     * Creates new data block from base64 encoded string.
-     * 
-     * @param {String} base64Str base64 encoded string
-     * @returns {DataBlock} created block
-     */
-    static fromBase64String(base64Str) {
-        const binaryString = atob(base64Str);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-        let res = new DataBlock();
-        res.data = bytes.buffer;
-        res.view = new DataView(res.data);
-        res.guardInvaritants();
-        return res;
-    }
 }
 /**
  * Data block stream writer.
@@ -3528,6 +3529,16 @@ class Taps {
         } else {
             throw new Error("unsupported version " + version + ", implement me");
         }
+    }
+
+    /**
+     * Decodes TAP from data block.
+     *
+     * @param {DataBlock} dataBlock data block
+     * @return {Tap} decoded package
+     */
+    static fromDataBlock(dataBlock) {
+        return Taps.fromBytes(dataBlock.data);
     }
 
     /**
@@ -26683,6 +26694,96 @@ class BasicLoadingScreen extends TyracornScreen {
 
 }
 classRegistry.BasicLoadingScreen = BasicLoadingScreen;
+class TyracornLoadingScreen extends TyracornScreen {
+  static TAP_DATA = "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";
+  texture = TextureId.of("tyracorn-loading");
+  ui;
+  image;
+  regionFnc = null;
+  constructor() {
+    super();
+  }
+
+  getClass() {
+    return "TyracornLoadingScreen";
+  }
+
+  guardInvariants() {
+  }
+
+  move(drivers, screenManager, dt) {
+    let gDriver = drivers.getDriver("GraphicsDriver");
+    if (this.image==null) {
+      let assets = drivers.getDriver("AssetManager");
+      if (this.regionFnc==null) {
+        let tex = assets.get("Texture", this.texture);
+        let texW = tex.getWidth();
+        let texH = tex.getHeight();
+        this.regionFnc = this.safeRegionFnc(0.25, texW/texH, 0.8);
+      }
+      this.image = ImageView.create().setTexture(this.texture).setRegionFnc(this.regionFnc);
+      this.ui.addComponent(ImageView.create().setRegionFnc(UiRegionFncs.fullMargin(-10, -10, -10, -10)).setTexture(TextureId.of("tyracorn-white-pixel")));
+      this.ui.addComponent(this.image);
+    }
+    this.ui.move(dt);
+    gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
+    uiRenderer.render(this.ui);
+    uiRenderer.end();
+  }
+
+  init(drivers, screenManager, properties) {
+    this.ui = StretchUi.create(UiSizeFncs.identity());
+    this.ui.subscribe(drivers);
+  }
+
+  load(drivers, screenManager, properties) {
+    let res = new ArrayList();
+    let assets = drivers.getDriver("AssetManager");
+    if (!assets.containsKey(this.texture)) {
+      let block = DataBlock.fromBase64String(TyracornLoadingScreen.TAP_DATA);
+      let tap = Taps.fromDataBlock(block);
+      let ag = Taps.toAssetGroup(tap).plus(TextureId.of("tyracorn-white-pixel"), Texture.rgbFloatConstant(2, 2, Rgb.WHITE));
+      ag.toManagerStrict(assets);
+    }
+    return res;
+  }
+
+  leave(drivers) {
+    this.ui.unsubscribe(drivers);
+  }
+
+  setRegionFnc(regionFnc) {
+    Guard.notNull(regionFnc, "regionFnc cannot be null");
+    this.regionFnc = regionFnc;
+    return this;
+  }
+
+  safeRegionFnc(heightRatio, aspect, maxWidthRatio) {
+    return (size) => {
+      let maxW = FMath.max(1, size.width()*maxWidthRatio);
+      let h = FMath.max(1, size.height()*heightRatio);
+      let w = h*aspect;
+      if (w>maxW) {
+        w = maxW;
+        h = w/aspect;
+      }
+      return Rect2.create(size.width()/2-w/2, size.height()/2-h/2, w, h);
+    };
+  }
+
+  toString() {
+  }
+
+  static create() {
+    let res = new TyracornLoadingScreen();
+    res.texture = TextureId.of("tyracorn-loading");
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.TyracornLoadingScreen = TyracornLoadingScreen;
 class TyracornScreenAppScreenManager {
   nextScreen = null;
   leaveActions = new ArrayList();
@@ -37221,73 +37322,90 @@ class GamePad extends UiComponent {
 
 }
 classRegistry.GamePad = GamePad;
-class FreeCameraBehavior extends Behavior {
-  moveDirInput = "moveDir";
-  rotDirInput = "rotDir";
-  moveSpeed = 3;
-  rotSpeed = 1;
-  constructor(key) {
-    super(key);
+class FreeCameraController {
+  initCamera;
+  pos;
+  rotX;
+  rotY;
+  moveSpeed;
+  rotSpeed;
+  gamePad;
+  constructor() {
   }
 
   getClass() {
-    return "FreeCameraBehavior";
+    return "FreeCameraController";
   }
 
   guardInvariants() {
   }
 
-  move(dt, inputs) {
-    let moveDir = inputs.getVec2(this.moveDirInput, Vec2.ZERO);
-    let rotDir = inputs.getVec2(this.rotDirInput, Vec2.ZERO);
-    let tc = this.actor().getComponent("TransformComponent");
-    let rot = tc.getRot();
-    if (!moveDir.equals(Vec2.ZERO)) {
-      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize().scale(moveDir.y()*this.moveSpeed*dt);
-      let right = rot.rotate(Vec3.create(1, 0, 0)).normalize().scale(moveDir.x()*this.moveSpeed*dt);
-      tc.move(fwd.add(right));
+  getPos() {
+    return this.pos;
+  }
+
+  getTarget() {
+    let rxMat = Mat33.rotX(this.rotX);
+    let ryMat = Mat33.rotY(this.rotY);
+    return ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
+  }
+
+  getCamera() {
+    let rxMat = Mat33.rotX(this.rotX);
+    let ryMat = Mat33.rotY(this.rotY);
+    let target = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).add(this.pos);
+    let up = ryMat.mul(rxMat.mul(Vec3.create(0, 1, 0)));
+    return this.initCamera.lookAt(this.pos, target, up);
+  }
+
+  move(dt) {
+    let moveDir = this.gamePad.getLeftDir();
+    let rotDir = this.gamePad.getRightDir();
+    let rxMat = Mat33.rotX(this.rotX);
+    let ryMat = Mat33.rotY(this.rotY);
+    let fwd = ryMat.mul(rxMat.mul(Vec3.create(0, 0, -1))).normalize().scale(moveDir.y()*this.moveSpeed*dt);
+    let right = ryMat.mul(rxMat.mul(Vec3.create(1, 0, 0))).normalize().scale(moveDir.x()*this.moveSpeed*dt);
+    this.pos = this.pos.add(fwd).add(right);
+    this.rotX = this.rotX+rotDir.y()*this.rotSpeed*dt;
+    if (this.rotX>FMath.PI/2) {
+      this.rotX = FMath.PI/2;
     }
-    if (!rotDir.equals(Vec2.ZERO)) {
-      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize();
-      let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
-      let rotX = FMath.asin(fwd.y())+rotDir.y()*this.rotSpeed*dt;
-      let rotY = (fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y()))-rotDir.x()*this.rotSpeed*dt;
-      let rx = Quaternion.rot(1, 0, 0, rotX);
-      let ry = Quaternion.rot(0, 1, 0, rotY);
-      tc.setRot(ry.mul(rx));
+    if (this.rotX<-FMath.PI/2) {
+      this.rotX = -FMath.PI/2;
+    }
+    this.rotY = this.rotY-rotDir.x()*this.rotSpeed*dt;
+    while (this.rotY>FMath.PI) {
+      this.rotY = this.rotY-2*FMath.PI;
+    }
+    while (this.rotY<-FMath.PI) {
+      this.rotY = this.rotY+2*FMath.PI;
     }
   }
 
-  static create() {
-    if (arguments.length===1&&arguments[0] instanceof ComponentKey) {
-      return FreeCameraBehavior.create_1_ComponentKey(arguments[0]);
-    }
-    else if (arguments.length===5&&arguments[0] instanceof ComponentKey&& typeof arguments[1]==="string"&& typeof arguments[2]==="string"&& typeof arguments[3]==="number"&& typeof arguments[4]==="number") {
-      return FreeCameraBehavior.create_5_ComponentKey_string_string_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
-    }
-    else {
-      throw new Error("ambiguous overload");
-    }
+  setPersp(fovy, aspect, near, far) {
+    this.initCamera = this.initCamera.withPersp(fovy, aspect, near, far);
   }
 
-  static create_1_ComponentKey(key) {
-    let res = new FreeCameraBehavior(key);
-    res.guardInvariants();
-    return res;
+  toString() {
   }
 
-  static create_5_ComponentKey_string_string_number_number(key, moveDirInput, rotDirInput, moveSpeed, rotSpeed) {
-    let res = new FreeCameraBehavior(key);
-    res.moveDirInput = moveDirInput;
-    res.rotDirInput = rotDirInput;
+  static create(initCamera, gamePad, moveSpeed, rotSpeed) {
+    let res = new FreeCameraController();
+    res.initCamera = initCamera;
+    res.pos = initCamera.getPos();
+    let fwd = Vec3.create(-initCamera.getView().m20(), -initCamera.getView().m21(), -initCamera.getView().m22());
+    let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
+    res.rotX = FMath.asin(fwd.y());
+    res.rotY = fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y());
     res.moveSpeed = moveSpeed;
     res.rotSpeed = rotSpeed;
+    res.gamePad = gamePad;
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.FreeCameraBehavior = FreeCameraBehavior;
+classRegistry.FreeCameraController = FreeCameraController;
 class BoxMeshFactory {
   constructor() {
   }
@@ -37352,166 +37470,112 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class PlayAnimationBehavior extends Behavior {
-  player;
-  model;
-  cooldown = 3;
-  constructor(key) {
-    super(key);
-  }
-
-  getClass() {
-    return "PlayAnimationBehavior";
-  }
-
-  guardInvariants() {
-  }
-
-  init() {
-    this.model = this.actor().getComponent("ModelComponent");
-  }
-
-  move(dt, inputs) {
-    let step = this.player.move(dt);
-    this.model.setInterpolation(step.getInterpolation()).setPose(step.getPose());
-    if (step.isEnd()) {
-      this.cooldown = this.cooldown-dt;
-      if (this.cooldown<0) {
-        this.player.play(step.getKey(), MeshAnimationPlayConfig.RESTART);
-      }
-    }
-    else {
-      this.cooldown = 3;
-    }
-  }
-
-  static create(key, player) {
-    let res = new PlayAnimationBehavior(key);
-    res.player = player;
-    res.guardInvariants();
-    return res;
-  }
-
-}
-classRegistry.PlayAnimationBehavior = PlayAnimationBehavior;
-class BasicApp16 extends TyracornScreen {
+class BasicApp15 extends TyracornScreen {
+  groundModel = null;
+  box1Model = null;
+  shadow1 = ShadowBufferId.of("shadow1");
   time = 0;
-  world;
   inputs = InputCache.create();
   ui;
-  gamePad;
-  paused = false;
+  camera;
+  armature;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp16";
+    return "BasicApp15";
   }
 
   move(drivers, screenManager, dt) {
     this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
-    if (this.paused&&this.ui.getNumLayers()==1) {
-      this.ui.pushLayer();
-      this.ui.addComponent(Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setRegionFnc(UiRegionFncs.full()));
-      let menuPanel = Panel.create().setRegionFnc(UiRegionFncs.center(250, 250));
-      this.ui.addComponent(menuPanel);
-      menuPanel.addComponent(Label.create().addTrait(UiComponentTrait.H1).setAlignment(TextAlignment.CENTER_TOP).setPosFnc(UiPosFncs.centerTop(40)).setText("Pause"));
-      menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(100, 150, 30)).setText("Resume").addOnClickAction((evtSource) => {
-  this.paused = false;
-  this.ui.popLayer();
-}));
-      if (drivers.getPlatform().isExitable()) {
-        menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(150, 150, 30)).setText("Exit").addOnClickAction(UiEventActions.exitApp(screenManager)));
-      }
-    }
+    let aspect = this.inputs.getSize2(InputCacheDisplayListener.DEFAULT_KEY, Size2.create(1, 1)).aspect();
+    let fovy = aspect>=1?FMath.toRadians(60):FMath.toRadians(90);
+    this.camera.setPersp(fovy, aspect, 1.0, 50.0);
+    this.camera.move(dt);
+    this.ui.move(dt);
+    let angleFact = FMath.abs(FMath.sin(this.time/3));
+    let pose = this.armature.getPose(Dut.map(ArmatureNodeId.of("node-1"), Mat44.rotZ(angleFact*FMath.PI_QUARTER), ArmatureNodeId.of("node-2"), Mat44.transofm(Vec3.create(1, 0, 0), Quaternion.rotZ(angleFact*FMath.PI_QUARTER)), ArmatureNodeId.of("node-3"), Mat44.transofm(Vec3.create(1, 0, 0), Quaternion.rotZ(angleFact*FMath.PI_QUARTER))));
+    let dirLightColor = LightColor.create(Rgb.gray(0.5), Rgb.gray(0.5), Rgb.WHITE);
+    let dirLightDir = Vec3.create(0.6, -1, -0.2).normalize();
+    let dirLightPos = dirLightDir.scale(-5);
+    let dirLightShadowMap = ShadowMap.createDirCircle(this.shadow1, dirLightPos, dirLightDir, 13, 20);
+    let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
+    let smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
+    this.renderSceneShaow(smapRndr, pose);
+    smapRndr.end();
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
-    if (!this.paused) {
-      this.inputs.put("moveDir", this.gamePad.getLeftDir());
-      this.inputs.put("rotDir", this.gamePad.getRightDir());
-      this.world.move(dt, this.inputs);
-    }
-    this.world.render(RenderRequest.NORMAL);
+    let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(this.camera.getCamera(), dirLight));
+    this.renderScene(objRnderer, pose);
+    objRnderer.end();
     gDriver.clearBuffers(BufferId.DEPTH);
     let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
-    this.ui.move(dt);
     uiRenderer.render(this.ui);
     uiRenderer.end();
   }
 
   load(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/primitives.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")), assets.resolveAsync(Path.of("asset:packages/characters/base-human.tap")));
+    let res = new ArrayList();
+    res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/box-01.tap")));
+    return res;
   }
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 30));
+    let boxMeshId = MeshId.of("box-mesh");
+    let riggeMeshId = MeshId.of("rigged-mesh");
+    assets.put(boxMeshId, BoxMeshFactory.modelBox());
+    assets.put(riggeMeshId, this.createRiggedMesh());
+    let boxDiffuse = TextureId.of("tex_box_01_d");
+    let boxSpecular = TextureId.of("tex_box_01_s");
     assets.put(MaterialId.of("brass"), Material.BRASS);
-    assets.put(MaterialId.of("copper"), Material.COPPER);
-    assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
-    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
-    let groundModelId = ModelId.of("ground");
-    assets.put(groundModelId, groundModel);
-    const wallColMatId = PhysicalMaterialId.of("wall");
-    assets.put(wallColMatId, PhysicalMaterial.simple(0.6, 1.8, 1.8));
-    this.world = RigidBodyWorld.create(drivers);
-    let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create(ComponentKey.WORLD).setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-30, -30, -30, 30, 30, 30)));
-    this.world.actors().add(ActorId.ROOT, worldActor);
-    let skybox = Actor.create("skybox").setName("skybox").addComponent(TransformComponent.create(ComponentKey.TRANSFORM)).addComponent(SkyboxComponent.create(ComponentKey.SKYBOX).setModelId(ModelId.of("skybox-1")).setTransform(Mat44.scale(300, 300, 300))).addComponent(AutoRotateComponent.create(ComponentKey.AUTO_ROTATE).setAngularVelocity(Vec3.create(0, 0.1, 0)));
-    this.world.actors().add(ActorId.ROOT, skybox);
-    let ground = Actor.create("ground").setName("ground").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.trans(0, -0.5, 0).mul(Mat44.scale(20, 1, 20)))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ColliderComponent.create(ComponentKey.COLLIDER_1).setLayer(CollisionLayer.WORLD).setShape(ColliderShape.BOX).setSize(Vec3.create(22, 2, 22)).setPos(Vec3.create(0, -1, 0)).setMaterialId(wallColMatId));
-    this.world.actors().add(ActorId.ROOT, ground);
-    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(2, 5, 5), Vec3.create(0, 0, 0), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE).setDirShadowMapStrategy(DirShadowMapStrategy.createManual(80, 80, 0, 60)));
-    this.world.actors().add(ActorId.ROOT, light);
-    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 4, 5), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create(ComponentKey.random(), "moveDir", "rotDir", 5, 1)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY));
-    this.world.actors().add(ActorId.ROOT, camera);
-    let animations = assets.get("MeshAnimationCollection", MeshAnimationCollectionId.of("base-human"));
-    let player = MeshAnimationPlayer.create(animations, animations.getAnimations().get(0).getKey());
-    let model = assets.get("Model", ModelId.of("base-human"));
-    let character = Actor.create("character").setName("character").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(RigidBodyComponent.create(ComponentKey.RIGID_BODY).setKinematic(true)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(ModelId.of("base-human")).setPose(model.getArmature().getBasePose())).addComponent(ColliderComponent.create(ComponentKey.random()).setShape(ColliderShape.SPHERE).setPoseNodeRef(ColliderPoseNodeRef.create(ComponentKey.MODEL_1, ArmatureNodeId.of("DEF-head"))).setPos(0, 0.1, 0).setRadius(0.15)).addComponent(ColliderComponent.create(ComponentKey.random()).setShape(ColliderShape.BOX).setPoseNodeRef(ColliderPoseNodeRef.create(ComponentKey.MODEL_1, ArmatureNodeId.of("DEF-spine.002"))).setPos(0, 0.1, 0).setSize(0.3, 0.7, 0.2)).addComponent(ColliderComponent.create(ComponentKey.random()).setShape(ColliderShape.CAPSULE).setPoseNodeRef(ColliderPoseNodeRef.create(ComponentKey.MODEL_1, ArmatureNodeId.of("DEF-shin.R"))).setPos(0, 0.25, 0).setRadius(0.075).setHeight(0.6)).addComponent(PlayAnimationBehavior.create(ComponentKey.random(), player));
-    this.world.actors().add(ActorId.ROOT, character);
+    assets.put(MaterialId.of("wood-box"), Material.BLACK.withShininess(50).plusTexture(TextureAttachment.diffuse(boxDiffuse)).plusTexture(TextureAttachment.specular(boxSpecular)));
+    assets.put(this.shadow1, ShadowBuffer.create(2048, 2048));
+    this.groundModel = Model.simple(boxMeshId, MaterialId.of("brass"));
+    this.box1Model = Model.simple(riggeMeshId, MaterialId.of("wood-box"));
+    let node1 = ArmatureNodeId.of("node-1");
+    let node2 = ArmatureNodeId.of("node-2");
+    let node3 = ArmatureNodeId.of("node-3");
+    this.armature = Armature.empty().plusNode(ArmatureNode.create(node1, null, Mat44.IDENTITY, Mat44.IDENTITY)).plusNode(ArmatureNode.create(node2, node1, Mat44.trans(1, 0, 0), Mat44.trans(-1, 0, 0))).plusNode(ArmatureNode.create(node3, node2, Mat44.trans(1, 0, 0), Mat44.trans(-2, 0, 0)));
     this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
-    this.gamePad = GamePad.create(drivers);
-    this.ui.addComponent(this.gamePad);
-    let items = new ArrayList();
-    for (let anim of animations.getAnimations()) {
-      items.add(DropdownItem.create(anim.getKey().key(), anim.getKey().key()));
-    }
-    let animationDropdown = Dropdown.create().setRegionFnc(UiRegionFncs.leftTop(10, 10, 160, 40)).setLabelText("Animation").addItems(items).setSelected(items.get(0)).addOnChangeAction((dd) => {
-  let dropdown = dd;
-  let value = dropdown.getSelected().getValue();
-  player.play(MeshAnimationKey.of(value), MeshAnimationPlayConfig.RESTART);
-});
-    this.ui.addComponent(animationDropdown);
-    this.ui.addComponent(Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction((evt) => {
-  this.paused = true;
-}));
+    let gamePad = GamePad.create(drivers);
+    this.ui.addComponent(gamePad);
+    let cam = Camera.persp(FMath.toRadians(60.0), 1, 0.1, 1000.0).lookAt(Vec3.create(0.0, 1, 4), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0));
+    this.camera = FreeCameraController.create(cam, gamePad, 3, 1);
     this.ui.subscribe(drivers);
     let dlist = InputCacheDisplayListener.create(this.inputs);
     screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
     drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
   }
 
-  pause(drivers) {
-    this.paused = true;
-  }
-
   leave(drivers) {
     this.ui.unsubscribe(drivers);
-    this.world.destroy(drivers);
   }
 
-  getRandomVelocity() {
-    let vx = Randoms.nextFloat(0, 2)-1;
-    let vy = Randoms.nextFloat(0, 2)-1;
-    let vz = Randoms.nextFloat(0, 2)-1;
-    return Vec3.create(vx, vy, vz);
+  renderScene(renderer, pose) {
+    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    renderer.render(this.box1Model, Interpolation.ZERO, pose, Mat44.trans(0, 0, 0));
+  }
+
+  renderSceneShaow(renderer, pose) {
+    renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
+    renderer.render(this.box1Model, Interpolation.ZERO, pose, Mat44.trans(0, 0, 0));
+  }
+
+  createRiggedMesh() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.riggedModel(Dut.list(this.rmVert(-0.5, -0.5, 0, 0, 0, 1, 0, 0, 0, -1, -1, -1, 1, 0, 0, 0), this.rmVert(-0.5, 0.5, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, 1, 0, 0, 0), this.rmVert(0.5, -0.5, 0, 0, 0, 1, 1, 0, 0, 1, -1, -1, 0.75, 0.25, 0, 0), this.rmVert(0.5, 0.5, 0, 0, 0, 1, 1, 1, 0, 1, -1, -1, 0.75, 0.25, 0, 0), this.rmVert(1.5, -0.5, 0, 0, 0, 1, 2, 0, 1, 2, -1, -1, 0.5, 0.5, 0, 0), this.rmVert(1.5, 0.5, 0, 0, 0, 1, 2, 1, 1, 2, -1, -1, 0.5, 0.5, 0, 0), this.rmVert(2.5, -0.5, 0, 0, 0, 1, 3, 0, 2, -1, -1, -1, 1, 0, 0, 0), this.rmVert(2.5, 0.5, 0, 0, 0, 1, 3, 1, 2, -1, -1, -1, 1, 0, 0, 0))), Dut.list(Face.triangle(0, 2, 3), Face.triangle(0, 3, 1), Face.triangle(2, 4, 5), Face.triangle(2, 5, 3), Face.triangle(4, 6, 7), Face.triangle(4, 7, 5))).toMesh();
+    return res;
+  }
+
+  rmVert(x, y, z, nx, ny, nz, tu, tv, bidx1, bidx2, bidx3, bidx4, bw1, bw2, bw3, bw4) {
+    return Vertex.create(Dut.list(Float.valueOf(x), Float.valueOf(y), Float.valueOf(z), Float.valueOf(nx), Float.valueOf(ny), Float.valueOf(nz), Float.valueOf(tu), Float.valueOf(tv), Short.valueOf(bidx1), Short.valueOf(bidx2), Short.valueOf(bidx3), Short.valueOf(bidx4), Float.valueOf(bw1), Float.valueOf(bw2), Float.valueOf(bw3), Float.valueOf(bw4)));
   }
 
 }
-classRegistry.BasicApp16 = BasicApp16;
+classRegistry.BasicApp15 = BasicApp15;
 
 
 // -------------------------------------
@@ -37894,7 +37958,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp16());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp15());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
