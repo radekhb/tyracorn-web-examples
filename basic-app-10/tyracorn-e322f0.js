@@ -7,7 +7,7 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-15";
+const basePath = "/tyracorn-web-examples/basic-app-10";
 const assetsDirName = "/assets-40d32e";
 const localStoragePrefix = "app.";
 let mouseDown = false;
@@ -11790,32 +11790,6 @@ class PropertyKey {
 
 }
 classRegistry.PropertyKey = PropertyKey;
-class PropertyKeyNaturalComparator {
-  constructor() {
-  }
-
-  getClass() {
-    return "PropertyKeyNaturalComparator";
-  }
-
-  compare(o1, o2) {
-    Guard.notNull(o1, "o1 is null which is not supported");
-    Guard.notNull(o2, "o2 is null which is not supported");
-    if (o1.equals(o2)) {
-      return 0;
-    }
-    return o1.key().compareTo(o2.key());
-  }
-
-  toString() {
-  }
-
-  static create() {
-    return new PropertyKeyNaturalComparator();
-  }
-
-}
-classRegistry.PropertyKeyNaturalComparator = PropertyKeyNaturalComparator;
 class LocalDataConfigProperties {
   storage;
   dataKey;
@@ -20909,7 +20883,7 @@ class Slider extends UiComponent {
     let unitSize = style.getFloat(UiComponentStylePropertyKey.UNIT_SIZE);
     this.containerSize = size;
     this.region = Functions.apply(this.regionFnc, size);
-    this.slideRegion = Rect2.create(this.region.x()+unitSize/2, this.region.centerY()-unitSize, this.region.width()-unitSize, unitSize*2);
+    this.slideRegion = Rect2.create(this.region.x()+unitSize/2, this.region.centerY()-unitSize, FMath.max(this.region.width()-unitSize, 1), unitSize*2);
   }
 
   getStyleKey() {
@@ -24465,6 +24439,14 @@ class Assets {
             let addedCollection = bundleGroup.get("MeshAnimationCollection", targetCollectionId);
             let resCollection = targetCollection.plusAnimations(addedCollection.getAnimations());
             res = res.plus(targetCollectionId, resCollection);
+          }
+          else if (type.equals("TRANSFORM_ANIMATION_COLLECTION")) {
+            let animCollectionId = MeshAnimationCollectionId.of(taskJson.getString("animationCollectionId"));
+            let animCollection = res.get("MeshAnimationCollection", animCollectionId);
+            let animKey = MeshAnimationKey.of(taskJson.getString("animationKey"));
+            let actions = taskJson.getJsonArray("actions");
+            animCollection = AssetsAnimationCollections.transformAnimation(animCollection, animKey, actions);
+            res = res.plus(animCollectionId, animCollection);
           }
           else if (type.equals("TEXTURE_FLIP_VERT")) {
             res = res.transform("Texture", TextureFncs.flipVert());
@@ -37470,7 +37452,7 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp15 extends TyracornScreen {
+class BasicApp10 extends TyracornScreen {
   groundModel = null;
   box1Model = null;
   shadow1 = ShadowBufferId.of("shadow1");
@@ -37478,13 +37460,12 @@ class BasicApp15 extends TyracornScreen {
   inputs = InputCache.create();
   ui;
   camera;
-  armature;
   constructor() {
     super();
   }
 
   getClass() {
-    return "BasicApp15";
+    return "BasicApp10";
   }
 
   move(drivers, screenManager, dt) {
@@ -37495,19 +37476,18 @@ class BasicApp15 extends TyracornScreen {
     this.camera.setPersp(fovy, aspect, 1.0, 50.0);
     this.camera.move(dt);
     this.ui.move(dt);
-    let angleFact = FMath.abs(FMath.sin(this.time/3));
-    let pose = this.armature.getPose(Dut.map(ArmatureNodeId.of("node-1"), Mat44.rotZ(angleFact*FMath.PI_QUARTER), ArmatureNodeId.of("node-2"), Mat44.transofm(Vec3.create(1, 0, 0), Quaternion.rotZ(angleFact*FMath.PI_QUARTER)), ArmatureNodeId.of("node-3"), Mat44.transofm(Vec3.create(1, 0, 0), Quaternion.rotZ(angleFact*FMath.PI_QUARTER))));
+    let t = Math.abs(Math.sin(this.time));
     let dirLightColor = LightColor.create(Rgb.gray(0.5), Rgb.gray(0.5), Rgb.WHITE);
-    let dirLightDir = Vec3.create(0.6, -1, -0.2).normalize();
+    let dirLightDir = Vec3.create(FMath.sin(this.time/5), -1, FMath.cos(this.time/5)).normalize();
     let dirLightPos = dirLightDir.scale(-5);
     let dirLightShadowMap = ShadowMap.createDirCircle(this.shadow1, dirLightPos, dirLightDir, 13, 20);
     let dirLight = Light.directional(dirLightColor, dirLightDir, dirLightShadowMap);
     let smapRndr = gDriver.startRenderer("ShadowMapRenderer", ShadowMapEnvironment.create(dirLight));
-    this.renderSceneShaow(smapRndr, pose);
+    this.renderSceneShaow(smapRndr, t);
     smapRndr.end();
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
     let objRnderer = gDriver.startRenderer("SceneRenderer", SceneEnvironment.create(this.camera.getCamera(), dirLight));
-    this.renderScene(objRnderer, pose);
+    this.renderScene(objRnderer, t);
     objRnderer.end();
     gDriver.clearBuffers(BufferId.DEPTH);
     let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
@@ -37525,21 +37505,17 @@ class BasicApp15 extends TyracornScreen {
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    let boxMeshId = MeshId.of("box-mesh");
-    let riggeMeshId = MeshId.of("rigged-mesh");
-    assets.put(boxMeshId, BoxMeshFactory.modelBox());
-    assets.put(riggeMeshId, this.createRiggedMesh());
+    let modelBox = MeshId.of("modelBox");
+    let modelBoxAnimated = MeshId.of("modelBox-animated");
+    assets.put(modelBox, BoxMeshFactory.modelBox());
+    assets.put(modelBoxAnimated, BoxMeshFactory.modelBox().plusMeshFrames(BoxMeshFactory.modelBoxDeformed1()).plusMeshFrames(BoxMeshFactory.modelBoxDeformed2()));
     let boxDiffuse = TextureId.of("tex_box_01_d");
     let boxSpecular = TextureId.of("tex_box_01_s");
     assets.put(MaterialId.of("brass"), Material.BRASS);
     assets.put(MaterialId.of("wood-box"), Material.BLACK.withShininess(50).plusTexture(TextureAttachment.diffuse(boxDiffuse)).plusTexture(TextureAttachment.specular(boxSpecular)));
     assets.put(this.shadow1, ShadowBuffer.create(2048, 2048));
-    this.groundModel = Model.simple(boxMeshId, MaterialId.of("brass"));
-    this.box1Model = Model.simple(riggeMeshId, MaterialId.of("wood-box"));
-    let node1 = ArmatureNodeId.of("node-1");
-    let node2 = ArmatureNodeId.of("node-2");
-    let node3 = ArmatureNodeId.of("node-3");
-    this.armature = Armature.empty().plusNode(ArmatureNode.create(node1, null, Mat44.IDENTITY, Mat44.IDENTITY)).plusNode(ArmatureNode.create(node2, node1, Mat44.trans(1, 0, 0), Mat44.trans(-1, 0, 0))).plusNode(ArmatureNode.create(node3, node2, Mat44.trans(1, 0, 0), Mat44.trans(-2, 0, 0)));
+    this.groundModel = Model.simple(modelBox, MaterialId.of("brass"));
+    this.box1Model = Model.simple(modelBoxAnimated, MaterialId.of("wood-box"));
     this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
     let gamePad = GamePad.create(drivers);
     this.ui.addComponent(gamePad);
@@ -37555,27 +37531,18 @@ class BasicApp15 extends TyracornScreen {
     this.ui.unsubscribe(drivers);
   }
 
-  renderScene(renderer, pose) {
+  renderScene(renderer, t) {
     renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1Model, Interpolation.ZERO, pose, Mat44.trans(0, 0, 0));
+    renderer.render(this.box1Model, Interpolation.create(0, 1, t), ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
   }
 
-  renderSceneShaow(renderer, pose) {
+  renderSceneShaow(renderer, t) {
     renderer.render(this.groundModel, Interpolation.ZERO, ArmaturePose.EMPTY, Mat44.trans(0, -1, 0).mul(Mat44.scale(20, 1, 20)));
-    renderer.render(this.box1Model, Interpolation.ZERO, pose, Mat44.trans(0, 0, 0));
-  }
-
-  createRiggedMesh() {
-    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.riggedModel(Dut.list(this.rmVert(-0.5, -0.5, 0, 0, 0, 1, 0, 0, 0, -1, -1, -1, 1, 0, 0, 0), this.rmVert(-0.5, 0.5, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, 1, 0, 0, 0), this.rmVert(0.5, -0.5, 0, 0, 0, 1, 1, 0, 0, 1, -1, -1, 0.75, 0.25, 0, 0), this.rmVert(0.5, 0.5, 0, 0, 0, 1, 1, 1, 0, 1, -1, -1, 0.75, 0.25, 0, 0), this.rmVert(1.5, -0.5, 0, 0, 0, 1, 2, 0, 1, 2, -1, -1, 0.5, 0.5, 0, 0), this.rmVert(1.5, 0.5, 0, 0, 0, 1, 2, 1, 1, 2, -1, -1, 0.5, 0.5, 0, 0), this.rmVert(2.5, -0.5, 0, 0, 0, 1, 3, 0, 2, -1, -1, -1, 1, 0, 0, 0), this.rmVert(2.5, 0.5, 0, 0, 0, 1, 3, 1, 2, -1, -1, -1, 1, 0, 0, 0))), Dut.list(Face.triangle(0, 2, 3), Face.triangle(0, 3, 1), Face.triangle(2, 4, 5), Face.triangle(2, 5, 3), Face.triangle(4, 6, 7), Face.triangle(4, 7, 5))).toMesh();
-    return res;
-  }
-
-  rmVert(x, y, z, nx, ny, nz, tu, tv, bidx1, bidx2, bidx3, bidx4, bw1, bw2, bw3, bw4) {
-    return Vertex.create(Dut.list(Float.valueOf(x), Float.valueOf(y), Float.valueOf(z), Float.valueOf(nx), Float.valueOf(ny), Float.valueOf(nz), Float.valueOf(tu), Float.valueOf(tv), Short.valueOf(bidx1), Short.valueOf(bidx2), Short.valueOf(bidx3), Short.valueOf(bidx4), Float.valueOf(bw1), Float.valueOf(bw2), Float.valueOf(bw3), Float.valueOf(bw4)));
+    renderer.render(this.box1Model, Interpolation.create(0, 1, t), ArmaturePose.EMPTY, Mat44.trans(0, 0, 0));
   }
 
 }
-classRegistry.BasicApp15 = BasicApp15;
+classRegistry.BasicApp10 = BasicApp10;
 
 
 // -------------------------------------
@@ -37958,7 +37925,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp15());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp10());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
