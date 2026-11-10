@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/basic-app-18";
-const assetsDirName = "/assets-74efb8";
+const basePath = "/tyracorn-web-examples/basic-app-19";
+const assetsDirName = "/assets-4a04e4";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -8676,6 +8676,63 @@ class WebKeyboardDriver {
     }
 
 }
+/**
+ * Error handler for web.
+ * 
+ * @type TyracornWebAppErrorHandler
+ */
+class TyracornWebAppErrorHandler {
+
+    /**
+     * Whether reload has been already called.
+     * @type Boolean
+     */
+    reloadCalled = false;
+
+    /**
+     * Constructor.
+     * 
+     * @returns {TyracornWebAppErrorHandler} created instance
+     */
+    constructor() {
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvariants() {
+    }
+
+    /**
+     * Handles application error.
+     *
+     * @param {TyracornAppError} error error
+     */
+    handleAppError(error) {
+        if (this.reloadCalled == true) {
+            // nothing to do, reload will apply anyway
+            return;
+        }
+        if (error.getCategory().equals(TyracornAppErrorCategory.LOADING)) {
+            alert("Assets have been updated, need to reload.");
+        } else {
+            alert("Unknown error, need to reload.");
+        }
+        this.reloadCalled = true;
+        window.location.reload(true);
+    }
+
+    /**
+     * Creates new instance.
+     * 
+     * @returns {TyracornWebAppErrorHandler} created object
+     */
+    static create() {
+        const res = new TyracornWebAppErrorHandler();
+        res.guardInvariants();
+        return res;
+    }
+}
 
 
 // -------------------------------------
@@ -8686,7 +8743,7 @@ class WebKeyboardDriver {
  * Provider for Tyracorn drivers.
  */
 class DriverProvider {
-
+    
     plaformDriver = WebPlatformDriver.create();
     assetBank = DefaultAssetBank.create();
     assetLoader = WebAssetLoader.create();
@@ -8700,6 +8757,7 @@ class DriverProvider {
     localDataStorage = WebLocalDataStorage.create(localStoragePrefix);
     httpClient = WebHttpClient.create();
     webDriver = WebWebDriver.create();
+    appErrorHandler = TyracornWebAppErrorHandler.create();
 
     constructor() {
     }
@@ -8735,6 +8793,8 @@ class DriverProvider {
             return true;
         } else if (driver === "WebDriver") {
             return true;
+        } else if (driver === "TyracornAppErrorHandler") {
+            return true;
         }
         return false;
     }
@@ -8768,6 +8828,8 @@ class DriverProvider {
             return this.httpClient;
         } else if (driver === "WebDriver") {
             return this.webDriver;
+        } else if (driver === "TyracornAppErrorHandler") {
+            return this.appErrorHandler;
         }
         throw "driver doesn't exists:" + driver;
         return null;
@@ -26522,6 +26584,105 @@ class KeyCodeMatchers {
 
 }
 classRegistry.KeyCodeMatchers = KeyCodeMatchers;
+const createTyracornAppErrorCategory = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const TyracornAppErrorCategory = Object.freeze({
+  OTHER: createTyracornAppErrorCategory("OTHER"),
+  LOADING: createTyracornAppErrorCategory("LOADING"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class TyracornAppError {
+  category;
+  code;
+  message;
+  constructor() {
+  }
+
+  getClass() {
+    return "TyracornAppError";
+  }
+
+  guardInvaritants() {
+    Guard.notNull(this.category, "category cannot be null");
+    Guard.notNull(this.code, "code cannot be null");
+    Guard.notNull(this.message, "message cannot be null");
+  }
+
+  getCategory() {
+    return this.category;
+  }
+
+  getCode() {
+    return this.code;
+  }
+
+  getMessage() {
+    return this.message;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(category, code, message) {
+    let res = new TyracornAppError();
+    res.category = category;
+    res.code = code;
+    res.message = message;
+    res.guardInvaritants();
+    return res;
+  }
+
+}
+classRegistry.TyracornAppError = TyracornAppError;
 const createBasicLoadingScreenLoadStrategy = (description) => {
   const symbol = Symbol(description);
   return {
@@ -26877,8 +27038,9 @@ class TyracornScreenApp extends TyracornApp {
       for (let future of this.loadingFutures) {
         if (future.isDone()) {
           if (!future.isSuccess()) {
-            System.err.print("Initialization failed");
-            System.exit(1);
+            let error = TyracornAppError.create(TyracornAppErrorCategory.LOADING, "/errors/loading-failed", "loading failed");
+            let handler = drivers.getDriver("TyracornAppErrorHandler");
+            handler.handleAppError(error);
           }
         }
         else {
@@ -37435,7 +37597,231 @@ class BoxMeshFactory {
 
 }
 classRegistry.BoxMeshFactory = BoxMeshFactory;
-class BasicApp18 extends TyracornScreen {
+const createBillboardOrientation = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const BillboardOrientation = Object.freeze({
+  CAMERA_FACING: createBillboardOrientation("CAMERA_FACING"),
+  CAMERA_FACING_VERTICAL: createBillboardOrientation("CAMERA_FACING_VERTICAL"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class BillboardComponent extends Behavior {
+  orientation = BillboardOrientation.CAMERA_FACING;
+  transform;
+  cameraTransform;
+  camera;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "BillboardComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.world().actors().forEach(ActorId.ROOT, (a) => {
+  let cc = a.getComponentNonStrict("CameraComponent");
+  if (cc!=null) {
+    Guard.beNull(this.camera, "only single camera is supported at the moment");
+    this.camera = cc;
+    this.cameraTransform = a.getComponent("TransformComponent");
+  }
+});
+  }
+
+  lateMove(dt, inputs) {
+    if (this.orientation.equals(BillboardOrientation.CAMERA_FACING)) {
+      let cameraPos = this.cameraTransform.getPos();
+      let rot = this.getLookAtRotation(cameraPos, Vec3.UP);
+      this.transform.setRot(rot);
+    }
+    else if (this.orientation.equals(BillboardOrientation.CAMERA_FACING_VERTICAL)) {
+      let cameraPos = this.cameraTransform.getPos().withY(this.transform.getPos().y());
+      let rot = this.getLookAtRotation(cameraPos, Vec3.UP);
+      this.transform.setRot(rot);
+    }
+    else {
+      throw new Error("unsupported billboard orientation: "+this.orientation);
+    }
+  }
+
+  setOrientation(orientation) {
+    Guard.notNull(orientation, "orientation cannot be null");
+    this.orientation = orientation;
+    return this;
+  }
+
+  getLookAtRotation(target, upDir) {
+    let fwd = target.subAndNormalize(this.transform.getPos());
+    let rotX = -FMath.asin(fwd.y());
+    let rotY = FMath.atan2(fwd.x(), fwd.z());
+    return Quaternion.rotY(rotY).mul(Quaternion.rotX(rotX));
+  }
+
+  static create(key) {
+    let res = new BillboardComponent(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.BillboardComponent = BillboardComponent;
+class FireParticleComponent extends Behavior {
+  transform;
+  cameraTransform;
+  camera;
+  time = 0;
+  lifetime = 1;
+  velocity = Vec3.ZERO;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FireParticleComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.world().actors().forEach(ActorId.ROOT, (a) => {
+  let cc = a.getComponentNonStrict("CameraComponent");
+  if (cc!=null) {
+    Guard.beNull(this.camera, "only single camera is supported at the moment");
+    this.camera = cc;
+    this.cameraTransform = a.getComponent("TransformComponent");
+  }
+});
+  }
+
+  move(dt, inputs) {
+    this.lifetime = this.lifetime-dt;
+    this.time = this.time+dt;
+    if (this.lifetime<=0) {
+      this.world().actors().remove(this.actor().getId());
+    }
+    this.transform.move(this.velocity.scale(dt));
+    if (this.time>0.8) {
+      this.actor().getComponent("ModelComponent").setModelId(ModelId.of("fire2"));
+    }
+  }
+
+  lateMove(dt, inputs) {
+    let cameraPos = this.cameraTransform.getPos();
+    this.transform.setRot(this.getLookAtRotation(cameraPos, Vec3.UP));
+  }
+
+  setLifetime(lifetime) {
+    this.lifetime = lifetime;
+    return this;
+  }
+
+  setVelocity(velocity) {
+    Guard.notNull(velocity, "velocity cannot be null");
+    this.velocity = velocity;
+    return this;
+  }
+
+  getLookAtRotation(target, upDir) {
+    let fwd = target.subAndNormalize(this.transform.getPos());
+    let rotX = -FMath.asin(fwd.y());
+    let rotY = FMath.atan2(fwd.x(), fwd.z());
+    return Quaternion.rotY(rotY).mul(Quaternion.rotX(rotX));
+  }
+
+  static create(key) {
+    let res = new FireParticleComponent(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FireParticleComponent = FireParticleComponent;
+class FireEmitterComponent extends Behavior {
+  transform;
+  rpGenerator;
+  pps = 100;
+  tReminder = 0;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FireEmitterComponent";
+  }
+
+  guardInvariants() {
+  }
+
+  init() {
+    this.transform = this.actor().getComponent("TransformComponent");
+    this.rpGenerator = this.actor().getComponent("RpGeneratorComponent");
+  }
+
+  move(dt, inputs) {
+    let emitTime = dt+this.tReminder;
+    let numEmit = FMath.trunc(emitTime*this.pps);
+    this.tReminder = emitTime-(numEmit/this.pps);
+    for (let i = 0; i<numEmit; ++i) {
+      this.world().actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("tyracorn-billboard").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).setPos(this.rpGenerator.nextPoint())).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(ModelId.of("fire1")).setTransform(Mat44.scale(0.05))).addComponent(FireParticleComponent.create(ComponentKey.random()).setLifetime(Randoms.nextFloat(0.5, 1)).setVelocity(Vec3.create(Randoms.nextFloat(-0.15, 0.15), Randoms.nextFloat(0.3, 1), Randoms.nextFloat(-0.15, 0.15)))));
+    }
+  }
+
+  static create(key) {
+    let res = new FireEmitterComponent(key);
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FireEmitterComponent = FireEmitterComponent;
+class BasicApp19 extends TyracornScreen {
   time = 0;
   world;
   inputs = InputCache.create();
@@ -37447,7 +37833,7 @@ class BasicApp18 extends TyracornScreen {
   }
 
   getClass() {
-    return "BasicApp18";
+    return "BasicApp19";
   }
 
   move(drivers, screenManager, dt) {
@@ -37483,7 +37869,7 @@ class BasicApp18 extends TyracornScreen {
 
   load(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/primitives.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")));
+    return Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/primitives.tap")), assets.resolveAsync(Path.of("asset:packages/particles.tap")), assets.resolveAsync(Path.of("asset:packages/skybox.tap")));
   }
 
   init(drivers, screenManager, properties) {
@@ -37500,21 +37886,30 @@ class BasicApp18 extends TyracornScreen {
     assets.put(MaterialId.of("copper"), Material.COPPER);
     assets.put(MaterialId.of("gold"), Material.GOLD);
     assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
+    assets.put(MeshId.of("billboard"), this.createBillboardMesh());
     let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("copper"));
     let groundModelId = ModelId.of("ground");
     assets.put(groundModelId, groundModel);
-    assets.put(MaterialId.of("tyracorn-mask"), Material.SILVER.withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(tyracornTextureId)).plusTexture(TextureAttachment.diffuse(tyracornTextureId)));
-    let tyracornMaskBox = Model.simple(MeshId.of("modelBox"), MaterialId.of("tyracorn-mask"));
-    let tyracornMaskBoxModelId = ModelId.of("tyracorn-mask-box");
-    assets.put(tyracornMaskBoxModelId, tyracornMaskBox);
-    assets.put(MaterialId.of("siver-blend"), Material.SILVER.withAlphaMode(MaterialAlphaMode.BLEND).plusTexture(TextureAttachment.alpha(transparentTex1Id)));
-    let silverBlendBox = Model.simple(MeshId.of("modelBox"), MaterialId.of("siver-blend"));
-    let silverBlendBoxModelId = ModelId.of("silver-blend-box");
-    assets.put(silverBlendBoxModelId, silverBlendBox);
-    assets.put(MaterialId.of("gold-blend"), Material.GOLD.withAlphaMode(MaterialAlphaMode.BLEND).plusTexture(TextureAttachment.alpha(transparentTex2Id)));
-    let goldBlendBox = Model.simple(MeshId.of("modelBox"), MaterialId.of("gold-blend"));
-    let goldBlendBoxModelId = ModelId.of("gold-blend-box");
-    assets.put(goldBlendBoxModelId, goldBlendBox);
+    assets.put(MaterialId.of("tyracorn-mask"), Material.BLACK.withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.diffuse(TextureId.of("stone-1-diff"))).plusTexture(TextureAttachment.diffuse(tyracornTextureId)));
+    let tyracornBillboard = Model.simple(MeshId.of("billboard"), MaterialId.of("tyracorn-mask"));
+    let tyracornBillboarModelId = ModelId.of("tyracorn-billboard");
+    assets.put(tyracornBillboarModelId, tyracornBillboard);
+    assets.put(MaterialId.of("fire1"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-1"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-1"))));
+    let fire1Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire1"));
+    let fire1ModelId = ModelId.of("fire1");
+    assets.put(fire1ModelId, fire1Model);
+    assets.put(MaterialId.of("fire2"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-2"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-2"))));
+    let fire2Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire2"));
+    let fire2ModelId = ModelId.of("fire2");
+    assets.put(fire2ModelId, fire2Model);
+    assets.put(MaterialId.of("fire3"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-3"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-3"))));
+    let fire3Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire3"));
+    let fire3ModelId = ModelId.of("fire3");
+    assets.put(fire3ModelId, fire3Model);
+    assets.put(MaterialId.of("fire4"), Material.BLACK.withAmbient(Rgb.gray(0.7)).withDiffuse(Rgb.WHITE).withAlphaMode(MaterialAlphaMode.MASK).plusTexture(TextureAttachment.alpha(TextureId.of("fire-4"))).plusTexture(TextureAttachment.diffuse(TextureId.of("fire-4"))));
+    let fire4Model = Model.simple(MeshId.of("billboard"), MaterialId.of("fire4"));
+    let fire4ModelId = ModelId.of("fire4");
+    assets.put(fire4ModelId, fire4Model);
     this.world = RigidBodyWorld.create(drivers);
     let worldActor = Actor.create("world").setName("world").addComponent(WorldComponent.create(ComponentKey.WORLD).setGravity(Vec3.create(0, -9.81, 0)).setDrag(0.5).setAngularDrag(0.5).setBoundary(Aabb3.create(-30, -30, -30, 30, 30, 30)));
     this.world.actors().add(ActorId.ROOT, worldActor);
@@ -37526,9 +37921,9 @@ class BasicApp18 extends TyracornScreen {
     this.world.actors().add(ActorId.ROOT, light);
     let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(0, 4, 5), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create(ComponentKey.random(), "moveDir", "rotDir", 5, 1)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY));
     this.world.actors().add(ActorId.ROOT, camera);
-    this.world.actors().add(ActorId.ROOT, Actor.create("tyracorn-mask-box").setName("tyracorn-mask-box").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(tyracornMaskBoxModelId).setTransform(Mat44.trans(0, 0.5, 0))));
-    this.world.actors().add(ActorId.ROOT, Actor.create("silver-blend-box").setName("silver-blend-box").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(silverBlendBoxModelId).setTransform(Mat44.trans(1.5, 0.5, 0))));
-    this.world.actors().add(ActorId.ROOT, Actor.create("gold-blend-box").setName("gold-blend-box").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(goldBlendBoxModelId).setTransform(Mat44.trans(1.5, 0.5, -1.5))));
+    this.world.actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("tyracorn-billboard").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-3, 0.5, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(tyracornBillboarModelId).setTransform(Mat44.trans(0, 0, 0))).addComponent(BillboardComponent.create(ComponentKey.random()).setOrientation(BillboardOrientation.CAMERA_FACING)));
+    this.world.actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("tyracorn-billboard").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0, 0.5, 0))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(tyracornBillboarModelId).setTransform(Mat44.trans(0, 0, 0))).addComponent(BillboardComponent.create(ComponentKey.random()).setOrientation(BillboardOrientation.CAMERA_FACING_VERTICAL)));
+    this.world.actors().add(ActorId.ROOT, Actor.create(ActorId.random()).setName("fire").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(3, 0, 0))).addComponent(RpGeneratorComponent.create(ComponentKey.random()).setShape(RpGeneratorShape.BOX).setSize(0.25, 0.01, 0.05)).addComponent(FireEmitterComponent.create(ComponentKey.random())));
     this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
     this.gamePad = GamePad.create(drivers);
     this.ui.addComponent(this.gamePad);
@@ -37550,8 +37945,13 @@ class BasicApp18 extends TyracornScreen {
     this.world.destroy(drivers);
   }
 
+  createBillboardMesh() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, 0, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, 0, 0, 0, -1, 1, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7))).toMesh();
+    return res;
+  }
+
 }
-classRegistry.BasicApp18 = BasicApp18;
+classRegistry.BasicApp19 = BasicApp19;
 
 
 // -------------------------------------
@@ -37936,7 +38336,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp18());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new BasicApp19());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);

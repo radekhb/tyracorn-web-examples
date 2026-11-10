@@ -7,8 +7,8 @@ let tyracornApp;
 let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
-const basePath = "/tyracorn-web-examples/audio-app-01";
-const assetsDirName = "/assets-1af9d1";
+const basePath = "/tyracorn-web-examples/rigid-body-app-01";
+const assetsDirName = "/assets-40d32e";
 const localStoragePrefix = "app.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -8676,6 +8676,63 @@ class WebKeyboardDriver {
     }
 
 }
+/**
+ * Error handler for web.
+ * 
+ * @type TyracornWebAppErrorHandler
+ */
+class TyracornWebAppErrorHandler {
+
+    /**
+     * Whether reload has been already called.
+     * @type Boolean
+     */
+    reloadCalled = false;
+
+    /**
+     * Constructor.
+     * 
+     * @returns {TyracornWebAppErrorHandler} created instance
+     */
+    constructor() {
+    }
+
+    /**
+     * Guards this object to be consistent.
+     */
+    guardInvariants() {
+    }
+
+    /**
+     * Handles application error.
+     *
+     * @param {TyracornAppError} error error
+     */
+    handleAppError(error) {
+        if (this.reloadCalled == true) {
+            // nothing to do, reload will apply anyway
+            return;
+        }
+        if (error.getCategory().equals(TyracornAppErrorCategory.LOADING)) {
+            alert("Assets have been updated, need to reload.");
+        } else {
+            alert("Unknown error, need to reload.");
+        }
+        this.reloadCalled = true;
+        window.location.reload(true);
+    }
+
+    /**
+     * Creates new instance.
+     * 
+     * @returns {TyracornWebAppErrorHandler} created object
+     */
+    static create() {
+        const res = new TyracornWebAppErrorHandler();
+        res.guardInvariants();
+        return res;
+    }
+}
 
 
 // -------------------------------------
@@ -8686,7 +8743,7 @@ class WebKeyboardDriver {
  * Provider for Tyracorn drivers.
  */
 class DriverProvider {
-
+    
     plaformDriver = WebPlatformDriver.create();
     assetBank = DefaultAssetBank.create();
     assetLoader = WebAssetLoader.create();
@@ -8700,6 +8757,7 @@ class DriverProvider {
     localDataStorage = WebLocalDataStorage.create(localStoragePrefix);
     httpClient = WebHttpClient.create();
     webDriver = WebWebDriver.create();
+    appErrorHandler = TyracornWebAppErrorHandler.create();
 
     constructor() {
     }
@@ -8735,6 +8793,8 @@ class DriverProvider {
             return true;
         } else if (driver === "WebDriver") {
             return true;
+        } else if (driver === "TyracornAppErrorHandler") {
+            return true;
         }
         return false;
     }
@@ -8768,6 +8828,8 @@ class DriverProvider {
             return this.httpClient;
         } else if (driver === "WebDriver") {
             return this.webDriver;
+        } else if (driver === "TyracornAppErrorHandler") {
+            return this.appErrorHandler;
         }
         throw "driver doesn't exists:" + driver;
         return null;
@@ -26522,6 +26584,105 @@ class KeyCodeMatchers {
 
 }
 classRegistry.KeyCodeMatchers = KeyCodeMatchers;
+const createTyracornAppErrorCategory = (description) => {
+  const symbol = Symbol(description);
+  return {
+    symbol: symbol,
+    name() {
+      return this.symbol.description;
+    },
+    equals(other) {
+      return this.symbol === other?.symbol;
+    },
+    hashCode() {
+      const description = this.symbol.description || "";
+      let hash = 0;
+      for (let i = 0; i < description.length; i++) {
+        const char = description.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return hash;
+    },
+    [Symbol.toPrimitive]() {
+      return this.symbol;
+    },
+    toString() {
+      return this.symbol.toString();
+    }
+  };
+};
+const TyracornAppErrorCategory = Object.freeze({
+  OTHER: createTyracornAppErrorCategory("OTHER"),
+  LOADING: createTyracornAppErrorCategory("LOADING"),
+
+  valueOf(description) {
+    if (typeof description !== 'string') {
+      throw new Error('valueOf expects a string parameter');
+    }
+    for (const [key, value] of Object.entries(this)) {
+      if (typeof value === 'object' && value.symbol && value.symbol.description === description) {
+        return value;
+      }
+    }
+    throw new Error(`No enum constant with description: ${description}`);
+  },
+
+  values() {
+    return Object.values(this).filter(value => typeof value === 'object' && value.symbol);
+  }
+});
+class TyracornAppError {
+  category;
+  code;
+  message;
+  constructor() {
+  }
+
+  getClass() {
+    return "TyracornAppError";
+  }
+
+  guardInvaritants() {
+    Guard.notNull(this.category, "category cannot be null");
+    Guard.notNull(this.code, "code cannot be null");
+    Guard.notNull(this.message, "message cannot be null");
+  }
+
+  getCategory() {
+    return this.category;
+  }
+
+  getCode() {
+    return this.code;
+  }
+
+  getMessage() {
+    return this.message;
+  }
+
+  hashCode() {
+    return Reflections.hashCode(this);
+  }
+
+  equals(obj) {
+    return Reflections.equals(this, obj);
+  }
+
+  toString() {
+  }
+
+  static create(category, code, message) {
+    let res = new TyracornAppError();
+    res.category = category;
+    res.code = code;
+    res.message = message;
+    res.guardInvaritants();
+    return res;
+  }
+
+}
+classRegistry.TyracornAppError = TyracornAppError;
 const createBasicLoadingScreenLoadStrategy = (description) => {
   const symbol = Symbol(description);
   return {
@@ -26877,8 +27038,9 @@ class TyracornScreenApp extends TyracornApp {
       for (let future of this.loadingFutures) {
         if (future.isDone()) {
           if (!future.isSuccess()) {
-            System.err.print("Initialization failed");
-            System.exit(1);
+            let error = TyracornAppError.create(TyracornAppErrorCategory.LOADING, "/errors/loading-failed", "loading failed");
+            let handler = drivers.getDriver("TyracornAppErrorHandler");
+            handler.handleAppError(error);
           }
         }
         else {
@@ -37143,20 +37305,19 @@ classRegistry.Scene = Scene;
 // Transslates app specific code
 // -------------------------------------
 
-class SlotUis {
-  static SLOT_HEIGHT = 120;
-  static BUTTON_HEIGHT = 100;
-  static PADDING_LEFT_RIGHT = 50;
+class PlayUis {
+  static ARROW_UP = UiComponentTrait.of("ARROW_UP");
+  static ARROW_DOWN = UiComponentTrait.of("ARROW_DOWN");
+  static ARROW_LEFT = UiComponentTrait.of("ARROW_LEFT");
+  static ARROW_RIGHT = UiComponentTrait.of("ARROW_RIGHT");
+  static BRAKE = UiComponentTrait.of("BRAKE");
+  static PUNCH = UiComponentTrait.of("PUNCH");
+  static WALK_RUN = UiComponentTrait.of("WALK_RUN");
   constructor() {
   }
 
   getClass() {
-    return "SlotUis";
-  }
-
-  static prepareScaledFonts(drivers) {
-    let assets = drivers.getDriver("AssetManager");
-    Fonts.prepareScaledFonts(assets, Dut.set(50, 75, 100));
+    return "PlayUis";
   }
 
   static createUiSizeFnc() {
@@ -37164,20 +37325,17 @@ class SlotUis {
   }
 
   static createDefaultStyler() {
-    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-mini-100")).setLargeTextFont(FontId.of("kenny-mini-75")).setMediumTextFont(FontId.of("kenny-mini-50")).setSmallTextFont(FontId.of("kenny-mini-40")).setButtonLabelFont(FontId.of("kenny-mini-50")).setPanelBackgroundColor(Rgba.create(0, 0, 0, 0.3)).setPanelBorderColor(Rgba.create(0, 0, 0, 0.7)).setSliderUnitSize(40);
+    let btnKey = UiComponentStyleKey.plain(UiComponentType.BUTTON);
+    let xsBtnKey = btnKey.plusTrait(UiComponentTrait.XS);
+    let toggleBtnKey = UiComponentStyleKey.plain(UiComponentType.TOGGLE_BUTTON);
+    let xsToggleBtnKey = toggleBtnKey.plusTrait(UiComponentTrait.XS);
+    return DefaultUiStyler.create().setH1Font(FontId.of("kenny-thick-30")).setH2Font(FontId.of("kenny-thick-26")).setH3Font(FontId.of("kenny-thick-24")).setExtraLargeTextFont(FontId.of("kenny-mini-22")).setLargeTextFont(FontId.of("kenny-mini-20")).setMediumTextFont(FontId.of("kenny-mini-18")).setSmallTextFont(FontId.of("kenny-mini-16")).setButtonLabelFont(FontId.of("kenny-mini-18")).setFieldLabelFont(FontId.of("kenny-mini-16")).setFieldValueFont(FontId.of("kenny-mini-16")).setSelectItemTextFont(FontId.of("kenny-mini-18")).setSelectItemHeight(20).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_UP), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-up-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-up-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-up-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_DOWN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-down-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-down-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-down-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_LEFT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-left-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-left-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-left-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.ARROW_RIGHT), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-arrow-right-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-arrow-right-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-arrow-right-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(btnKey.plusTrait(UiComponentTrait.S), btnKey.plusTrait(PlayUis.BRAKE), UiComponentStyle.create())).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsBtnKey, btnKey.plusTrait(PlayUis.PUNCH), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.UP_TEXTURE, TextureId.of("button-punch-up"), UiComponentStylePropertyKey.DOWN_TEXTURE, TextureId.of("button-punch-down"), UiComponentStylePropertyKey.DISABLED_TEXTURE, TextureId.of("button-punc-disabled"))))).addCustomStyle(DefaultUiStylerCustomStyle.extension(xsToggleBtnKey, toggleBtnKey.plusTrait(PlayUis.WALK_RUN), UiComponentStyle.create().withProperties(Dut.map(UiComponentStylePropertyKey.OFF_TEXTURE, TextureId.of("button-walk-up"), UiComponentStylePropertyKey.ON_TEXTURE, TextureId.of("button-run-down")))));
   }
 
-  static createTitleLabel(text) {
-    return Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.centerTop(SlotUis.SLOT_HEIGHT/2)).setText(text).setAlignment(TextAlignment.CENTER);
-  }
-
-  static createPanel916() {
-    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setInnerSizeFnc((size) => {
-  return Size2.create(900, 1600);
-}).setRegionFnc((t) => {
-  let n16 = 9/16;
-  if (t.aspect()>n16) {
-    return Rect2.create(t.width()/2-(t.height()*n16)/2, 0, t.height()*n16, t.height());
+  static create916Panel() {
+    return Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setClipRegion(false).setRegionFnc((t) => {
+  if (t.aspect()>9/16) {
+    return Rect2.create(t.width()/2-(t.height()*9/16)/2, 0, t.height()*9/16, t.height());
   }
   else {
     return Rect2.create(0, 0, t.width(), t.height());
@@ -37185,302 +37343,322 @@ class SlotUis {
 });
   }
 
-  static createFormLabel(text) {
-    return Label.create().addTrait(UiComponentTrait.M).setText(text).setAlignment(TextAlignment.RIGHT_CENTER);
+  static createExitButton(action) {
+    return Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
   }
 
-  static createTitleScreenBg() {
-    return ImageView.create().setTexture("title-screen").setRegionFnc(UiRegionFncs.full());
-  }
-
-  static createOverlayPanel(startSlot, numSlots, padding) {
-    let pd = padding?0.5:0;
-    return Panel.create().setRegionFnc(UiRegionFncs.centerTop((startSlot-pd)*SlotUis.SLOT_HEIGHT, 850, (numSlots+2*pd)*SlotUis.SLOT_HEIGHT));
-  }
-
-  static createPreviousTabBtnRegionFnc(slot) {
-    return (size) => {
-      return Rect2.create(SlotUis.PADDING_LEFT_RIGHT, slot*SlotUis.SLOT_HEIGHT, SlotUis.BUTTON_HEIGHT, SlotUis.BUTTON_HEIGHT);
-    };
-  }
-
-  static createNextTabBtnRegionFnc(slot) {
-    return (size) => {
-      return Rect2.create(size.width()-SlotUis.BUTTON_HEIGHT-SlotUis.PADDING_LEFT_RIGHT, slot*SlotUis.SLOT_HEIGHT, SlotUis.BUTTON_HEIGHT, SlotUis.BUTTON_HEIGHT);
-    };
-  }
-
-  static createMediumBtn(label, slot, disabled, action) {
-    return Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.centerTop(slot*SlotUis.SLOT_HEIGHT, 600, 100)).setText(label).setDisabled(disabled).addOnClickAction(action);
-  }
-
-  static createLeftMediumBtn(label, slot, disabled, action) {
-    return Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(SlotUis.PADDING_LEFT_RIGHT, slot*SlotUis.SLOT_HEIGHT, 450-SlotUis.PADDING_LEFT_RIGHT*1.5, SlotUis.BUTTON_HEIGHT)).setText(label).setDisabled(disabled).addOnClickAction(action);
-  }
-
-  static createRightMediumBtn(label, slot, disabled, action) {
-    return Button.create().addTrait(UiComponentTrait.M).setRegionFnc(UiRegionFncs.leftTop(450+SlotUis.PADDING_LEFT_RIGHT*0.5, slot*SlotUis.SLOT_HEIGHT, 450-SlotUis.PADDING_LEFT_RIGHT*1.5, SlotUis.BUTTON_HEIGHT)).setText(label).setDisabled(disabled).addOnClickAction(action);
-  }
-
-  slotRegionFnc(slot) {
-    return (size) => {
-      return Rect2.create(0, slot*SlotUis.SLOT_HEIGHT, size.width(), SlotUis.SLOT_HEIGHT);
-    };
-  }
-
-  squareImage(texture, startSlot, numSlots) {
-    let size = SlotUis.SLOT_HEIGHT*numSlots-20;
-    return ImageView.create().setTexture(texture).setRegionFnc(UiRegionFncs.centerTop(startSlot*SlotUis.SLOT_HEIGHT, size, size));
-  }
-
-  pauseBtn(action) {
-    return Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(75, 0, 75, 75)).addOnClickAction(action);
-  }
-
-  exitBtn(action) {
-    return Button.create().addTrait(UiComponentTrait.CROSS).setRegionFnc(UiRegionFncs.rightTop(75, 0, 75, 75)).addOnClickAction(action);
+  static createPauseButton(action) {
+    return Button.create().addTrait(UiComponentTrait.HAMBURGER).setRegionFnc(UiRegionFncs.rightTop(30, 0, 30, 30)).addOnClickAction(action);
   }
 
 }
-classRegistry.SlotUis = SlotUis;
-class EarPosControl extends UiComponent {
-  static EAR_TEXTURE_ID = TextureId.of("joystick-square-ear-top");
-  container;
-  styleKey;
-  regionFnc;
-  circle = true;
-  containerSize;
-  region;
-  radius;
-  trackedTouch = null;
-  dirTouch = Vec2.ZERO;
-  upKeyCodeMatcher = null;
-  downKeyCodeMatcher = null;
-  leftKeyCodeMatcher = null;
-  rightKeyCodeMatcher = null;
-  dirKey = Vec2.ZERO;
-  pressedKeys = new HashSet();
-  onDirChangeActions = new HashSet();
+classRegistry.PlayUis = PlayUis;
+class GamePad extends UiComponent {
+  leftJoystick;
+  rightJoystick;
   constructor() {
     super();
   }
 
   getClass() {
-    return "EarPosControl";
+    return "GamePad";
   }
 
   guardInvariants() {
   }
 
+  getLeftDir() {
+    return this.leftJoystick.getDir();
+  }
+
+  getRightDir() {
+    return this.rightJoystick.getDir();
+  }
+
   init(container) {
-    this.container = container;
+    this.leftJoystick.init(container);
+    this.rightJoystick.init(container);
   }
 
   move(dt) {
+    this.leftJoystick.move(dt);
+    this.rightJoystick.move(dt);
   }
 
   draw(painter) {
-    let style = this.container.getComponentStyle(this.styleKey);
-    let dir = this.getDir();
-    painter.drawImage(style.getTextureId(UiComponentStylePropertyKey.BASE_TEXTURE), this.region, SpriteStyle.PIXEL_EDGE);
-    let inreg = Rect2.create(this.region.x()+this.region.width()*0.35+dir.x()*this.radius.x(), this.region.y()+this.region.height()*0.35-dir.y()*this.radius.y(), this.region.width()*0.3, this.region.height()*0.3);
-    painter.drawImage(EarPosControl.EAR_TEXTURE_ID, inreg, SpriteStyle.PIXEL_EDGE);
+    this.leftJoystick.draw(painter);
+    this.rightJoystick.draw(painter);
+  }
+
+  onContainerResize(size) {
+    this.leftJoystick.onContainerResize(size);
+    this.rightJoystick.onContainerResize(size);
   }
 
   onTouchStart(id, pos, size) {
-    if (this.trackedTouch!=null) {
-      return false;
-    }
-    if (!this.region.isInside(pos)) {
-      return false;
-    }
-    this.trackedTouch = id;
-    this.dirTouch = this.calculateDirectionTouch(pos);
-    for (let act of this.onDirChangeActions) {
-      Functions.runUiEventAction(act, this);
-    }
-    return true;
+    this.leftJoystick.onTouchStart(id, pos, size);
+    this.rightJoystick.onTouchStart(id, pos, size);
+    return false;
   }
 
   onTouchMove(id, pos, size) {
-    if (this.trackedTouch==null||!id.equals(this.trackedTouch)) {
-      return false;
-    }
-    this.dirTouch = this.calculateDirectionTouch(pos);
-    for (let act of this.onDirChangeActions) {
-      Functions.runUiEventAction(act, this);
-    }
-    return true;
+    this.leftJoystick.onTouchMove(id, pos, size);
+    this.rightJoystick.onTouchMove(id, pos, size);
+    return false;
   }
 
   onTouchEnd(id, pos, size, cancel) {
-    if (this.trackedTouch==null||!id.equals(this.trackedTouch)) {
-      return false;
-    }
-    this.trackedTouch = null;
-    return true;
+    this.leftJoystick.onTouchEnd(id, pos, size, cancel);
+    this.rightJoystick.onTouchEnd(id, pos, size, cancel);
+    return false;
   }
 
   onKeyPressed(key) {
-    key = key.withUpperCharacter();
-    if (this.pressedKeys.contains(key)) {
-      return false;
-    }
-    this.pressedKeys.add(key);
-    this.dirKey = this.calculateDirectionKeys(this.pressedKeys);
-    for (let act of this.onDirChangeActions) {
-      Functions.runUiEventAction(act, this);
-    }
+    this.leftJoystick.onKeyPressed(key);
+    this.rightJoystick.onKeyPressed(key);
     return false;
   }
 
   onKeyReleased(key) {
-    key = key.withUpperCharacter();
-    this.pressedKeys.remove(key);
-    this.dirKey = this.calculateDirectionKeys(this.pressedKeys);
-    for (let act of this.onDirChangeActions) {
-      Functions.runUiEventAction(act, this);
-    }
+    this.leftJoystick.onKeyReleased(key);
+    this.rightJoystick.onKeyReleased(key);
     return false;
-  }
-
-  getDir() {
-    return this.dirKey.equals(Vec2.ZERO)?this.dirTouch:this.dirKey;
-  }
-
-  onContainerResize(size) {
-    this.containerSize = size;
-    this.region = Functions.apply(this.regionFnc, size);
-    this.radius = Vec2.create(this.region.width()*0.45, this.region.height()*0.45);
-  }
-
-  addTrait(trait) {
-    Guard.notNull(trait, "trait cannot be null");
-    this.styleKey = this.styleKey.plusTrait(trait);
-    return this;
-  }
-
-  setRegionFnc(regionFnc) {
-    Guard.notNull(regionFnc, "regionFnc cannot be null");
-    this.regionFnc = regionFnc;
-    this.onContainerResize(this.containerSize);
-    return this;
-  }
-
-  setCircle(circle) {
-    this.circle = circle;
-    return this;
-  }
-
-  setKeyCodeMatchers(upKeyCodeMatcher, downKeyCodeMatcher, leftKeyCodeMatcher, rightKeyCodeMatcher) {
-    if (upKeyCodeMatcher==null) {
-      Guard.beNull(upKeyCodeMatcher, "all or no matchers have to be null");
-      Guard.beNull(downKeyCodeMatcher, "all or no matchers have to be null");
-      Guard.beNull(leftKeyCodeMatcher, "all or no matchers have to be null");
-      Guard.beNull(rightKeyCodeMatcher, "all or no matchers have to be null");
-    }
-    else {
-      Guard.notNull(upKeyCodeMatcher, "all or no matchers have to be null");
-      Guard.notNull(downKeyCodeMatcher, "all or no matchers have to be null");
-      Guard.notNull(leftKeyCodeMatcher, "all or no matchers have to be null");
-      Guard.notNull(rightKeyCodeMatcher, "all or no matchers have to be null");
-    }
-    this.upKeyCodeMatcher = upKeyCodeMatcher;
-    this.downKeyCodeMatcher = downKeyCodeMatcher;
-    this.leftKeyCodeMatcher = leftKeyCodeMatcher;
-    this.rightKeyCodeMatcher = rightKeyCodeMatcher;
-    return this;
-  }
-
-  addOnDirChangeAction(action) {
-    Guard.notNull(action, "action cannot be null");
-    this.onDirChangeActions.add(action);
-    return this;
-  }
-
-  calculateDirectionTouch(pos) {
-    let cx = this.region.centerX();
-    let cy = this.region.centerY();
-    if (this.circle) {
-      let res = Vec2.create((pos.x()-cx)/this.radius.x(), (cy-pos.y())/this.radius.y());
-      if (res.mag()>1) {
-        res = res.normalize();
-      }
-      return res;
-    }
-    else {
-      let res = Vec2.create(FMath.clamp((pos.x()-cx)/this.radius.x(), -1, 1), FMath.clamp((cy-pos.y())/this.radius.y(), -1, 1));
-      return res;
-    }
-  }
-
-  calculateDirectionKeys(keys) {
-    if (keys.isEmpty()||this.upKeyCodeMatcher==null) {
-      return Vec2.ZERO;
-    }
-    let res = Vec2.ZERO;
-    for (let key of keys) {
-      if (Functions.keyCodeMatches(this.upKeyCodeMatcher, key)) {
-        res = res.add(Vec2.create(0, 1));
-        break;
-      }
-    }
-    for (let key of keys) {
-      if (Functions.keyCodeMatches(this.downKeyCodeMatcher, key)) {
-        res = res.add(Vec2.create(0, -1));
-        break;
-      }
-    }
-    for (let key of keys) {
-      if (Functions.keyCodeMatches(this.leftKeyCodeMatcher, key)) {
-        res = res.add(Vec2.create(-1, 0));
-        break;
-      }
-    }
-    for (let key of keys) {
-      if (Functions.keyCodeMatches(this.rightKeyCodeMatcher, key)) {
-        res = res.add(Vec2.create(1, 0));
-        break;
-      }
-    }
-    if (this.circle&&res.mag()>1) {
-      res = res.normalize();
-    }
-    return res;
   }
 
   toString() {
   }
 
-  static create() {
-    let res = new EarPosControl();
-    res.styleKey = UiComponentStyleKey.plain(UiComponentType.JOYSTICK);
-    res.regionFnc = UiRegionFncs.center(100, 25);
-    res.circle = true;
-    res.containerSize = Size2.create(1, 1);
-    res.region = Functions.apply(res.regionFnc, res.containerSize);
-    res.radius = Vec2.create(res.region.width()*0.25, res.region.height()*0.25);
+  static create(drivers) {
+    let res = new GamePad();
+    res.leftJoystick = Joystick.create().setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h30 = s.height()*0.3;
+    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h5, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(h2, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("W"), KeyCodeMatchers.upperCharacter("S"), KeyCodeMatchers.upperCharacter("A"), KeyCodeMatchers.upperCharacter("D"));
+    res.rightJoystick = Joystick.create().setRegionFnc((s) => {
+  if (s.width()>s.height()) {
+    let h5 = s.height()*0.05;
+    let h30 = s.height()*0.3;
+    let size = FMath.clamp(h30, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(s.width()-h5-size, s.height()-h5-size, size, size);
+  }
+  else {
+    let h2 = s.height()*0.02;
+    let h5 = s.height()*0.05;
+    let h20 = s.height()*0.2;
+    let size = FMath.clamp(h20, 1, s.width()*0.5-1.5*h5);
+    return Rect2.create(s.width()-h2-size, s.height()-h5-size, size, size);
+  }
+}).setKeyCodeMatchers(KeyCodeMatchers.upperCharacter("I"), KeyCodeMatchers.upperCharacter("K"), KeyCodeMatchers.upperCharacter("J"), KeyCodeMatchers.upperCharacter("L"));
     res.guardInvariants();
     return res;
   }
 
 }
-classRegistry.EarPosControl = EarPosControl;
-class AudioApp01 extends TyracornScreen {
-  static MUSIC_1_PLAYBACK_ID = AudioPlaybackId.of("music-1");
-  static MUSIC_2_PLAYBACK_ID = AudioPlaybackId.of("music-2");
+classRegistry.GamePad = GamePad;
+class BoxMeshFactory {
+  constructor() {
+  }
+
+  getClass() {
+    return "BoxMeshFactory";
+  }
+
+  static rgbBox() {
+    if (arguments.length===4&&arguments[0] instanceof Rgb&&arguments[1] instanceof Rgb&&arguments[2] instanceof Rgb&&arguments[3] instanceof Rgb) {
+      return BoxMeshFactory.rgbBox_4_Rgb_Rgb_Rgb_Rgb(arguments[0], arguments[1], arguments[2], arguments[3]);
+    }
+    else if (arguments.length===3&& typeof arguments[0]==="number"&& typeof arguments[1]==="number"&& typeof arguments[2]==="number") {
+      return BoxMeshFactory.rgbBox_3_number_number_number(arguments[0], arguments[1], arguments[2]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  static rgbBox_4_Rgb_Rgb_Rgb_Rgb(c1, c2, c3, c4) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b()), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b()), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b()), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b()), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b()))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static rgbBox_3_number_number_number(r, g, b) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGB), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, 0.5, r, g, b), Vertex.floatValues(-0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(-0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, -0.5, 0.5, r, g, b), Vertex.floatValues(0.5, -0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, -0.5, r, g, b), Vertex.floatValues(0.5, 0.5, 0.5, r, g, b))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static rgbaBox(c1, c2, c3, c4, a) {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.create(Dut.immutableList(VertexAttr.POS3, VertexAttr.RGBA), Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, -0.5, 0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, 0.5, 0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(-0.5, 0.5, -0.5, c2.r(), c2.g(), c2.b(), a), Vertex.floatValues(-0.5, -0.5, -0.5, c1.r(), c1.g(), c1.b(), a), Vertex.floatValues(0.5, -0.5, 0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, -0.5, -0.5, c4.r(), c4.g(), c4.b(), a), Vertex.floatValues(0.5, 0.5, -0.5, c3.r(), c3.g(), c3.b(), a), Vertex.floatValues(0.5, 0.5, 0.5, c4.r(), c4.g(), c4.b(), a))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static fabricBox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.fabric(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static modelBox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static modelSkybox() {
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, 1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, 1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, 1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, 1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, -1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, -1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, -1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, -1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, -1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 2, 1), Face.triangle(0, 3, 2), Face.triangle(4, 6, 5), Face.triangle(4, 7, 6), Face.triangle(8, 10, 9), Face.triangle(8, 11, 10), Face.triangle(12, 14, 13), Face.triangle(12, 15, 14), Face.triangle(16, 18, 17), Face.triangle(16, 19, 18), Face.triangle(20, 22, 21), Face.triangle(20, 23, 22))).toMesh();
+    return res;
+  }
+
+  static modelBoxDeformed1() {
+    let en = Vec2.create(1, -1).normalize();
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(1.0, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-0.5, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(1.0, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-0.5, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, -1, 0, 0, 0, 1), Vertex.floatValues(-0.5, 0.5, 0.5, -1, 0, 0, 1, 1), Vertex.floatValues(-0.5, 0.5, -0.5, -1, 0, 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, -1, 0, 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+  static modelBoxDeformed2() {
+    let en = Vec2.create(-1, -1).normalize();
+    let res = UnpackedMesh.singleFrame(UnpackedMeshFrame.model(Dut.list(Vertex.floatValues(-0.5, -0.5, 0.5, 0, -1, 0, 0, 1), Vertex.floatValues(-0.5, -0.5, -0.5, 0, -1, 0, 0, 0), Vertex.floatValues(0.5, -0.5, -0.5, 0, -1, 0, 1, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, -1, 0, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 1, 0, 0, 1), Vertex.floatValues(0.5, 0.5, 0.5, 0, 1, 0, 1, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 1, 0, 1, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 1, 0, 0, 0), Vertex.floatValues(-0.5, -0.5, -0.5, 0, 0, -1, 0, 0), Vertex.floatValues(-1.0, 0.5, -0.5, 0, 0, -1, 0, 1), Vertex.floatValues(0.5, 0.5, -0.5, 0, 0, -1, 1, 1), Vertex.floatValues(0.5, -0.5, -0.5, 0, 0, -1, 1, 0), Vertex.floatValues(-0.5, -0.5, 0.5, 0, 0, 1, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 0, 0, 1, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 0, 0, 1, 1, 1), Vertex.floatValues(-1.0, 0.5, 0.5, 0, 0, 1, 0, 1), Vertex.floatValues(-0.5, -0.5, 0.5, en.x(), en.y(), 0, 0, 1), Vertex.floatValues(-1.0, 0.5, 0.5, en.x(), en.y(), 0, 1, 1), Vertex.floatValues(-1.0, 0.5, -0.5, en.x(), en.y(), 0, 1, 0), Vertex.floatValues(-0.5, -0.5, -0.5, en.x(), en.y(), 0, 0, 0), Vertex.floatValues(0.5, -0.5, 0.5, 1, 0, 0, 0, 1), Vertex.floatValues(0.5, -0.5, -0.5, 1, 0, 0, 0, 0), Vertex.floatValues(0.5, 0.5, -0.5, 1, 0, 0, 1, 0), Vertex.floatValues(0.5, 0.5, 0.5, 1, 0, 0, 1, 1))), Dut.list(Face.triangle(0, 1, 2), Face.triangle(0, 2, 3), Face.triangle(4, 5, 6), Face.triangle(4, 6, 7), Face.triangle(8, 9, 10), Face.triangle(8, 10, 11), Face.triangle(12, 13, 14), Face.triangle(12, 14, 15), Face.triangle(16, 17, 18), Face.triangle(16, 18, 19), Face.triangle(20, 21, 22), Face.triangle(20, 22, 23))).toMesh();
+    return res;
+  }
+
+}
+classRegistry.BoxMeshFactory = BoxMeshFactory;
+class FreeCameraBehavior extends Behavior {
+  moveDirInput = "moveDir";
+  rotDirInput = "rotDir";
+  moveSpeed = 3;
+  rotSpeed = 1;
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "FreeCameraBehavior";
+  }
+
+  guardInvariants() {
+  }
+
+  move(dt, inputs) {
+    let moveDir = inputs.getVec2(this.moveDirInput, Vec2.ZERO);
+    let rotDir = inputs.getVec2(this.rotDirInput, Vec2.ZERO);
+    let tc = this.actor().getComponent("TransformComponent");
+    let rot = tc.getRot();
+    if (!moveDir.equals(Vec2.ZERO)) {
+      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize().scale(moveDir.y()*this.moveSpeed*dt);
+      let right = rot.rotate(Vec3.create(1, 0, 0)).normalize().scale(moveDir.x()*this.moveSpeed*dt);
+      tc.move(fwd.add(right));
+    }
+    if (!rotDir.equals(Vec2.ZERO)) {
+      let fwd = rot.rotate(Vec3.create(0, 0, -1)).normalize();
+      let fwdxz = Vec2.create(fwd.x(), fwd.z()).normalize();
+      let rotX = FMath.asin(fwd.y())+rotDir.y()*this.rotSpeed*dt;
+      let rotY = (fwdxz.x()>=0?-FMath.acos(-fwdxz.y()):FMath.acos(-fwdxz.y()))-rotDir.x()*this.rotSpeed*dt;
+      let rx = Quaternion.rot(1, 0, 0, rotX);
+      let ry = Quaternion.rot(0, 1, 0, rotY);
+      tc.setRot(ry.mul(rx));
+    }
+  }
+
+  static create() {
+    if (arguments.length===1&&arguments[0] instanceof ComponentKey) {
+      return FreeCameraBehavior.create_1_ComponentKey(arguments[0]);
+    }
+    else if (arguments.length===5&&arguments[0] instanceof ComponentKey&& typeof arguments[1]==="string"&& typeof arguments[2]==="string"&& typeof arguments[3]==="number"&& typeof arguments[4]==="number") {
+      return FreeCameraBehavior.create_5_ComponentKey_string_string_number_number(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
+    }
+    else {
+      throw new Error("ambiguous overload");
+    }
+  }
+
+  static create_1_ComponentKey(key) {
+    let res = new FreeCameraBehavior(key);
+    res.guardInvariants();
+    return res;
+  }
+
+  static create_5_ComponentKey_string_string_number_number(key, moveDirInput, rotDirInput, moveSpeed, rotSpeed) {
+    let res = new FreeCameraBehavior(key);
+    res.moveDirInput = moveDirInput;
+    res.rotDirInput = rotDirInput;
+    res.moveSpeed = moveSpeed;
+    res.rotSpeed = rotSpeed;
+    res.guardInvariants();
+    return res;
+  }
+
+}
+classRegistry.FreeCameraBehavior = FreeCameraBehavior;
+class RotationBehavior extends Behavior {
+  constructor(key) {
+    super(key);
+  }
+
+  getClass() {
+    return "RotationBehavior";
+  }
+
+  move(dt, inputs) {
+    let tx = this.actor().getComponent("TransformComponent");
+    let x = inputs.getFloat("x", 0);
+    let y = inputs.getFloat("y", 0);
+    let z = inputs.getFloat("z", 0);
+    tx.rotate(dt, Vec3.create(x, y, z));
+  }
+
+  static create(key) {
+    return new RotationBehavior(key);
+  }
+
+}
+classRegistry.RotationBehavior = RotationBehavior;
+class RigidBodyApp01 extends TyracornScreen {
+  time = 0;
+  world;
+  inputs = InputCache.create();
   ui;
+  gamePad;
+  paused = false;
   constructor() {
     super();
   }
 
   getClass() {
-    return "AudioApp01";
+    return "RigidBodyApp01";
   }
 
   move(drivers, screenManager, dt) {
+    this.time = this.time+dt;
     let gDriver = drivers.getDriver("GraphicsDriver");
+    if (this.paused&&this.ui.getNumLayers()==1) {
+      this.ui.pushLayer();
+      this.ui.addComponent(Panel.create().addTrait(UiComponentTrait.TRANSPARENT).setRegionFnc(UiRegionFncs.full()));
+      let menuPanel = Panel.create().setRegionFnc(UiRegionFncs.center(250, 250));
+      this.ui.addComponent(menuPanel);
+      menuPanel.addComponent(Label.create().addTrait(UiComponentTrait.H1).setAlignment(TextAlignment.CENTER_TOP).setPosFnc(UiPosFncs.centerTop(40)).setText("Pause"));
+      menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(100, 150, 30)).setText("Resume").addOnClickAction((evtSource) => {
+  this.paused = false;
+  this.ui.popLayer();
+}));
+      if (drivers.getPlatform().isExitable()) {
+        menuPanel.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.centerTop(150, 150, 30)).setText("Exit").addOnClickAction(UiEventActions.exitApp(screenManager)));
+      }
+    }
     gDriver.clearBuffers(BufferId.COLOR, BufferId.DEPTH);
+    if (!this.paused) {
+      this.inputs.put("moveDir", this.gamePad.getLeftDir());
+      this.inputs.put("rotDir", this.gamePad.getRightDir());
+      this.world.move(dt, this.inputs);
+      this.world.render(RenderRequest.NORMAL);
+    }
     gDriver.clearBuffers(BufferId.DEPTH);
     let uiRenderer = gDriver.startRenderer("UiRenderer", UiEnvironment.DEFAULT);
     this.ui.move(dt);
@@ -37492,117 +37670,97 @@ class AudioApp01 extends TyracornScreen {
     let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
     res.add(assets.resolveAsync(Path.of("asset:packages/ui")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/sounds.tap")));
-    res.add(assets.resolveAsync(Path.of("asset:packages/music.tap")));
+    res.add(assets.resolveAsync(Path.of("asset:packages/box-01.tap")));
     return res;
   }
 
   init(drivers, screenManager, properties) {
     let assets = drivers.getDriver("AssetManager");
-    SlotUis.prepareScaledFonts(drivers);
-    let audio = drivers.getDriver("AudioDriver");
-    let mixer = audio.getMixer().setPosScale(5);
-    this.ui = StretchUi.create(UiSizeFncs.landscapePortrait(UiSizeFncs.constantHeight(500), UiSizeFncs.constantWidth(420)));
-    this.ui = StretchUi.create(SlotUis.createUiSizeFnc()).setStyler(SlotUis.createDefaultStyler());
-    let panel916 = SlotUis.createPanel916();
-    this.ui.addComponent(panel916);
-    panel916.addComponent(SlotUis.createTitleLabel("Audio"));
-    panel916.addComponent(SlotUis.createFormLabel("Music Volume").setPosFnc(UiPosFncs.leftTop(350, 250)));
-    panel916.addComponent(Slider.create().setRegionFnc(UiRegionFncs.leftTop(400, 210, 450, 80)).setMin(0).setMax(1).setStep(0.01).setValue(1).addOnChangeAction((cmp) => {
-  let slider = cmp;
-  mixer.setBusGain(AudioBusId.MUSIC, slider.getValue());
+    Fonts.prepareScaledFonts(assets, Dut.set(10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30));
+    let boxDiffuse = TextureId.of("tex_box_01_d");
+    let boxSpecular = TextureId.of("tex_box_01_s");
+    assets.put(MaterialId.of("brass"), Material.BRASS);
+    assets.put(MaterialId.of("box"), Material.SILVER.plusTexture(TextureAttachment.diffuse(boxDiffuse)).plusTexture(TextureAttachment.specular(boxSpecular)));
+    assets.put(MeshId.of("modelBox"), BoxMeshFactory.modelBox());
+    let groundModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("brass"));
+    let groundModelId = ModelId.of("ground");
+    assets.put(groundModelId, groundModel);
+    let boxModel = Model.simple(MeshId.of("modelBox"), MaterialId.of("box"));
+    let boxModelId = ModelId.of("box");
+    assets.put(boxModelId, boxModel);
+    this.world = RigidBodyWorld.create(drivers);
+    let box1 = Actor.create("box-1").setName("box-1").addComponent(TransformComponent.create(ComponentKey.TRANSFORM)).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(boxModelId)).addComponent(RotationBehavior.create(ComponentKey.of("ROTATION")));
+    this.world.actors().add(ActorId.ROOT, box1);
+    let box11 = Actor.create("box-1-1").setName("box-1-1").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0.5, 0.5, 0.5))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
+    this.world.actors().add(box1.getId(), box11);
+    let box111 = Actor.create("box-1-1-1").setName("box-1-1-1").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0.25, 0.25, 0.25))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.scale(0.25, 0.25, 0.25)));
+    this.world.actors().add(box11.getId(), box111);
+    let box12 = Actor.create("box-1-2").setName("box-1-2").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-0.5, 0.5, 0.5))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
+    this.world.actors().add(box1.getId(), box12);
+    let box13 = Actor.create("box-1-3").setName("box-1-3").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(0.5, 0.5, -0.5))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
+    this.world.actors().add(box1.getId(), box13);
+    let box14 = Actor.create("box-1-4").setName("box-1-4").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).move(Vec3.create(-0.5, 0.5, -0.5))).addComponent(ModelComponent.create(ComponentKey.MODEL_1).setModelId(groundModelId).setTransform(Mat44.scale(0.5, 0.5, 0.5)));
+    this.world.actors().add(box1.getId(), box14);
+    let light = Actor.create("light").setName("light").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(-7, 1, -4), Vec3.create(0.7, 0, 0.4), Vec3.create(1, 0, 0))).addComponent(LightComponent.create(ComponentKey.LIGHT_1).setType(LightType.DIRECTIONAL).setShadow(true).setAmbient(Rgb.gray(0.5)).setDiffuse(Rgb.gray(0.5)).setSpecular(Rgb.WHITE));
+    this.world.actors().add(ActorId.ROOT, light);
+    let camera = Actor.create("camera").setName("camera").addComponent(TransformComponent.create(ComponentKey.TRANSFORM).lookAt(Vec3.create(1, 2, 7), Vec3.create(0.0, 0.0, 0.0), Vec3.create(0, 1, 0))).addComponent(CameraComponent.create(ComponentKey.CAMERA).setPersp(FMath.toRadians(60), 1, 0.5, 100.0)).addComponent(FreeCameraBehavior.create(ComponentKey.of("FREE_CAMERA"), "moveDir", "rotDir", 3, 1)).addComponent(CameraFovyComponent.create(ComponentKey.CAMERA_FOVY));
+    this.world.actors().add(ActorId.ROOT, camera);
+    this.ui = StretchUi.create(PlayUis.createUiSizeFnc()).setStyler(PlayUis.createDefaultStyler());
+    this.gamePad = GamePad.create(drivers);
+    this.ui.addComponent(this.gamePad);
+    let xLabel = Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(80, 30)).setText("X-axis").setAlignment(TextAlignment.RIGHT_CENTER);
+    this.ui.addComponent(xLabel);
+    let xVal = Label.create().addTrait(UiComponentTrait.L).setPosFnc(UiPosFncs.leftTop(140, 30)).setText("0.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(xVal);
+    let xMinusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(90, 15, 30, 30)).setText("-").addOnClickAction(this.inputChangeAction(this.inputs, "x", -0.1, xVal));
+    this.ui.addComponent(xMinusBtn);
+    let xPlusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(160, 15, 30, 30)).setText("+").addOnClickAction(this.inputChangeAction(this.inputs, "x", 0.1, xVal));
+    this.ui.addComponent(xPlusBtn);
+    let yLabel = Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(80, 70)).setText("Y-axis").setAlignment(TextAlignment.RIGHT_CENTER);
+    this.ui.addComponent(yLabel);
+    let yVal = Label.create().setPosFnc(UiPosFncs.leftTop(140, 70)).setText("0.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(yVal);
+    let yMinusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(90, 55, 30, 30)).setText("-").addOnClickAction(this.inputChangeAction(this.inputs, "y", -0.1, yVal));
+    this.ui.addComponent(yMinusBtn);
+    let yPlusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(160, 55, 30, 30)).setText("+").addOnClickAction(this.inputChangeAction(this.inputs, "y", 0.1, yVal));
+    this.ui.addComponent(yPlusBtn);
+    let zLabel = Label.create().addTrait(UiComponentTrait.H1).setPosFnc(UiPosFncs.leftTop(80, 110)).setText("Z-axis").setAlignment(TextAlignment.RIGHT_CENTER);
+    this.ui.addComponent(zLabel);
+    let zVal = Label.create().setPosFnc(UiPosFncs.leftTop(140, 110)).setText("0.0").setAlignment(TextAlignment.CENTER);
+    this.ui.addComponent(zVal);
+    let zMinusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(90, 95, 30, 30)).setText("-").addOnClickAction(this.inputChangeAction(this.inputs, "z", -0.1, zVal));
+    this.ui.addComponent(zMinusBtn);
+    let zPlusBtn = Button.create().addTrait(UiComponentTrait.XS).setRegionFnc(UiRegionFncs.leftTop(160, 95, 30, 30)).setText("+").addOnClickAction(this.inputChangeAction(this.inputs, "z", 0.1, zVal));
+    this.ui.addComponent(zPlusBtn);
+    this.ui.addComponent(PlayUis.createPauseButton((evt) => {
+  this.paused = true;
 }));
-    panel916.addComponent(SlotUis.createFormLabel("Sound Volume").setPosFnc(UiPosFncs.leftTop(350, 350)));
-    panel916.addComponent(Slider.create().setRegionFnc(UiRegionFncs.leftTop(400, 310, 450, 80)).setMin(0).setMax(1).setStep(0.01).setValue(1).addOnChangeAction((cmp) => {
-  let slider = cmp;
-  mixer.setBusGain(AudioBusId.SFX, slider.getValue());
-}));
-    panel916.addComponent(EarPosControl.create().setCircle(false).addTrait(UiComponentTrait.SQUARE).setRegionFnc(UiRegionFncs.leftTop(350, 450, 200, 200)).addOnDirChangeAction((cmp) => {
-  let posCmp = cmp;
-  let p = posCmp.getDir();
-  mixer.setListenerTransform(Vec3.create(p.x(), 0, -p.y()), Vec3.BACKWARD, Vec3.UP);
-}));
-    let musis1VolSlider = Slider.create().setRegionFnc(UiRegionFncs.leftTop(400, 760, 450, 80)).setMin(0).setMax(1).setStep(0.01).setValue(1).addOnChangeAction((cmp) => {
-  let playback = mixer.getPlaybackNonStrict(AudioApp01.MUSIC_1_PLAYBACK_ID);
-  if (playback!=null) {
-    let slider = cmp;
-    playback.setGain(slider.getValue());
-  }
-});
-    panel916.addComponent(musis1VolSlider);
-    let music1Btn = ToggleButton.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.leftTop(50, 760, 300, 80)).setText("Music 1");
-    music1Btn.addOnToggleAction(this.getToggleMusic1Action(mixer, music1Btn, musis1VolSlider));
-    panel916.addComponent(music1Btn);
-    let musis2VolSlider = Slider.create().setRegionFnc(UiRegionFncs.leftTop(400, 860, 450, 80)).setMin(0).setMax(1).setStep(0.01).setValue(1).addOnChangeAction((cmp) => {
-  let playback = mixer.getPlaybackNonStrict(AudioApp01.MUSIC_2_PLAYBACK_ID);
-  if (playback!=null) {
-    let slider = cmp;
-    playback.setGain(slider.getValue());
-  }
-});
-    panel916.addComponent(musis2VolSlider);
-    let music2Btn = ToggleButton.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.leftTop(50, 860, 300, 80)).setText("Music 2");
-    music2Btn.addOnToggleAction(this.getToggleMusic2Action(mixer, music2Btn, musis2VolSlider));
-    panel916.addComponent(music2Btn);
-    let sound1VolSlider = Slider.create().setRegionFnc(UiRegionFncs.leftTop(400, 1010, 450, 80)).setMin(0).setMax(1).setStep(0.01).setValue(1);
-    panel916.addComponent(sound1VolSlider);
-    panel916.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.leftTop(50, 1010, 300, 80)).setText("Spell").addOnClickAction(this.getPlaySoundAction(mixer, AudioTrackId.of("spell1"), sound1VolSlider)));
-    let sound2VolSlider = Slider.create().setRegionFnc(UiRegionFncs.leftTop(400, 1110, 450, 80)).setMin(0).setMax(1).setStep(0.01).setValue(1);
-    panel916.addComponent(sound2VolSlider);
-    panel916.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.leftTop(50, 1110, 300, 80)).setText("Magic").addOnClickAction(this.getPlaySoundAction(mixer, AudioTrackId.of("magic1"), sound2VolSlider)));
-    let sound3VolSlider = Slider.create().setRegionFnc(UiRegionFncs.leftTop(400, 1210, 450, 80)).setMin(0).setMax(1).setStep(0.01).setValue(1);
-    panel916.addComponent(sound3VolSlider);
-    panel916.addComponent(Button.create().addTrait(UiComponentTrait.L).setRegionFnc(UiRegionFncs.leftTop(50, 1210, 300, 80)).setText("Swing").addOnClickAction(this.getPlaySoundAction(mixer, AudioTrackId.of("swing1"), sound3VolSlider)));
-    if (drivers.getPlatform().isExitable()) {
-      panel916.addComponent(Button.create().addTrait(UiComponentTrait.XL).setRegionFnc(UiRegionFncs.leftTop(200, 1360, 500, 80)).setText("Exit").addOnClickAction(UiEventActions.exitApp(screenManager)));
-    }
     this.ui.subscribe(drivers);
+    let dlist = InputCacheDisplayListener.create(this.inputs);
+    screenManager.addLeaveAction(UiActions.removeDisplayListener(drivers, dlist));
+    drivers.getDriver("DisplayDriver").addDisplayistener(dlist);
+  }
+
+  pause(drivers) {
+    this.paused = true;
   }
 
   leave(drivers) {
-    drivers.getDriver("AudioDriver").getMixer().stopAll();
     this.ui.unsubscribe(drivers);
+    this.world.destroy(drivers);
   }
 
-  getPlaySoundAction(mixer, trackId, gainSlider) {
-    let res = (evtSource) => {
-      mixer.preparePlayback(AudioPlaybackId.of(Randoms.nextAlphabetic(10)), trackId).setBusId(AudioBusId.SFX).setAbsolute(true).setGain(gainSlider.getValue()).play();
+  inputChangeAction(inputs, key, d, label) {
+    return (evtSource) => {
+      let x = inputs.getFloat(key, 0);
+      x = x+d;
+      inputs.put(key, x);
+      label.setText(Formats.floatToFixedDecimals(x, 1));
     };
-    return res;
-  }
-
-  getToggleMusic1Action(mixer, button, gainSlider) {
-    let res = (evtSource) => {
-      if (button.isToggledOn()) {
-        mixer.preparePlayback(AudioApp01.MUSIC_1_PLAYBACK_ID, AudioTrackId.of("alexander-ehlers-flags")).setBusId(AudioBusId.MUSIC).setLoop(true).setAbsolute(false).setGain(gainSlider.getValue()).play();
-      }
-      else {
-        let control = mixer.getPlaybackNonStrict(AudioApp01.MUSIC_1_PLAYBACK_ID);
-        if (control!=null) {
-          control.stop();
-        }
-      }
-    };
-    return res;
-  }
-
-  getToggleMusic2Action(mixer, button, gainSlider) {
-    let res = (evtSource) => {
-      if (button.isToggledOn()) {
-        mixer.preparePlayback(AudioApp01.MUSIC_2_PLAYBACK_ID, AudioTrackId.of("alexander-ehlers-waking-the-devil")).setBusId(AudioBusId.MUSIC).setLoop(true).setAbsolute(false).setGain(gainSlider.getValue()).play();
-      }
-      else {
-        let control = mixer.getPlaybackNonStrict(AudioApp01.MUSIC_2_PLAYBACK_ID);
-        if (control!=null) {
-          control.stop();
-        }
-      }
-    };
-    return res;
   }
 
 }
-classRegistry.AudioApp01 = AudioApp01;
+classRegistry.RigidBodyApp01 = RigidBodyApp01;
 
 
 // -------------------------------------
@@ -37987,7 +38145,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new AudioApp01());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/images.tap", "loading"), new RigidBodyApp01());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
