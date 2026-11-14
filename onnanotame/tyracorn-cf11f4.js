@@ -37923,11 +37923,11 @@ class FighterCharacters {
   }
 
   static createOrsk() {
-    return FighterCharacter.create(FighterCharacterType.HOODED_EXECUTIONER).withName("Orsk").withPrefabId(ActorPrefabId.of("f018-hooded-executioner")).withAnimationCollectionId(MeshAnimationCollectionId.of("human-base")).withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.2).plusChoice(FighterAttackType.KICK, 0.8));
+    return FighterCharacter.create(FighterCharacterType.HOODED_EXECUTIONER).withName("Orsk").withPrefabId(ActorPrefabId.of("fighter-018-hooded-executioner")).withAnimationCollectionId(MeshAnimationCollectionId.of("human-base")).withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.2).plusChoice(FighterAttackType.KICK, 0.8));
   }
 
   static createManaia() {
-    return FighterCharacter.create(FighterCharacterType.MAORI_WARRIOR).withName("Manaia").withPrefabId(ActorPrefabId.of("f024-maori-warrior")).withAnimationCollectionId(MeshAnimationCollectionId.of("human-base")).withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.2).plusChoice(FighterAttackType.KICK, 0.8));
+    return FighterCharacter.create(FighterCharacterType.MAORI_WARRIOR).withName("Manaia").withPrefabId(ActorPrefabId.of("fighter-024-maori-warrior")).withAnimationCollectionId(MeshAnimationCollectionId.of("human-base")).withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.2).plusChoice(FighterAttackType.KICK, 0.8));
   }
 
   static createMorshark() {
