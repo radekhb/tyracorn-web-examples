@@ -24633,6 +24633,18 @@ class Assets {
               throw new Error("cloning model without clonning materials is not supported yet, implement me");
             }
           }
+          else if (type.equals("MODEL_PRINT_AABB")) {
+            let modelId = ModelId.of(taskJson.getString("modelId"));
+            let aabb = AssetsModels.calculateModelAabb(modelId, res);
+            console.log("AABB of "+modelId.id()+": "+aabb);
+          }
+          else if (type.equals("MODEL_SET_AABB")) {
+            let modelId = ModelId.of(taskJson.getString("modelId"));
+            let aabbMinJson = taskJson.getJsonObject("aabb").getJsonArray("min");
+            let aabbMaxJson = taskJson.getJsonObject("aabb").getJsonArray("max");
+            let aabb = Aabb3.create(aabbMinJson.getFloat(0), aabbMinJson.getFloat(1), aabbMinJson.getFloat(2), aabbMaxJson.getFloat(0), aabbMaxJson.getFloat(1), aabbMaxJson.getFloat(2));
+            res = AssetsModels.putModelAabb(modelId, res, aabb);
+          }
           else {
             throw new Error("unsupported task type, fix the file or implement: "+type);
           }
