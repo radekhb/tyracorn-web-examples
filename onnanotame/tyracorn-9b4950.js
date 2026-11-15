@@ -8,7 +8,7 @@ let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
 const basePath = "/tyracorn-web-examples/onnanotame";
-const assetsDirName = "/assets-575d20";
+const assetsDirName = "/assets-75aa5d";
 const localStoragePrefix = "onnanotame.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -38698,7 +38698,7 @@ class CombatScreen extends TyracornScreen {
   load(drivers, screenManager, properties) {
     let res = new ArrayList();
     let assets = drivers.getDriver("AssetManager");
-    res.addAll(Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/music.tap")), assets.resolveAsync(Path.of("asset:packages/elements.tap")), assets.resolveAsync(Path.of("asset:packages/characters/human-base.tap")), assets.resolveAsync(Path.of("asset:packages/characters/fighters.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/skybox.tap")), assets.resolveAsync(Path.of("asset:default.tap")), assets.resolveAsync(Path.of("asset:prefabs.tap")), assets.resolveAsync(Path.of("asset:scenes.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/medieval-village.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/nature.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/sci-fi.tap"))));
+    res.addAll(Dut.list(assets.resolveAsync(Path.of("asset:packages/ui")), assets.resolveAsync(Path.of("asset:packages/music.tap")), assets.resolveAsync(Path.of("asset:packages/elements.tap")), assets.resolveAsync(Path.of("asset:packages/characters/human-base.tap")), assets.resolveAsync(Path.of("asset:packages/characters/fighters.tap")), assets.resolveAsync(Path.of("asset:packages/characters/girls.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/skybox.tap")), assets.resolveAsync(Path.of("asset:default.tap")), assets.resolveAsync(Path.of("asset:prefabs.tap")), assets.resolveAsync(Path.of("asset:scenes.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/medieval-village.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/nature.tap")), assets.resolveAsync(Path.of("asset:packages/worlds/sci-fi.tap"))));
     return res;
   }
 
@@ -38878,6 +38878,7 @@ class CombatArenas {
 classRegistry.CombatArenas = CombatArenas;
 class MedievalArenaGenerator01 {
   villageLayouts = Dut.list("one-nature", "one-audience", "two-nature", "two-audience", "two-empty");
+  girlsPrefabIds = Dut.list(ActorPrefabId.of("girl-002-cavegirl"), ActorPrefabId.of("girl-003-maori"), ActorPrefabId.of("girl-004-ninja"), ActorPrefabId.of("girl-005-viking"), ActorPrefabId.of("girl-009-jungle-elf"));
   constructor() {
   }
 
@@ -38935,8 +38936,8 @@ class MedievalArenaGenerator01 {
     scene = this.generateBuildings(scene, buildingRng, villageLayout);
     let natureRng = segmentRngs.get("nature");
     scene = this.generateNature(scene, natureRng, Rect2.create(-40, -40, 80, 20));
-    let audienceRng = segmentRngs.get("audience");
-    scene = this.generateAudience(scene, audienceRng, Rect2.create(-15, -5, 30, 2));
+    let girlRng = segmentRngs.get("girl");
+    scene = this.generateGirls(scene, girlRng, Rect2.create(-15, -5, 30, 2));
     return scene;
   }
 
@@ -39011,25 +39012,22 @@ class MedievalArenaGenerator01 {
     return scene;
   }
 
-  generateAudience(scene, audienceRng, rect) {
+  generateGirls(scene, girlRng, rect) {
     for (let x = rect.x(); x<rect.x()+rect.width(); x=x+2) {
       for (let z = rect.y(); z<rect.y()+rect.height(); z=z+1) {
-        let typeP = audienceRng.nextFloat(0, 1);
+        let typeP = girlRng.nextFloat(0, 1);
         let pid = null;
         if (typeP<0.1) {
-          pid = ActorPrefabId.of("audience-base");
+          pid = girlRng.pickOne(this.girlsPrefabIds);
+          scene = scene.plusObject(SceneObject.create("", pid).withPos(Vec3.create(x, 0, z)));
         }
-        else {
-          continue;
-        }
-        scene = scene.plusObject(SceneObject.create("", pid).withPos(Vec3.create(x, 0, z)));
       }
     }
     return scene;
   }
 
   generateSegmentSeeds(rng) {
-    return Dut.map("camera", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "world", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "skybox", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "dirlight", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "ground", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "layout", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "building", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "nature", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "audience", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)));
+    return Dut.map("camera", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "world", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "skybox", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "dirlight", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "ground", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "layout", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "building", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "nature", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)), "girl", XorShift32RandomGenerator.create(rng.nextInt(1, 10001)));
   }
 
   hashCode() {
