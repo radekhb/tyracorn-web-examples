@@ -8,7 +8,7 @@ let drivers;
 let appLoadingFutures;  // List<Future<?>>
 let time = 0.0;
 const basePath = "/tyracorn-web-examples/onnanotame";
-const assetsDirName = "/assets-2f5ead";
+const assetsDirName = "/assets-d7cb69";
 const localStoragePrefix = "onnanotame.";
 let mouseDown = false;
 let mouseLastDragX = 0;
@@ -45937,7 +45937,7 @@ async function main() {
     drivers = new DriverProvider();
     resizeCanvas();
     drivers.getDriver("GraphicsDriver").init();
-    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/loading.tap", "loading-screen-1").setRegionFnc((size) => {  if (size.width() / size.height() > 1.33) {    return Rect2.create(0, 0, size.width(), size.height());  }  else {    return Rect2.create(size.width() / 2 - size.height() * 0.665, 0, size.height() * 1.33, size.height());  }}), new MenuScreen());
+    tyracornApp = TyracornScreenApp.create(BasicLoadingScreen.simpleTap("asset:packages/loading.tap", "loading-screen").setRegionFnc((size) => {  if (size.width() / size.height() > 1.33) {    return Rect2.create(0, 0, size.width(), size.height());  }  else {    return Rect2.create(size.width() / 2 - size.height() * 0.665, 0, size.height() * 1.33, size.height());  }}), new MenuScreen());
 
     canvas.addEventListener('mousedown', handleMouseDown);
     canvas.addEventListener('mousemove', handleMouseMove);
