@@ -37947,7 +37947,7 @@ class FighterCharacters {
   }
 
   static createDrakko() {
-    return FighterCharacter.create(FighterCharacterType.WIZARD).withName("Drakko").withPrefabId(ActorPrefabId.of("f029-wizard")).withAnimationCollectionId(MeshAnimationCollectionId.of("human-base")).withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.1).plusChoice(FighterAttackType.KICK, 0.1).plusChoice(FighterAttackType.SPELL, 0.8));
+    return FighterCharacter.create(FighterCharacterType.WIZARD).withName("Drakko").withPrefabId(ActorPrefabId.of("fighter-029-wizard")).withAnimationCollectionId(MeshAnimationCollectionId.of("human-base")).withAttackTypes(WeightedRandomPicker.create().plusChoice(FighterAttackType.PUNCH, 0.1).plusChoice(FighterAttackType.KICK, 0.1).plusChoice(FighterAttackType.SPELL, 0.8));
   }
 
   static pickRandomType() {
